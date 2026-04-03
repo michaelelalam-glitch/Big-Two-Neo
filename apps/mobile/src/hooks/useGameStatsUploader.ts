@@ -544,7 +544,9 @@ export function useGameStatsUploader({
         let response: Response | null = null;
         for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
           const controller = new AbortController();
+          currentController = controller;
           const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+          currentTimeoutId = timeoutId;
           try {
             response = await fetch(`${API.SUPABASE_URL}/functions/v1/complete-game`, {
               method: 'POST',
@@ -624,9 +626,13 @@ export function useGameStatsUploader({
     };
 
     let cancelled = false;
+    let currentController: AbortController | null = null;
+    let currentTimeoutId: ReturnType<typeof setTimeout> | null = null;
     uploadStats();
     return () => {
       cancelled = true;
+      currentController?.abort();
+      if (currentTimeoutId !== null) clearTimeout(currentTimeoutId);
     };
   }, [
     isMultiplayerGame,
