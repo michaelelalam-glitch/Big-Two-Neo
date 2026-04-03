@@ -64,6 +64,41 @@ Deno.serve(async (req) => {
       );
     }
 
+    // SECURITY: Validate room membership before calling the RPC.
+    // Without this check any authenticated user could trigger a service-role RPC
+    // call (and associated DB reads) for any room_id they supply, creating a DoS
+    // vector.  The mark_player_disconnected SQL function is restricted to
+    // service_role-only execution, but this edge-function gate prevents wasteful
+    // round-trips on behalf of non-members.
+    // We look for any row (regardless of connection_status) so a player that was
+    // already replaced by a bot can still trigger the idempotent no-op path rather
+    // than receiving a misleading 403.
+    const { data: membershipRow, error: membershipError } = await supabaseClient
+      .from('room_players')
+      .select('id')
+      .eq('room_id', room_id)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (membershipError) {
+      console.error('❌ [mark-disconnected] Membership check error:', membershipError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Membership check failed' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!membershipRow) {
+      // Not a member of this room — return early without calling the RPC.
+      // Use 200 (not 403/404) so callers that fire mark-disconnected at app
+      // teardown do not surface spurious errors in the client logs.
+      console.log(`[mark-disconnected] user ${user.id.substring(0, 8)} not found in room ${room_id?.substring(0, 8)} — skipping`);
+      return new Response(
+        JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Use the server-side function which guards offline rooms
     const { error: rpcError } = await supabaseClient.rpc('mark_player_disconnected', {
       p_room_id: room_id,
