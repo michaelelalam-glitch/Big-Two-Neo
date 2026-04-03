@@ -520,14 +520,14 @@ jobs:
       - name: 🔑 Create Firebase config for build
         run: cp apps/mobile/google-services.json.example apps/mobile/google-services.json
 
-      - name: 🏗️ Build Android debug APK
+      - name: 🏗️ Build Android release APK
         run: |
           set -euo pipefail
           cd apps/mobile
           npx expo prebuild --clean --platform android
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug \
+          ./gradlew assembleRelease \
             -x lint \
             --no-daemon \
             --parallel
