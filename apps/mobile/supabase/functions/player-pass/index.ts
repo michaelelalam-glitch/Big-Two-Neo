@@ -147,11 +147,15 @@ async function fireTrainingPassInsert(
 /**
  * Trigger bot-coordinator when the next player is a bot.
  *
- * Uses EdgeRuntime.waitUntil for background execution: player-pass returns its
- * Response immediately while the bot-coordinator fetch continues running in the
- * background. This is the correct Supabase Edge Function pattern for background
- * tasks — the runtime honours waitUntil promises after the handler returns,
- * ensuring bot-coordinator completes its full loop without a premature timeout.
+ * Execution model:
+ *   - The async DB lookup (is next player a bot?) is awaited at all call sites,
+ *     so player-pass waits ~50 ms for the DB round-trip before returning.
+ *   - The bot-coordinator HTTP fetch itself is background via EdgeRuntime.waitUntil:
+ *     player-pass returns its Response once the DB lookup resolves; the runtime
+ *     then keeps the background fetch alive until bot-coordinator finishes its full
+ *     loop (up to LOCK_TIMEOUT_MS ≈ 30 s). The function's return value is void.
+ *   - In environments without EdgeRuntime (local dev / unit tests) the fetch runs
+ *     as a detached promise which may be GC'd; this is acceptable in non-prod contexts.
  *
  * Skips the call if the current request itself came from bot-coordinator
  * (prevents infinite loops).
