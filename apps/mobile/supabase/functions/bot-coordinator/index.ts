@@ -132,12 +132,14 @@ async function callPlayCards(
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   let res: Response;
   try {
+    const botAuthKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
     res = await fetch(url, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${serviceKey}`,
         'Content-Type': 'application/json',
         'x-bot-coordinator': 'true', // Signal to skip recursive bot trigger
+        ...(botAuthKey ? { 'x-bot-auth': botAuthKey } : {}),
       },
       body: JSON.stringify({
         room_code: roomCode,
@@ -194,12 +196,14 @@ async function callPlayerPass(
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   let res: Response;
   try {
+    const botAuthKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
     res = await fetch(url, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${serviceKey}`,
         'Content-Type': 'application/json',
         'x-bot-coordinator': 'true',
+        ...(botAuthKey ? { 'x-bot-auth': botAuthKey } : {}),
       },
       body: JSON.stringify({
         room_code: roomCode,
