@@ -36,27 +36,23 @@ interface UseMatchTransitionOptions {
 
 /**
  * Grace period (ms) before triggering fallback start_new_match.
- * The bot-coordinator should call start_new_match within ~2s of match ending.
- * The client-side realtimeActions also fires within ~1.5s.
+ * The bot-coordinator calls start_new_match within ~700ms of match ending.
+ * The client-side realtimeActions fires at ~600ms.
  * If after this period the game is still 'finished', we trigger the fallback.
  */
-const MATCH_TRANSITION_GRACE_MS = 5000;
+const MATCH_TRANSITION_GRACE_MS = 1500;
 
 /**
  * Cooldown (ms) between fallback attempts to prevent spam.
  */
-const TRANSITION_COOLDOWN_MS = 8000;
+const TRANSITION_COOLDOWN_MS = 3000;
 
 /**
  * Maximum retries for the fallback start_new_match call.
  */
 const MAX_TRANSITION_RETRIES = 3;
 
-export function useMatchTransition({
-  gameState,
-  room,
-  enabled,
-}: UseMatchTransitionOptions): void {
+export function useMatchTransition({ gameState, room, enabled }: UseMatchTransitionOptions): void {
   const lastAttemptTimeRef = useRef<number>(0);
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTransitioningRef = useRef<boolean>(false);
@@ -68,7 +64,9 @@ export function useMatchTransition({
   // new object reference), which in turn causes the scheduling useEffect to re-run and
   // cancel the pending fallback timer — potentially preventing start_new_match from firing.
   const gameStateRef = useRef(gameState);
-  useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
 
   const triggerNewMatch = useCallback(async () => {
     const gs = gameStateRef.current;
@@ -88,14 +86,18 @@ export function useMatchTransition({
 
     // Don't fire twice for the same match
     if (transitionedMatchRef.current === currentMatchNumber) {
-      networkLogger.debug(`[MatchTransition] Already transitioned match ${currentMatchNumber}, skipping`);
+      networkLogger.debug(
+        `[MatchTransition] Already transitioned match ${currentMatchNumber}, skipping`
+      );
       return;
     }
 
     isTransitioningRef.current = true;
     lastAttemptTimeRef.current = now;
 
-    gameLogger.info(`[MatchTransition] 🔄 Fallback: starting new match (current match: ${currentMatchNumber})`);
+    gameLogger.info(
+      `[MatchTransition] 🔄 Fallback: starting new match (current match: ${currentMatchNumber})`
+    );
 
     for (let attempt = 0; attempt < MAX_TRANSITION_RETRIES; attempt++) {
       try {
@@ -113,7 +115,9 @@ export function useMatchTransition({
         }
 
         if (freshState?.game_phase !== 'finished') {
-          gameLogger.info(`[MatchTransition] ✅ Game phase is now '${freshState?.game_phase}', no transition needed`);
+          gameLogger.info(
+            `[MatchTransition] ✅ Game phase is now '${freshState?.game_phase}', no transition needed`
+          );
           // If match_number advanced, mark transition as done
           if (freshState?.match_number !== currentMatchNumber) {
             transitionedMatchRef.current = currentMatchNumber;
@@ -121,7 +125,9 @@ export function useMatchTransition({
           break;
         }
 
-        gameLogger.info(`[MatchTransition] 🎴 Calling start_new_match (attempt ${attempt + 1}/${MAX_TRANSITION_RETRIES})...`);
+        gameLogger.info(
+          `[MatchTransition] 🎴 Calling start_new_match (attempt ${attempt + 1}/${MAX_TRANSITION_RETRIES})...`
+        );
 
         const { data: newMatchData, error: newMatchError } = await invokeWithRetry<{
           success?: boolean;
@@ -139,14 +145,19 @@ export function useMatchTransition({
 
         // Treat already_advanced as a success — another client/coordinator beat us to it
         if (newMatchData?.already_advanced) {
-          gameLogger.info('[MatchTransition] ✅ Match already advanced by another client, stopping retries');
+          gameLogger.info(
+            '[MatchTransition] ✅ Match already advanced by another client, stopping retries'
+          );
           transitionedMatchRef.current = currentMatchNumber;
           break;
         }
 
         if (newMatchError || !newMatchData?.success) {
           const errMsg = newMatchData?.error || newMatchError?.message || 'Unknown error';
-          gameLogger.error(`[MatchTransition] ❌ start_new_match failed (attempt ${attempt + 1}):`, errMsg);
+          gameLogger.error(
+            `[MatchTransition] ❌ start_new_match failed (attempt ${attempt + 1}):`,
+            errMsg
+          );
 
           // If the error indicates the match already started, we're done
           if (
@@ -177,7 +188,7 @@ export function useMatchTransition({
     }
 
     isTransitioningRef.current = false;
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState intentionally excluded; stored in gameStateRef to prevent timer cancellation on unrelated Realtime updates
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- gameState intentionally excluded; stored in gameStateRef to prevent timer cancellation on unrelated Realtime updates
   }, [room]);
 
   useEffect(() => {
@@ -215,7 +226,7 @@ export function useMatchTransition({
 
     gameLogger.info(
       `[MatchTransition] ⏰ Match ${currentMatchNumber} ended (phase='finished'). ` +
-      `Scheduling fallback start_new_match in ${MATCH_TRANSITION_GRACE_MS}ms...`
+        `Scheduling fallback start_new_match in ${MATCH_TRANSITION_GRACE_MS}ms...`
     );
 
     transitionTimerRef.current = setTimeout(() => {

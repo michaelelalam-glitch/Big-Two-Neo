@@ -660,8 +660,8 @@ Deno.serve(async (req) => {
       // A bot won the match (but the overall game continues).
       // The client-side coordinator (useServerBotCoordinator) stops when it sees
       // game_phase='finished', so nobody calls start_new_match.  We must do it here.
-      console.log('[bot-coordinator] 🔄 Bot won match — calling start_new_match in 500ms...');
-      await delay(500); // Let the final play-cards update propagate via Realtime
+      console.log('[bot-coordinator] 🔄 Bot won match — calling start_new_match in 200ms...');
+      await delay(200); // Let the final play-cards update propagate via Realtime
 
       // CRITICAL: await the start_new_match call — fire-and-forget is unreliable in
       // Deno Edge Functions because the runtime may terminate dangling promises once
