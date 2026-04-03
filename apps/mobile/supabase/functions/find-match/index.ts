@@ -181,12 +181,15 @@ Deno.serve(async (req) => {
       // This eliminates the previous race condition where two concurrent callers could
       // match the same players and create two rooms for the same group.
       const candidateIds = (waitingPlayers as any[]).slice(0, 4).map((p: any) => p.user_id);
-      const { count: lockedCount, error: lockError } = await supabaseClient
+      // Use .select() (not head:true) so we get the actual row IDs back.
+      // This lets us revert EXACTLY the rows this invocation flipped, without
+      // touching rows already locked by a concurrent caller.
+      const { data: lockedRows, error: lockError } = await supabaseClient
         .from('waiting_room')
         .update({ status: 'processing' })
         .in('user_id', candidateIds)
         .eq('status', 'waiting') // Only lock rows still in 'waiting' state
-        .select('user_id', { count: 'exact', head: true });
+        .select('user_id');
 
       if (lockError) {
         console.error('❌ [find-match] Optimistic lock update failed:', lockError);
@@ -196,15 +199,20 @@ Deno.serve(async (req) => {
         );
       }
 
-      if ((lockedCount ?? 0) < 4) {
+      const lockedCount = lockedRows?.length ?? 0;
+      // The IDs we actually flipped in THIS invocation (not rows owned by concurrent callers)
+      const lockedIds = (lockedRows ?? []).map((r: any) => r.user_id);
+
+      if (lockedCount < 4) {
         // Another concurrent caller already claimed some of these players; back off.
         console.log(`⏳ [find-match] Lost optimistic lock (locked ${lockedCount}/4), backing off`);
-        // Reset our own row back to 'waiting' so we can still be matched next poll.
-        await supabaseClient
-          .from('waiting_room')
-          .update({ status: 'waiting' })
-          .eq('user_id', userId)
-          .eq('status', 'processing');
+        // Reset only the rows THIS invocation locked — don't touch rows locked by others.
+        if (lockedIds.length > 0) {
+          await supabaseClient
+            .from('waiting_room')
+            .update({ status: 'waiting' })
+            .in('user_id', lockedIds);
+        }
         return new Response(
           JSON.stringify({ success: false, matched: false, waiting_count: waitingCount }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -216,6 +224,8 @@ Deno.serve(async (req) => {
       
       if (codeError || !roomCodeData) {
         console.error('❌ [find-match] Failed to generate room code:', codeError);
+        // Release optimistic lock so these players can be re-matched
+        await supabaseClient.from('waiting_room').update({ status: 'waiting' }).in('user_id', lockedIds);
         return new Response(
           JSON.stringify({ success: false, error: 'Failed to generate room code' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
