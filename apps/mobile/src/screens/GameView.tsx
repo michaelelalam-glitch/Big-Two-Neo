@@ -382,6 +382,9 @@ function GameViewComponent() {
                   ? gameLogger.warn.bind(gameLogger)
                   : gameLogger.error.bind(gameLogger);
                 logFn('❌ [Landscape] Play button failed to play cards', errMsg);
+                if (typeof __DEV__ !== 'undefined' && __DEV__) {
+                  gameLogger.debug('❌ [Landscape] Play button error details:', { error });
+                }
               }
             }}
             onPass={async () => {
@@ -395,6 +398,9 @@ function GameViewComponent() {
                   ? gameLogger.warn.bind(gameLogger)
                   : gameLogger.error.bind(gameLogger);
                 logFn('❌ [Landscape] Pass action failed', errMsg);
+                if (typeof __DEV__ !== 'undefined' && __DEV__) {
+                  gameLogger.debug('❌ [Landscape] Pass action error details:', { error });
+                }
               }
             }}
             onHint={handleHint}

@@ -53,7 +53,7 @@ Generate:
 3. **Dependency graph**: Which hooks depend on which contexts, which contexts depend on which stores
 4. **Edge function call map**: Which client files call which of the 17 edge-function entries (16 functions plus the `_shared/` library)
 
-### 0.4 Known Edge Functions (all 18 must be audited)
+### 0.4 Known Edge Functions (all 17 must be audited)
 | Edge Function | Critical Path? | Description |
 |---|---|---|
 | `play-cards` | **YES** | Core gameplay — validate and execute a card play |

@@ -565,6 +565,7 @@ export function useGameStatsUploader({
                 `⚠️ [GameStats] Server error (${response.status}), retrying (${attempt + 1}/${MAX_RETRIES})...`
               );
               await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+              if (cancelled) break;
             }
           } catch (fetchError) {
             clearTimeout(timeoutId);
@@ -575,6 +576,7 @@ export function useGameStatsUploader({
                 msg
               );
               await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+              if (cancelled) break;
             } else {
               throw fetchError;
             }
@@ -614,7 +616,11 @@ export function useGameStatsUploader({
       }
     };
 
+    let cancelled = false;
     uploadStats();
+    return () => {
+      cancelled = true;
+    };
   }, [
     isMultiplayerGame,
     multiplayerGameState,

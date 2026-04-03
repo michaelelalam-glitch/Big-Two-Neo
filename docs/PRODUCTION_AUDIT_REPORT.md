@@ -24,7 +24,7 @@
 ### Top 5 Issues That Must Be Fixed Before Launch
 
 1. **play-cards edge function does not validate cards are in the player's hand** (Server exploit — any card can be played)
-2. **google-services.json committed with Firebase API keys** (Immediate secret rotation required)
+2. **google-services.json may exist in git history with Firebase API keys** (Secret rotation required; file is not currently tracked in this branch, but may still exist in git history — a history rewrite is needed if exposure is confirmed)
 3. **find-match race condition** — concurrent calls can match same 4 players into duplicate rooms
 4. **complete-game can be called multiple times** — missing UNIQUE INDEX creates duplicate stats
 5. **bot-coordinator lease can expire mid-move** — second coordinator starts, corrupting game state
