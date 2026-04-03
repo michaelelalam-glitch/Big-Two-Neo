@@ -407,6 +407,7 @@ Deno.serve(async (req) => {
     // 4. Bot turn execution loop
     let movesExecuted = 0;
     let lastError: string | null = null;
+    let lastExitReason: string | null = null;
     // Track whether a match/game ended during bot play so we can start the next match
     let matchEndedData: {
       match_ended: boolean;
@@ -452,6 +453,7 @@ Deno.serve(async (req) => {
         if (gsError || !gameState) {
           console.error('[bot-coordinator] Game state not found:', gsError);
           lastError = 'Game state not found';
+          lastExitReason = `game_state_not_found: ${gsError?.message}`;
           break;
         }
 
@@ -460,6 +462,7 @@ Deno.serve(async (req) => {
         // Check if game is still active
         if (gs.game_phase === 'finished' || gs.game_phase === 'game_over') {
           console.log(`[bot-coordinator] 🏁 Game phase is '${gs.game_phase}', stopping`);
+          lastExitReason = `game_phase_${gs.game_phase}`;
           break;
         }
 
@@ -479,6 +482,7 @@ Deno.serve(async (req) => {
         if (freshPlayerErr) {
           console.error('[bot-coordinator] Error fetching turn player:', freshPlayerErr.message);
           lastError = 'Failed to fetch current turn player';
+          lastExitReason = `player_fetch_error: ${freshPlayerErr.message}`;
           break;
         }
 
@@ -488,6 +492,7 @@ Deno.serve(async (req) => {
 
         if (!currentPlayer || !currentPlayer.is_bot) {
           console.log(`[bot-coordinator] 👤 Turn ${gs.current_turn} is human (${currentPlayer?.username || 'unknown'}), stopping`);
+          lastExitReason = `human_turn_${gs.current_turn}`;
           break;
         }
 
@@ -499,6 +504,7 @@ Deno.serve(async (req) => {
 
         if (botHand.length === 0) {
           console.warn(`[bot-coordinator] ⚠️ Bot ${currentPlayer.username} has no cards, skipping`);
+          lastExitReason = `empty_hand_player_${currentPlayer.player_index}`;
           break;
         }
 
@@ -586,6 +592,7 @@ Deno.serve(async (req) => {
             } else {
               console.error(`[bot-coordinator] ❌ Card ${cardId} not found in bot's hand`);
               lastError = `Card ${cardId} not found in bot's hand`;
+              lastExitReason = `card_not_found: ${cardId}`;
               break;
             }
           }
@@ -595,6 +602,7 @@ Deno.serve(async (req) => {
           const result = await callPlayCards(supabaseUrl, serviceKey, room.code, currentPlayer.id, cardsToPlay);
           if (!result.success) {
             lastError = result.error || 'play-cards failed';
+            lastExitReason = `play_cards_failed: ${lastError}`;
             console.error(`[bot-coordinator] ❌ Bot play failed: ${lastError}`);
             break;
           }
@@ -619,6 +627,7 @@ Deno.serve(async (req) => {
           const result = await callPlayerPass(supabaseUrl, serviceKey, room.code, currentPlayer.id);
           if (!result.success) {
             lastError = result.error || 'player-pass failed';
+            lastExitReason = `player_pass_failed: ${lastError}`;
             console.error(`[bot-coordinator] ❌ Bot pass failed: ${lastError}`);
             break;
           }
@@ -716,7 +725,7 @@ Deno.serve(async (req) => {
     }
 
     const elapsed = Date.now() - startTime;
-    console.log(`🤖 [bot-coordinator] Done: ${movesExecuted} moves in ${elapsed}ms${lastError ? ` (last error: ${lastError})` : ''}`);
+    console.log(`🤖 [bot-coordinator] Done: ${movesExecuted} moves in ${elapsed}ms${lastError ? ` (last error: ${lastError})` : ''}${lastExitReason ? ` (exit: ${lastExitReason})` : ''}`);
 
     return new Response(
       JSON.stringify({
@@ -724,6 +733,7 @@ Deno.serve(async (req) => {
         moves_executed: movesExecuted,
         elapsed_ms: elapsed,
         error: lastError,
+        exit_reason: lastExitReason,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
