@@ -54,12 +54,12 @@ Deno.serve(async (req) => {
 
     console.log('🔌 [mark-disconnected]', {
       user_id: user.id.substring(0, 8),
-      room_id: room_id?.substring(0, 8),
+      room_id: typeof room_id === 'string' ? room_id.substring(0, 8) : String(room_id ?? '').substring(0, 8),
     });
 
-    if (!room_id) {
+    if (!room_id || typeof room_id !== 'string') {
       return new Response(
-        JSON.stringify({ success: false, error: 'Missing room_id' }),
+        JSON.stringify({ success: false, error: 'Missing or invalid room_id' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
       // Not a member of this room — return early without calling the RPC.
       // Use 200 (not 403/404) so callers that fire mark-disconnected at app
       // teardown do not surface spurious errors in the client logs.
-      console.log(`[mark-disconnected] user ${user.id.substring(0, 8)} not found in room ${room_id?.substring(0, 8)} — skipping`);
+      console.log(`[mark-disconnected] user ${user.id.substring(0, 8)} not found in room ${room_id.substring(0, 8)} — skipping`);
       return new Response(
         JSON.stringify({ success: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
