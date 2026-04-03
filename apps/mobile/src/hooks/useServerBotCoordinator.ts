@@ -83,14 +83,16 @@ export function useServerBotCoordinator({
     gameLogger.info(`[ServerBotCoordinator] 🤖 Fallback trigger for room ${roomCode}`);
 
     try {
-      const { error } = await supabase.functions.invoke('bot-coordinator', {
+      const { data, error } = await supabase.functions.invoke('bot-coordinator', {
         body: { room_code: roomCode },
       });
 
       if (error) {
         gameLogger.error('[ServerBotCoordinator] ❌ Fallback trigger failed:', error.message);
       } else {
-        gameLogger.info('[ServerBotCoordinator] ✅ Fallback trigger succeeded');
+        gameLogger.info(
+          `[ServerBotCoordinator] ✅ Fallback trigger result: moves=${data?.moves_executed ?? '?'} skipped=${data?.skipped ?? false} err=${data?.error ?? 'none'} exit=${data?.exit_reason ?? 'none'}`
+        );
       }
     } catch (err) {
       gameLogger.error(
