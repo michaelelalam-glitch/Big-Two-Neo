@@ -28,11 +28,12 @@ const corsHeaders = {
 };
 
 /**
- * Delay between bot moves (ms) — minimal pause to allow Realtime to propagate.
- * Realtime itself adds ~100–150ms latency, so 100ms here keeps total per-bot-turn
- * latency around 200–250ms — matching local 'hard' bot pace without artificial drag.
+ * Delay between bot moves (ms).
+ * Realtime itself adds ~100–150ms of delivery latency per DB write, so no
+ * additional artificial delay is needed. 0ms keeps consecutive bot moves as
+ * fast as possible while Realtime still propagates each update to clients.
  */
-const BOT_MOVE_DELAY_MS = 100;
+const BOT_MOVE_DELAY_MS = 0;
 
 /** Maximum bot moves per invocation — prevents infinite loops */
 const MAX_BOT_MOVES = 20;
@@ -331,69 +332,69 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 2. Get all room players (including bots)
-    const { data: roomPlayers, error: playersError } = await supabaseClient
-      .from('room_players')
-      .select('*')
-      .eq('room_id', room.id)
-      .order('player_index', { ascending: true });
-
-    if (playersError || !roomPlayers) {
-      console.error('[bot-coordinator] Room players not found:', playersError);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Room players not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
-    }
-
-    // 3. Acquire a row-based coordinator lease to prevent concurrent bot coordinators.
-    //    Row-based leases work reliably across all PgBouncer/pooled connections,
-    //    unlike pg_advisory_lock which is session-scoped and can leak across pools.
-    //    Retry up to 3× with 500 ms backoff so transient contention (two Edge Function
-    //    invocations landing within milliseconds of each other) doesn't cause a missed
-    //    bot turn. Each retry is still well within the LOCK_TIMEOUT_MS budget.
+    // 2+3. Get room players AND attempt the first coordinator lease in parallel.
+    //      Both operations require room.id (available above) so they can run concurrently,
+    //      saving one sequential DB roundtrip (~50–100 ms) vs. the previous series.
     const MAX_LEASE_RETRIES = 3;
     const LEASE_RETRY_DELAY_MS = 500;
     const coordinatorId = crypto.randomUUID();
     const leaseTimeoutSeconds = Math.ceil((LOCK_TIMEOUT_MS * 1.5) / 1000);
 
-    let leaseAcquired = false;
-    const leaseErrors: string[] = [];
+    const [playersResult, firstLeaseResult] = await Promise.all([
+      supabaseClient
+        .from('room_players')
+        .select('*')
+        .eq('room_id', room.id)
+        .order('player_index', { ascending: true }),
+      supabaseClient.rpc('try_acquire_bot_coordinator_lease', {
+        p_room_code: room_code,
+        p_coordinator_id: coordinatorId,
+        // Use 1.5× the loop budget so the lease outlives even a worst-case run.
+        p_timeout_seconds: leaseTimeoutSeconds,
+      }),
+    ]);
 
-    for (let leaseAttempt = 0; leaseAttempt < MAX_LEASE_RETRIES; leaseAttempt++) {
-      // Bail out early if overall timeout has been hit
-      if (Date.now() - startTime > LOCK_TIMEOUT_MS) break;
-
-      const { data, error } = await supabaseClient
-        .rpc('try_acquire_bot_coordinator_lease', {
-          p_room_code: room_code,
-          p_coordinator_id: coordinatorId,
-          // Use 1.5× the loop budget so the lease outlives even a worst-case run.
-          // If p_timeout_seconds == LOCK_TIMEOUT_MS and an HTTP call stalls near the
-          // deadline, the lease can expire mid-run allowing a second coordinator to overlap.
-          p_timeout_seconds: leaseTimeoutSeconds,
-        });
-
-      if (error) {
-        leaseErrors.push(error.message);
-        break; // DB error — don't retry
-      }
-
-      if (data === true) {
-        leaseAcquired = true;
-        break;
-      }
-
-      console.log(`[bot-coordinator] ⏳ Lease contention (attempt ${leaseAttempt + 1}/${MAX_LEASE_RETRIES}), retrying in ${LEASE_RETRY_DELAY_MS}ms...`);
-      await delay(LEASE_RETRY_DELAY_MS);
+    if (playersResult.error || !playersResult.data) {
+      console.error('[bot-coordinator] Room players not found:', playersResult.error);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Room players not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
     }
+    // roomPlayers is mutated in-loop to reflect fresh player data on periodic refreshes.
+    const roomPlayers: RoomPlayer[] = playersResult.data as RoomPlayer[];
 
-    if (leaseErrors.length > 0) {
-      console.error('[bot-coordinator] Failed to acquire coordinator lease:', leaseErrors);
+    if (firstLeaseResult.error) {
+      console.error('[bot-coordinator] Failed to acquire coordinator lease:', firstLeaseResult.error.message);
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to acquire coordinator lease' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
+    }
+
+    let leaseAcquired = firstLeaseResult.data === true;
+
+    // Retry lease acquisition if first parallel attempt found contention.
+    if (!leaseAcquired) {
+      for (let leaseAttempt = 1; leaseAttempt < MAX_LEASE_RETRIES; leaseAttempt++) {
+        if (Date.now() - startTime > LOCK_TIMEOUT_MS) break;
+        console.log(`[bot-coordinator] ⏳ Lease contention (attempt ${leaseAttempt + 1}/${MAX_LEASE_RETRIES}), retrying in ${LEASE_RETRY_DELAY_MS}ms...`);
+        await delay(LEASE_RETRY_DELAY_MS);
+        const { data, error } = await supabaseClient
+          .rpc('try_acquire_bot_coordinator_lease', {
+            p_room_code: room_code,
+            p_coordinator_id: coordinatorId,
+            p_timeout_seconds: leaseTimeoutSeconds,
+          });
+        if (error) {
+          console.error('[bot-coordinator] Failed to acquire coordinator lease:', error.message);
+          return new Response(
+            JSON.stringify({ success: false, error: 'Failed to acquire coordinator lease' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          );
+        }
+        if (data === true) { leaseAcquired = true; break; }
+      }
     }
 
     if (!leaseAcquired) {
@@ -466,29 +467,39 @@ Deno.serve(async (req) => {
           break;
         }
 
-        // Re-fetch the current-turn player from DB on every iteration.
-        // This is the PRIMARY fix for the game-freeze-on-rejoin bug:
-        // the initial `roomPlayers` snapshot is fetched ONCE before this loop,
-        // so it cannot detect a human reclaiming their seat mid-run.
-        // A fresh DB read ensures that when reconnect_player() sets is_bot=FALSE,
-        // the coordinator sees it on the next iteration and stops immediately.
-        const { data: freshTurnPlayer, error: freshPlayerErr } = await supabaseClient
-          .from('room_players')
-          .select('*')
-          .eq('room_id', room.id)
-          .eq('player_index', gs.current_turn)
-          .maybeSingle();
+        // Use the in-memory roomPlayers snapshot for the is_bot check to avoid a
+        // DB roundtrip on every iteration (was the largest per-move latency source).
+        // Periodically refresh from DB every 4 iterations to catch human-reconnects:
+        // reconnect_player() sets is_bot=FALSE and the snapshot would become stale.
+        // On iteration 0 we trust the snapshot since play-cards / player-pass already
+        // verified the next player is a bot before triggering us.
+        const snapshotPlayer = roomPlayers.find(p => p.player_index === gs.current_turn);
+        const needsPlayerRefresh = !snapshotPlayer?.is_bot || (iteration > 0 && iteration % 4 === 0);
 
-        if (freshPlayerErr) {
-          console.error('[bot-coordinator] Error fetching turn player:', freshPlayerErr.message);
-          lastError = 'Failed to fetch current turn player';
-          lastExitReason = `player_fetch_error: ${freshPlayerErr.message}`;
-          break;
+        let currentPlayer: RoomPlayer | null | undefined = snapshotPlayer;
+        if (needsPlayerRefresh) {
+          const { data: freshTurnPlayer, error: freshPlayerErr } = await supabaseClient
+            .from('room_players')
+            .select('*')
+            .eq('room_id', room.id)
+            .eq('player_index', gs.current_turn)
+            .maybeSingle();
+
+          if (freshPlayerErr) {
+            console.error('[bot-coordinator] Error fetching turn player:', freshPlayerErr.message);
+            lastError = 'Failed to fetch current turn player';
+            lastExitReason = `player_fetch_error: ${freshPlayerErr.message}`;
+            break;
+          }
+
+          currentPlayer = (freshTurnPlayer as RoomPlayer | null) ?? snapshotPlayer;
+          // Update the snapshot so subsequent iterations within this run see the
+          // refreshed is_bot value without another DB query.
+          if (freshTurnPlayer) {
+            const snapshotIdx = roomPlayers.findIndex(p => p.player_index === gs.current_turn);
+            if (snapshotIdx >= 0) roomPlayers[snapshotIdx] = freshTurnPlayer as RoomPlayer;
+          }
         }
-
-        // Prefer fresh DB row; fall back to initial snapshot only if row vanished
-        const currentPlayer = (freshTurnPlayer as RoomPlayer | null) ??
-          (roomPlayers.find(p => p.player_index === gs.current_turn) as RoomPlayer | undefined);
 
         if (!currentPlayer || !currentPlayer.is_bot) {
           console.log(`[bot-coordinator] 👤 Turn ${gs.current_turn} is human (${currentPlayer?.username || 'unknown'}), stopping`);
