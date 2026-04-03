@@ -583,6 +583,10 @@ export function useGameStatsUploader({
           }
         }
 
+        // If the effect was cleaned up while we were in a backoff wait, exit
+        // silently rather than throwing a false-positive Sentry exception.
+        if (cancelled) return;
+
         if (!response) {
           throw new Error('[GameStats] No response from complete-game after retries');
         }

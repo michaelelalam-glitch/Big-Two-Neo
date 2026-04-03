@@ -264,7 +264,7 @@ For every hook in `src/hooks/`:
 
 ## PHASE 5 — SUPABASE BACKEND
 
-### 5.1 Edge Functions (All 18)
+### 5.1 Edge Functions (All 17)
 For each edge function:
 - **Input validation:** Are all parameters validated? Types checked?
 - **Authorization:** Does it verify `auth.uid()` matches the acting player?
