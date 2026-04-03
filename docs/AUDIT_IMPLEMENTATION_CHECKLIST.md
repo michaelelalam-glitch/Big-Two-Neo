@@ -92,21 +92,24 @@ Phase 17 Integration & E2E Testing ────────┘ (depends on ALL a
 
 - [ ] **1.1** Rotate Firebase API keys + remove `google-services.json` from git history `[D-01, SEC-02]` `CRITICAL`
   - **File:** `apps/mobile/google-services.json`
+  - **Script:** `apps/mobile/scripts/rotate-firebase-credentials.sh` (interactive, guides through all steps)
   - **Steps:**
     1. Generate new Firebase API keys in Firebase Console
-    2. `git filter-branch` or `bfg` to remove `google-services.json` from history
-    3. Update local file with new keys
-    4. Force-push cleaned history (coordinate with team)
-    5. Revoke old API key `AIza...REDACTED` (see Firebase console for current key, do not commit plaintext API keys)
+    2. Run `bash apps/mobile/scripts/rotate-firebase-credentials.sh` (requires `pip3 install git-filter-repo`)
+    3. Script will remove `google-services.json` from ALL historical commits using `git filter-repo`
+    4. Script force-pushes rewritten history — **all collaborators must re-clone**
+    5. Revoke old API key in Firebase Console once new keys are verified working
   - **Verify:** `git log --all --full-history -- '**/google-services.json'` returns empty
+  - **Status:** ⏳ Script created; Firebase Console key rotation + history purge must be run manually (destructive op)
 
-- [ ] **1.2** Remove `usesAppleSignIn: true` from app.json (feature is disabled) `[I-02, O-02]` `CRITICAL`
+- [x] **1.2** Remove `usesAppleSignIn: true` from app.json (feature is disabled) `[I-02, O-02]` `CRITICAL`
   - **File:** `apps/mobile/app.json`
   - **Why:** App Store rejection risk — declares entitlement for unused feature
+  - **Status:** ✅ Done — removed in Task #657 (Phase 1 Security Hardening)
 
-- [ ] **1.3** Update `google-services.json.example` with redacted placeholder keys
+- [x] **1.3** Update `google-services.json.example` with redacted placeholder keys
   - **File:** `apps/mobile/google-services.json.example`
-  - **Replace all real values** with `YOUR_*` placeholders
+  - **Status:** ✅ Done — all values use `YOUR_*` placeholders (done in Phase 0 / PR #205)
 
 ---
 
