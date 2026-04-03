@@ -607,6 +607,9 @@ export function useGameStatsUploader({
           });
         }
       } catch (err: unknown) {
+        // If the effect was cleaned up while the final attempt was in-flight,
+        // don't report to Sentry — this is an expected cancellation, not a bug.
+        if (cancelled) return;
         const msg = err instanceof Error ? err.message : String(err);
         // Wrap non-Error throws so Sentry records a useful stack trace.
         const errorForSentry = err instanceof Error ? err : new Error(String(err));

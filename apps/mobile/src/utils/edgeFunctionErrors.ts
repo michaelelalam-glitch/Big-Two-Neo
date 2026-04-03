@@ -80,7 +80,7 @@ export function getPlayErrorExplanation(serverError: string): string {
  *  - "Player not found in room" – player disconnected / left while move was in flight
  *
  * NOTE: intentionally does NOT match the bare "Player not found" local error thrown
- * in realtimeActions.ts (line ~77) — that's a client-state bug and should not be
+ * in realtimeActions.ts — that's a client-state bug and should not be
  * suppressed or downgraded.
  */
 export function isExpectedTurnRaceError(message: string): boolean {

@@ -211,7 +211,6 @@ export function LandscapeYourPosition({
         setDisplayCards(filteredCards);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cards, dragState.draggedCardId]);
 
   const orderedCards = displayCards;
