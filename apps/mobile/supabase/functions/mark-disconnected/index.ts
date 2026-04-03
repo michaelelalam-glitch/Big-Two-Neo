@@ -6,6 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * mark-disconnected edge function
  *
@@ -78,8 +80,7 @@ Deno.serve(async (req) => {
     // Validate UUID format to return a clear 400 instead of a confusing 500 if
     // the client passes a syntactically invalid value (PostgREST would reject it
     // with "invalid input syntax for type uuid" which we'd propagate as a 500).
-    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!UUID_RE.test(roomId)) {
+    if (!UUID_REGEX.test(roomId)) {
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid room_id format' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
