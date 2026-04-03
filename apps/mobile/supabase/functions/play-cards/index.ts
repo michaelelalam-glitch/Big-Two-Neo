@@ -721,8 +721,19 @@ Deno.serve(async (req) => {
     // Service-role callers (bot-coordinator) may act for any player_id.
     // Non-service-role callers (clients) must present a valid user JWT; the resolved
     // user.id is compared against player_id after the body is parsed below.
-    const authHeader = req.headers.get('authorization') ?? '';
-    const isServiceRole = serviceKey !== '' && authHeader === `Bearer ${serviceKey}`;
+    //
+    // Two equivalent ways to identify a service-role / bot-coordinator caller:
+    //   1. SUPABASE_SERVICE_ROLE_KEY bearer match (may fail after key rotation due to
+    //      propagation lag in Supabase's distributed edge runtime)
+    //   2. INTERNAL_BOT_AUTH_KEY custom header — a stable project secret set via
+    //      `supabase secrets set` that is NOT subject to rotation and is safely
+    //      consistent across all function instances.
+    const authHeader  = req.headers.get('authorization') ?? '';
+    const botAuthHdr  = req.headers.get('x-bot-auth') ?? '';
+    const internalKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
+    const isServiceRole =
+      (serviceKey !== '' && authHeader === `Bearer ${serviceKey}`) ||
+      (internalKey !== '' && botAuthHdr === internalKey);
     let callerJwtUserId: string | null = null;
 
     if (!isServiceRole) {
@@ -1488,14 +1499,18 @@ Deno.serve(async (req) => {
 
     // 15. Trigger bot-coordinator if next player is a bot (Task #551)
     // Only suppress the trigger when this call came from the coordinator itself.
-    // Verify BOTH the custom header AND that the request used the service_role key —
-    // clients can set arbitrary headers, but they cannot forge the service_role JWT.
-    const serviceKeyForCheck = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-    const authHeaderForCheck = req.headers.get('authorization') ?? '';
+    // Accept either the service-role key match OR the stable internal bot auth key —
+    // the same dual-check used at the top of this function for isServiceRole.
+    const serviceKeyForCheck  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const internalKeyForCheck = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
+    const authHeaderForCheck  = req.headers.get('authorization') ?? '';
+    const botAuthHdrForCheck  = req.headers.get('x-bot-auth') ?? '';
     const isInternalCoordinatorCall =
       req.headers.get('x-bot-coordinator') === 'true' &&
-      serviceKeyForCheck !== '' &&
-      authHeaderForCheck === `Bearer ${serviceKeyForCheck}`;
+      (
+        (serviceKeyForCheck !== '' && authHeaderForCheck === `Bearer ${serviceKeyForCheck}`) ||
+        (internalKeyForCheck !== '' && botAuthHdrForCheck === internalKeyForCheck)
+      );
 
     if (!isInternalCoordinatorCall && !matchEnded && !gameOver) {
       try {

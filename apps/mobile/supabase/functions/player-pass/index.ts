@@ -175,12 +175,16 @@ async function triggerBotCoordinatorIfNeeded(
   req: Request,
   label: string,
 ): Promise<void> {
-  const sk = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-  const authHeader = req.headers.get('authorization') ?? '';
+  const sk           = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  const internalKey  = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
+  const authHeader   = req.headers.get('authorization') ?? '';
+  const botAuthHdr   = req.headers.get('x-bot-auth') ?? '';
   const isInternalCall =
     req.headers.get('x-bot-coordinator') === 'true' &&
-    sk !== '' &&
-    authHeader === `Bearer ${sk}`;
+    (
+      (sk !== '' && authHeader === `Bearer ${sk}`) ||
+      (internalKey !== '' && botAuthHdr === internalKey)
+    );
 
   if (isInternalCall) return; // Don't recurse into bot-coordinator
 
@@ -250,8 +254,15 @@ Deno.serve(async (req) => {
     // Service-role callers (bot-coordinator) may act for any player_id.
     // Non-service-role callers (clients) must present a valid user JWT; the resolved
     // user.id is compared against player_id after the body is parsed below.
-    const authHeader = req.headers.get('authorization') ?? '';
-    const isServiceRole = serviceKey !== '' && authHeader === `Bearer ${serviceKey}`;
+    //
+    // Dual auth: SUPABASE_SERVICE_ROLE_KEY bearer match OR INTERNAL_BOT_AUTH_KEY
+    // custom header — the latter is immune to service_role key rotation lag.
+    const authHeader  = req.headers.get('authorization') ?? '';
+    const botAuthHdr  = req.headers.get('x-bot-auth') ?? '';
+    const internalKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
+    const isServiceRole =
+      (serviceKey !== '' && authHeader === `Bearer ${serviceKey}`) ||
+      (internalKey !== '' && botAuthHdr === internalKey);
     let callerJwtUserId: string | null = null;
 
     if (!isServiceRole) {
