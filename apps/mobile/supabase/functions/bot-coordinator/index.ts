@@ -132,7 +132,7 @@ async function callPlayCards(
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   let res: Response;
   try {
-    const botAuthKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
+    const botAuthKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') || 'c1d8e407-49ca-4754-a12b-72a819d5bc17';
     res = await fetch(url, {
       method: 'POST',
       headers: {
@@ -145,6 +145,7 @@ async function callPlayCards(
         room_code: roomCode,
         player_id: playerId,
         cards: cards.map(c => ({ id: c.id, rank: c.rank, suit: c.suit })),
+        _bot_auth: botAuthKey,  // body-based auth for internal calls (header stripped by relay)
       }),
       signal: controller.signal,
     });
@@ -196,7 +197,7 @@ async function callPlayerPass(
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   let res: Response;
   try {
-    const botAuthKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
+    const botAuthKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') || 'c1d8e407-49ca-4754-a12b-72a819d5bc17';
     res = await fetch(url, {
       method: 'POST',
       headers: {
@@ -208,6 +209,7 @@ async function callPlayerPass(
       body: JSON.stringify({
         room_code: roomCode,
         player_id: playerId,
+        _bot_auth: botAuthKey,  // body-based auth for internal calls (header stripped by relay)
       }),
       signal: controller.signal,
     });

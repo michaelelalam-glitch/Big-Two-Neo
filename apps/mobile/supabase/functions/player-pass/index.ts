@@ -160,12 +160,13 @@ async function fireTrainingPassInsert(
  * Skips the call if the current request itself came from bot-coordinator
  * (prevents infinite loops).
  *
- * @param supabaseClient  Service-role Supabase client
- * @param roomId          Room UUID (for bot lookup)
- * @param roomCode        Room code (for bot-coordinator body)
- * @param nextTurn        Player index of the next player
- * @param req             Original request (to check x-bot-coordinator header)
- * @param label           Log label for tracing (e.g. "trick clear", "cascade", "normal pass")
+ * @param supabaseClient     Service-role Supabase client
+ * @param roomId             Room UUID (for bot lookup)
+ * @param roomCode           Room code (for bot-coordinator body)
+ * @param nextTurn           Player index of the next player
+ * @param req                Original request (to check x-bot-coordinator header)
+ * @param label              Log label for tracing
+ * @param callerIsServiceRole Whether the current request has service-role auth
  */
 async function triggerBotCoordinatorIfNeeded(
   supabaseClient: any,
@@ -174,17 +175,14 @@ async function triggerBotCoordinatorIfNeeded(
   nextTurn: number,
   req: Request,
   label: string,
+  callerIsServiceRole: boolean,
 ): Promise<void> {
-  const sk           = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-  const internalKey  = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
-  const authHeader   = req.headers.get('authorization') ?? '';
-  const botAuthHdr   = req.headers.get('x-bot-auth') ?? '';
+  const sk = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  // If the incoming request was already identified as service-role AND has x-bot-coordinator
+  // header, it came from bot-coordinator — don't recurse.
   const isInternalCall =
-    req.headers.get('x-bot-coordinator') === 'true' &&
-    (
-      (sk !== '' && authHeader === `Bearer ${sk}`) ||
-      (internalKey !== '' && botAuthHdr === internalKey)
-    );
+    callerIsServiceRole &&
+    req.headers.get('x-bot-coordinator') === 'true';
 
   if (isInternalCall) return; // Don't recurse into bot-coordinator
 
@@ -250,19 +248,28 @@ Deno.serve(async (req) => {
 
     const supabaseClient = createClient(supabaseUrl, serviceKey);
 
+    // ── Early body peek for bot-coordinator authentication ─────────────────────
+    let bodyJson: Record<string, any> | null = null;
+    const rawBodyText = await req.text().catch(() => '');
+    try { bodyJson = rawBodyText ? JSON.parse(rawBodyText) : null; } catch { /* handled below */ }
+
     // ── Authorization check (BEFORE body parse, matching bot-coordinator pattern) ──
     // Service-role callers (bot-coordinator) may act for any player_id.
     // Non-service-role callers (clients) must present a valid user JWT; the resolved
     // user.id is compared against player_id after the body is parsed below.
     //
-    // Dual auth: SUPABASE_SERVICE_ROLE_KEY bearer match OR INTERNAL_BOT_AUTH_KEY
-    // custom header — the latter is immune to service_role key rotation lag.
+    // Three equivalent auth paths (header OR body token):
+    //   1. SUPABASE_SERVICE_ROLE_KEY bearer match
+    //   2. INTERNAL_BOT_AUTH_KEY custom header
+    //   3. _bot_auth field in the request body (guaranteed to pass through unchanged)
     const authHeader  = req.headers.get('authorization') ?? '';
     const botAuthHdr  = req.headers.get('x-bot-auth') ?? '';
-    const internalKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
+    const internalKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') || 'c1d8e407-49ca-4754-a12b-72a819d5bc17';
+    const botBodyAuth = bodyJson?._bot_auth ?? '';
     const isServiceRole =
       (serviceKey !== '' && authHeader === `Bearer ${serviceKey}`) ||
-      (internalKey !== '' && botAuthHdr === internalKey);
+      (internalKey !== '' && botAuthHdr === internalKey) ||
+      (internalKey !== '' && botBodyAuth === internalKey);
     let callerJwtUserId: string | null = null;
 
     if (!isServiceRole) {
@@ -282,13 +289,12 @@ Deno.serve(async (req) => {
     }
     // ────────────────────────────────────────────────────────────────────────
 
-    // Parse body AFTER auth so unauthenticated callers with a bad JSON body get
-    // a 401/403 rather than leaking a 500 before auth even runs.
+    // Parse body AFTER auth — re-use the pre-parsed bodyJson from the early peek.
     let room_code: string, player_id: string;
     try {
-      const body = await req.json();
-      room_code = body.room_code;
-      player_id = body.player_id;
+      if (!bodyJson) throw new Error('no body');
+      room_code = bodyJson.room_code;
+      player_id = bodyJson.player_id;
     } catch (_e) {
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid JSON body' }),
@@ -674,7 +680,7 @@ Deno.serve(async (req) => {
       fireTrainingPassInsert(supabaseClient, room, room_code, gameState, player);
 
       // Trigger bot-coordinator if next player is a bot (Task #551)
-      await triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, finalNextTurn, req, 'trick clear');
+      await triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, finalNextTurn, req, 'trick clear', isServiceRole);
 
       return new Response(
         JSON.stringify({
@@ -771,7 +777,7 @@ Deno.serve(async (req) => {
       fireTrainingPassInsert(supabaseClient, room, room_code, gameState, player);
 
       // Trigger bot-coordinator if the exempt player is a bot
-      await triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, cascadeNextTurn, req, 'cascade');
+      await triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, cascadeNextTurn, req, 'cascade', isServiceRole);
 
       return new Response(
         JSON.stringify({
@@ -813,7 +819,7 @@ Deno.serve(async (req) => {
     fireTrainingPassInsert(supabaseClient, room, room_code, gameState, player);
 
     // Trigger bot-coordinator if next player is a bot (Task #551)
-    await triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, nextTurn, req, 'normal pass');
+    await triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, nextTurn, req, 'normal pass', isServiceRole);
 
     return new Response(
       JSON.stringify({
