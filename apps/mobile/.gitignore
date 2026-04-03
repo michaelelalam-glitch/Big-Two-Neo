@@ -62,9 +62,11 @@ supabase/.temp/
 # migration scripts (one-time use only)
 fix-tests.sh
 
+# SECURITY: google-services.json was previously committed and its contents are visible in
+# git history and in PR diffs. The exposed Firebase credentials MUST be rotated/revoked
+# and the file MUST be purged from git history (git-filter-repo / BFG Repo Cleaner) before
+# any public release. Tracked as SEC-02 in docs/PRODUCTION_AUDIT_REPORT.md.
 # Do not commit Firebase config files; keep only local copies and/or committed *.example templates.
-# If google-services.json or GoogleService-Info.plist were ever committed with real values,
-# rotate the exposed Firebase credentials and purge the files from git history before any release.
 google-services.json
 GoogleService-Info.plist
 credentials.json
