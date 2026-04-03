@@ -52,10 +52,12 @@ BEGIN
     AND i.indnatts = 1
     AND a.attname = 'room_id'
     AND i.indpred IS NOT NULL
-    AND pg_get_expr(i.indpred, i.indrelid) IN (
-      '(room_id IS NOT NULL)',
-      'room_id IS NOT NULL'
-    )
+    AND regexp_replace(
+      lower(pg_get_expr(i.indpred, i.indrelid)),
+      '[[:space:]()]+',
+      '',
+      'g'
+    ) = 'room_idisnotnull'
   LIMIT 1;
 
   IF v_index_name IS NULL THEN
