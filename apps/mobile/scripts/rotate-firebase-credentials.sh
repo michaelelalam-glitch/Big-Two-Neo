@@ -1,163 +1,40 @@
 #!/usr/bin/env bash
-# ─── Phase 1: Firebase Credential Rotation & Git History Purge ─────────────
-# Tracked in: Task #657 — Phase 1 Security Hardening
-# Reference:  docs/PRODUCTION_AUDIT_REPORT.md  (SEC-02)
+# rotate-firebase-credentials.sh
+# Purges google-services.json from ALL git history, then force-pushes everything.
 #
-# RUN ORDER (do in this exact order to avoid window of exposure):
-#   Step 1  — Rotate/revoke keys in Firebase Console  (manual)
-#   Step 2  — Update local google-services.json with new keys  (manual)
-#   Step 3  — Purge old file from git history               (this script)
-#   Step 4  — Force-push rewritten history                   (this script)
+# BEFORE running this script:
+#   1. Go to https://console.cloud.google.com -> APIs & Services -> Credentials
+#   2. Find the Android API key for this app, click REGENERATE (or DELETE + create new)
+#   3. Go to https://console.firebase.google.com -> Project Settings -> General
+#   4. Download the new google-services.json into apps/mobile/
+#   5. Confirm the app still builds locally with the new file
 #
-# Prerequisites:
-#   • git-filter-repo >= 2.38  →  pip3 install git-filter-repo
-#   • All team members must re-clone after the force-push
-#   • Coordinate with collaborators before running
-# ─────────────────────────────────────────────────────────────────────────────
-
+# PREREQ:  pip3 install git-filter-repo
+# RUN FROM: anywhere inside the repo (script anchors itself to repo root)
 set -euo pipefail
 
-# ── Anchor to repo root ─────────────────────────────────────────────────────
-# Ensures the script works correctly regardless of which directory it's run from.
-if ! REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"; then
-  echo "❌ This script must be run from within the target git repository."
-  exit 1
-fi
+REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "${REPO_ROOT}"
 
-TARGET_FILE="apps/mobile/google-services.json"
-REMOTE="origin"
+echo "This rewrites ALL git history. All collaborators must re-clone afterwards."
+read -r -p "Continue? [y/N] " yn
+case "${yn}" in [Yy]) ;; *) echo "Aborted."; exit 0 ;; esac
 
-# ── Preflight ───────────────────────────────────────────────────────────────
-if ! command -v git-filter-repo &>/dev/null; then
-  echo "❌ git-filter-repo is not installed."
-  echo "   Install: pip3 install git-filter-repo"
-  exit 1
-fi
-
-if [[ -n "$(git status --porcelain)" ]]; then
-  echo "❌ Working tree is dirty. Commit or stash all changes first."
-  exit 1
-fi
-
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Phase 1 — Firebase Credential Rotation & History Purge"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-echo "⚠️  This will REWRITE git history. Collaborators must re-clone."
-echo ""
-read -r -p "Have you already rotated the Firebase API keys in the Firebase Console? [y/N] " confirm
-case "${confirm}" in
-  [Yy])
-    ;;
-  *)
-    echo ""
-    echo "  Action required:"
-    echo "  1. Go to Google Cloud Console → APIs & Services → Credentials"
-    echo "  2. Rotate or restrict the Android app API key used by Firebase"
-    echo "  3. In Firebase Console → Project Settings → General, download the updated google-services.json to apps/mobile/"
-    echo "  4. Re-run this script"
-    exit 1
-    ;;
-esac
-
-read -r -p "Are you sure you want to rewrite git history? This cannot be undone. [y/N] " confirm2
-case "${confirm2}" in
-  [Yy])
-    ;;
-  *)
-    echo "Aborted."
-    exit 0
-    ;;
-esac
-
-# ── Capture remote URL before rewriting (filter-repo removes remotes) ────────
-REMOTE_URL=$(git remote get-url "${REMOTE}" 2>/dev/null || echo "")
-if [[ -z "${REMOTE_URL}" ]]; then
-  read -r -p "Enter remote URL (e.g. git@github.com:org/repo.git): " REMOTE_URL
-fi
-echo "📌 Remote URL captured: ${REMOTE_URL}"
-
-# ── Fetch everything before rewriting ───────────────────────────────────────
-echo ""
-echo "📥 Fetching all remote refs..."
-git fetch --all --prune
-
-# ── Guard against shallow clone (filter-repo would produce incomplete results) ─
 if [[ "$(git rev-parse --is-shallow-repository)" == "true" ]]; then
-  echo "⚠️  Shallow clone detected; fetching full history before rewrite..."
+  echo "Unshallowing repo..."
   git fetch --unshallow --tags --prune
-  if [[ "$(git rev-parse --is-shallow-repository)" == "true" ]]; then
-    echo "❌ Repository is still shallow after attempting to unshallow."
-    echo "   Aborting to avoid incomplete history rewrite."
-    exit 1
-  fi
 fi
 
-# ── Purge the file from ALL history ─────────────────────────────────────────
-echo ""
-echo "🔥 Purging '${TARGET_FILE}' from all commits..."
-git filter-repo \
-  --path "${TARGET_FILE}" \
-  --invert-paths \
-  --force
+echo "Purging apps/mobile/google-services.json from all history..."
+git filter-repo --path apps/mobile/google-services.json --invert-paths --force
+
+echo "Re-adding origin (filter-repo removes remotes)..."
+read -r -p "Enter remote URL (e.g. git@github.com:org/repo.git): " remote_url
+git remote add origin "${remote_url}"
+
+echo "Force-pushing all branches and tags..."
+git push origin --force --all
+git push origin --force --tags
 
 echo ""
-echo "✅ File removed from local history."
-
-# ── Re-add remote (filter-repo removes it) ──────────────────────────────────
-echo ""
-echo "🔗 Re-adding remote '${REMOTE}'..."
-git remote add "${REMOTE}" "${REMOTE_URL}" 2>/dev/null || git remote set-url "${REMOTE}" "${REMOTE_URL}"
-
-# ── Force-push ALL local branches and tags to rewrite all remote refs ────────
-# Enumerate BOTH local branches AND remote-tracking branches so remote-only refs
-# are also updated — credentials can't survive on any skipped ref.
-echo ""
-echo "🚀 Force-pushing ALL rewritten branches and tags to remote..."
-echo "   (this ensures no remote ref retains the purged file)"
-pushed_branches=""
-
-# First: push all local branches
-while IFS= read -r ref; do
-  branch="${ref#refs/heads/}"
-  echo "  → Pushing local branch: ${branch}"
-  git push "${REMOTE}" "${branch}" --force
-  pushed_branches="${pushed_branches}${branch}
-"
-done < <(git for-each-ref --format='%(refname)' refs/heads/)
-
-# Second: push any remote-only branches not already pushed
-# (--force, not --force-with-lease: filter-repo rewrites remote-tracking refs
-#  so the lease would always be rejected by the remote)
-while IFS= read -r ref; do
-  [[ "${ref}" == "refs/remotes/${REMOTE}/HEAD" ]] && continue
-  branch="${ref#refs/remotes/${REMOTE}/}"
-  if printf '%s\n' "${pushed_branches}" | grep -F -x -q -- "${branch}"; then
-    continue
-  fi
-  echo "  → Pushing remote-only branch: ${branch}"
-  git push "${REMOTE}" "${ref}:refs/heads/${branch}" --force
-  pushed_branches="${pushed_branches}${branch}
-"
-done < <(git for-each-ref --format='%(refname)' "refs/remotes/${REMOTE}/")
-
-# Push all tags
-if git tag | grep -q .; then
-  echo ""
-  echo "  🏷  Pushing all tags (force)..."
-  git push "${REMOTE}" --tags --force
-fi
-
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  ✅ Git history purge complete"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-echo "  Next steps:"
-echo "  1. Notify ALL collaborators to delete their local clones and re-clone"
-echo "  2. Revoke the exposed API key in Firebase Console if not done already"
-echo "  3. Verify the new google-services.json works on a dev build"
-echo "  4. Check GitHub's secret scanning alerts are cleared"
-echo ""
+echo "Done. Notify all collaborators to delete their local clone and re-clone."
