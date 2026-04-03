@@ -6,6 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * mark-disconnected edge function
  *
@@ -50,23 +52,80 @@ Deno.serve(async (req) => {
 
     // player_id is accepted but not used for validation — the RPC keys by auth user_id.
     // We parse the full body so callers do not get 'unexpected token' errors on extra fields.
-    const { room_id } = await req.json();
+    let room_id: unknown;
+    try {
+      ({ room_id } = await req.json());
+    } catch {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid JSON body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     console.log('🔌 [mark-disconnected]', {
       user_id: user.id.substring(0, 8),
-      room_id: room_id?.substring(0, 8),
+      room_id: typeof room_id === 'string' ? room_id.substring(0, 8) : String(room_id ?? '').substring(0, 8),
     });
 
-    if (!room_id) {
+    if (!room_id || typeof room_id !== 'string') {
       return new Response(
-        JSON.stringify({ success: false, error: 'Missing room_id' }),
+        JSON.stringify({ success: false, error: 'Missing or invalid room_id' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Trim accidental leading/trailing whitespace (consistent with get-livekit-token).
+    const roomId = room_id.trim();
+
+    // Validate UUID format to return a clear 400 instead of a confusing 500 if
+    // the client passes a syntactically invalid value (PostgREST would reject it
+    // with "invalid input syntax for type uuid" which we'd propagate as a 500).
+    if (!UUID_REGEX.test(roomId)) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid room_id format' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // SECURITY: Validate room membership before calling the RPC.
+    // Without this check any authenticated user could trigger a service-role RPC
+    // call (and associated DB reads) for any room_id they supply, creating a DoS
+    // vector.  The mark_player_disconnected SQL function is restricted to
+    // service_role-only execution, but this edge-function gate prevents wasteful
+    // round-trips on behalf of non-members.
+    // We look for any row (regardless of connection_status) so a player that was
+    // already replaced by a bot can still trigger the idempotent no-op path rather
+    // than receiving a misleading 403.
+    const { data: membershipRow, error: membershipError } = await supabaseClient
+      .from('room_players')
+      .select('id')
+      .eq('room_id', roomId)
+      .eq('user_id', user.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (membershipError) {
+      console.error('❌ [mark-disconnected] Membership check error:', membershipError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Membership check failed' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!membershipRow) {
+      // Not a member of this room — return early without calling the RPC.
+      // Use 200 (not 403/404) so callers that fire mark-disconnected at app
+      // teardown do not surface spurious errors in the client logs.
+      console.log(`[mark-disconnected] user ${user.id.substring(0, 8)} not found in room ${roomId.substring(0, 8)} — skipping`);
+      return new Response(
+        JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Use the server-side function which guards offline rooms
     const { error: rpcError } = await supabaseClient.rpc('mark_player_disconnected', {
-      p_room_id: room_id,
+      p_room_id: roomId,
       p_user_id: user.id,
     });
 
