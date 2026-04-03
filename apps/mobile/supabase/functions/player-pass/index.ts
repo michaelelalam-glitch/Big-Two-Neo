@@ -145,9 +145,13 @@ async function fireTrainingPassInsert(
 
 // ==================== BOT-COORDINATOR HELPER ====================
 /**
- * Fire-and-forget bot-coordinator trigger.
- * Checks if the next player at `nextTurn` is a bot, and if so, calls the
- * bot-coordinator edge function in the background via EdgeRuntime.waitUntil.
+ * Trigger bot-coordinator when the next player is a bot.
+ *
+ * Uses EdgeRuntime.waitUntil for background execution: player-pass returns its
+ * Response immediately while the bot-coordinator fetch continues running in the
+ * background. This is the correct Supabase Edge Function pattern for background
+ * tasks — the runtime honours waitUntil promises after the handler returns,
+ * ensuring bot-coordinator completes its full loop without a premature timeout.
  *
  * Skips the call if the current request itself came from bot-coordinator
  * (prevents infinite loops).
@@ -192,39 +196,33 @@ async function triggerBotCoordinatorIfNeeded(
 
     if (nextPlayer?.is_bot) {
       const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-      // Await bot-coordinator with a 5-second timeout so the response is confirmed
-      // before player-pass returns. Fire-and-forget (EdgeRuntime.waitUntil) is
-      // unreliable: the Deno runtime may terminate dangling promises once the parent
-      // handler returns, causing the bot coordinator to start but be killed mid-run.
-      // The 5s ceiling ensures bot turns feel responsive without blocking indefinitely.
-      const botController = new AbortController();
-      const botTimeoutId = setTimeout(() => botController.abort(), 5_000);
-      try {
-        const res = await fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${sk}`,
-            'Content-Type': 'application/json',
-            'x-bot-coordinator': 'true',
-          },
-          body: JSON.stringify({ room_code: roomCode }),
-          signal: botController.signal,
-        });
+      // Start the bot-coordinator fetch in the background via EdgeRuntime.waitUntil.
+      // player-pass returns immediately; the runtime keeps the task alive after the
+      // Response is sent. This prevents blocking player-pass on bot turn execution
+      // (bot-coordinator can run up to LOCK_TIMEOUT_MS ≈ 30 s) while guaranteeing
+      // the coordinator runs to completion (unlike a fully detached void promise).
+      const botPromise = fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sk}`,
+          'Content-Type': 'application/json',
+          'x-bot-coordinator': 'true',
+        },
+        body: JSON.stringify({ room_code: roomCode }),
+      }).then(async (res) => {
         if (res.ok) {
           console.log(`🤖 [player-pass] Bot coordinator triggered (${label}) for player ${nextTurn}`);
         } else {
           const body = await res.text().catch(() => '');
           console.error(`[player-pass] ⚠️ Bot coordinator (${label}) non-2xx: ${res.status}`, body);
         }
-      } catch (fetchErr: any) {
-        if (fetchErr?.name === 'AbortError') {
-          console.warn(`[player-pass] ⚠️ Bot coordinator (${label}) timed out after 5s (non-critical)`);
-        } else {
-          console.error(`[player-pass] ⚠️ Bot coordinator trigger (${label}) failed:`, fetchErr);
-        }
-      } finally {
-        clearTimeout(botTimeoutId);
-      }
+      }).catch((fetchErr: any) => {
+        console.error(`[player-pass] ⚠️ Bot coordinator trigger (${label}) failed:`, fetchErr);
+      });
+      // EdgeRuntime.waitUntil ensures the background task completes even after
+      // the handler has returned its Response. Falls back silently in environments
+      // where EdgeRuntime is not available (local dev, unit tests).
+      try { (globalThis as any).EdgeRuntime?.waitUntil(botPromise); } catch (_) {}
     }
   } catch (err) {
     console.error(`[player-pass] ⚠️ Bot next-player check (${label}) failed (non-critical):`, err);

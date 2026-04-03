@@ -20,7 +20,12 @@ CREATE OR REPLACE FUNCTION refresh_bot_coordinator_lease(
 )
 RETURNS boolean
 LANGUAGE plpgsql
+-- SECURITY INVOKER: function runs with the CALLER's privileges (service_role).
+-- Only service_role can execute this function (see REVOKE/GRANT below).
+-- search_path is pinned to prevent mutable search_path injection (matches
+-- existing hardening in 20260322000000_security_hardening.sql).
 SECURITY INVOKER
+SET search_path = public, pg_catalog
 AS $$
 DECLARE
   v_rows_updated int;
