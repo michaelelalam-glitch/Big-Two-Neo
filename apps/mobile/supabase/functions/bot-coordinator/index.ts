@@ -28,11 +28,11 @@ const corsHeaders = {
 };
 
 /**
- * Delay between bot moves (ms) — allows Realtime to propagate for smooth client animations.
- * Note: the original PR description approximated this as ~500ms. 300ms is the intentional
- * deployed value; it provides adequate Realtime propagation time while keeping games snappy.
+ * Delay between bot moves (ms) — minimal pause to allow Realtime to propagate.
+ * Realtime itself adds ~100–150ms latency, so 100ms here keeps total per-bot-turn
+ * latency around 200–250ms — matching local 'hard' bot pace without artificial drag.
  */
-const BOT_MOVE_DELAY_MS = 300;
+const BOT_MOVE_DELAY_MS = 100;
 
 /** Maximum bot moves per invocation — prevents infinite loops */
 const MAX_BOT_MOVES = 20;
