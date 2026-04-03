@@ -123,11 +123,14 @@ pushed_branches=""
 while IFS= read -r ref; do
   branch="${ref#refs/heads/}"
   echo "  → Pushing local branch: ${branch}"
-  git push "${REMOTE}" "${branch}" --force-with-lease
+  git push "${REMOTE}" "${branch}" --force
   pushed_branches="${pushed_branches}${branch}
 "
+done < <(git for-each-ref --format='%(refname)' refs/heads/)
 
 # Second: push any remote-only branches not already pushed
+# (--force, not --force-with-lease: filter-repo rewrites remote-tracking refs
+#  so the lease would always be rejected by the remote)
 while IFS= read -r ref; do
   [[ "${ref}" == "refs/remotes/${REMOTE}/HEAD" ]] && continue
   branch="${ref#refs/remotes/${REMOTE}/}"
@@ -135,9 +138,10 @@ while IFS= read -r ref; do
     continue
   fi
   echo "  → Pushing remote-only branch: ${branch}"
-  git push "${REMOTE}" "${ref}:refs/heads/${branch}" --force-with-lease
+  git push "${REMOTE}" "${ref}:refs/heads/${branch}" --force
   pushed_branches="${pushed_branches}${branch}
 "
+done < <(git for-each-ref --format='%(refname)' "refs/remotes/${REMOTE}/")
 
 # Push all tags
 if git tag | grep -q .; then
