@@ -19,7 +19,6 @@ set -euo pipefail
 
 TARGET_FILE="apps/mobile/google-services.json"
 REMOTE="origin"
-BRANCHES_TO_REWRITE=("main" "game/chinese-poker" "dev")
 
 # ── Preflight ───────────────────────────────────────────────────────────────
 if ! command -v git-filter-repo &>/dev/null; then
@@ -41,21 +40,36 @@ echo ""
 echo "⚠️  This will REWRITE git history. Collaborators must re-clone."
 echo ""
 read -r -p "Have you already rotated the Firebase API keys in the Firebase Console? [y/N] " confirm
-if [[ "${confirm,,}" != "y" ]]; then
-  echo ""
-  echo "  Action required:"
-  echo "  1. Go to Firebase Console → Project Settings → Service Accounts"
-  echo "  2. Regenerate the Android app API key"
-  echo "  3. Download the new google-services.json to apps/mobile/"
-  echo "  4. Re-run this script"
-  exit 1
-fi
+case "${confirm}" in
+  [Yy])
+    ;;
+  *)
+    echo ""
+    echo "  Action required:"
+    echo "  1. Go to Firebase Console → Project Settings → Service Accounts"
+    echo "  2. Regenerate the Android app API key"
+    echo "  3. Download the new google-services.json to apps/mobile/"
+    echo "  4. Re-run this script"
+    exit 1
+    ;;
+esac
 
 read -r -p "Are you sure you want to rewrite git history? This cannot be undone. [y/N] " confirm2
-if [[ "${confirm2,,}" != "y" ]]; then
-  echo "Aborted."
-  exit 0
+case "${confirm2}" in
+  [Yy])
+    ;;
+  *)
+    echo "Aborted."
+    exit 0
+    ;;
+esac
+
+# ── Capture remote URL before rewriting (filter-repo removes remotes) ────────
+REMOTE_URL=$(git remote get-url "${REMOTE}" 2>/dev/null || echo "")
+if [[ -z "${REMOTE_URL}" ]]; then
+  read -r -p "Enter remote URL (e.g. git@github.com:org/repo.git): " REMOTE_URL
 fi
+echo "📌 Remote URL captured: ${REMOTE_URL}"
 
 # ── Fetch everything before rewriting ───────────────────────────────────────
 echo ""
@@ -76,23 +90,26 @@ echo "✅ File removed from local history."
 # ── Re-add remote (filter-repo removes it) ──────────────────────────────────
 echo ""
 echo "🔗 Re-adding remote '${REMOTE}'..."
-REMOTE_URL=$(git remote get-url "${REMOTE}" 2>/dev/null || echo "")
-if [[ -z "${REMOTE_URL}" ]]; then
-  read -r -p "Enter remote URL (e.g. git@github.com:org/repo.git): " REMOTE_URL
-fi
 git remote add "${REMOTE}" "${REMOTE_URL}" 2>/dev/null || git remote set-url "${REMOTE}" "${REMOTE_URL}"
 
-# ── Force-push rewritten branches ───────────────────────────────────────────
+# ── Force-push ALL local branches and tags to rewrite all remote refs ────────
+# Enumerate dynamically so no branch/tag is missed and credentials can't survive
+# on any skipped ref.
 echo ""
-echo "🚀 Force-pushing rewritten history to remote..."
-for branch in "${BRANCHES_TO_REWRITE[@]}"; do
-  if git show-ref --verify --quiet "refs/heads/${branch}"; then
-    echo "  → Pushing ${branch}..."
-    git push "${REMOTE}" "${branch}" --force-with-lease
-  else
-    echo "  ⏭  Branch '${branch}' not found locally, skipping."
-  fi
-done
+echo "🚀 Force-pushing ALL rewritten branches and tags to remote..."
+echo "   (this ensures no remote ref retains the purged file)"
+while IFS= read -r ref; do
+  branch="${ref#refs/heads/}"
+  echo "  → Pushing branch: ${branch}"
+  git push "${REMOTE}" "${branch}" --force-with-lease
+done < <(git for-each-ref --format='%(refname)' refs/heads/)
+
+# Push all tags
+if git tag | grep -q .; then
+  echo ""
+  echo "  🏷  Pushing all tags (force)..."
+  git push "${REMOTE}" --tags --force
+fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
