@@ -27,7 +27,8 @@
 -- different name — adding redundant write overhead.
 -- We instead query pg_index to detect any equivalent unique partial index on
 -- game_history(room_id) WHERE room_id IS NOT NULL, and only build the canonical
--- idx_game_history_room_unique if no such index exists yet.
+-- idx_game_history_unique_room_id (standardizing on the existing canonical name)
+-- if no such index exists yet.
 
 DO $$
 DECLARE
@@ -61,12 +62,15 @@ BEGIN
   LIMIT 1;
 
   IF v_index_name IS NULL THEN
+    -- Standardize on the existing canonical name used in 20260313000001.
+    -- Avoids introducing a 3rd name (idx_game_history_room_unique) that would
+    -- need a cleanup migration on any environment without legacy indexes.
     EXECUTE $sql$
-      CREATE UNIQUE INDEX idx_game_history_room_unique
+      CREATE UNIQUE INDEX idx_game_history_unique_room_id
         ON public.game_history (room_id)
         WHERE room_id IS NOT NULL
     $sql$;
-    v_index_name := 'idx_game_history_room_unique';
+    v_index_name := 'idx_game_history_unique_room_id';
   END IF;
 
   EXECUTE format(

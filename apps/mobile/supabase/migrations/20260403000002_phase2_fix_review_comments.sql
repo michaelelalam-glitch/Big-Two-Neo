@@ -16,20 +16,37 @@
 --   Note: on fresh environments that run the updated 20260403000001, the
 --   REVOKE FROM PUBLIC here is idempotent (safe to run twice).
 
--- ── Fix 1: Remove duplicate partial unique index ──────────────────────────────
-DROP INDEX IF EXISTS public.idx_game_history_room_unique;
-
--- Annotate the canonical pre-existing partial index using a DO block so the
--- migration is portable across environments where the index may exist under
--- either of the two known legacy names.  to_regclass returns NULL (not an
--- error) when the identifier does not exist, so we can COALESCE safely.
+-- ── Fix 1 + 2 (combined): Safe drop + portable COMMENT ───────────────────────
+-- Only drop idx_game_history_room_unique when a legacy equivalent already exists
+-- so that we never remove the only uniqueness guard (e.g. in fresh environments
+-- where 20260403000001 ran and created idx_game_history_unique_room_id as the
+-- only partial unique index, there is nothing to drop here).
+-- Then annotate whichever canonical index remains, including idx_game_history_room_unique
+-- as a fallback so the migration is portable across all known index histories.
 DO $$
 DECLARE
   canonical_index regclass;
+  has_legacy_equivalent boolean;
 BEGIN
+  has_legacy_equivalent := (
+    to_regclass('public.idx_game_history_unique_room_id') IS NOT NULL
+    OR to_regclass('public.idx_game_history_room_id_unique') IS NOT NULL
+  );
+
+  -- Only drop the newer redundant index when one of the known legacy equivalent
+  -- partial unique indexes is present; otherwise keep the current uniqueness guard.
+  IF has_legacy_equivalent
+     AND to_regclass('public.idx_game_history_room_unique') IS NOT NULL THEN
+    DROP INDEX public.idx_game_history_room_unique;
+  ELSE
+    RAISE NOTICE 'Skipping drop of idx_game_history_room_unique because no equivalent legacy partial unique index exists (or index already absent).';
+  END IF;
+
+  -- Annotate whichever canonical index is present, probing all known names.
   canonical_index := COALESCE(
     to_regclass('public.idx_game_history_unique_room_id'),
-    to_regclass('public.idx_game_history_room_id_unique')
+    to_regclass('public.idx_game_history_room_id_unique'),
+    to_regclass('public.idx_game_history_room_unique')
   );
 
   IF canonical_index IS NOT NULL THEN
