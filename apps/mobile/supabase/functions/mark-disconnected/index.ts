@@ -72,11 +72,14 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Trim accidental leading/trailing whitespace (consistent with get-livekit-token).
+    const roomId = room_id.trim();
+
     // Validate UUID format to return a clear 400 instead of a confusing 500 if
     // the client passes a syntactically invalid value (PostgREST would reject it
     // with "invalid input syntax for type uuid" which we'd propagate as a 500).
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!UUID_RE.test(room_id)) {
+    if (!UUID_RE.test(roomId)) {
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid room_id format' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -95,7 +98,7 @@ Deno.serve(async (req) => {
     const { data: membershipRow, error: membershipError } = await supabaseClient
       .from('room_players')
       .select('id')
-      .eq('room_id', room_id)
+      .eq('room_id', roomId)
       .eq('user_id', user.id)
       .limit(1)
       .maybeSingle();
@@ -112,7 +115,7 @@ Deno.serve(async (req) => {
       // Not a member of this room — return early without calling the RPC.
       // Use 200 (not 403/404) so callers that fire mark-disconnected at app
       // teardown do not surface spurious errors in the client logs.
-      console.log(`[mark-disconnected] user ${user.id.substring(0, 8)} not found in room ${room_id.substring(0, 8)} — skipping`);
+      console.log(`[mark-disconnected] user ${user.id.substring(0, 8)} not found in room ${roomId.substring(0, 8)} — skipping`);
       return new Response(
         JSON.stringify({ success: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -121,7 +124,7 @@ Deno.serve(async (req) => {
 
     // Use the server-side function which guards offline rooms
     const { error: rpcError } = await supabaseClient.rpc('mark_player_disconnected', {
-      p_room_id: room_id,
+      p_room_id: roomId,
       p_user_id: user.id,
     });
 
