@@ -58,7 +58,7 @@ BEGIN
   ELSE
     RAISE NOTICE 'No equivalent game_history partial unique index found to annotate.';
   END IF;
-END
+END;
 $$;
 
 -- ── Fix 2: Revoke from PUBLIC on mark_player_disconnected ─────────────────────
