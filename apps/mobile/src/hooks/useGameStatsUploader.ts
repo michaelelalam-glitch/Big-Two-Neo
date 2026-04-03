@@ -539,14 +539,59 @@ export function useGameStatsUploader({
         }
         // ─────────────────────────────────────────────────────────────────────────
 
-        const response = await fetch(`${API.SUPABASE_URL}/functions/v1/complete-game`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        });
+        const MAX_RETRIES = 2;
+        const FETCH_TIMEOUT_MS = 30_000; // 30 s abort timeout per attempt; backoff: 1 s, 2 s between retries
+        let response: Response | null = null;
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+          const controller = new AbortController();
+          currentController = controller;
+          const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+          currentTimeoutId = timeoutId;
+          try {
+            response = await fetch(`${API.SUPABASE_URL}/functions/v1/complete-game`, {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${session.access_token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(payload),
+              signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+            if (response.ok || response.status < 500) {
+              // Success (2xx/3xx) or client error (4xx): don't retry further.
+              break;
+            }
+            if (attempt < MAX_RETRIES) {
+              statsLogger.warn(
+                `⚠️ [GameStats] Server error (${response.status}), retrying (${attempt + 1}/${MAX_RETRIES})...`
+              );
+              await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+              if (cancelled) break;
+            }
+          } catch (fetchError) {
+            clearTimeout(timeoutId);
+            if (attempt < MAX_RETRIES) {
+              const msg = fetchError instanceof Error ? fetchError.message : String(fetchError);
+              statsLogger.warn(
+                `⚠️ [GameStats] Network error/timeout calling complete-game, retrying (${attempt + 1}/${MAX_RETRIES})...`,
+                msg
+              );
+              await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+              if (cancelled) break;
+            } else {
+              throw fetchError;
+            }
+          }
+        }
+
+        // If the effect was cleaned up while we were in a backoff wait, exit
+        // silently rather than throwing a false-positive Sentry exception.
+        if (cancelled) return;
+
+        if (!response) {
+          throw new Error('[GameStats] No response from complete-game after retries');
+        }
 
         if (response.ok) {
           const result = await response.json();
@@ -564,6 +609,9 @@ export function useGameStatsUploader({
           });
         }
       } catch (err: unknown) {
+        // If the effect was cleaned up while the final attempt was in-flight,
+        // don't report to Sentry — this is an expected cancellation, not a bug.
+        if (cancelled) return;
         const msg = err instanceof Error ? err.message : String(err);
         // Wrap non-Error throws so Sentry records a useful stack trace.
         const errorForSentry = err instanceof Error ? err : new Error(String(err));
@@ -577,7 +625,15 @@ export function useGameStatsUploader({
       }
     };
 
+    let cancelled = false;
+    let currentController: AbortController | null = null;
+    let currentTimeoutId: ReturnType<typeof setTimeout> | null = null;
     uploadStats();
+    return () => {
+      cancelled = true;
+      currentController?.abort();
+      if (currentTimeoutId !== null) clearTimeout(currentTimeoutId);
+    };
   }, [
     isMultiplayerGame,
     multiplayerGameState,

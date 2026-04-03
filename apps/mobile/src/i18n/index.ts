@@ -405,6 +405,7 @@ export interface Translations {
     smart: string;
     sort: string;
     lastPlayedBy: string;
+    noCards: string;
     noCardsYet: string;
     cardsLeft: string;
     combo: string;
@@ -1185,6 +1186,7 @@ const en: Translations = {
     smart: 'Smart',
     sort: 'Sort',
     lastPlayedBy: 'Last played by',
+    noCards: 'No cards remaining',
     noCardsYet: 'No cards played yet',
     cardsLeft: 'cards left',
     combo: 'Combo',
@@ -1891,6 +1893,7 @@ const ar: Translations = {
     smart: 'ذكي',
     sort: 'ترتيب',
     lastPlayedBy: 'آخر من لعب',
+    noCards: 'لا توجد بطاقات متبقية',
     noCardsYet: 'لم يتم لعب أي بطاقات بعد',
     cardsLeft: 'بطاقات متبقية',
     combo: 'كومبو',
@@ -2688,6 +2691,7 @@ const de: Translations = {
     smart: 'Clever',
     sort: 'Sortieren',
     lastPlayedBy: 'Zuletzt gespielt von',
+    noCards: 'Keine Karten übrig',
     noCardsYet: 'Noch keine Karten gespielt',
     cardsLeft: 'Karten übrig',
     combo: 'Kombo',

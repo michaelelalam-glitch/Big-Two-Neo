@@ -24,6 +24,7 @@ import { invokeWithRetry } from '../utils/edgeFunctionRetry';
 import {
   getPlayErrorExplanation,
   extractEdgeFunctionErrorAsync,
+  isExpectedTurnRaceError,
 } from '../utils/edgeFunctionErrors';
 import { gameLogger } from '../utils/logger';
 import { soundManager, SoundType } from '../utils';
@@ -108,30 +109,66 @@ export async function executePlayCards({
   );
 
   if (playError || !result?.success) {
-    gameLogger.error('[useRealtime] 🔍 Full error object structure:', {
-      hasError: !!playError,
-      hasResult: !!result,
-      errorKeys: playError ? Object.keys(playError) : [],
-      errorContext: playError?.context,
-      errorContextKeys: playError?.context ? Object.keys(playError.context) : [],
-      resultKeys: result ? Object.keys(result) : [],
-      result,
-    });
-
     const errorMessage = await extractEdgeFunctionErrorAsync(
       playError,
       result,
       'Server validation failed'
     );
-    const debugInfo = result?.debug ? JSON.stringify(result.debug) : 'No debug info';
     const statusCode = playError?.context?.status || 'unknown';
 
-    gameLogger.error('[useRealtime] ❌ Server validation failed:', {
+    // Determine severity: expected race conditions (bot took the turn, player
+    // disconnected) are warnings, not errors — they do not indicate bugs.
+    const isExpectedRace = isExpectedTurnRaceError(errorMessage);
+    const log = isExpectedRace
+      ? gameLogger.warn.bind(gameLogger)
+      : gameLogger.error.bind(gameLogger);
+
+    if (!isExpectedRace) {
+      log('[useRealtime] 🔍 Full error object structure:', {
+        hasError: !!playError,
+        hasResult: !!result,
+        errorKeys: playError ? Object.keys(playError) : [],
+        errorContext: playError?.context,
+        errorContextKeys: playError?.context ? Object.keys(playError.context) : [],
+        resultKeys: result ? Object.keys(result) : [],
+        result,
+      });
+    }
+
+    log('[useRealtime] ❌ Server validation failed:', {
       message: errorMessage,
       status: statusCode,
-      debug: debugInfo,
+      ...(isExpectedRace
+        ? {}
+        : { debug: result?.debug ? JSON.stringify(result.debug) : 'No debug info' }),
     });
-    gameLogger.error('[useRealtime] 📦 Full error context:', { error: playError, result });
+    if (isExpectedRace) {
+      gameLogger.warn('[useRealtime] 📦 Error summary (expected race):', {
+        message: errorMessage,
+        status: statusCode,
+        hasError: !!playError,
+        hasResult: !!result,
+      });
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        gameLogger.debug('[useRealtime] 📦 Full error context (DEV only):', {
+          error: playError,
+          result,
+        });
+      }
+    } else {
+      log('[useRealtime] 📦 Full error context:', {
+        message: errorMessage,
+        status: statusCode,
+        hasError: !!playError,
+        hasResult: !!result,
+      });
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        gameLogger.debug('[useRealtime] 📦 Full error details (DEV only):', {
+          error: playError,
+          result,
+        });
+      }
+    }
 
     // ── "Lost response" recovery ──────────────────────────────────────────────
     // Scenario: the server processed our play (match ended) but the HTTP response

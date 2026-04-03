@@ -13,6 +13,7 @@ import { i18n } from '../../i18n';
 import { soundManager, hapticManager, SoundType } from '../../utils';
 import { sortCardsForDisplay } from '../../utils/cardSorting';
 import { gameLogger } from '../../utils/logger';
+import { isExpectedTurnRaceError } from '../../utils/edgeFunctionErrors';
 import type { GameStateManager } from '../../game/state';
 import type { Card } from '../../game/types';
 
@@ -96,14 +97,12 @@ function GameControlsComponent({
         const errorMessage = error instanceof Error ? error.message : String(error);
         const displayMessage = error instanceof Error ? errorMessage : 'Invalid play';
 
-        // 'Not your turn' is a retry-race: invokeWithRetry retried after a transient
-        // FunctionsFetchError and the turn moved on during the backoff window.
-        // Already breadcrumbed in useGameActions. Silently discard — no popup, no sound.
+        // Expected race conditions (e.g. 'Not your turn', 'Not player X's turn', 'Player
+        // not found') are already breadcrumbed/logged upstream in useGameActions and
+        // realtimeActions. Silently discard — no popup, no sound.
         // The Realtime subscription will deliver the updated game state automatically.
-        if (errorMessage.includes('Not your turn')) {
-          gameLogger.warn(
-            '❌ [GameControls] Suppressed "Not your turn" popup (retry-race condition)'
-          );
+        if (isExpectedTurnRaceError(errorMessage)) {
+          gameLogger.warn('❌ [GameControls] Suppressed expected-race popup:', errorMessage);
           return;
         }
 
@@ -152,13 +151,14 @@ function GameControlsComponent({
       soundManager.playSound(SoundType.PASS);
       onPassSuccess();
     } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      // Suppress popup for expected race conditions (auto-pass race, player left mid-turn)
+      if (isExpectedTurnRaceError(errorMessage)) {
+        gameLogger.warn('⚠️ [GameControls] Suppressed expected-race pass popup:', errorMessage);
+        return;
+      }
       // Only log error message/code to avoid exposing game state internals
-      gameLogger.error(
-        '❌ [GameControls] Failed to pass:',
-        error instanceof Error ? error.message : String(error)
-      );
-
-      const errorMessage = error instanceof Error ? error.message : 'Cannot pass';
+      gameLogger.error('❌ [GameControls] Failed to pass:', errorMessage);
       Alert.alert('Cannot Pass', errorMessage);
     } finally {
       setTimeout(() => {

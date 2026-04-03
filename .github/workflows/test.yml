@@ -164,6 +164,9 @@ jobs:
           cd apps/mobile
           pnpm install --frozen-lockfile
       
+      - name: 🔑 Create Firebase config for build check
+        run: cp apps/mobile/google-services.json.example apps/mobile/google-services.json
+      
       - name: 🏗️ Check Expo build configuration
         run: |
           cd apps/mobile
@@ -284,6 +287,9 @@ jobs:
           cd apps/mobile
           pnpm install --frozen-lockfile
       
+      - name: 🔑 Create Firebase config for build
+        run: cp apps/mobile/google-services.json.example apps/mobile/google-services.json
+
       - name: 🏗️ Build iOS app for Simulator
         run: |
           set -o pipefail
@@ -488,6 +494,16 @@ jobs:
           cd apps/mobile
           pnpm install --frozen-lockfile
 
+      - name: 💾 Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
       - name: 🎭 Install Maestro CLI
         run: |
           curl -fsSL "https://get.maestro.mobile.dev" | bash
@@ -501,6 +517,9 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      - name: 🔑 Create Firebase config for build
+        run: cp apps/mobile/google-services.json.example apps/mobile/google-services.json
+
       - name: 🏗️ Build Android release APK
         run: |
           set -o pipefail
@@ -512,7 +531,7 @@ jobs:
             -x lint \
             --no-daemon \
             --parallel
-        timeout-minutes: 30
+        timeout-minutes: 45
         env:
           JAVA_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=512m"
           GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.configureondemand=true"

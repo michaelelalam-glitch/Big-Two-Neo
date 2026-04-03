@@ -98,6 +98,15 @@ export function LandscapeYourPosition({
   const optimisticRollbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [displayCards, setDisplayCards] = useState<CardType[]>(cards);
 
+  // Keep a ref to the latest displayCards so the `cards` effect can read it
+  // without adding displayCards to its dependency array (which would cause an
+  // infinite re-render loop: effect sets displayCards → displayCards changes →
+  // effect fires again → …).
+  const displayCardsRef = useRef(displayCards);
+  React.useEffect(() => {
+    displayCardsRef.current = displayCards;
+  }, [displayCards]);
+
   // Keep a ref to the latest cards prop so the rollback timeout always compares
   // against the current hand (not the stale closure value from when the timeout was scheduled).
   const cardsRef = useRef(cards);
@@ -141,6 +150,12 @@ export function LandscapeYourPosition({
 
   // Update display cards ONLY when cards are added/removed OR parent explicitly reorders
   // CRITICAL: Do NOT auto-reorder during play/pass/button presses
+  //
+  // NOTE: `displayCards` is intentionally NOT in the dependency array.  Reading
+  // the state value directly would cause an infinite loop (setState inside the
+  // effect → state changes → effect fires again → …).  We read the equivalent
+  // ref (displayCardsRef.current) instead, which always reflects the latest
+  // committed display state without making it a reactive dependency.
   React.useEffect(() => {
     // Prune confirmed removals from the optimistic set: if parent cards no longer contain
     // an ID we optimistically removed, the play was accepted by the server.
@@ -157,7 +172,9 @@ export function LandscapeYourPosition({
         ? cards.filter(c => !optimisticallyRemovedRef.current.has(c.id))
         : cards;
 
-    const currentIds = new Set(displayCards.map(c => c.id));
+    // Use the ref so we don't add `displayCards` to the dependency array.
+    const currentDisplay = displayCardsRef.current;
+    const currentIds = new Set(currentDisplay.map(c => c.id));
     const filteredIds = new Set(filteredCards.map(c => c.id));
 
     // Check if cards actually changed (not just reordered)
@@ -167,22 +184,25 @@ export function LandscapeYourPosition({
     if (!sameCardSet) {
       // Cards were added or removed (play/pass action) - update display
       // But preserve the relative order of remaining cards
-      const remainingCards = displayCards.filter(c => filteredIds.has(c.id));
+      const remainingCards = currentDisplay.filter(c => filteredIds.has(c.id));
       const addedCards = filteredCards.filter(c => !currentIds.has(c.id));
 
       // Combine: keep user's custom order for existing cards, append new cards
       setDisplayCards([...remainingCards, ...addedCards]);
       setDragState(initialDragState);
     }
-    // CRITICAL FIX (Issue #1): ALWAYS initialize displayCards if empty
-    else if (displayCards.length === 0) {
+    // CRITICAL FIX (Issue #1): Initialize displayCards when empty AND parent has cards.
+    // Guard: only set when filteredCards is non-empty; setting an empty array to
+    // another empty array creates a new reference, triggering an infinite re-render
+    // loop (setState → re-render → effect → setState → …).
+    else if (currentDisplay.length === 0 && filteredCards.length > 0) {
       setDisplayCards(filteredCards);
     }
     // CRITICAL FIX (Issue #2): If same card set but different order, AND user didn't manually rearrange,
     // update to match parent's order (this allows helper buttons to work)
-    else if (sameCardSet && displayCards.length > 0) {
+    else if (sameCardSet && currentDisplay.length > 0) {
       // Check if order actually changed
-      const orderChanged = !displayCards.every((card, idx) => card.id === filteredCards[idx]?.id);
+      const orderChanged = !currentDisplay.every((card, idx) => card.id === filteredCards[idx]?.id);
       // Only update if NOT currently dragging (preserve user's manual rearrangement)
       if (orderChanged && !dragState.draggedCardId) {
         gameLogger.info(
@@ -191,7 +211,7 @@ export function LandscapeYourPosition({
         setDisplayCards(filteredCards);
       }
     }
-  }, [cards, displayCards, dragState.draggedCardId]);
+  }, [cards, dragState.draggedCardId]);
 
   const orderedCards = displayCards;
 
