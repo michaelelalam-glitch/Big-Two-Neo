@@ -118,7 +118,7 @@ Phase 17 Integration & E2E Testing ────────┘ (depends on ALL a
 
 - [ ] **2.1** Apply UNIQUE INDEX on `game_history(room_id)` to prevent duplicate game completions `[B-03]` `CRITICAL`
   - **File:** New migration `apps/mobile/supabase/migrations/YYYYMMDD_unique_game_history_room.sql`
-  - **SQL:** `CREATE UNIQUE INDEX IF NOT EXISTS idx_game_history_room_id ON game_history(room_id);`
+  - **SQL:** `CREATE UNIQUE INDEX IF NOT EXISTS idx_game_history_unique_room_id ON game_history(room_id) WHERE room_id IS NOT NULL;`
   - **Why:** `complete-game` edge function has SELECT/INSERT race — two clients can insert duplicate records
 
 - [ ] **2.2** Align force_sweep grace period to match disconnect threshold `[R-03]` `CRITICAL`

@@ -391,7 +391,7 @@ LiveKit integration is **well-implemented** with proper security boundaries.
 | ID | Severity | File | Issue |
 |----|----------|------|-------|
 | SEC-01 | **CRITICAL** | `play-cards/index.ts` | Server accepts client-submitted cards without verifying they're in player's hand — **game-breaking exploit** |
-| SEC-02 | **CRITICAL** | `google-services.json` | Firebase API keys + OAuth Client ID committed to repo — **rotate immediately** |
+| SEC-02 | **CRITICAL** | `google-services.json` | Firebase API keys + OAuth Client ID were committed historically and may still exist in git history; file is not currently tracked in this branch — **rotate immediately** |
 | SEC-03 | **HIGH** | `useFriends.ts` | No rate limiting on friend requests — can spam unlimited pending requests |
 | SEC-04 | **HIGH** | `analytics.ts:82` | GA4 API_SECRET bundled in app binary |
 | SEC-05 | **MEDIUM** | `useThrowables.ts` | 30s cooldown is client-only — no server-side validation prevents bypass |

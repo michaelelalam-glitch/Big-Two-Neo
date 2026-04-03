@@ -62,10 +62,9 @@ supabase/.temp/
 # migration scripts (one-time use only)
 fix-tests.sh
 
-# CRITICAL: Firebase and EAS credentials (NEVER commit these!)
-# google-services.json has been removed from tracking via `git rm --cached`.
-# Only the google-services.json.example template is committed.
-# Store only local copies and/or use *.example templates instead.
+# Do not commit Firebase config files; keep only local copies and/or committed *.example templates.
+# If google-services.json or GoogleService-Info.plist were ever committed with real values,
+# rotate the exposed Firebase credentials and purge the files from git history before any release.
 google-services.json
 GoogleService-Info.plist
 credentials.json

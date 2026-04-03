@@ -114,7 +114,6 @@ export async function executePlayCards({
       result,
       'Server validation failed'
     );
-    const debugInfo = result?.debug ? JSON.stringify(result.debug) : 'No debug info';
     const statusCode = playError?.context?.status || 'unknown';
 
     // Determine severity: expected race conditions (bot took the turn, player
@@ -139,7 +138,9 @@ export async function executePlayCards({
     log('[useRealtime] ❌ Server validation failed:', {
       message: errorMessage,
       status: statusCode,
-      ...(isExpectedRace ? {} : { debug: debugInfo }),
+      ...(isExpectedRace
+        ? {}
+        : { debug: result?.debug ? JSON.stringify(result.debug) : 'No debug info' }),
     });
     if (isExpectedRace) {
       gameLogger.warn('[useRealtime] 📦 Error summary (expected race):', {
