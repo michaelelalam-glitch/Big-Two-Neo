@@ -96,8 +96,8 @@ Phase 17 Integration & E2E Testing ────────┘ (depends on ALL a
   - **Steps:**
     1. Generate new Firebase API keys in Firebase Console
     2. Run `bash apps/mobile/scripts/rotate-firebase-credentials.sh` (requires `pip3 install git-filter-repo`)
-    3. Script will remove `google-services.json` from ALL historical commits using `git filter-repo`
-    4. Script force-pushes rewritten history — **all collaborators must re-clone**
+    3. Script rewrites local git history with `git filter-repo` to remove `google-services.json`
+    4. Ensure all relevant remote branches and tags are also updated/force-pushed before treating the history purge as complete — collaborators may need to re-clone after rewritten history is published
     5. Revoke old API key in Firebase Console once new keys are verified working
   - **Verify:** `git log --all --full-history -- '**/google-services.json'` returns empty
   - **Status:** ⏳ Script created; Firebase Console key rotation + history purge must be run manually (destructive op)
