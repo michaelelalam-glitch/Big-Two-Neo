@@ -41,25 +41,26 @@ afterEach(() => {
 });
 
 const ROOM_CODE = 'TEST01';
-const FALLBACK_GRACE_PERIOD_MS = 3000;
+const FALLBACK_GRACE_PERIOD_MS = 600;
 const TRIGGER_COOLDOWN_MS = 5000;
 
 const botPlayer = { player_index: 1, is_bot: true, username: 'Bot1' };
 const humanPlayer = { player_index: 0, is_bot: false, username: 'Human' };
 
-const makeBotTurnState = (current_turn = 1, game_phase = 'playing') => ({
-  current_turn,
-  game_phase,
-  id: 'gs-1',
-  room_id: 'room-1',
-  match_number: 1,
-  hands: {},
-  last_play: null,
-  played_cards: [],
-  passes: 0,
-  auto_pass_timer: null,
-  play_history: [],
-} as any);
+const makeBotTurnState = (current_turn = 1, game_phase = 'playing') =>
+  ({
+    current_turn,
+    game_phase,
+    id: 'gs-1',
+    room_id: 'room-1',
+    match_number: 1,
+    hands: {},
+    last_play: null,
+    played_cards: [],
+    passes: 0,
+    auto_pass_timer: null,
+    play_history: [],
+  }) as any;
 
 describe('useServerBotCoordinator', () => {
   describe('Grace period scheduling', () => {
