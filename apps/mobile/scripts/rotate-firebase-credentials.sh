@@ -54,9 +54,9 @@ case "${confirm}" in
   *)
     echo ""
     echo "  Action required:"
-    echo "  1. Go to Firebase Console → Project Settings → Service Accounts"
-    echo "  2. Regenerate the Android app API key"
-    echo "  3. Download the new google-services.json to apps/mobile/"
+    echo "  1. Go to Google Cloud Console → APIs & Services → Credentials"
+    echo "  2. Rotate or restrict the Android app API key used by Firebase"
+    echo "  3. In Firebase Console → Project Settings → General, download the updated google-services.json to apps/mobile/"
     echo "  4. Re-run this script"
     exit 1
     ;;
@@ -84,6 +84,17 @@ echo ""
 echo "📥 Fetching all remote refs..."
 git fetch --all --prune
 
+# ── Guard against shallow clone (filter-repo would produce incomplete results) ─
+if [[ "$(git rev-parse --is-shallow-repository)" == "true" ]]; then
+  echo "⚠️  Shallow clone detected; fetching full history before rewrite..."
+  git fetch --unshallow --tags --prune
+  if [[ "$(git rev-parse --is-shallow-repository)" == "true" ]]; then
+    echo "❌ Repository is still shallow after attempting to unshallow."
+    echo "   Aborting to avoid incomplete history rewrite."
+    exit 1
+  fi
+fi
+
 # ── Purge the file from ALL history ─────────────────────────────────────────
 echo ""
 echo "🔥 Purging '${TARGET_FILE}' from all commits..."
@@ -106,25 +117,27 @@ git remote add "${REMOTE}" "${REMOTE_URL}" 2>/dev/null || git remote set-url "${
 echo ""
 echo "🚀 Force-pushing ALL rewritten branches and tags to remote..."
 echo "   (this ensures no remote ref retains the purged file)"
-declare -A pushed_branches=()
+pushed_branches=""
 
 # First: push all local branches
 while IFS= read -r ref; do
   branch="${ref#refs/heads/}"
   echo "  → Pushing local branch: ${branch}"
   git push "${REMOTE}" "${branch}" --force-with-lease
-  pushed_branches["${branch}"]=1
-done < <(git for-each-ref --format='%(refname)' refs/heads/)
+  pushed_branches="${pushed_branches}${branch}
+"
 
 # Second: push any remote-only branches not already pushed
 while IFS= read -r ref; do
   [[ "${ref}" == "refs/remotes/${REMOTE}/HEAD" ]] && continue
   branch="${ref#refs/remotes/${REMOTE}/}"
-  [[ -n "${pushed_branches[${branch}]+x}" ]] && continue
+  if printf '%s\n' "${pushed_branches}" | grep -F -x -q -- "${branch}"; then
+    continue
+  fi
   echo "  → Pushing remote-only branch: ${branch}"
   git push "${REMOTE}" "${ref}:refs/heads/${branch}" --force-with-lease
-  pushed_branches["${branch}"]=1
-done < <(git for-each-ref --format='%(refname)' "refs/remotes/${REMOTE}/")
+  pushed_branches="${pushed_branches}${branch}
+"
 
 # Push all tags
 if git tag | grep -q .; then
