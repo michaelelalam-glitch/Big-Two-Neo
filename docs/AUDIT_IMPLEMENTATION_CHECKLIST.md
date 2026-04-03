@@ -100,7 +100,7 @@ Phase 17 Integration & E2E Testing ────────┘ (depends on ALL a
     4. Ensure all relevant remote branches and tags are also updated/force-pushed before treating the history purge as complete — collaborators may need to re-clone after rewritten history is published
     5. Revoke old API key in Google Cloud Console → APIs & Services → Credentials once new keys are verified working
   - **Verify:** `git log --all --full-history -- '**/google-services.json'` returns empty
-  - **Status:** ✅ Done — old API key (`AIzaSyAG8...`) revoked; new key in place; history purged across all 1458 commits and all branches force-pushed
+  - **Status:** ✅ Done — old API key revoked in console; new key in place; history purged across all 1458 commits and all branches force-pushed
 
 - [x] **1.2** Remove `usesAppleSignIn: true` from app.json (feature is disabled) `[I-02, O-02]` `CRITICAL`
   - **File:** `apps/mobile/app.json`

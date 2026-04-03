@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # rotate-firebase-credentials.sh
-# Purges google-services.json from ALL git history, then force-pushes everything.
+# Purges apps/mobile/google-services.json from all git history, then force-pushes everything.
 #
 # BEFORE running this script:
 #   1. Go to https://console.cloud.google.com -> APIs & Services -> Credentials
@@ -37,6 +37,14 @@ else
   done
   echo "Adding ${remote_name} remote before fetching..."
   git remote add "${remote_name}" "${remote_url}"
+fi
+
+# Preflight: require a completely clean working tree before history rewrite.
+if [[ -n "$(git status --porcelain --untracked-files=normal)" ]]; then
+  echo "Error: working tree is not clean."
+  echo "Commit, stash, or remove all staged, unstaged, and untracked changes before running this script."
+  git status --short
+  exit 1
 fi
 
 echo "This rewrites ALL git history. All collaborators must re-clone afterwards."
