@@ -171,15 +171,45 @@ Deno.serve(async (req) => {
     console.log(`🔍 [find-match] Found ${waitingCount} waiting players`);
 
     // 6. If we have 4+ players, create a match
-    // ⚠️ RACE CONDITION: Multiple concurrent find-match calls can try to match the same players.
-    // This can cause match creation failures or players being matched to multiple rooms.
-    // TODO: Implement one of these mitigations before production deployment:
-    // 1. Use database-level locking (SELECT ... FOR UPDATE) on waiting_room entries
-    // 2. Implement optimistic concurrency control with 'processing' status
-    // 3. Use a distributed lock (Redis) for the matchmaking critical section
-    // Current implementation has no concurrency control and may fail under load.
     if (waitingCount >= 4) {
       console.log('✅ [find-match] Creating match with 4 players');
+
+      // 6a. Optimistic concurrency lock — atomically claim all 4 seats by flipping
+      // status 'waiting' → 'processing'. Only one concurrent find-match invocation
+      // can succeed because the others will see 'processing' rows and get < 4 hits.
+      // Any invocation that doesn't update all 4 rows backs off and returns "waiting".
+      // This eliminates the previous race condition where two concurrent callers could
+      // match the same players and create two rooms for the same group.
+      const candidateIds = (waitingPlayers as any[]).slice(0, 4).map((p: any) => p.user_id);
+      const { count: lockedCount, error: lockError } = await supabaseClient
+        .from('waiting_room')
+        .update({ status: 'processing' })
+        .in('user_id', candidateIds)
+        .eq('status', 'waiting') // Only lock rows still in 'waiting' state
+        .select('user_id', { count: 'exact', head: true });
+
+      if (lockError) {
+        console.error('❌ [find-match] Optimistic lock update failed:', lockError);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Failed to join matchmaking' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if ((lockedCount ?? 0) < 4) {
+        // Another concurrent caller already claimed some of these players; back off.
+        console.log(`⏳ [find-match] Lost optimistic lock (locked ${lockedCount}/4), backing off`);
+        // Reset our own row back to 'waiting' so we can still be matched next poll.
+        await supabaseClient
+          .from('waiting_room')
+          .update({ status: 'waiting' })
+          .eq('user_id', userId)
+          .eq('status', 'processing');
+        return new Response(
+          JSON.stringify({ success: false, matched: false, waiting_count: waitingCount }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
       // Generate room code using RPC
       const { data: roomCodeData, error: codeError } = await supabaseClient.rpc('generate_room_code_v2');
@@ -213,6 +243,8 @@ Deno.serve(async (req) => {
 
       if (roomError || !room) {
         console.error('❌ [find-match] Failed to create room:', roomError);
+        // Release optimistic lock so these players can be re-matched
+        await supabaseClient.from('waiting_room').update({ status: 'waiting' }).in('user_id', candidateIds).eq('status', 'processing');
         return new Response(
           JSON.stringify({ success: false, error: 'Failed to create room' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -221,12 +253,7 @@ Deno.serve(async (req) => {
 
       const roomId = room.id;
 
-      // Add players to room
-      // ⚠️ LIMITATION: This performs multiple database operations without a transaction wrapper.
-      // PostgreSQL transactions ARE supported in Supabase Edge Functions via the client library.
-      // TODO: For production reliability, implement proper database transactions to prevent
-      // partial state (orphaned rooms, mismatched waiting_room entries) if any step fails.
-      // Current approach uses manual rollback which itself can fail.
+      // Add players to room (multiple ops without a transaction; failures are rolled back manually below)
       const playersToAdd = waitingPlayers.slice(0, 4).map((player, index) => ({
         room_id: roomId,
         user_id: player.user_id,
@@ -243,8 +270,9 @@ Deno.serve(async (req) => {
 
       if (playersError) {
         console.error('❌ [find-match] Failed to add players:', playersError);
-        // Rollback: delete the room
+        // Rollback: delete the room and release optimistic lock
         await supabaseClient.from('rooms').delete().eq('id', roomId);
+        await supabaseClient.from('waiting_room').update({ status: 'waiting' }).in('user_id', candidateIds).eq('status', 'processing');
         return new Response(
           JSON.stringify({ success: false, error: 'Failed to add players to room' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -272,13 +300,13 @@ Deno.serve(async (req) => {
       if (startError || !startResult?.success) {
         console.error('❌ [find-match] Failed to auto-start game:', startError || startResult);
         
-        // Rollback: Delete room and reset waiting room entries
+        // Rollback: Delete room, room_players, and release optimistic lock
         await supabaseClient.from('rooms').delete().eq('id', roomId);
         await supabaseClient.from('room_players').delete().eq('room_id', roomId);
         await supabaseClient
           .from('waiting_room')
           .update({ status: 'waiting', matched_room_id: null, matched_at: null })
-          .in('user_id', matchedUserIds);
+          .in('user_id', candidateIds);
         
         return new Response(
           JSON.stringify({ success: false, error: 'Failed to start game' }),

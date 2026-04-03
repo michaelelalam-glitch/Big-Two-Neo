@@ -65,6 +65,19 @@ Deno.serve(async (req) => {
       );
     }
 
+    // expected_match_number is now REQUIRED. Callers must supply the current match_number
+    // from their game state snapshot so start_new_match can detect double-advance:
+    //   caller A reads match_number=1, calls start_new_match(expected=1)  → advances to 2
+    //   caller B's stale call also has expected=1 → idempotency guard returns no-op
+    // Without this, a stale or duplicate HTTP retry skips the idempotency guard at
+    // step 1b and can advance the match a second time.
+    if (expected_match_number === undefined || expected_match_number === null || isNaN(expected_match_number)) {
+      return new Response(
+        JSON.stringify({ error: 'expected_match_number is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // 1. Get current game state
     const { data: gameState, error: gameStateError } = await supabaseClient
       .from('game_state')
