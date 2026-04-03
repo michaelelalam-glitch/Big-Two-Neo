@@ -133,7 +133,10 @@ export async function extractEdgeFunctionErrorAsync(
       }
     } catch (e) {
       // Body may already be consumed, timed out, or contain invalid JSON - fall through to Priority 3
-      gameLogger.warn('[extractEdgeFunctionError] Failed to read/parse response body:', e);
+      gameLogger.warn(
+        '[extractEdgeFunctionError] Failed to read/parse response body:',
+        e instanceof Error ? e.message : String(e)
+      );
     } finally {
       clearTimeout(timeoutId); // Prevent the losing race branch from becoming an unhandled rejection
     }
@@ -157,7 +160,10 @@ export async function extractEdgeFunctionErrorAsync(
           return parsed.error;
         }
       } catch (e) {
-        gameLogger.warn('[extractEdgeFunctionError] Failed to parse error.context.body:', e);
+        gameLogger.warn(
+          '[extractEdgeFunctionError] Failed to parse error.context.body:',
+          e instanceof Error ? e.message : String(e)
+        );
       }
     }
 
