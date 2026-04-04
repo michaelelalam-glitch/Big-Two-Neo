@@ -163,9 +163,13 @@ export function useActiveGameBanner(
                 // from disconnect_timer_started_at when available. If the server
                 // omits this field, fall back to seconds_left to approximate it.
                 // Using one formula prevents subtle drift between the two paths.
+                // Guard: if seconds_left is also absent, use null rather than
+                // computing an anchor 60s in the past (which appears expired).
                 const serverAnchorMs = statusData.disconnect_timer_started_at
                   ? new Date(statusData.disconnect_timer_started_at).getTime()
-                  : Date.now() - (60 - (statusData.seconds_left ?? 0)) * 1000;
+                  : typeof statusData.seconds_left === 'number'
+                    ? Date.now() - (60 - statusData.seconds_left) * 1000
+                    : null;
                 setDisconnectTimestamp(serverAnchorMs);
               } else if (statusData.status === 'replaced_by_bot') {
                 setDisconnectTimestamp(null);

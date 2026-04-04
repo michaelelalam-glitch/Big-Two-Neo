@@ -249,25 +249,28 @@ Deno.serve(async (req) => {
             reconnectBroadcastFailed = true;
           }
         })();
-        // Await broadcast inline when EdgeRuntime.waitUntil is unavailable —
-        // this is the code path that executes in the test harness / local dev.
-        // In production the broadcast completes via waitUntil and the response
-        // is returned immediately; reconnectBroadcastFailed is read after await.
-        try {
-          (globalThis as any).EdgeRuntime?.waitUntil(reconnectBroadcast);
-          await reconnectBroadcast; // also awaited so reconnectBroadcastFailed is populated
-        } catch (_) {
+        // In production, register with EdgeRuntime.waitUntil so the broadcast
+        // completes in the background after the HTTP response is sent — this
+        // keeps heartbeat latency low during reconnection storms.
+        // In test harness / local dev (no waitUntil), await inline so the
+        // reconnectBroadcastFailed flag is populated before we respond.
+        const waitUntilFn = (globalThis as any).EdgeRuntime?.waitUntil;
+        if (typeof waitUntilFn === 'function') {
+          // Production: background the broadcast; response returns immediately.
+          waitUntilFn.call((globalThis as any).EdgeRuntime, reconnectBroadcast);
+        } else {
+          // Dev / test: await inline so we can surface broadcast failures.
           await reconnectBroadcast;
-        }
-        if (reconnectBroadcastFailed) {
-          // Surface to caller so it can trigger a client-side player-list refresh
-          // as a fallback when Realtime broadcast delivery failed.
-          console.warn(`[update-heartbeat] reconnect_broadcast_failed=true for room ${room_id} — caller should refresh player list`);
-          // Return early with the failure flag; heartbeat itself succeeded.
-          return new Response(
-            JSON.stringify({ success: true, reconnect_broadcast_failed: true }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+          if (reconnectBroadcastFailed) {
+            // Surface to caller so it can trigger a client-side player-list refresh
+            // as a fallback when Realtime broadcast delivery failed.
+            console.warn(`[update-heartbeat] reconnect_broadcast_failed=true for room ${room_id} — caller should refresh player list`);
+            // Return early with the failure flag; heartbeat itself succeeded.
+            return new Response(
+              JSON.stringify({ success: true, reconnect_broadcast_failed: true }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
         }
       }
     }

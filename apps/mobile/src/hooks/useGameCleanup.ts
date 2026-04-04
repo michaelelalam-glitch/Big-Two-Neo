@@ -58,6 +58,9 @@ export function useGameCleanup({
   // Also unlock orientation to prevent orientation lock from persisting
   useEffect(() => {
     let isDeliberateLeave = false;
+    // 7.10 re-entry guard: prevents the dispatched action from re-triggering
+    // this beforeRemove handler and creating an infinite loop.
+    let cleanupInProgress = false;
 
     const isOnlineRoom = roomCode !== 'LOCAL_AI_GAME';
 
@@ -68,6 +71,9 @@ export function useGameCleanup({
     const unsubscribe = navigation.addListener(
       'beforeRemove',
       async (e: { data: { action: { type: string } }; preventDefault: () => void }) => {
+        // Skip re-entry: the navigation.dispatch() below re-triggers beforeRemove;
+        // this guard prevents the handler from running a second time.
+        if (cleanupInProgress) return;
         const actionType = e?.data?.action?.type;
         if (typeof actionType === 'string' && allowedActionTypes.includes(actionType)) {
           isDeliberateLeave = true;
@@ -80,6 +86,7 @@ export function useGameCleanup({
           // we never block navigation indefinitely on network failure.
           const currentRoomId = roomIdRef.current;
           if (isOnlineRoom && currentRoomId) {
+            cleanupInProgress = true;
             e.preventDefault();
             gameLogger.info(
               `🔌 [GameScreen] Marking player disconnected in room ${roomCode} (starting 60s timer)`
