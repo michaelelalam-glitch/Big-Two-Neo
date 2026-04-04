@@ -573,8 +573,13 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                   // (Copilot PR-150 r3964546887).
                   supabase.removeChannel(channel);
                 });
-              channelRef.current = null;
-              setRealtimeChannel(null);
+              // Guard: only clear reactive state if this channel is still active.
+              // A concurrent joinChannel(differentRoomId) may have already replaced
+              // channelRef.current; we must not clobber the newer channel.
+              if (channelRef.current === channel) {
+                channelRef.current = null;
+                setRealtimeChannel(null);
+              }
               reject(new Error('Subscription timeout after 10s'));
             }, 10000);
 
@@ -585,6 +590,17 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
               if (status === 'SUBSCRIBED') {
                 settled = true;
                 clearTimeout(timeout);
+                // Guard: if a newer joinChannel call has replaced channelRef.current,
+                // this channel is stale — clean it up and bail without mutating state.
+                if (channelRef.current !== channel) {
+                  void channel
+                    .unsubscribe()
+                    .then(() => supabase.removeChannel(channel))
+                    .catch(() => {
+                      supabase.removeChannel(channel);
+                    });
+                  return;
+                }
                 // Only expose channel to reactive consumers after subscription is
                 // confirmed so that chat/send can't race against a still-connecting
                 // channel (Copilot PR-150 r2950125694).
@@ -606,12 +622,13 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
               } else if (status === 'CLOSED') {
                 settled = true;
                 clearTimeout(timeout);
-                // Clear reactive channel so consumers (e.g. useGameChat) don't try to
-                // use a closed channel. Both ref and state must be cleared.
-                channelRef.current = null;
-                setRealtimeChannel(null);
-                setIsConnected(false);
-                onDisconnect?.();
+                // Only clear reactive state if this channel is still active.
+                if (channelRef.current === channel) {
+                  channelRef.current = null;
+                  setRealtimeChannel(null);
+                  setIsConnected(false);
+                  onDisconnect?.();
+                }
                 // Best-effort cleanup: remove the closed channel from the Supabase
                 // client to prevent ghost channel accumulation across reconnects.
                 void channel
@@ -624,8 +641,11 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
               } else if (status === 'CHANNEL_ERROR') {
                 settled = true;
                 clearTimeout(timeout);
-                channelRef.current = null;
-                setRealtimeChannel(null);
+                // Only clear reactive state if this channel is still active.
+                if (channelRef.current === channel) {
+                  channelRef.current = null;
+                  setRealtimeChannel(null);
+                }
                 // Best-effort cleanup: remove the errored channel from the Supabase
                 // client to prevent ghost channel accumulation on transient errors.
                 void channel
