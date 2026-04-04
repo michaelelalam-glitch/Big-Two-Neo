@@ -8,6 +8,7 @@ import {
 import { supabase } from '../services/supabase';
 import { RoomPlayerWithRoom } from '../types';
 import { soundManager, hapticManager } from '../utils';
+import { useUserPreferencesStore } from '../store';
 import { authLogger, roomLogger, notificationLogger } from '../utils/logger';
 import { detectRegion } from '../utils/regionDetector';
 import { trackAuthEvent, setAnalyticsUserId } from '../services/analytics';
@@ -147,8 +148,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       return fetchProfilePromise.current;
     }
 
-    // Mark as fetching and store promise for deduplication
-    isFetchingProfile.current = true;
+    // 7.1: Store the promise BEFORE setting the lock flag to prevent a race window
+    // where another caller sees isFetchingProfile=true but fetchProfilePromise=null
+    // (which would fail the deduplication guard above and start a parallel fetch).
+    // Since JS is single-threaded, the synchronous assignment sequence below is atomic:
+    //   1. Create the async IIFE (runs synchronously until first await inside)
+    //   2. Assign to fetchProfilePromise.current  ← guard is now valid for other callers
+    //   3. Set isFetchingProfile.current = true
 
     const fetchOperation = (async () => {
       try {
@@ -194,10 +200,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             authLogger.warn(
               `⏳ [fetchProfile] Retrying after error (attempt ${retryCount + 1}/${MAX_RETRIES + 1})...`
             );
-            // Keep lock during retry delay AND recursive call to prevent race condition
+            // 7.1: Keep lock during retry delay to prevent new parallel fetches,
+            // then clear BEFORE the recursive call so the recursive fetchProfile
+            // can re-establish a fresh promise. Clearing after the delay (not
+            // before) ensures no race window while waiting.
             await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
-            // Do NOT clear lock here - let the recursive call handle it
-            // This prevents a race window between clearing and starting retry
+            isFetchingProfile.current = false;
+            fetchProfilePromise.current = null;
             return fetchProfile(userId, retryCount + 1);
           }
           return null;
@@ -212,9 +221,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             authLogger.warn(
               `⏳ [fetchProfile] Profile NOT FOUND yet (attempt ${attemptNum}/${totalAttempts}). Waiting ${RETRY_DELAY_MS}ms for DB trigger...`
             );
-            // Keep lock during retry delay AND recursive call to prevent race condition
+            // 7.1: Keep lock during delay, then clear before recursive retry
+            // so the recursive call creates a fresh promise.
             await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
-            // Do NOT clear lock here - let the finally block handle it after retry completes
+            isFetchingProfile.current = false;
+            fetchProfilePromise.current = null;
             return fetchProfile(userId, retryCount + 1);
           }
 
@@ -316,8 +327,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
     })();
 
-    // Store promise for deduplication
+    // 7.1: Set promise ref FIRST, then mark as fetching — atomic in JS single-thread.
     fetchProfilePromise.current = fetchOperation;
+    isFetchingProfile.current = true;
 
     try {
       const result = await fetchOperation;
@@ -444,6 +456,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         void Promise.all([soundManager.initialize(), hapticManager.initialize()])
           .then(() => {
             authLogger.info('✅ [AuthContext] Audio & haptic managers initialized');
+            // 7.5: Single-source hydration of Zustand in-memory sound/vibration
+            // state after managers have loaded from AsyncStorage. Eliminates the
+            // per-modal-open hydrate() in GameSettingsModal which would re-read
+            // stale manager values before this async init completes.
+            useUserPreferencesStore.getState().hydrate({
+              soundEnabled: soundManager.isAudioEnabled(),
+              vibrationEnabled: hapticManager.isHapticsEnabled(),
+            });
           })
           .catch((audioError: unknown) => {
             authLogger.error(

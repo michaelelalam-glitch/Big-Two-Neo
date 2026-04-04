@@ -14,7 +14,16 @@
  * and are flushed to React state via REPLACE at the end of each tick.
  */
 
-import { type Dispatch, type SetStateAction, useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
+import {
+  type Dispatch,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from 'react';
 
 import type {
   GameState as MultiplayerGameState,
@@ -39,7 +48,7 @@ type DisconnectMapAction = { type: 'REPLACE'; map: Map<number, string> };
 
 function disconnectMapReducer(
   state: Map<number, string>,
-  action: DisconnectMapAction,
+  action: DisconnectMapAction
 ): Map<number, string> {
   // Equality guard — avoids re-renders when map contents haven't changed
   // (common outcome for the 1s polling interval in a connected game).
@@ -48,7 +57,10 @@ function disconnectMapReducer(
   if (state.size === action.map.size) {
     let equal = true;
     for (const [k, v] of action.map) {
-      if (state.get(k) !== v) { equal = false; break; }
+      if (state.get(k) !== v) {
+        equal = false;
+        break;
+      }
     }
     if (equal) return state;
   }
@@ -114,7 +126,6 @@ export function useDisconnectDetection({
   isReconnecting,
   setShowBotReplacedModal,
 }: UseDisconnectDetectionOptions): UseDisconnectDetectionReturn {
-
   // ── Client-side disconnect map ─────────────────────────────────────────────
   // Maps playerIndex → ISO anchor timestamp for the grey disconnect ring.
   // Committed atomically via a single REPLACE action (equality guard prevents
@@ -124,7 +135,7 @@ export function useDisconnectDetection({
   // of each interval tick and inside the immediate-clear effect.
   const [clientDisconnections, dispatch] = useReducer(
     disconnectMapReducer,
-    new Map<number, string>(),
+    new Map<number, string>()
   );
 
   // Ref mirror used inside interval + immediate-clear callbacks:
@@ -163,13 +174,26 @@ export function useDisconnectDetection({
     if (multiplayerGameState !== null) {
       const currentTurn = multiplayerGameState.current_turn;
       const localIdx = layoutPlayers[0]?.player_index;
-      localPlayerWasActiveRef.current =
-        typeof currentTurn === 'number' && currentTurn === localIdx;
+      localPlayerWasActiveRef.current = typeof currentTurn === 'number' && currentTurn === localIdx;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [multiplayerGameState?.turn_started_at, multiplayerGameState?.current_turn, layoutPlayers[0]?.player_index]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    multiplayerGameState?.turn_started_at,
+    multiplayerGameState?.current_turn,
+    layoutPlayers[0]?.player_index,
+  ]);
 
-  // ── Sweep-retry cleanup ────────────────────────────────────────────────────
+  // ── 6.2: Hold-timer for local-player "effectively active" state ───────────
+  // isEffectivelyActive for idx=0 can flicker briefly when game state is
+  // re-fetched (null window) or when isReconnecting/showBotReplacedModal
+  // transitions. A 1.5 s hold prevents the disconnect ring from flashing
+  // during those single-frame false negatives.
+  const localEffectivelyActiveUntilRef = useRef<number>(0);
+  // stableActiveRefreshToken: incremented by the hold-expiry timer to force the
+  // useMemo to re-evaluate stableActive on wall-clock time rather than waiting
+  // for an unrelated render to happen after the 1.5 s window elapses.
+  const [stableActiveRefreshToken, setStableActiveRefreshToken] = useState(0);
+  const stableActiveExpiryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     return () => {
       if (sweepRetryTimeoutRef.current !== null) {
@@ -203,7 +227,6 @@ export function useDisconnectDetection({
     const STALE_THRESHOLD_MS = 30_000;
 
     const interval = setInterval(() => {
-
       const players = realtimePlayersRef.current;
       if (!players || players.length === 0) return;
 
@@ -233,7 +256,7 @@ export function useDisconnectDetection({
               if (clientDisconnectStartRef.current[rp.player_index] !== undefined) {
                 delete clientDisconnectStartRef.current[rp.player_index];
                 gameLogger.info(
-                  `[useDisconnectDetection] Heartbeat override: player_index=${rp.player_index} heartbeat fresh (${Math.round(hbStaleMs / 1000)}s) but connection_status=disconnected — clearing grey ring`,
+                  `[useDisconnectDetection] Heartbeat override: player_index=${rp.player_index} heartbeat fresh (${Math.round(hbStaleMs / 1000)}s) but connection_status=disconnected — clearing grey ring`
                 );
               }
               continue;
@@ -253,7 +276,9 @@ export function useDisconnectDetection({
           // Seed if not set; or correct downward if server anchor is strictly earlier.
           const needsUpdate =
             !existingAnchor ||
-            (serverAnchorMs !== null && existingAnchorMs !== null && serverAnchorMs < existingAnchorMs);
+            (serverAnchorMs !== null &&
+              existingAnchorMs !== null &&
+              serverAnchorMs < existingAnchorMs);
 
           if (needsUpdate) {
             const gs = multiplayerGameStateRef.current;
@@ -275,7 +300,7 @@ export function useDisconnectDetection({
             }
             clientDisconnectStartRef.current[rp.player_index] = anchor;
             gameLogger.warn(
-              `[useDisconnectDetection] Client-side: ${existingAnchor ? 'CORRECTED' : 'seeding'} disconnect for player_index=${rp.player_index} (anchor=${anchorType}${existingAnchorMs !== null && serverAnchorMs !== null ? `, correction=${Math.round((existingAnchorMs - serverAnchorMs) / 1000)}s` : ''})`,
+              `[useDisconnectDetection] Client-side: ${existingAnchor ? 'CORRECTED' : 'seeding'} disconnect for player_index=${rp.player_index} (anchor=${anchorType}${existingAnchorMs !== null && serverAnchorMs !== null ? `, correction=${Math.round((existingAnchorMs - serverAnchorMs) / 1000)}s` : ''})`
             );
           }
           newMap.set(rp.player_index, clientDisconnectStartRef.current[rp.player_index]);
@@ -287,7 +312,7 @@ export function useDisconnectDetection({
           if (clientDisconnectStartRef.current[rp.player_index] !== undefined) {
             delete clientDisconnectStartRef.current[rp.player_index];
             gameLogger.info(
-              `[useDisconnectDetection] Stale-check shortcircuit: player_index=${rp.player_index} server-confirmed connected, clearing grey ring`,
+              `[useDisconnectDetection] Stale-check shortcircuit: player_index=${rp.player_index} server-confirmed connected, clearing grey ring`
             );
           }
           continue;
@@ -319,7 +344,7 @@ export function useDisconnectDetection({
             }
             clientDisconnectStartRef.current[rp.player_index] = anchor;
             gameLogger.warn(
-              `[useDisconnectDetection] Client-side: player_index=${rp.player_index} detected as disconnected (stale ${Math.round(staleMs / 1000)}s, anchor=${anchorType})`,
+              `[useDisconnectDetection] Client-side: player_index=${rp.player_index} detected as disconnected (stale ${Math.round(staleMs / 1000)}s, anchor=${anchorType})`
             );
           }
           newMap.set(rp.player_index, clientDisconnectStartRef.current[rp.player_index]);
@@ -327,7 +352,7 @@ export function useDisconnectDetection({
           // Heartbeat is fresh — player is live.
           if (clientDisconnectStartRef.current[rp.player_index]) {
             gameLogger.info(
-              `[useDisconnectDetection] Client-side: player_index=${rp.player_index} reconnected`,
+              `[useDisconnectDetection] Client-side: player_index=${rp.player_index} reconnected`
             );
             delete clientDisconnectStartRef.current[rp.player_index];
           }
@@ -353,7 +378,7 @@ export function useDisconnectDetection({
     }, 1_000);
 
     return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   // ── Immediate reconnect clear ──────────────────────────────────────────────
@@ -384,7 +409,7 @@ export function useDisconnectDetection({
         delete clientDisconnectStartRef.current[rp.player_index];
         changed = true;
         gameLogger.info(
-          `[useDisconnectDetection] Immediate clear: player_index=${rp.player_index} confirmed reconnected by server`,
+          `[useDisconnectDetection] Immediate clear: player_index=${rp.player_index} confirmed reconnected by server`
         );
       }
     }
@@ -397,7 +422,7 @@ export function useDisconnectDetection({
       const activePIdx = new Set(
         realtimePlayers
           .map(p => p.player_index)
-          .filter((idx): idx is number => typeof idx === 'number'),
+          .filter((idx): idx is number => typeof idx === 'number')
       );
       for (const key of Object.keys(clientDisconnectStartRef.current)) {
         if (!activePIdx.has(Number(key))) {
@@ -412,7 +437,7 @@ export function useDisconnectDetection({
       }
       dispatch({ type: 'REPLACE', map: newMap });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [realtimePlayers, userId]);
 
   // ── Countdown expiry callbacks ─────────────────────────────────────────────
@@ -420,7 +445,7 @@ export function useDisconnectDetection({
   /** Local player's 60s connection countdown reached zero → open RejoinModal. */
   const handleLocalPlayerCountdownExpired = useCallback(() => {
     gameLogger.warn(
-      '[useDisconnectDetection] Local player connection countdown expired — showing rejoin modal',
+      '[useDisconnectDetection] Local player connection countdown expired — showing rejoin modal'
     );
     setShowBotReplacedModal(true);
   }, [setShowBotReplacedModal]);
@@ -428,7 +453,7 @@ export function useDisconnectDetection({
   /** Remote player's disconnect countdown reached zero → immediately trigger bot replacement. */
   const handleOtherPlayerDisconnectExpired = useCallback(() => {
     gameLogger.warn(
-      '[useDisconnectDetection] Remote player disconnect countdown expired — forcing sweep',
+      '[useDisconnectDetection] Remote player disconnect countdown expired — forcing sweep'
     );
     forceSweep();
     // Phase B uses <= so the first sweep at exactly T=60s is sufficient.
@@ -462,18 +487,31 @@ export function useDisconnectDetection({
         idx === 0 && (showBotReplacedModal || isReconnecting) && turnStartedAt !== null;
       const isEffectivelyActive =
         player.isActive ||
-        (idx === 0 && !multiplayerGameState && localPlayerWasActiveRef.current && turnStartedAt !== null) ||
+        (idx === 0 &&
+          !multiplayerGameState &&
+          localPlayerWasActiveRef.current &&
+          turnStartedAt !== null) ||
         isInRejoinFlow;
+
+      // 6.2: Stabilize isEffectivelyActive for the local seat with a 1.5 s hold.
+      // This prevents the disconnect ring from briefly appearing during
+      // single-frame null-gameState windows or isReconnecting flickers.
+      let stableActive = isEffectivelyActive;
+      if (idx === 0) {
+        if (isEffectivelyActive) {
+          localEffectivelyActiveUntilRef.current = Date.now() + 1500;
+        }
+        stableActive = isEffectivelyActive || Date.now() < localEffectivelyActiveUntilRef.current;
+      }
 
       // Local player on their turn: always suppress the grey disconnect ring so
       // the yellow turn ring is visible (disconnect_timer_started_at can linger
       // from the previous disconnect window after reconnect).
-      const suppressDisconnectRing = idx === 0 && isEffectivelyActive;
+      const suppressDisconnectRing = idx === 0 && stableActive;
 
       // Server authoritative reconnect: if the server confirms connected + no
       // timer, discard stale client-side detection immediately.
-      const serverConfirmedConnected =
-        !player.isDisconnected && !player.disconnectTimerStartedAt;
+      const serverConfirmedConnected = !player.isDisconnected && !player.disconnectTimerStartedAt;
 
       // Remote player on their turn + client says alive: suppress grey ring
       // (handles stale Realtime delivery for observers).
@@ -485,11 +523,11 @@ export function useDisconnectDetection({
       return {
         ...player,
         // Turn ring: visible on WHOEVER's active turn it is (all players see it).
-        turnTimerStartedAt: isEffectivelyActive ? turnStartedAt : null,
+        turnTimerStartedAt: (idx === 0 ? stableActive : isEffectivelyActive) ? turnStartedAt : null,
         // Disconnect ring: merge client-side + server-side state.
         isDisconnected: shouldSuppressRing
           ? false
-          : (isClientDisconnected || (player.isDisconnected ?? false)),
+          : isClientDisconnected || (player.isDisconnected ?? false),
         disconnectTimerStartedAt: shouldSuppressRing
           ? null
           : (clientDisconnectTimerStartedAt ?? player.disconnectTimerStartedAt ?? null),
@@ -500,7 +538,7 @@ export function useDisconnectDetection({
           idx === 0 ? handleLocalPlayerCountdownExpired : handleOtherPlayerDisconnectExpired,
       };
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- multiplayerGameState object tracked via subproperties; adding full object causes excessive re-renders
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- multiplayerGameState object tracked via subproperties; adding full object causes excessive re-renders
   }, [
     layoutPlayersWithScores,
     handleLocalPlayerCountdownExpired,
@@ -510,6 +548,44 @@ export function useDisconnectDetection({
     clientDisconnections,
     showBotReplacedModal,
     isReconnecting,
+    stableActiveRefreshToken, // force re-eval when the 1.5 s hold expires
+  ]);
+
+  // ── 6.2: Hold-expiry timer ─────────────────────────────────────────────────
+  // Schedules a state tick to fire when localEffectivelyActiveUntilRef expires so
+  // the useMemo re-evaluates stableActive on wall-clock time. Without this, if
+  // isEffectivelyActive flips false and no dep changes trigger a re-render within
+  // 1.5 s, stableActive would remain true indefinitely.
+  useEffect(() => {
+    if (stableActiveExpiryTimerRef.current !== null) {
+      clearTimeout(stableActiveExpiryTimerRef.current);
+      stableActiveExpiryTimerRef.current = null;
+    }
+    const remaining = localEffectivelyActiveUntilRef.current - Date.now();
+    if (remaining > 0) {
+      stableActiveExpiryTimerRef.current = setTimeout(() => {
+        stableActiveExpiryTimerRef.current = null;
+        setStableActiveRefreshToken(n => n + 1);
+      }, remaining);
+    }
+    return () => {
+      if (stableActiveExpiryTimerRef.current !== null) {
+        clearTimeout(stableActiveExpiryTimerRef.current);
+        stableActiveExpiryTimerRef.current = null;
+      }
+    };
+  }, [
+    layoutPlayersWithScores,
+    handleLocalPlayerCountdownExpired,
+    handleOtherPlayerDisconnectExpired,
+    multiplayerGameState?.turn_started_at,
+    multiplayerGameState?.current_turn,
+    clientDisconnections,
+    showBotReplacedModal,
+    isReconnecting,
+    // stableActiveRefreshToken intentionally omitted: the timer-expiry itself
+    // sets the token; including it would create a re-schedule loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   ]);
 
   return { enrichedLayoutPlayers };
