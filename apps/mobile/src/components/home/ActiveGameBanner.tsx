@@ -334,8 +334,10 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
           <TouchableOpacity
             style={[styles.button, styles.replaceBotButton, isRejoining && styles.buttonLoading]}
             onPress={() => {
-              setIsRejoining(true);
-              onReplaceBotAndRejoin?.(gameInfo.roomCode);
+              if (onReplaceBotAndRejoin) {
+                setIsRejoining(true);
+                onReplaceBotAndRejoin(gameInfo.roomCode);
+              }
             }}
             activeOpacity={0.8}
             disabled={isRejoining}
