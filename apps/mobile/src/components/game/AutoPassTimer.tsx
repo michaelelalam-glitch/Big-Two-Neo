@@ -77,6 +77,11 @@ function AutoPassTimerComponent({
   getCorrectedNowRef.current = getCorrectedNow;
 
   // ── Initial snapshot (computed once per timerState activation) ──────────────
+  // 5.3 HIGH: isSynced must be included in deps so the snapshot is recomputed once
+  // clock sync is established. Without it, the initial snapshot is computed with
+  // isSynced=false (durationMs clamped to full 10s) and never updated when
+  // isSynced flips to true, leaving the ring and tick display anchored on the wrong
+  // remaining-ms value for the rest of the timer's life.
   const initialSnapshot = useMemo(() => {
     if (!timerState || !timerState.active) return { remainingMs: 0, seconds: 0, progress: 0 };
     const remaining = computeRemainingMs(timerState, isSynced, getCorrectedNow);
@@ -86,12 +91,14 @@ function AutoPassTimerComponent({
       seconds: Math.ceil(remaining / 1000),
       progress: remaining / durationMs,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- timerState is covered granularly; getCorrectedNow is stable (useCallback with empty deps)
   }, [
     timerState?.active,
     timerState?.end_timestamp,
     timerState?.started_at,
     timerState?.duration_ms,
+    isSynced,
+    getCorrectedNow,
   ]);
 
   // ── Reanimated shared value for the ring arc — runs on UI thread (0 JS re-renders) ──

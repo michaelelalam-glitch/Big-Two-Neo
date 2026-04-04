@@ -1,13 +1,13 @@
 /**
  * useClockSync Hook
- * 
+ *
  * Measures and maintains client-server clock offset for timer synchronization.
- * 
+ *
  * Architecture:
  * - When timer is created, server includes server_time_at_creation
  * - Client calculates: offset = server_time - local_time  (ONCE per unique server_time)
  * - Client uses offset to correct all time calculations: correctedNow = Date.now() + offset
- * 
+ *
  * CRITICAL DESIGN DECISIONS (Mar 2026 fixes):
  * 1. offsetMs is stored in a REF so getCorrectedNow always reads the latest
  *    value, even inside stale closures (e.g. setInterval callbacks that
@@ -37,7 +37,7 @@ interface ClockSyncResult {
 
 /**
  * Hook to synchronize client clock with server clock
- * 
+ *
  * @param timerState - Current timer state (includes server_time_at_creation)
  * @returns Clock sync information and corrected time function
  */
@@ -53,6 +53,13 @@ export function useClockSync(timerState: AutoPassTimerState | null): ClockSyncRe
   // Track which server_time_at_creation we already synced against so we
   // never recalculate for the same value (which would drift the offset).
   const lastSyncedServerTime = useRef<number | null>(null);
+  // 5.4/5.7: Track started_at alongside server_time_at_creation so that a new timer
+  // whose server_time_at_creation COLLIDES with a previous timer's value (extremely
+  // rare: same server-clock millisecond) is not silently treated as the same timer.
+  // Combining both fields as the sync identity prevents the "offset sticky after
+  // timer null window" bug where a brand-new timer skips re-sync because
+  // lastSyncedServerTime still holds the same numeric value from a past timer.
+  const lastSyncedStartedAt = useRef<string | null>(null);
 
   useEffect(() => {
     // ── CRITICAL: Do NOT reset when timer goes null ─────────────────────
@@ -79,20 +86,29 @@ export function useClockSync(timerState: AutoPassTimerState | null): ClockSyncRe
       return;
     }
 
-    // ── Already synced for this exact server_time? Skip. ────────────────
+    // ── Already synced for this exact timer identity? Skip. ─────────────
     // server_time_at_creation is a fixed snapshot. Recalculating
     // `serverTime - Date.now()` at a later wall-clock time would produce
     // a SMALLER offset, making remaining time appear larger (the "timer
     // restart" bug).
-    if (lastSyncedServerTime.current === serverTime) {
+    // 5.4/5.7: Use started_at as a secondary identity key. Two timers with the
+    // same server_time_at_creation but different started_at values are distinct
+    // timers (e.g. new round that happened to start at the same clock ms). Using
+    // only serverTime would prevent the new timer from ever syncing its offset.
+    const currentStartedAt = timerState.started_at;
+    if (
+      lastSyncedServerTime.current === serverTime &&
+      lastSyncedStartedAt.current === currentStartedAt
+    ) {
       return;
     }
 
-    // ── First sync for this server_time ─────────────────────────────────
+    // ── First sync for this timer identity ──────────────────────────────
     const receivedAt = Date.now();
     const offset = serverTime - receivedAt;
 
     lastSyncedServerTime.current = serverTime;
+    lastSyncedStartedAt.current = currentStartedAt;
     offsetRef.current = offset;
     syncedRef.current = true;
     setOffsetMs(offset);
@@ -106,7 +122,7 @@ export function useClockSync(timerState: AutoPassTimerState | null): ClockSyncRe
       driftMs: Math.abs(offset),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run when the timer identity changes
-  }, [timerState?.active, timerState?.server_time_at_creation]);
+  }, [timerState?.active, timerState?.server_time_at_creation, timerState?.started_at]);
 
   // ── Stable getCorrectedNow — reads from ref, safe in any closure ──────
   const getCorrectedNow = useCallback((): number => {

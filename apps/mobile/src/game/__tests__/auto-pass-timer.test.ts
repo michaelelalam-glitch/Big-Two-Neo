@@ -29,14 +29,14 @@ describe('Auto-Pass Timer Manager', () => {
     it('should trigger for 2♠ (highest single)', () => {
       const play: Card[] = [{ id: '2S', rank: '2', suit: 'S' }];
       const playedCards: Card[] = [];
-      
+
       expect(shouldTriggerAutoPassTimer(play, playedCards)).toBe(true);
     });
 
     it('should NOT trigger for A♠ when 2♠ is still unplayed', () => {
       const play: Card[] = [{ id: 'AS', rank: 'A', suit: 'S' }];
       const playedCards: Card[] = [];
-      
+
       expect(shouldTriggerAutoPassTimer(play, playedCards)).toBe(false);
     });
 
@@ -48,7 +48,7 @@ describe('Auto-Pass Timer Manager', () => {
         { id: '2C', rank: '2', suit: 'C' },
         { id: '2D', rank: '2', suit: 'D' },
       ];
-      
+
       expect(shouldTriggerAutoPassTimer(play, playedCards)).toBe(true);
     });
 
@@ -58,7 +58,7 @@ describe('Auto-Pass Timer Manager', () => {
         { id: '2H', rank: '2', suit: 'H' },
       ];
       const playedCards: Card[] = [];
-      
+
       expect(shouldTriggerAutoPassTimer(play, playedCards)).toBe(true);
     });
 
@@ -67,10 +67,8 @@ describe('Auto-Pass Timer Manager', () => {
         { id: '2C', rank: '2', suit: 'C' },
         { id: '2D', rank: '2', suit: 'D' },
       ];
-      const playedCards: Card[] = [
-        { id: '2S', rank: '2', suit: 'S' },
-      ];
-      
+      const playedCards: Card[] = [{ id: '2S', rank: '2', suit: 'S' }];
+
       expect(shouldTriggerAutoPassTimer(play, playedCards)).toBe(true);
     });
   });
@@ -103,12 +101,12 @@ describe('Auto-Pass Timer Manager', () => {
       };
 
       const timerState = createAutoPassTimerState(triggeringPlay, 'player1');
-      
+
       // Wait 100ms
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
       const updated = updateTimerState(timerState);
-      
+
       expect(updated.remaining_ms).toBeLessThan(AUTO_PASS_TIMER_DURATION_MS);
       expect(updated.remaining_ms).toBeGreaterThan(AUTO_PASS_TIMER_DURATION_MS - 200); // Allow margin
       expect(updated.active).toBe(true);
@@ -127,25 +125,25 @@ describe('Auto-Pass Timer Manager', () => {
         ...timerState,
         started_at: new Date(Date.now() - AUTO_PASS_TIMER_DURATION_MS - 1000).toISOString(),
       };
-      
+
       const updated = updateTimerState(expiredState);
-      
+
       expect(updated.remaining_ms).toBe(0);
       expect(updated.active).toBe(false);
     });
   });
 
   describe('startTimer', () => {
-    it('should fire onComplete callback after duration', (done) => {
+    it('should fire onComplete callback after duration', done => {
       const timerId = 'test-timer';
       const duration = 150; // Increased from 100 to avoid flaky tests
-      
+
       let tickCount = 0;
-      
+
       startTimer(
         timerId,
         duration,
-        (remaining) => {
+        remaining => {
           tickCount++;
           expect(remaining).toBeLessThanOrEqual(duration);
           expect(remaining).toBeGreaterThanOrEqual(0);
@@ -156,42 +154,42 @@ describe('Auto-Pass Timer Manager', () => {
           done();
         }
       );
-      
+
       expect(isTimerActive(timerId)).toBe(true);
     }, 10000); // 10 second timeout to prevent flaky failures
 
-    it('should fire onTick callbacks periodically', (done) => {
+    it('should fire onTick callbacks periodically', done => {
       const timerId = 'tick-timer';
       const duration = 300;
-      
+
       const tickValues: number[] = [];
-      
+
       startTimer(
         timerId,
         duration,
-        (remaining) => {
+        remaining => {
           tickValues.push(remaining);
         },
         () => {
           // Should have multiple ticks (duration 300ms / 100ms interval = 3+)
           expect(tickValues.length).toBeGreaterThan(1);
-          
+
           // Values should be descending
           for (let i = 1; i < tickValues.length; i++) {
             expect(tickValues[i]).toBeLessThanOrEqual(tickValues[i - 1]);
           }
-          
+
           done();
         }
       );
     });
 
-    it('should replace existing timer with same ID', (done) => {
+    it('should replace existing timer with same ID', done => {
       const timerId = 'replace-timer';
-      
+
       let firstCompleted = false;
       let secondCompleted = false;
-      
+
       // Start first timer
       startTimer(
         timerId,
@@ -201,7 +199,7 @@ describe('Auto-Pass Timer Manager', () => {
           firstCompleted = true;
         }
       );
-      
+
       // Immediately start second timer with same ID
       startTimer(
         timerId,
@@ -209,7 +207,7 @@ describe('Auto-Pass Timer Manager', () => {
         () => {},
         () => {
           secondCompleted = true;
-          
+
           // Only second timer should complete
           expect(firstCompleted).toBe(false);
           expect(secondCompleted).toBe(true);
@@ -217,15 +215,45 @@ describe('Auto-Pass Timer Manager', () => {
         }
       );
     });
+
+    it('5.1 — onTick is never called with remaining=0 and onComplete fires exactly once', done => {
+      // Regression guard for the decoupled setTimeout/setInterval fix.
+      // Before the fix: the interval could fire onTick(0) AND the timeout fired
+      // onComplete() moments later — two separate auto-pass triggers.
+      // After the fix: interval only calls onTick when remaining > 0; setTimeout
+      // is the sole caller of onComplete (exactly once).
+      const timerId = 'decouple-test';
+      const duration = 200;
+
+      let zeroTickCount = 0;
+      let completeCount = 0;
+
+      startTimer(
+        timerId,
+        duration,
+        remaining => {
+          if (remaining === 0) zeroTickCount++;
+        },
+        () => {
+          completeCount++;
+          // Give an extra interval cycle (150ms) to ensure no late onTick(0) arrives.
+          setTimeout(() => {
+            expect(zeroTickCount).toBe(0); // interval must never call onTick(0)
+            expect(completeCount).toBe(1); // onComplete fires exactly once
+            done();
+          }, 150);
+        }
+      );
+    }, 10000);
   });
 
   describe('cancelTimer', () => {
-    it('should stop timer and prevent callbacks', (done) => {
+    it('should stop timer and prevent callbacks', done => {
       const timerId = 'cancel-timer';
-      
+
       let tickCount = 0;
       let completed = false;
-      
+
       startTimer(
         timerId,
         200,
@@ -236,13 +264,13 @@ describe('Auto-Pass Timer Manager', () => {
           completed = true;
         }
       );
-      
+
       // Cancel after 50ms
       setTimeout(() => {
         cancelTimer(timerId);
-        
+
         const ticksBeforeCancel = tickCount;
-        
+
         // Wait another 200ms to ensure no more callbacks
         setTimeout(() => {
           expect(completed).toBe(false);
@@ -255,27 +283,48 @@ describe('Auto-Pass Timer Manager', () => {
   });
 
   describe('cancelAllTimers', () => {
-    it('should cancel multiple active timers', (done) => {
+    it('should cancel multiple active timers', done => {
       let completed1 = false;
       let completed2 = false;
       let completed3 = false;
-      
-      startTimer('timer1', 200, () => {}, () => { completed1 = true; });
-      startTimer('timer2', 200, () => {}, () => { completed2 = true; });
-      startTimer('timer3', 200, () => {}, () => { completed3 = true; });
-      
+
+      startTimer(
+        'timer1',
+        200,
+        () => {},
+        () => {
+          completed1 = true;
+        }
+      );
+      startTimer(
+        'timer2',
+        200,
+        () => {},
+        () => {
+          completed2 = true;
+        }
+      );
+      startTimer(
+        'timer3',
+        200,
+        () => {},
+        () => {
+          completed3 = true;
+        }
+      );
+
       expect(isTimerActive('timer1')).toBe(true);
       expect(isTimerActive('timer2')).toBe(true);
       expect(isTimerActive('timer3')).toBe(true);
-      
+
       // Cancel all after 50ms
       setTimeout(() => {
         cancelAllTimers();
-        
+
         expect(isTimerActive('timer1')).toBe(false);
         expect(isTimerActive('timer2')).toBe(false);
         expect(isTimerActive('timer3')).toBe(false);
-        
+
         // Wait to ensure no callbacks fire
         setTimeout(() => {
           expect(completed1).toBe(false);
@@ -290,11 +339,16 @@ describe('Auto-Pass Timer Manager', () => {
   describe('isTimerActive', () => {
     it('should return true for active timer', () => {
       const timerId = 'active-timer';
-      
-      startTimer(timerId, 1000, () => {}, () => {});
-      
+
+      startTimer(
+        timerId,
+        1000,
+        () => {},
+        () => {}
+      );
+
       expect(isTimerActive(timerId)).toBe(true);
-      
+
       cancelTimer(timerId);
     });
 
@@ -302,9 +356,9 @@ describe('Auto-Pass Timer Manager', () => {
       expect(isTimerActive('non-existent')).toBe(false);
     });
 
-    it('should return false after timer completes', (done) => {
+    it('should return false after timer completes', done => {
       const timerId = 'complete-timer';
-      
+
       startTimer(
         timerId,
         100,

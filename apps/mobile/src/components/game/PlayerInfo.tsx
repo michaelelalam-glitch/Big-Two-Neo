@@ -274,7 +274,7 @@ function PlayerInfoComponent({
             key={ringStartedAt} // Remount only when start time changes; color/type changes without remount for seamless yellow→charcoal-grey transition
             type={ringType}
             startedAt={ringStartedAt}
-            onExpired={ringType === 'connection' ? onCountdownExpired : undefined}
+            onExpired={ringType === 'connection' ? (onCountdownExpired ?? (() => {})) : () => {}}
             size={avatarScale.size}
           />
         )}

@@ -198,7 +198,7 @@ export function LandscapeOpponent({
               key={ringStartedAt}
               type={ringType}
               startedAt={ringStartedAt}
-              onExpired={ringType === 'connection' ? onCountdownExpired : undefined}
+              onExpired={ringType === 'connection' ? (onCountdownExpired ?? (() => {})) : () => {}}
               size={avatarScale.size}
             />
           )}
