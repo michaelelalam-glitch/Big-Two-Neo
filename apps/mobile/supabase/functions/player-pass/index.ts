@@ -251,7 +251,12 @@ Deno.serve(async (req) => {
     // ── Request size guard (DoS mitigation) ─────────────────────────────────
     // Reject oversized bodies before reading/parsing. Legitimate player-pass
     // payloads (room_code + player_id + optional _bot_auth) are tiny; 4 KB cap.
-    const contentLength = Number(req.headers.get('content-length') ?? '0');
+    // Reject requests with a missing Content-Length header so that chunked-transfer
+    // requests cannot bypass the size guard (a missing header would otherwise parse
+    // as 0 and fall through). Legitimate clients and the internal bot-coordinator
+    // (which uses fetch() with a JSON string body) always supply Content-Length.
+    const rawContentLength = req.headers.get('content-length');
+    const contentLength = rawContentLength !== null ? Number(rawContentLength) : Infinity;
     if (contentLength > 4_096) {
       return new Response(
         JSON.stringify({ success: false, error: 'Request body too large' }),
