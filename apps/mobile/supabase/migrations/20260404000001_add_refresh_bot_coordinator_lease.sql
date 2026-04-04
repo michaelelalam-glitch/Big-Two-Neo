@@ -13,7 +13,7 @@
 -- IFF the row still belongs to the caller (coordinator_id match).
 -- Returns TRUE if refreshed, FALSE if the lease was stolen or expired.
 
-CREATE OR REPLACE FUNCTION refresh_bot_coordinator_lease(
+CREATE OR REPLACE FUNCTION public.refresh_bot_coordinator_lease(
   p_room_code        text,
   p_coordinator_id   text,
   p_timeout_seconds  int DEFAULT 45
@@ -47,5 +47,5 @@ END;
 $$;
 
 -- Only service_role can call this (same access pattern as acquire/release)
-REVOKE EXECUTE ON FUNCTION refresh_bot_coordinator_lease(text, text, int) FROM PUBLIC, anon, authenticated;
-GRANT  EXECUTE ON FUNCTION refresh_bot_coordinator_lease(text, text, int) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.refresh_bot_coordinator_lease(text, text, int) FROM PUBLIC, anon, authenticated;
+GRANT  EXECUTE ON FUNCTION public.refresh_bot_coordinator_lease(text, text, int) TO service_role;

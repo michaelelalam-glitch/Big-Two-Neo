@@ -31,7 +31,7 @@ ALTER TABLE waiting_room
 -- them from re-joining matchmaking via the ignoreDuplicates upsert path).
 -- We revert rows stuck in 'processing' for more than 30 seconds so the user
 -- can re-enter the queue on their next find-match call.
-CREATE OR REPLACE FUNCTION cleanup_stale_waiting_room_entries()
+CREATE OR REPLACE FUNCTION public.cleanup_stale_waiting_room_entries()
 RETURNS void
 LANGUAGE plpgsql
 SECURITY INVOKER
@@ -63,6 +63,6 @@ $$;
 -- the baseline migration so that no authenticated client can invoke it
 -- directly (which would allow griefing matchmaking). Only service_role (used
 -- by server-side edge functions and scheduled jobs) may call it.
-REVOKE EXECUTE ON FUNCTION cleanup_stale_waiting_room_entries() FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION cleanup_stale_waiting_room_entries() FROM authenticated;
-GRANT  EXECUTE ON FUNCTION cleanup_stale_waiting_room_entries() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.cleanup_stale_waiting_room_entries() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.cleanup_stale_waiting_room_entries() FROM authenticated;
+GRANT  EXECUTE ON FUNCTION public.cleanup_stale_waiting_room_entries() TO service_role;
