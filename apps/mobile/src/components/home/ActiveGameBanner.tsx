@@ -93,6 +93,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
   const [countdown, setCountdown] = useState<number | null>(null);
   const [botHasReplaced, setBotHasReplaced] = useState(false);
   const [isRejoining, setIsRejoining] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
   const slideAnim = useRef(new Animated.Value(-100)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -120,12 +121,13 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
   }, []);
 
   // Re-check offline game every time the screen gains focus.
-  // Also reset isRejoining so a failed navigation doesn't permanently disable buttons.
+  // Also reset isRejoining/isLeaving so a failed navigation doesn't permanently disable buttons.
   // (React Navigation keeps screens alive — useEffect only runs on mount)
   useFocusEffect(
     useCallback(() => {
       checkOfflineGame();
       setIsRejoining(false);
+      setIsLeaving(false);
     }, [checkOfflineGame])
   );
 
@@ -352,12 +354,19 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
 
         {/* Leave button (always shown) */}
         <TouchableOpacity
-          style={[styles.button, styles.leaveButton]}
-          onPress={() => onLeave(gameInfo)}
+          style={[styles.button, styles.leaveButton, isLeaving && styles.buttonLoading]}
+          onPress={() => {
+            setIsLeaving(true);
+            onLeave(gameInfo);
+          }}
           activeOpacity={0.8}
-          disabled={isRejoining}
+          disabled={isRejoining || isLeaving}
         >
-          <Text style={styles.buttonText}>🚪 {i18n.t('home.leave')}</Text>
+          {isLeaving ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>🚪 {i18n.t('home.leave')}</Text>
+          )}
         </TouchableOpacity>
       </View>
     </Animated.View>
