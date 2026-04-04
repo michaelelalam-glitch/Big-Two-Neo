@@ -30,6 +30,7 @@ import { sentryCapture } from '../services/sentry';
 import type { Card } from '../game/types';
 import { classifyCards, canBeatPlay } from '../game';
 import type { LastPlay } from '../game';
+import { validateOneCardLeftRule } from '../game/engine/game-logic';
 
 interface GameManagerLike {
   playCards: (cardIds: string[]) => Promise<{ success: boolean; error?: string }>;
@@ -40,6 +41,8 @@ interface MultiplayerValidationState {
   lastPlay: LastPlay | null;
   isFirstPlayOfGame: boolean;
   playerHand: Card[];
+  /** Number of cards held by the next active player — used for OCL pre-validation (Task #660). */
+  nextPlayerCardCount?: number;
 }
 
 /** Differentiates game modes for analytics events. */
@@ -53,8 +56,10 @@ interface UseGameActionsOptions {
   setSelectedCardIds: (ids: Set<string>) => void;
   navigation: StackNavigationProp<RootStackParamList, 'Game'>;
   isMountedRef: React.RefObject<boolean>;
-  /** Optional: returns current game state for client-side pre-validation (Task #573) */
+  /** Optional: returns current game state for client-side pre-validation (Task #573 multiplayer) */
   getMultiplayerValidationState?: () => MultiplayerValidationState | null;
+  /** Optional: returns current game state for client-side pre-validation in offline/local AI mode (Task #660). */
+  getOfflineValidationState?: () => MultiplayerValidationState | null;
   /**
    * Orientation-aware alert callback (iOS only — replaces native Alert.alert for
    * in-game error popups). On iOS, routes through InGameAlert which respects the
@@ -85,6 +90,7 @@ export function useGameActions({
   navigation,
   isMountedRef,
   getMultiplayerValidationState,
+  getOfflineValidationState,
   onAlert,
   gameMode,
   humanCount,
@@ -130,6 +136,90 @@ export function useGameActions({
 
           const sortedCards = sortCardsForDisplay(cards);
           const cardIds = sortedCards.map(card => card.id);
+
+          // Task #660: Client-side pre-validation for offline mode — mirrors multiplayer
+          // validation to catch errors before calling the game manager, giving faster
+          // feedback and consistent validation behaviour across both modes.
+          if (getOfflineValidationState) {
+            const vState = getOfflineValidationState();
+            if (vState) {
+              const { lastPlay, isFirstPlayOfGame, playerHand, nextPlayerCardCount } = vState;
+
+              // 1. All selected cards must be in the player's hand
+              const handCardIds = new Set(playerHand.map(c => c.id));
+              const missingCard = sortedCards.find(c => !handCardIds.has(c.id));
+              if (missingCard) {
+                soundManager.playSound(SoundType.INVALID_MOVE);
+                alertError(i18n.t('game.cardNotInHand'));
+                trackGameplayAction('play_validation_error', {
+                  mode: 'local_ai',
+                  error_type: 'card_not_in_hand',
+                });
+                isPlayingCardsRef.current = false;
+                return;
+              }
+
+              // 2. Combination must be valid
+              const combo = classifyCards(sortedCards);
+              if (combo === 'unknown') {
+                soundManager.playSound(SoundType.INVALID_MOVE);
+                alertError(i18n.t('game.invalidCombo'));
+                trackGameplayAction('play_validation_error', {
+                  mode: 'local_ai',
+                  error_type: 'invalid_combo',
+                });
+                isPlayingCardsRef.current = false;
+                return;
+              }
+
+              // 3. First play of game must include the 3 of Diamonds
+              if (isFirstPlayOfGame && !sortedCards.some(c => c.rank === '3' && c.suit === 'D')) {
+                soundManager.playSound(SoundType.INVALID_MOVE);
+                alertError(i18n.t('game.firstPlayMustInclude3D'));
+                trackGameplayAction('play_validation_error', {
+                  mode: 'local_ai',
+                  error_type: 'must_play_3d_first',
+                });
+                isPlayingCardsRef.current = false;
+                return;
+              }
+
+              // 4. Must beat the current last play (if one exists)
+              if (lastPlay && !canBeatPlay(sortedCards, lastPlay)) {
+                soundManager.playSound(SoundType.INVALID_MOVE);
+                alertError(i18n.t('game.cannotBeat'));
+                trackGameplayAction('play_validation_error', {
+                  mode: 'local_ai',
+                  error_type: 'cannot_beat_combo',
+                });
+                isPlayingCardsRef.current = false;
+                return;
+              }
+
+              // 5. One Card Left rule: when playing a single, must play highest single
+              if (nextPlayerCardCount !== undefined) {
+                const oclValidation = validateOneCardLeftRule(
+                  sortedCards,
+                  playerHand,
+                  nextPlayerCardCount,
+                  lastPlay
+                );
+                if (!oclValidation.valid) {
+                  soundManager.playSound(SoundType.INVALID_MOVE);
+                  alertError(
+                    oclValidation.error ??
+                      'Must play your highest single when opponent has 1 card left'
+                  );
+                  trackGameplayAction('play_validation_error', {
+                    mode: 'local_ai',
+                    error_type: 'one_card_left_rule',
+                  });
+                  isPlayingCardsRef.current = false;
+                  return;
+                }
+              }
+            }
+          }
 
           const result = await gameManagerRef.current.playCards(cardIds);
 
@@ -186,7 +276,8 @@ export function useGameActions({
           if (getMultiplayerValidationState) {
             const validationState = getMultiplayerValidationState();
             if (validationState) {
-              const { lastPlay, isFirstPlayOfGame, playerHand } = validationState;
+              const { lastPlay, isFirstPlayOfGame, playerHand, nextPlayerCardCount } =
+                validationState;
 
               // 1. Verify all selected cards are actually in the player's hand
               const handCardIds = new Set(playerHand.map(c => c.id));
@@ -252,6 +343,29 @@ export function useGameActions({
                 isFirstPlay: isFirstPlayOfGame,
                 hasLastPlay: !!lastPlay,
               });
+
+              // 5. One Card Left rule — only applies to singles (Task #660)
+              if (nextPlayerCardCount !== undefined) {
+                const oclValidation = validateOneCardLeftRule(
+                  sortedCards,
+                  playerHand,
+                  nextPlayerCardCount,
+                  lastPlay
+                );
+                if (!oclValidation.valid) {
+                  soundManager.playSound(SoundType.INVALID_MOVE);
+                  const m =
+                    oclValidation.error ??
+                    'Must play your highest single when opponent has 1 card left';
+                  alertError(m);
+                  trackGameplayAction('play_validation_error', {
+                    mode: 'multiplayer',
+                    error_type: 'one_card_left_rule',
+                  });
+                  isPlayingCardsRef.current = false;
+                  return;
+                }
+              }
             }
           }
           await multiplayerPlayCards(sortedCards as Card[]);
@@ -324,6 +438,7 @@ export function useGameActions({
       multiplayerPlayCards,
       setSelectedCardIds,
       getMultiplayerValidationState,
+      getOfflineValidationState,
       alertError,
     ]
   );

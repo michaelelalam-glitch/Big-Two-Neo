@@ -181,6 +181,8 @@ export class GameStateManager {
   private listeners: GameStateListener[] = [];
   private timerInterval: ReturnType<typeof setInterval> | null = null;
   private isExecutingAutoPass: boolean = false; // Prevent re-entry
+  /** Instance-level flag to prevent duplicate "Stats Not Saved" alerts across concurrent handleMatchEnd calls. */
+  private _statsAlertShown: boolean = false;
 
   constructor() {
     this.state = null;
@@ -1196,7 +1198,9 @@ export class GameStateManager {
 
       // Save game stats to database (async, don't await to avoid blocking UI)
       statsLogger.info('🔄 [Stats] Starting saveGameStatsToDatabase...');
-      let alertShown = false; // Track if alert was shown to prevent duplicate alerts
+      // Reset instance-level alert flag for this game-over event so we get exactly one alert
+      // even if handleMatchEnd is called more than once in a race condition.
+      this._statsAlertShown = false;
       this.saveGameStatsToDatabase().catch(err => {
         // Only log error message/code to avoid exposing database internals or sensitive data
         statsLogger.error(
@@ -1205,9 +1209,9 @@ export class GameStateManager {
         );
 
         // Notify user that stats weren't saved (dismissible, non-blocking)
-        // Only show alert if we haven't already shown one (prevents duplicate alerts if user navigates)
-        if (!alertShown) {
-          alertShown = true;
+        // Use instance-level flag so concurrent calls from race conditions don't spam alerts.
+        if (!this._statsAlertShown) {
+          this._statsAlertShown = true;
           setTimeout(() => {
             // Check if game is still active (user hasn't navigated away)
             // If game state still exists, show the alert

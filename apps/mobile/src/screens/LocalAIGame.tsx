@@ -286,6 +286,29 @@ export function LocalAIGame() {
     multiplayerGameState: null,
   });
 
+  // Client-side pre-validation state for offline mode (Task #660 / 4.4)
+  // Mirrors getMultiplayerValidationState so useGameActions can pre-validate plays
+  // before calling the game manager, giving immediate UI feedback.
+  const getOfflineValidationState = useCallback(() => {
+    if (!gameState) return null;
+    // Determine the next active player (first player after current with cards left)
+    const n = gameState.players.length;
+    let nextPlayerCardCount: number | undefined;
+    for (let i = 1; i < n; i++) {
+      const idx = (gameState.currentPlayerIndex + i) % n;
+      if (gameState.players[idx].hand.length > 0) {
+        nextPlayerCardCount = gameState.players[idx].hand.length;
+        break;
+      }
+    }
+    return {
+      lastPlay: gameState.lastPlay ?? null,
+      isFirstPlayOfGame: gameState.isFirstPlayOfGame ?? false,
+      playerHand: effectivePlayerHand,
+      nextPlayerCardCount,
+    };
+  }, [gameState, effectivePlayerHand]);
+
   // Play/Pass action handlers
   const {
     handlePlayCards,
@@ -303,6 +326,7 @@ export function LocalAIGame() {
     setSelectedCardIds,
     navigation,
     isMountedRef,
+    getOfflineValidationState,
     onAlert: showInGameAlert,
     // Local AI: 1 human + 3 bots
     humanCount: 1,

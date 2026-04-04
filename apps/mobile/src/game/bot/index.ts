@@ -337,6 +337,27 @@ export class BotAI {
       }
     }
 
+    // If next player has 1 card and last play was a pair or triple, play the HIGHEST
+    // valid matching combo to maximally block the opponent from winning this round.
+    // OCL does not formally restrict pairs/triples (i18n rule), but the bot should
+    // still be as aggressive as possible when an opponent is about to win.
+    if (
+      !lastPlayerHasWon &&
+      nextPlayerCardCount === 1 &&
+      lastPlay.cards.length >= 2 &&
+      lastPlay.cards.length <= 3
+    ) {
+      const validPlays = this.findAllValidPlays(sorted, lastPlay);
+      if (validPlays.length > 0) {
+        const highestValidPlay = validPlays[validPlays.length - 1];
+        const comboLabel = lastPlay.cards.length === 2 ? 'pair' : 'triple';
+        return {
+          cards: highestValidPlay,
+          reasoning: `One Card Left rule: playing highest valid ${comboLabel} to block opponent with 1 card`,
+        };
+      }
+    }
+
     // ========== EASY DIFFICULTY: Dumb following ==========
     if (this._difficulty === 'easy') {
       // 50% chance to pass even if can beat (very passive)

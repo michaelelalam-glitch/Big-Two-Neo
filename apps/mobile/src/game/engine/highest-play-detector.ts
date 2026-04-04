@@ -550,12 +550,13 @@ function isHighestRemainingFiveCardCombo(
         }
       }
 
-      // Must have the highest triple rank — pair rank is irrelevant.
-      // Use rank-value comparison (not equality) since the current cards are
-      // excluded from remaining, so highestTripleRank may be a LOWER rank
-      // than the played triple rank (which is both valid and correct).
+      // Must have strictly the highest triple rank — pair rank is irrelevant.
+      // Use strict rank-value comparison: the played triple rank must be GREATER
+      // than the highest remaining triple rank (not equal) so that when another
+      // Full House of the same triple rank can still be formed from remaining
+      // cards the current play is not prematurely flagged as unbeatable.
       return (
-        playedTripleRank !== null && RANK_VALUE[playedTripleRank] >= RANK_VALUE[highestTripleRank]
+        playedTripleRank !== null && RANK_VALUE[playedTripleRank] > RANK_VALUE[highestTripleRank]
       );
     }
 
