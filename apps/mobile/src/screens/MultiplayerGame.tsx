@@ -21,6 +21,7 @@ import { useDisconnectDetection } from '../hooks/useDisconnectDetection';
 import { useServerBotCoordinator } from '../hooks/useServerBotCoordinator';
 import { useMatchTransition } from '../hooks/useMatchTransition';
 import { useTurnInactivityTimer } from '../hooks/useTurnInactivityTimer';
+import { useClockSync } from '../hooks/useClockSync';
 import { useCardSelection } from '../hooks/useCardSelection';
 import { useGameActions, type GameMode } from '../hooks/useGameActions';
 import { useGameAudio } from '../hooks/useGameAudio';
@@ -1129,6 +1130,14 @@ export function MultiplayerGame() {
   // Shows yellow InactivityCountdownRing (60s to play/pass).
   // Separate from the charcoal-grey disconnect ring (connection inactivity).
   // When expired: auto-plays highest valid cards OR passes.
+  //
+  // Clock sync: measure the client→server offset from the auto-pass timer state
+  // so getCorrectedNow() compensates for the server being ahead of the client.
+  // This prevents spurious "clock skew detected" warnings on every turn and ensures
+  // the auto-play edge function fires at the correct 60s server-relative deadline.
+  const { getCorrectedNow: getTurnCorrectedNow } = useClockSync(
+    multiplayerGameState?.auto_pass_timer ?? null
+  );
   const { isMyTurn: _isTurnInactivityMyTurn } = useTurnInactivityTimer({
     gameState: multiplayerGameState,
     room: roomInfo,
@@ -1136,7 +1145,7 @@ export function MultiplayerGame() {
     // broadcastMessage omitted — turn_auto_played is supplementary; auto-play is confirmed
     // by the server-authoritative game_state update. Wire to useRealtime.broadcastMessage
     // (once added to UseRealtimeReturn) when turn_auto_played needs to reach other clients.
-    getCorrectedNow: () => Date.now(), // Use clock-sync if available
+    getCorrectedNow: getTurnCorrectedNow,
     currentUserId: user?.id,
     onAutoPlay: (cards, action) => {
       // auto-play-turn edge function replaces the player with a bot immediately

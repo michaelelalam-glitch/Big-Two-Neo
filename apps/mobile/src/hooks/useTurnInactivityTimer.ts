@@ -282,18 +282,23 @@ export function useTurnInactivityTimer({
         // Start tracking how long the player takes for this turn.
         turnTimeStart();
 
-        // CLOCK SKEW FIX: If server timestamp is in the future relative to client,
-        // use client-local time as the start instead. This prevents the timer from
-        // accumulating extra seconds when the server clock is ahead of the client.
+        // CLOCK SKEW FIX: Use getCorrectedNow() (which applies the measured server
+        // clock offset) to determine if the server timestamp is in the future.
+        // Using raw Date.now() here would fire on every turn when the server clock
+        // is permanently ahead (e.g. 6s), flooding the log and causing the timer to
+        // start 6s early because localTurnStartRef becomes 6s behind the server stamp.
+        // getCorrectedNow() (Date.now() + offsetMs) cancels out the constant drift,
+        // so serverElapsed is a small positive value → no spurious skew detected.
         const serverStart = new Date(turnStartedAt).getTime();
-        const clientNow = Date.now();
-        const serverElapsed = clientNow - serverStart;
+        const correctedClientNow = getCorrectedNowRef.current();
+        const serverElapsed = correctedClientNow - serverStart;
         if (serverElapsed < -2000) {
-          // Server clock is >2s ahead — use client time as start
+          // Even after applying the measured offset, server timestamp is >2s in the
+          // future — genuine residual skew. Fall back to local anchor.
           networkLogger.warn(
-            `⏰ [TurnTimer] Clock skew detected: server is ${Math.abs(serverElapsed)}ms ahead. Using client-local start time.`
+            `⏰ [TurnTimer] Clock skew detected: corrected time still ${Math.abs(serverElapsed)}ms behind server. Using client-local start time.`
           );
-          localTurnStartRef.current = clientNow;
+          localTurnStartRef.current = correctedClientNow;
         } else {
           localTurnStartRef.current = null; // Use server timestamp normally
         }

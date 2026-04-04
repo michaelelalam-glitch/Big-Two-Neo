@@ -4,16 +4,20 @@
  * Measures and maintains client-server clock offset for timer synchronization.
  *
  * Architecture:
- * - When timer is created, server includes server_time_at_creation
- * - Client calculates: offset = server_time - local_time  (ONCE per unique server_time)
+ * - When timer is created, server includes server_time_at_creation AND started_at
+ * - Client calculates: offset = server_time - local_time  (ONCE per unique sync identity)
+ * - Sync identity = (server_time_at_creation, started_at) — both fields together.
+ *   A new timer whose server_time_at_creation === a previous timer's value but whose
+ *   started_at differs (same server-clock millisecond, different timer) will still
+ *   trigger a fresh offset calculation, preventing sticky-offset bugs.
  * - Client uses offset to correct all time calculations: correctedNow = Date.now() + offset
  *
  * CRITICAL DESIGN DECISIONS (Mar 2026 fixes):
  * 1. offsetMs is stored in a REF so getCorrectedNow always reads the latest
  *    value, even inside stale closures (e.g. setInterval callbacks that
  *    captured getCorrectedNow on an earlier render).
- * 2. The offset is only recalculated when server_time_at_creation CHANGES
- *    (new timer).  Re-rendering with the SAME server_time_at_creation does
+ * 2. The offset is only recalculated when the sync identity (server_time_at_creation,
+ *    started_at) CHANGES (new timer).  Re-rendering with the SAME identity does
  *    NOT recalculate, because `offset = fixed_serverTime - later_Date.now()`
  *    would produce a progressively smaller offset → wrong remaining time.
  * 3. When timerState goes null (e.g. brief Realtime flash between passes),
