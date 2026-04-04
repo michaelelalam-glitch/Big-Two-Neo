@@ -296,7 +296,7 @@ export function useTurnInactivityTimer({
           // Even after applying the measured offset, server timestamp is >2s in the
           // future — genuine residual skew. Fall back to local anchor.
           networkLogger.warn(
-            `⏰ [TurnTimer] Clock skew detected: corrected time still ${Math.abs(serverElapsed)}ms behind server. Using client-local start time.`
+            `⏰ [TurnTimer] Clock skew detected: corrected time still ${Math.abs(serverElapsed)}ms behind server. Using corrected local anchor.`
           );
           localTurnStartRef.current = correctedClientNow;
         } else {
