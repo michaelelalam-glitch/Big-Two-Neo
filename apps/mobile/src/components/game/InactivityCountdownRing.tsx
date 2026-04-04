@@ -206,8 +206,11 @@ export default function InactivityCountdownRing({
   // the `type` prop, which would force the scheduling effect to re-run on type changes
   // and restart the animation.
   const handleExpired = useCallback(() => {
-    // onExpired is now required (5.5), so always log at warn level on expiry.
-    networkLogger.warn(`[InactivityRing] Timer expired: type=${typeRef.current}`);
+    // Expiry is part of the normal ring lifecycle, so log at info level to avoid
+    // noisy production log files for non-actionable timer completions. All rings
+    // now receive a required onExpired prop (5.5), so warn level here would flood
+    // the daily prod log file with every opponent's ring expiry.
+    networkLogger.info(`[InactivityRing] Timer expired: type=${typeRef.current}`);
     setVisible(false);
     onExpiredRef.current?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps

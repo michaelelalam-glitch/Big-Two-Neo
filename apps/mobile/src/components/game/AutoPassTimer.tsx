@@ -76,12 +76,11 @@ function AutoPassTimerComponent({
   isSyncedRef.current = isSynced;
   getCorrectedNowRef.current = getCorrectedNow;
 
-  // ── Initial snapshot (computed once per timerState activation) ──────────────
-  // 5.3 HIGH: isSynced must be included in deps so the snapshot is recomputed once
-  // clock sync is established. Without it, the initial snapshot is computed with
-  // isSynced=false (durationMs clamped to full 10s) and never updated when
-  // isSynced flips to true, leaving the ring and tick display anchored on the wrong
-  // remaining-ms value for the rest of the timer's life.
+  // ── Initial snapshot (computed once per timerState activation or when clock sync completes) ──
+  // Recomputes when timerState identity changes (active/end_timestamp/started_at/duration_ms)
+  // AND when isSynced transitions false→true (clock sync established). Without the isSynced
+  // dep (5.3 fix), the snapshot was anchored on isSynced=false (full clamped duration) and
+  // never updated once sync arrived, leaving the ring and tick counter on the wrong remaining-ms.
   const initialSnapshot = useMemo(() => {
     if (!timerState || !timerState.active) return { remainingMs: 0, seconds: 0, progress: 0 };
     const remaining = computeRemainingMs(timerState, isSynced, getCorrectedNow);
