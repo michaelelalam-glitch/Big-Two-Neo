@@ -130,10 +130,6 @@ Deno.serve(async (req) => {
     // process_disconnected_players() can find and replace this player.
     // A normal heartbeat would flip connection_status back to 'connected',
     // causing Phase B to miss the player entirely.
-    //
-    // Declared here (outer scope) so it is visible at the final return even
-    // when the reconnect broadcast block is bypassed (e.g. sweepOnly path).
-    // (reconnect_broadcast_failed flag removed — no mobile client consumer reads it)
     if (!sweepOnly) {
       // Update heartbeat timestamp.
       // NOTE: Heartbeat now clears disconnect_timer_started_at atomically so the
@@ -181,9 +177,9 @@ Deno.serve(async (req) => {
       // call fetchPlayers() and get fresh room_players data. Without this, clients
       // rely solely on Realtime postgres_changes — which can be delayed or lost on
       // mobile networks — leaving the grey ring stuck on the reconnected player.
-      // 6.4: Track broadcast delivery so failures can be included in the HTTP
-      // response. Declared in outer scope so it is visible at the final return.
-      // Only set to true when player transitions disconnected → connected.
+      // This broadcast is only attempted for disconnected → connected transitions
+      // and runs asynchronously via EdgeRuntime.waitUntil / fallback await below.
+      // Its success or failure is logged, but it is not tracked in the HTTP response.
       if (player.connection_status === 'disconnected') {
         // Promise registered with EdgeRuntime.waitUntil (see try/catch below)
         // so the edge runtime does not terminate the subscribe→send flow before

@@ -27,7 +27,6 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
 import { networkLogger } from '../utils/logger';
 import type { AutoPassTimerState } from '../types/multiplayer';
 
