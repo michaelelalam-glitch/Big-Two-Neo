@@ -660,6 +660,8 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 if (channelRef.current === channel) {
                   channelRef.current = null;
                   setRealtimeChannel(null);
+                  setIsConnected(false);
+                  onDisconnect?.();
                 }
                 // Best-effort cleanup: remove the errored channel from the Supabase
                 // client to prevent ghost channel accumulation on transient errors.
@@ -846,8 +848,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       );
     }
     // joinChannel intentionally omitted to avoid circular dependency
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- joinChannel intentionally omitted
-  }, [room, onError, onReconnect]); // joinChannel intentionally omitted to avoid circular dependency
+  }, [room, onError, onReconnect]); // eslint-disable-line react-hooks/exhaustive-deps -- joinChannel intentionally omitted to avoid circular dependency
 
   /**
    * Connect to an existing room (called when navigating from Lobby -> Game).
