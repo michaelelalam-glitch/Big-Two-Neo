@@ -332,27 +332,20 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 2+3. Get room players AND attempt the first coordinator lease in parallel.
-    //      Both operations require room.id (available above) so they can run concurrently,
-    //      saving one sequential DB roundtrip (~50–100 ms) vs. the previous series.
+    // 2. Get room players first. The lease is acquired AFTER players are confirmed
+    //    to exist so we never hold an unreleased lease when we exit early with 404.
+    //    (Previous parallel Promise.all could acquire the lease even when the players
+    //    fetch failed, leaving the lease held until it expired ~45 s later.)
     const MAX_LEASE_RETRIES = 3;
     const LEASE_RETRY_DELAY_MS = 500;
     const coordinatorId = crypto.randomUUID();
     const leaseTimeoutSeconds = Math.ceil((LOCK_TIMEOUT_MS * 1.5) / 1000);
 
-    const [playersResult, firstLeaseResult] = await Promise.all([
-      supabaseClient
-        .from('room_players')
-        .select('*')
-        .eq('room_id', room.id)
-        .order('player_index', { ascending: true }),
-      supabaseClient.rpc('try_acquire_bot_coordinator_lease', {
-        p_room_code: room_code,
-        p_coordinator_id: coordinatorId,
-        // Use 1.5× the loop budget so the lease outlives even a worst-case run.
-        p_timeout_seconds: leaseTimeoutSeconds,
-      }),
-    ]);
+    const playersResult = await supabaseClient
+      .from('room_players')
+      .select('*')
+      .eq('room_id', room.id)
+      .order('player_index', { ascending: true });
 
     if (playersResult.error || !playersResult.data) {
       console.error('[bot-coordinator] Room players not found:', playersResult.error);
@@ -364,6 +357,14 @@ Deno.serve(async (req) => {
     // roomPlayers is mutated in-loop to reflect fresh player data on periodic refreshes.
     const roomPlayers: RoomPlayer[] = playersResult.data as RoomPlayer[];
 
+    // 3. Acquire coordinator lease (sequential, after players confirmed above).
+    const firstLeaseResult = await supabaseClient.rpc('try_acquire_bot_coordinator_lease', {
+      p_room_code: room_code,
+      p_coordinator_id: coordinatorId,
+      // Use 1.5× the loop budget so the lease outlives even a worst-case run.
+      p_timeout_seconds: leaseTimeoutSeconds,
+    });
+
     if (firstLeaseResult.error) {
       console.error('[bot-coordinator] Failed to acquire coordinator lease:', firstLeaseResult.error.message);
       return new Response(
@@ -374,7 +375,7 @@ Deno.serve(async (req) => {
 
     let leaseAcquired = firstLeaseResult.data === true;
 
-    // Retry lease acquisition if first parallel attempt found contention.
+    // Retry lease acquisition if first attempt found contention.
     if (!leaseAcquired) {
       for (let leaseAttempt = 1; leaseAttempt < MAX_LEASE_RETRIES; leaseAttempt++) {
         if (Date.now() - startTime > LOCK_TIMEOUT_MS) break;
