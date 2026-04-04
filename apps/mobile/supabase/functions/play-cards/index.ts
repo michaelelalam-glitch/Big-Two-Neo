@@ -727,7 +727,8 @@ Deno.serve(async (req) => {
     // (which uses fetch() with a JSON string body) always supply Content-Length.
     const rawContentLength = req.headers.get('content-length');
     const contentLength = rawContentLength !== null ? Number(rawContentLength) : Infinity;
-    if (contentLength > 10_240) {
+    // Also guard against non-numeric/invalid Content-Length headers (NaN fails > check).
+    if (!Number.isFinite(contentLength) || contentLength < 0 || contentLength > 10_240) {
       return new Response(
         JSON.stringify({ success: false, error: 'Request body too large' }),
         { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
