@@ -64,6 +64,7 @@ jest.mock('../../utils/logger', () => ({
 jest.mock('../../game/engine/game-logic', () => ({
   classifyCards: jest.fn(),
   canBeatPlay: jest.fn(),
+  validateOneCardLeftRule: jest.fn(),
 }));
 
 // ---- Imports -------------------------------------------------------------
@@ -71,7 +72,7 @@ jest.mock('../../game/engine/game-logic', () => ({
 import { renderHook, act } from '@testing-library/react-native';
 import { useGameActions } from '../useGameActions';
 import { soundManager, SoundType, showError } from '../../utils';
-import { classifyCards, canBeatPlay } from '../../game/engine/game-logic';
+import { classifyCards, canBeatPlay, validateOneCardLeftRule } from '../../game/engine/game-logic';
 import type { Card } from '../../game/types';
 import type { LastPlay } from '../../types/multiplayer';
 
@@ -87,6 +88,7 @@ type ValidationState = {
   lastPlay: LastPlay | null;
   isFirstPlayOfGame: boolean;
   playerHand: Card[];
+  nextPlayerCardCount?: number;
 };
 
 /** Build a navigation mock (unused methods default to jest.fn()) */
@@ -123,18 +125,16 @@ describe('useGameActions — client-side card validation (Task #573)', () => {
     isMountedRef = { current: true };
     navigation = makeNavigation();
 
-    // Default: classifyCards returns a valid type, canBeatPlay returns true
+    // Default: classifyCards returns a valid type, canBeatPlay returns true, OCL passes
     (classifyCards as jest.Mock).mockReturnValue('Single');
     (canBeatPlay as jest.Mock).mockReturnValue(true);
+    (validateOneCardLeftRule as jest.Mock).mockReturnValue({ valid: true });
   });
 
   /**
    * Helper: render the hook and call handlePlayCards with the given cards/state.
    */
-  const renderAndPlay = async (
-    cards: Card[],
-    validationState: ValidationState | null,
-  ) => {
+  const renderAndPlay = async (cards: Card[], validationState: ValidationState | null) => {
     const getMultiplayerValidationState = jest.fn().mockReturnValue(validationState);
 
     const { result } = renderHook(() =>
@@ -147,7 +147,7 @@ describe('useGameActions — client-side card validation (Task #573)', () => {
         navigation: navigation as any,
         isMountedRef,
         getMultiplayerValidationState,
-      }),
+      })
     );
 
     await act(async () => {
@@ -170,7 +170,7 @@ describe('useGameActions — client-side card validation (Task #573)', () => {
         navigation: navigation as any,
         isMountedRef,
         // No getMultiplayerValidationState
-      }),
+      })
     );
 
     const cards = [makeCard('3D')];
@@ -359,9 +359,180 @@ describe('useGameActions — client-side card validation (Task #573)', () => {
     });
   });
 
-  // ---- Local AI game bypasses client-side validation ---------------------
+  // ---- Check 5: One Card Left rule (OCL) --------------------------------
 
-  it('skips validation entirely for local AI games', async () => {
+  describe('Check 5 — One Card Left rule', () => {
+    const mockLastPlay: LastPlay = {
+      player_index: 1,
+      cards: [makeCard('5H')],
+      combo_type: 'Single',
+      timestamp: new Date().toISOString(),
+    };
+
+    it('rejects a single when OCL rule requires a higher card and nextPlayerCardCount=1', async () => {
+      (validateOneCardLeftRule as jest.Mock).mockReturnValue({
+        valid: false,
+        error: 'Must play highest single when opponent has 1 card left',
+      });
+
+      const card = makeCard('6D');
+      await renderAndPlay([card], {
+        lastPlay: mockLastPlay,
+        isFirstPlayOfGame: false,
+        playerHand: [card, makeCard('AS')],
+        nextPlayerCardCount: 1,
+      });
+
+      expect(multiplayerPlayCards).not.toHaveBeenCalled();
+      expect(showError).toHaveBeenCalledWith(
+        'Must play highest single when opponent has 1 card left'
+      );
+      expect(soundManager.playSound).toHaveBeenCalledWith(SoundType.INVALID_MOVE);
+    });
+
+    it('allows the play when OCL rule is satisfied (playing highest single)', async () => {
+      (validateOneCardLeftRule as jest.Mock).mockReturnValue({ valid: true });
+
+      const card = makeCard('AS');
+      await renderAndPlay([card], {
+        lastPlay: mockLastPlay,
+        isFirstPlayOfGame: false,
+        playerHand: [card],
+        nextPlayerCardCount: 1,
+      });
+
+      expect(multiplayerPlayCards).toHaveBeenCalledTimes(1);
+      expect(showError).not.toHaveBeenCalled();
+    });
+
+    it('skips OCL check when nextPlayerCardCount is undefined', async () => {
+      // validateOneCardLeftRule should not be called if count is not provided
+      const card = makeCard('6D');
+      await renderAndPlay([card], {
+        lastPlay: mockLastPlay,
+        isFirstPlayOfGame: false,
+        playerHand: [card],
+        // nextPlayerCardCount intentionally omitted
+      });
+
+      expect(validateOneCardLeftRule).not.toHaveBeenCalled();
+      expect(multiplayerPlayCards).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ---- Offline / local-AI validation path --------------------------------
+
+  describe('Offline validation path (getOfflineValidationState)', () => {
+    /**
+     * Helper: render the hook in local-AI mode with getOfflineValidationState.
+     */
+    const renderAndPlayOffline = async (cards: Card[], offlineState: ValidationState | null) => {
+      const getOfflineValidationState = jest.fn().mockReturnValue(offlineState);
+      const gameManager = {
+        playCards: jest.fn().mockResolvedValue({ success: true }),
+        pass: jest.fn(),
+      };
+
+      const { result } = renderHook(() =>
+        useGameActions({
+          isLocalAIGame: true,
+          gameManagerRef: { current: gameManager },
+          multiplayerPlayCards,
+          multiplayerPass,
+          setSelectedCardIds,
+          navigation: navigation as any,
+          isMountedRef,
+          getOfflineValidationState,
+        })
+      );
+
+      await act(async () => {
+        await result.current.handlePlayCards(cards);
+      });
+
+      return { gameManager, getOfflineValidationState };
+    };
+
+    it('calls gameManager.playCards when offline validation passes', async () => {
+      const card = makeCard('AS');
+      const { gameManager } = await renderAndPlayOffline([card], {
+        lastPlay: null,
+        isFirstPlayOfGame: false,
+        playerHand: [card],
+      });
+
+      expect(gameManager.playCards).toHaveBeenCalledTimes(1);
+      expect(showError).not.toHaveBeenCalled();
+    });
+
+    it('rejects offline card-not-in-hand check', async () => {
+      const { gameManager } = await renderAndPlayOffline([makeCard('5S')], {
+        lastPlay: null,
+        isFirstPlayOfGame: false,
+        playerHand: [makeCard('3D')],
+      });
+
+      expect(gameManager.playCards).not.toHaveBeenCalled();
+      expect(showError).toHaveBeenCalledWith('game.cardNotInHand');
+    });
+
+    it('rejects offline OCL rule violation', async () => {
+      (validateOneCardLeftRule as jest.Mock).mockReturnValue({
+        valid: false,
+        error: 'Must play highest single (AS) when opponent has 1 card left',
+      });
+
+      const mockLast: LastPlay = {
+        player_index: 1,
+        cards: [makeCard('7H')],
+        combo_type: 'Single',
+        timestamp: new Date().toISOString(),
+      };
+
+      const card = makeCard('9D');
+      const { gameManager } = await renderAndPlayOffline([card], {
+        lastPlay: mockLast,
+        isFirstPlayOfGame: false,
+        playerHand: [card, makeCard('AS')],
+        nextPlayerCardCount: 1,
+      });
+
+      expect(gameManager.playCards).not.toHaveBeenCalled();
+      expect(showError).toHaveBeenCalledWith(
+        'Must play highest single (AS) when opponent has 1 card left'
+      );
+    });
+
+    it('calls gameManager.playCards when getOfflineValidationState returns null', async () => {
+      const gameManager = {
+        playCards: jest.fn().mockResolvedValue({ success: true }),
+        pass: jest.fn(),
+      };
+
+      const { result } = renderHook(() =>
+        useGameActions({
+          isLocalAIGame: true,
+          gameManagerRef: { current: gameManager },
+          multiplayerPlayCards,
+          multiplayerPass,
+          setSelectedCardIds,
+          navigation: navigation as any,
+          isMountedRef,
+          getOfflineValidationState: jest.fn().mockReturnValue(null),
+        })
+      );
+
+      await act(async () => {
+        await result.current.handlePlayCards([makeCard('3D')]);
+      });
+
+      expect(gameManager.playCards).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ---- Local AI game bypasses multiplayer validation ---------------------
+
+  it('does not call getMultiplayerValidationState for local AI games', async () => {
     const getMultiplayerValidationState = jest.fn().mockReturnValue({
       lastPlay: null,
       isFirstPlayOfGame: true,
@@ -383,7 +554,7 @@ describe('useGameActions — client-side card validation (Task #573)', () => {
         navigation: navigation as any,
         isMountedRef,
         getMultiplayerValidationState,
-      }),
+      })
     );
 
     const cards = [makeCard('4S')]; // Would fail 3D check if checked
