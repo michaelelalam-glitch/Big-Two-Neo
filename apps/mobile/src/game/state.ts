@@ -326,6 +326,11 @@ export class GameStateManager {
    * Initialize a new game
    */
   async initializeGame(config: GameConfig): Promise<GameState> {
+    // Reset alert flag at the start of each new game so a "Stats Not Saved"
+    // alert is shown if saving fails, even when the same GameStateManager
+    // instance is reused across multiple games in the same session.
+    this._statsAlertShown = false;
+
     const { playerName, botCount, botDifficulty } = config;
 
     // Create players (1 human + 3 bots by default)
