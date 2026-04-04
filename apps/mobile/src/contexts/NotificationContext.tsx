@@ -143,12 +143,37 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       };
       setStoredNotifications(prev => {
         const existingIndex = prev.findIndex(n => n.id === entry.id);
-        // 7.6: For friend_request/friend_accepted, also deduplicate by body
-        // (which encodes the sender name) to prevent duplicate entries when
-        // the same push fires twice (e.g. offline replay or rapid re-send).
+        // 7.6: For friend_request/friend_accepted, deduplicate by a stable
+        // identifier from content.data (friendshipId / sender user id) to prevent
+        // duplicate entries when the same push fires twice. Avoid deduping by
+        // body text, which incorrectly collapses distinct notifications from
+        // different users who share the same display name.
+        const getFriendDedupKey = (
+          notificationType: AppNotification['type'],
+          data: Record<string, unknown>
+        ): string | null => {
+          if (notificationType !== 'friend_request' && notificationType !== 'friend_accepted') {
+            return null;
+          }
+          for (const candidate of [
+            data.friendshipId,
+            data.senderId,
+            data.senderUserId,
+            data.userId,
+          ]) {
+            if (typeof candidate === 'string' && candidate.length > 0) return candidate;
+            if (typeof candidate === 'number' || typeof candidate === 'bigint')
+              return String(candidate);
+          }
+          return null;
+        };
+        const entryDedupKey = getFriendDedupKey(type, entry.data);
         const contentDupIndex =
-          existingIndex === -1 && (type === 'friend_request' || type === 'friend_accepted')
-            ? prev.findIndex(n => n.type === type && n.body === entry.body)
+          existingIndex === -1 && entryDedupKey
+            ? prev.findIndex(n => {
+                if (n.type !== type) return false;
+                return getFriendDedupKey(n.type, n.data) === entryDedupKey;
+              })
             : -1;
         const dupeIndex = existingIndex !== -1 ? existingIndex : contentDupIndex;
         let next: AppNotification[];

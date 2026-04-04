@@ -221,7 +221,7 @@ Deno.serve(async (req) => {
                       // supabase-js Realtime send() resolves (not rejects) on
                       // delivery failures; inspect the resolved value for errors.
                       if (result?.error) {
-                        console.error(`[update-heartbeat] Reconnect broadcast delivery failure — room ${room_id}:`, result.error);
+                        console.warn(`[update-heartbeat] Reconnect broadcast delivery failure — room ${room_id}:`, result.error);
                         clearTimeout(safetyTimeout);
                         finish();
                       } else {
@@ -231,7 +231,7 @@ Deno.serve(async (req) => {
                       }
                     })
                     .catch((e: unknown) => {
-                      console.error('[update-heartbeat] Reconnect broadcast send failed — room', room_id, ':', e);
+                      console.warn('[update-heartbeat] Reconnect broadcast send failed — room', room_id, ':', e);
                       clearTimeout(safetyTimeout);
                       finish();
                     });
@@ -243,7 +243,7 @@ Deno.serve(async (req) => {
               });
             });
           } catch (bcastErr: any) {
-            console.error('[update-heartbeat] Reconnect broadcast exception — room', room_id, ':', bcastErr?.message);
+            console.warn('[update-heartbeat] Reconnect broadcast exception — room', room_id, ':', bcastErr?.message);
           }
         })();
         // Fire-and-forget: broadcast continues after the HTTP response.
