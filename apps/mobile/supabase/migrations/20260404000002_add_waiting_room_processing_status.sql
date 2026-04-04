@@ -44,3 +44,11 @@ BEGIN
     AND joined_at < NOW() - INTERVAL '30 seconds';
 END;
 $$;
+
+-- This function runs as SECURITY DEFINER and can UPDATE/DELETE any
+-- waiting_room row, bypassing RLS. Revoke the default PUBLIC EXECUTE
+-- privilege so authenticated clients cannot invoke it directly (which
+-- would allow griefing matchmaking). Only service_role (used by
+-- server-side edge functions and scheduled jobs) may call it.
+REVOKE EXECUTE ON FUNCTION cleanup_stale_waiting_room_entries() FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION cleanup_stale_waiting_room_entries() TO service_role;
