@@ -248,7 +248,20 @@ Deno.serve(async (req) => {
 
     const supabaseClient = createClient(supabaseUrl, serviceKey);
 
+    // ── Request size guard (DoS mitigation) ─────────────────────────────────
+    // Reject oversized bodies before reading/parsing. Legitimate player-pass
+    // payloads (room_code + player_id + optional _bot_auth) are tiny; 4 KB cap.
+    const contentLength = Number(req.headers.get('content-length') ?? '0');
+    if (contentLength > 4_096) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Request body too large' }),
+        { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // ── Early body peek for bot-coordinator authentication ─────────────────────
+    // Body is read after the size guard above (Content-Length checked first).
+    // JSON parse errors are caught; all further body access uses pre-parsed bodyJson.
     let bodyJson: Record<string, any> | null = null;
     const rawBodyText = await req.text().catch(() => '');
     try { bodyJson = rawBodyText ? JSON.parse(rawBodyText) : null; } catch { /* handled below */ }
