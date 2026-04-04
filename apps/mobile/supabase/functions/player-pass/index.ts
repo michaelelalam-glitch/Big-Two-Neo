@@ -249,27 +249,35 @@ Deno.serve(async (req) => {
     const supabaseClient = createClient(supabaseUrl, serviceKey);
 
     // ── Request size guard (DoS mitigation) ─────────────────────────────────
-    // Reject oversized bodies before reading/parsing. Legitimate player-pass
-    // payloads (room_code + player_id + optional _bot_auth) are tiny; 4 KB cap.
-    // Reject requests with a missing Content-Length header so that chunked-transfer
-    // requests cannot bypass the size guard (a missing header would otherwise parse
-    // as 0 and fall through). Legitimate clients and the internal bot-coordinator
-    // (which uses fetch() with a JSON string body) always supply Content-Length.
-    const rawContentLength = req.headers.get('content-length');
-    const contentLength = rawContentLength !== null ? Number(rawContentLength) : Infinity;
-    // Also guard against non-numeric/invalid Content-Length headers (NaN fails > check).
-    if (!Number.isFinite(contentLength) || contentLength < 0 || contentLength > 4_096) {
+    // ── Request size guard (DoS mitigation) ─────────────────────────────────
+    // When Content-Length is present and valid, reject early (before body read).
+    // When absent (e.g., chunked transfer encoding), allow the request through
+    // but apply a hard cap on the actual bytes read below.
+    // Legitimate player-pass payloads (room_code + player_id + optional _bot_auth)
+    // are tiny; 4 KB is a generous cap.
+    const clHeader = req.headers.get('content-length');
+    if (clHeader !== null) {
+      const cl = Number(clHeader);
+      if (!Number.isFinite(cl) || cl < 0 || cl > 4_096) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Request body too large' }),
+          { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // ── Early body peek for bot-coordinator authentication ─────────────────────
+    // Body is read after the Content-Length guard above.
+    // JSON parse errors are caught; all further body access uses pre-parsed bodyJson.
+    let bodyJson: Record<string, any> | null = null;
+    const rawBodyText = await req.text().catch(() => '');
+    // Hard cap on actual payload bytes (covers chunked requests without Content-Length).
+    if (rawBodyText.length > 4_096) {
       return new Response(
         JSON.stringify({ success: false, error: 'Request body too large' }),
         { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // ── Early body peek for bot-coordinator authentication ─────────────────────
-    // Body is read after the size guard above (Content-Length checked first).
-    // JSON parse errors are caught; all further body access uses pre-parsed bodyJson.
-    let bodyJson: Record<string, any> | null = null;
-    const rawBodyText = await req.text().catch(() => '');
     try { bodyJson = rawBodyText ? JSON.parse(rawBodyText) : null; } catch { /* handled below */ }
 
     // ── Authorization check (BEFORE body parse, matching bot-coordinator pattern) ──

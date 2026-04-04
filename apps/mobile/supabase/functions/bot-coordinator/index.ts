@@ -427,7 +427,6 @@ Deno.serve(async (req) => {
           break;
         }
 
-        // Refresh lease every 3 iterations to prevent expiry during long-running loops.
         // Refresh the bot-coordinator lease every 3 iterations to prevent mid-loop expiry.
         // BOT_MOVE_DELAY_MS is 0, so latency is dominated by DB + network round-trips
         // (~100–500 ms per move). Over 10+ moves without a refresh the lease can expire,
