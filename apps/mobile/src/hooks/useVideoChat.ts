@@ -1047,6 +1047,7 @@ export function useVideoChat({
     requestMicPermission,
     showPermissionDeniedAlert,
     persistChatPrefs,
+    showAlert,
   ]);
 
   const toggleMic = useCallback(async (): Promise<void> => {
@@ -1216,6 +1217,7 @@ export function useVideoChat({
     requestMicPermission,
     showPermissionDeniedAlert,
     persistChatPrefs,
+    showAlert,
   ]);
 
   // voiceChatEnabled is a derived value: connected, mic on, and camera off.

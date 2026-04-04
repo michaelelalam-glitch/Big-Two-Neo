@@ -292,6 +292,7 @@ async function sendEvents(
   }
 
   if (__DEV__) {
+    // eslint-disable-next-line no-console
     console.log('[Analytics] Sending events:', events.map(e => e.name).join(', '));
   }
 
@@ -308,8 +309,10 @@ async function sendEvents(
       .then(json => {
         const issues = json?.validationMessages ?? [];
         if (issues.length > 0) {
+          // eslint-disable-next-line no-console
           console.warn('[Analytics] GA4 validation issues:', JSON.stringify(issues, null, 2));
         } else {
+          // eslint-disable-next-line no-console
           console.log(
             '[Analytics] GA4 validation: ✅ all events valid — check GA4 → Reports → Realtime'
           );
@@ -328,15 +331,19 @@ async function sendEvents(
     });
     if (__DEV__) {
       if (response.ok) {
+        // eslint-disable-next-line no-console
         console.log('[Analytics] ✅', response.status, '— events ingested by GA4');
       } else {
+        // eslint-disable-next-line no-console
         console.warn('[Analytics] ❌', response.status, '— GA4 rejected events');
         const text = await response.text().catch(() => '');
+        // eslint-disable-next-line no-console
         console.warn('[Analytics] Response body:', text.slice(0, 300));
       }
     }
   } catch (err) {
     if (__DEV__) {
+      // eslint-disable-next-line no-console
       console.warn('[Analytics] Network error:', err);
     }
     // Network error — swallow silently (analytics must never crash the app)

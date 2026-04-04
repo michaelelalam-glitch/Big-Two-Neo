@@ -133,20 +133,20 @@ async function callPlayCards(
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   let res: Response;
   try {
-    const botAuthKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') || 'c1d8e407-49ca-4754-a12b-72a819d5bc17';
+    const botAuthKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
     res = await fetch(url, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${serviceKey}`,
         'Content-Type': 'application/json',
         'x-bot-coordinator': 'true', // Signal to skip recursive bot trigger
-        ...(botAuthKey ? { 'x-bot-auth': botAuthKey } : {}),
+        ...(botAuthKey !== '' ? { 'x-bot-auth': botAuthKey } : {}),
       },
       body: JSON.stringify({
         room_code: roomCode,
         player_id: playerId,
         cards: cards.map(c => ({ id: c.id, rank: c.rank, suit: c.suit })),
-        _bot_auth: botAuthKey,  // body-based auth for internal calls (header stripped by relay)
+        ...(botAuthKey !== '' ? { _bot_auth: botAuthKey } : {}),
       }),
       signal: controller.signal,
     });
@@ -198,19 +198,19 @@ async function callPlayerPass(
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   let res: Response;
   try {
-    const botAuthKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') || 'c1d8e407-49ca-4754-a12b-72a819d5bc17';
+    const botAuthKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
     res = await fetch(url, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${serviceKey}`,
         'Content-Type': 'application/json',
         'x-bot-coordinator': 'true',
-        ...(botAuthKey ? { 'x-bot-auth': botAuthKey } : {}),
+        ...(botAuthKey !== '' ? { 'x-bot-auth': botAuthKey } : {}),
       },
       body: JSON.stringify({
         room_code: roomCode,
         player_id: playerId,
-        _bot_auth: botAuthKey,  // body-based auth for internal calls (header stripped by relay)
+        ...(botAuthKey !== '' ? { _bot_auth: botAuthKey } : {}),
       }),
       signal: controller.signal,
     });
@@ -427,9 +427,10 @@ Deno.serve(async (req) => {
         }
 
         // Refresh lease every 3 iterations to prevent expiry during long-running loops.
-        // lease expiry defaults to 45 s; after 3 moves (~3 s at 300 ms delay + fetch
-        // latency) we are well within budget, but over 10+ moves without refresh the
-        // lease can expire and allow a concurrent coordinator to acquire it.
+        // Refresh the bot-coordinator lease every 3 iterations to prevent mid-loop expiry.
+        // BOT_MOVE_DELAY_MS is 0, so latency is dominated by DB + network round-trips
+        // (~100–500 ms per move). Over 10+ moves without a refresh the lease can expire,
+        // allowing a concurrent coordinator to acquire it and cause dual execution.
         if (iteration > 0 && iteration % 3 === 0) {
           const { data: refreshed, error: refreshErr } = await supabaseClient
             .rpc('refresh_bot_coordinator_lease', {
@@ -440,6 +441,7 @@ Deno.serve(async (req) => {
           if (refreshErr || !refreshed) {
             // Another coordinator may have stolen the lease — stop to avoid dual execution.
             console.warn('[bot-coordinator] ⚠️ Lease refresh failed (stolen or expired), stopping');
+            lastExitReason = 'lease_refresh_failed';
             break;
           }
         }

@@ -71,9 +71,15 @@ Deno.serve(async (req) => {
     //   caller B's stale call also has expected=1 → idempotency guard returns no-op
     // Without this, a stale or duplicate HTTP retry skips the idempotency guard at
     // step 1b and can advance the match a second time.
-    if (expected_match_number === undefined || expected_match_number === null || isNaN(expected_match_number)) {
+    if (
+      expected_match_number === undefined ||
+      expected_match_number === null ||
+      !Number.isFinite(expected_match_number) ||
+      !Number.isInteger(expected_match_number) ||
+      expected_match_number < 1
+    ) {
       return new Response(
-        JSON.stringify({ error: 'expected_match_number is required' }),
+        JSON.stringify({ error: 'expected_match_number must be a positive integer' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

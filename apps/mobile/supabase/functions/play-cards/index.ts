@@ -736,15 +736,14 @@ Deno.serve(async (req) => {
     //   3. _bot_auth field in the request body — guaranteed to pass through unchanged
     const authHeader  = req.headers.get('authorization') ?? '';
     const botAuthHdr  = req.headers.get('x-bot-auth') ?? '';
-    const internalKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') || 'c1d8e407-49ca-4754-a12b-72a819d5bc17';
+    const internalKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
+    const hasInternalKey = internalKey !== '';
     const botBodyAuth = bodyJson?._bot_auth ?? '';
     const isServiceRole =
       (serviceKey !== '' && authHeader === `Bearer ${serviceKey}`) ||
-      (internalKey !== '' && botAuthHdr === internalKey) ||
-      (internalKey !== '' && botBodyAuth === internalKey);
+      (hasInternalKey && botAuthHdr === internalKey) ||
+      (hasInternalKey && botBodyAuth === internalKey);
 
-    // Diagnostic log to trace auth check in production (safe: only 8 chars shown)
-    console.log(`[play-cards] auth: svcKey=${serviceKey.slice(0,8)} intKey=${internalKey.slice(0,8)} botHdr=${botAuthHdr.slice(0,8)} botBody=${botBodyAuth.slice(0,8)} isServiceRole=${isServiceRole}`);
     let callerJwtUserId: string | null = null;
 
     if (!isServiceRole) {
@@ -755,21 +754,8 @@ Deno.serve(async (req) => {
       );
       const { data: { user }, error: authError } = await anonClient.auth.getUser();
       if (authError || !user) {
-        // Temporary debug info in response body to diagnose key propagation issues.
-        // Remove after confirming fix.
         return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'Unauthorized',
-            _dbg: {
-              svcKey: serviceKey.slice(0,8),
-              intKey: internalKey.slice(0,8),
-              botHdr: botAuthHdr.slice(0,8),
-              authHdr: authHeader.slice(7,15),  // skip 'Bearer '
-              svcMatch: (serviceKey !== '' && authHeader === `Bearer ${serviceKey}`),
-              intMatch: (internalKey !== '' && botAuthHdr === internalKey),
-            },
-          }),
+          JSON.stringify({ success: false, error: 'Unauthorized' }),
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -1526,7 +1512,8 @@ Deno.serve(async (req) => {
     // Accept either the service-role key match OR the stable internal bot auth key —
     // the same dual-check used at the top of this function for isServiceRole.
     const serviceKeyForCheck  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-    const internalKeyForCheck = Deno.env.get('INTERNAL_BOT_AUTH_KEY') || 'c1d8e407-49ca-4754-a12b-72a819d5bc17';
+    const internalKeyForCheck = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
+    const hasInternalKeyForCheck = internalKeyForCheck !== '';
     const authHeaderForCheck  = req.headers.get('authorization') ?? '';
     const botAuthHdrForCheck  = req.headers.get('x-bot-auth') ?? '';
     const botBodyAuthForCheck = bodyJson?._bot_auth ?? '';
@@ -1534,8 +1521,8 @@ Deno.serve(async (req) => {
       req.headers.get('x-bot-coordinator') === 'true' &&
       (
         (serviceKeyForCheck !== '' && authHeaderForCheck === `Bearer ${serviceKeyForCheck}`) ||
-        (internalKeyForCheck !== '' && botAuthHdrForCheck === internalKeyForCheck) ||
-        (internalKeyForCheck !== '' && botBodyAuthForCheck === internalKeyForCheck)
+        (hasInternalKeyForCheck && botAuthHdrForCheck === internalKeyForCheck) ||
+        (hasInternalKeyForCheck && botBodyAuthForCheck === internalKeyForCheck)
       );
 
     if (!isInternalCoordinatorCall && !matchEnded && !gameOver) {

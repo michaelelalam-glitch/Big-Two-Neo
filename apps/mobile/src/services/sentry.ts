@@ -68,6 +68,7 @@ export function initSentry(): void {
 
   try {
     if (__DEV__) {
+      // eslint-disable-next-line no-console
       console.log('[Sentry] Initializing');
     }
     Sentry.init({
@@ -186,6 +187,7 @@ export function initSentry(): void {
     // are forwarded to Sentry whenever Sentry is active in this session.
     _setupConsoleCapture();
     if (__DEV__) {
+      // eslint-disable-next-line no-console
       console.log('[Sentry] Initialized successfully');
     }
   } catch (err) {

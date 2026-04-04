@@ -122,7 +122,7 @@ function GameSettingsModalComponent({
     onLeaveGame();
   };
 
-  const handleCopyRoomCode = useCallback(async () => {
+  const _handleCopyRoomCode = useCallback(async () => {
     if (!roomCode) return;
     const result = await tryCopyTextWithShareFallback(roomCode, i18n.t('lobby.shareTitle'));
     if (result === 'copied') {
@@ -140,7 +140,7 @@ function GameSettingsModalComponent({
     // 'shared': Share sheet was presented — no additional alert needed
   }, [roomCode, vibrationEnabled, showInGameAlert]);
 
-  const handleShareRoomCode = useCallback(async () => {
+  const _handleShareRoomCode = useCallback(async () => {
     if (!roomCode) return;
     try {
       await Share.share({
