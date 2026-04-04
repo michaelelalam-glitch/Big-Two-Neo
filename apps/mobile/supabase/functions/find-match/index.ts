@@ -140,6 +140,19 @@ Deno.serve(async (req) => {
       .eq('status', 'processing')
       .or(`processing_started_at.lt.${thirtySecsAgo},and(processing_started_at.is.null,joined_at.lt.${thirtySecsAgo})`);
 
+    // 3c. Recover stale 'matched' rows for this user.
+    // A 'matched' row whose room was abandoned (room expired / ON DELETE logic
+    // didn't clean the waiting_room row) prevents the user from re-entering the
+    // queue: Step A (ignoreDuplicates) silently skips the existing row and Step B
+    // only refreshes rows in 'waiting' state. Reset matched rows that are >5 min
+    // old so the subsequent upsert can proceed normally.
+    await supabaseClient
+      .from('waiting_room')
+      .update({ status: 'waiting', matched_room_id: null, matched_at: null })
+      .eq('user_id', userId)
+      .eq('status', 'matched')
+      .lt('matched_at', new Date(Date.now() - 5 * 60 * 1000).toISOString());
+
     // 4. Insert or update user in waiting room.
     // Two-step upsert that protects rows already in 'processing' state:
     //   Step A — INSERT the new row; if a row already exists, do nothing (ignoreDuplicates)
@@ -254,7 +267,7 @@ Deno.serve(async (req) => {
         if (lockedIds.length > 0) {
           await supabaseClient
             .from('waiting_room')
-            .update({ status: 'waiting' })
+            .update({ status: 'waiting', processing_started_at: null })
             .in('user_id', lockedIds)
             .eq('status', 'processing'); // Only revert rows we actually own
         }
@@ -272,7 +285,7 @@ Deno.serve(async (req) => {
         // Release optimistic lock so these players can be re-matched.
         // Guard on status='processing' to avoid clobbering rows advanced by a
         // concurrent invocation after this lock was acquired.
-        await supabaseClient.from('waiting_room').update({ status: 'waiting' }).in('user_id', lockedIds).eq('status', 'processing');
+        await supabaseClient.from('waiting_room').update({ status: 'waiting', processing_started_at: null }).in('user_id', lockedIds).eq('status', 'processing');
         return new Response(
           JSON.stringify({ success: false, error: 'Failed to generate room code' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -301,7 +314,7 @@ Deno.serve(async (req) => {
       if (roomError || !room) {
         console.error('❌ [find-match] Failed to create room:', roomError);
         // Release optimistic lock so these players can be re-matched
-        await supabaseClient.from('waiting_room').update({ status: 'waiting' }).in('user_id', candidateIds).eq('status', 'processing');
+        await supabaseClient.from('waiting_room').update({ status: 'waiting', processing_started_at: null }).in('user_id', candidateIds).eq('status', 'processing');
         return new Response(
           JSON.stringify({ success: false, error: 'Failed to create room' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -329,7 +342,7 @@ Deno.serve(async (req) => {
         console.error('❌ [find-match] Failed to add players:', playersError);
         // Rollback: delete the room and release optimistic lock
         await supabaseClient.from('rooms').delete().eq('id', roomId);
-        await supabaseClient.from('waiting_room').update({ status: 'waiting' }).in('user_id', candidateIds).eq('status', 'processing');
+        await supabaseClient.from('waiting_room').update({ status: 'waiting', processing_started_at: null }).in('user_id', candidateIds).eq('status', 'processing');
         return new Response(
           JSON.stringify({ success: false, error: 'Failed to add players to room' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -362,7 +375,7 @@ Deno.serve(async (req) => {
         await supabaseClient.from('room_players').delete().eq('room_id', roomId);
         await supabaseClient
           .from('waiting_room')
-          .update({ status: 'waiting', matched_room_id: null, matched_at: null })
+          .update({ status: 'waiting', matched_room_id: null, matched_at: null, processing_started_at: null })
           .in('user_id', candidateIds);
         
         return new Response(
