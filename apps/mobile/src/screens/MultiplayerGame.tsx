@@ -21,6 +21,7 @@ import { useDisconnectDetection } from '../hooks/useDisconnectDetection';
 import { useServerBotCoordinator } from '../hooks/useServerBotCoordinator';
 import { useMatchTransition } from '../hooks/useMatchTransition';
 import { useTurnInactivityTimer } from '../hooks/useTurnInactivityTimer';
+import { useClockSync } from '../hooks/useClockSync';
 import { useCardSelection } from '../hooks/useCardSelection';
 import { useGameActions, type GameMode } from '../hooks/useGameActions';
 import { useGameAudio } from '../hooks/useGameAudio';
@@ -1064,12 +1065,38 @@ export function MultiplayerGame() {
   // Client-side pre-validation state supplier for Task #573
   const getMultiplayerValidationState = React.useCallback(() => {
     if (!multiplayerGameState) return null;
+    // Compute next active player's card count for OCL validation.
+    // Walk forward from the local player's seat, skipping players with 0 cards.
+    let nextPlayerCardCount: number | undefined;
+    if (
+      multiplayerSeatIndex !== null &&
+      multiplayerSeatIndex !== undefined &&
+      multiplayerHandsByIndex
+    ) {
+      const n = effectiveMultiplayerPlayers.length;
+      for (let i = 1; i < n; i++) {
+        const candidateIndex = (multiplayerSeatIndex + i) % n;
+        const count = multiplayerHandsByIndex[String(candidateIndex)]?.length ?? 0;
+        if (count > 0) {
+          nextPlayerCardCount = count;
+          break;
+        }
+      }
+    }
     return {
       lastPlay: multiplayerLastPlay ?? null,
       isFirstPlayOfGame: multiplayerGameState.game_phase === 'first_play',
       playerHand: effectivePlayerHand,
+      nextPlayerCardCount,
     };
-  }, [multiplayerGameState, multiplayerLastPlay, effectivePlayerHand]);
+  }, [
+    multiplayerGameState,
+    multiplayerLastPlay,
+    effectivePlayerHand,
+    multiplayerSeatIndex,
+    multiplayerHandsByIndex,
+    effectiveMultiplayerPlayers,
+  ]);
 
   // Play/Pass action handlers
   const {
@@ -1103,6 +1130,14 @@ export function MultiplayerGame() {
   // Shows yellow InactivityCountdownRing (60s to play/pass).
   // Separate from the charcoal-grey disconnect ring (connection inactivity).
   // When expired: auto-plays highest valid cards OR passes.
+  //
+  // Clock sync: measure the client→server offset from the auto-pass timer state
+  // so getCorrectedNow() compensates for the server being ahead of the client.
+  // This prevents spurious "clock skew detected" warnings on every turn and ensures
+  // the auto-play edge function fires at the correct 60s server-relative deadline.
+  const { getCorrectedNow: getTurnCorrectedNow } = useClockSync(
+    multiplayerGameState?.auto_pass_timer ?? null
+  );
   const { isMyTurn: _isTurnInactivityMyTurn } = useTurnInactivityTimer({
     gameState: multiplayerGameState,
     room: roomInfo,
@@ -1110,7 +1145,7 @@ export function MultiplayerGame() {
     // broadcastMessage omitted — turn_auto_played is supplementary; auto-play is confirmed
     // by the server-authoritative game_state update. Wire to useRealtime.broadcastMessage
     // (once added to UseRealtimeReturn) when turn_auto_played needs to reach other clients.
-    getCorrectedNow: () => Date.now(), // Use clock-sync if available
+    getCorrectedNow: getTurnCorrectedNow,
     currentUserId: user?.id,
     onAutoPlay: (cards, action) => {
       // auto-play-turn edge function replaces the player with a bot immediately

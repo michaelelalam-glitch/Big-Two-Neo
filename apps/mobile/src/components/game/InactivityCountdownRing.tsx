@@ -74,8 +74,16 @@ interface InactivityCountdownRingProps {
   type: 'turn' | 'connection';
   /** UTC ISO-8601 timestamp when the countdown started */
   startedAt: string;
-  /** Called when the countdown reaches 0 (timer expired) */
-  onExpired?: () => void;
+  /**
+   * Called when the countdown reaches 0 (timer expired).
+   *
+   * 5.5 HIGH: Now required. For display-only rings on opponent avatars where the local
+   * client has no action to take on expiry, pass a no-op `() => {}`. Making this
+   * required prevents silent omissions at call sites that DO need expiry handling
+   * (e.g. the local player's turn ring), ensuring the caller explicitly acknowledges
+   * whether they need an expiry action rather than silently ignoring the event.
+   */
+  onExpired: () => void;
   /** Optional size override — defaults to LAYOUT.avatarSize (70px) */
   size?: number;
 }
@@ -142,16 +150,16 @@ export default function InactivityCountdownRing({
   // the same stable T0 anchor, preventing tiny Date.now() drift between consumers.
   const startTimeMs = useMemo(() => resolveStartTimeMs(startedAt), [startedAt]);
 
-  // Log a one-time warning when the server clock is significantly ahead. Placed in a
-  // useEffect (not inside resolveStartTimeMs / useMemo) so it fires exactly once per
-  // startedAt change even under React 18 StrictMode double-invocation of pure
-  // functions in development. Skews ≤ CLOCK_SKEW_WARN_THRESHOLD_MS are minor drift
-  // and not logged.
+  // Log a one-time debug message when the server clock is significantly ahead. Placed
+  // in a useEffect (not inside resolveStartTimeMs / useMemo) so it fires exactly once
+  // per startedAt change even under React 18 StrictMode double-invocation of pure
+  // functions in development. Logs at debug level (not warn) to avoid flooding prod
+  // log files. Skews ≤ CLOCK_SKEW_WARN_THRESHOLD_MS are minor drift and not logged.
   useEffect(() => {
     const serverMs = new Date(startedAt).getTime();
     const skew = serverMs - Date.now(); // positive when server is ahead of client
     if (skew > CLOCK_SKEW_WARN_THRESHOLD_MS) {
-      networkLogger.warn(
+      networkLogger.debug(
         `[InactivityRing] ⚠️ Clock skew: server ~${Math.round(skew / 100) / 10}s ahead. Using Date.now() as anchor.`
       );
     }
@@ -198,18 +206,13 @@ export default function InactivityCountdownRing({
   // the `type` prop, which would force the scheduling effect to re-run on type changes
   // and restart the animation.
   const handleExpired = useCallback(() => {
-    // Warn only when a handler is registered (actionable event): for display-only
-    // rings (onExpired={undefined}, e.g. opponent's PlayerInfo) use debug so
-    // normal expiry doesn't pollute production warn logs.
-    if (onExpiredRef.current) {
-      networkLogger.warn(`[InactivityRing] Timer expired: type=${typeRef.current}`);
-    } else {
-      networkLogger.debug(
-        `[InactivityRing] Timer expired with no onExpired handler: type=${typeRef.current}`
-      );
-    }
+    // Expiry is part of the normal ring lifecycle, so log at info level to avoid
+    // noisy production log files for non-actionable timer completions. All rings
+    // now receive a required onExpired prop (5.5), so warn level here would flood
+    // the daily prod log file with every opponent's ring expiry.
+    networkLogger.info(`[InactivityRing] Timer expired: type=${typeRef.current}`);
     setVisible(false);
-    onExpiredRef.current?.();
+    onExpiredRef.current();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // intentionally stable — type read from typeRef, onExpired read from onExpiredRef
 
@@ -226,7 +229,7 @@ export default function InactivityCountdownRing({
     const remaining = Math.max(0, COUNTDOWN_DURATION_MS - elapsed);
     const initial = remaining / COUNTDOWN_DURATION_MS;
 
-    networkLogger.info(
+    networkLogger.debug(
       `[InactivityRing] Scheduling ${typeRef.current} ring: elapsed=${elapsed}ms, remaining=${remaining}ms`
     );
 

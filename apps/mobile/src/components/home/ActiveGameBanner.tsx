@@ -20,6 +20,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
+  ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -50,12 +51,12 @@ interface ActiveGameBannerProps {
   onlineRoomStatus?: 'waiting' | 'playing';
   /** Called when user wants to rejoin/resume */
   onResume: (gameInfo: ActiveGameInfo) => void;
-  /** Called when user wants to leave/discard */
-  onLeave: (gameInfo: ActiveGameInfo) => void;
+  /** Called when user wants to leave/discard. onDone is called when the action completes or is cancelled. */
+  onLeave: (gameInfo: ActiveGameInfo, onDone?: () => void) => void;
   /** Called when bot replacement countdown expires (online only) */
   onBotReplaced?: () => void;
-  /** Called when user wants to replace the bot after 60s */
-  onReplaceBotAndRejoin?: (roomCode: string) => void;
+  /** Called when user wants to replace the bot after 60s. onDone is called when the action completes or is cancelled. */
+  onReplaceBotAndRejoin?: (roomCode: string, onDone?: () => void) => void;
   /** Timestamp when the user left the online game (for countdown) */
   disconnectTimestamp?: number | null;
   /** Increment to force re-check of offline game state (e.g. after discard) */
@@ -91,6 +92,8 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
   const [offlineGameInfo, setOfflineGameInfo] = useState<ActiveGameInfo | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [botHasReplaced, setBotHasReplaced] = useState(false);
+  const [isRejoining, setIsRejoining] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
   const slideAnim = useRef(new Animated.Value(-100)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -117,11 +120,14 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
     }
   }, []);
 
-  // Re-check offline game every time the screen gains focus
+  // Re-check offline game every time the screen gains focus.
+  // Also reset isRejoining/isLeaving so a failed navigation doesn't permanently disable buttons.
   // (React Navigation keeps screens alive — useEffect only runs on mount)
   useFocusEffect(
     useCallback(() => {
       checkOfflineGame();
+      setIsRejoining(false);
+      setIsLeaving(false);
     }, [checkOfflineGame])
   );
 
@@ -185,18 +191,28 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
     updateCountdown();
     interval = setInterval(updateCountdown, 1000);
     return () => clearInterval(interval);
-  }, [onlineRoomCode, onlineRoomStatus, disconnectTimestamp, onBotReplaced, onTimerExpired, canRejoinAfterExpiry]);
+  }, [
+    onlineRoomCode,
+    onlineRoomStatus,
+    disconnectTimestamp,
+    onBotReplaced,
+    onTimerExpired,
+    canRejoinAfterExpiry,
+  ]);
 
   // Determine which game info to display (online takes priority)
-  const gameInfo = useMemo<ActiveGameInfo | null>(() => onlineRoomCode
-    ? {
-        type: 'online' as const,
-        roomCode: onlineRoomCode,
-        roomStatus: onlineRoomStatus,
-        isActive: true,
-      }
-    : offlineGameInfo,
-  [onlineRoomCode, onlineRoomStatus, offlineGameInfo]);
+  const gameInfo = useMemo<ActiveGameInfo | null>(
+    () =>
+      onlineRoomCode
+        ? {
+            type: 'online' as const,
+            roomCode: onlineRoomCode,
+            roomStatus: onlineRoomStatus,
+            isActive: true,
+          }
+        : offlineGameInfo,
+    [onlineRoomCode, onlineRoomStatus, offlineGameInfo]
+  );
 
   // Entrance animation
   useEffect(() => {
@@ -277,15 +293,11 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
       {/* Countdown for online playing games */}
       {showCountdown && !botHasReplaced && countdown !== null && (
         <View style={styles.countdownRow}>
-          <View style={[
-            styles.countdownBadge,
-            countdown <= 15 && styles.countdownBadgeUrgent,
-          ]}>
-            <Text style={[
-              styles.countdownText,
-              countdown <= 15 && styles.countdownTextUrgent,
-            ]}>
-              {countdown <= 0 ? i18n.t('home.botReplacingYou') : i18n.t('home.beforeBotReplaces', { seconds: countdown })}
+          <View style={[styles.countdownBadge, countdown <= 15 && styles.countdownBadgeUrgent]}>
+            <Text style={[styles.countdownText, countdown <= 15 && styles.countdownTextUrgent]}>
+              {countdown <= 0
+                ? i18n.t('home.botReplacingYou')
+                : i18n.t('home.beforeBotReplaces', { seconds: countdown })}
             </Text>
           </View>
         </View>
@@ -295,9 +307,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
       {botHasReplaced && isOnline && (
         <View style={styles.countdownRow}>
           <View style={styles.botReplacedBadge}>
-            <Text style={styles.botReplacedText}>
-              {i18n.t('home.botPlayingForYou')}
-            </Text>
+            <Text style={styles.botReplacedText}>{i18n.t('home.botPlayingForYou')}</Text>
           </View>
         </View>
       )}
@@ -307,30 +317,68 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
         {!botHasReplaced ? (
           // Timer still running — show plain Rejoin
           <TouchableOpacity
-            style={[styles.button, styles.resumeButton]}
-            onPress={() => onResume(gameInfo)}
+            style={[
+              styles.button,
+              styles.resumeButton,
+              (isRejoining || isLeaving) && styles.buttonLoading,
+            ]}
+            onPress={() => {
+              setIsRejoining(true);
+              onResume(gameInfo);
+            }}
             activeOpacity={0.8}
+            disabled={isRejoining || isLeaving}
           >
-            <Text style={styles.buttonText}>{i18n.t('home.rejoin')}</Text>
+            {isRejoining ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>{i18n.t('home.rejoin')}</Text>
+            )}
           </TouchableOpacity>
         ) : (
           // Timer expired — always show Replace Bot & Rejoin alongside Leave
           <TouchableOpacity
-            style={[styles.button, styles.replaceBotButton]}
-            onPress={() => onReplaceBotAndRejoin?.(gameInfo.roomCode)}
+            style={[
+              styles.button,
+              styles.replaceBotButton,
+              (isRejoining || isLeaving) && styles.buttonLoading,
+            ]}
+            onPress={() => {
+              if (onReplaceBotAndRejoin) {
+                setIsRejoining(true);
+                onReplaceBotAndRejoin(gameInfo.roomCode, () => setIsRejoining(false));
+              }
+            }}
             activeOpacity={0.8}
+            disabled={isRejoining || isLeaving}
           >
-            <Text style={styles.buttonText}>{i18n.t('home.replaceBotAndRejoin')}</Text>
+            {isRejoining ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>{i18n.t('home.replaceBotAndRejoin')}</Text>
+            )}
           </TouchableOpacity>
         )}
 
         {/* Leave button (always shown) */}
         <TouchableOpacity
-          style={[styles.button, styles.leaveButton]}
-          onPress={() => onLeave(gameInfo)}
+          style={[
+            styles.button,
+            styles.leaveButton,
+            (isRejoining || isLeaving) && styles.buttonLoading,
+          ]}
+          onPress={() => {
+            setIsLeaving(true);
+            onLeave(gameInfo, () => setIsLeaving(false));
+          }}
           activeOpacity={0.8}
+          disabled={isRejoining || isLeaving}
         >
-          <Text style={styles.buttonText}>🚪 {i18n.t('home.leave')}</Text>
+          {isLeaving ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>🚪 {i18n.t('home.leave')}</Text>
+          )}
         </TouchableOpacity>
       </View>
     </Animated.View>
@@ -441,6 +489,9 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.sm,
     fontWeight: '700',
     color: COLORS.white,
+  },
+  buttonLoading: {
+    opacity: 0.7,
   },
 });
 

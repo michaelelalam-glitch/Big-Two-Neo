@@ -242,6 +242,11 @@ export function useTurnInactivityTimer({
           activeTurnSequenceRef.current = null;
           hasExpiredRef.current = false;
           lastAutoPlayAttemptRef.current = 0;
+          // 5.2 CRITICAL: Reset localTurnStartRef on every turn change so the next
+          // turn always recomputes its clock-skew anchor from fresh game state.
+          // Without this, a stale skew-corrected start time can bleed into subsequent
+          // turns when the server clock drift picture changes between rounds.
+          localTurnStartRef.current = null;
         }
         setTimerState(prev =>
           !prev.isMyTurn && prev.remainingMs === TURN_TIMEOUT_MS && !prev.isAutoPlayInProgress
@@ -277,28 +282,39 @@ export function useTurnInactivityTimer({
         // Start tracking how long the player takes for this turn.
         turnTimeStart();
 
-        // CLOCK SKEW FIX: If server timestamp is in the future relative to client,
-        // use client-local time as the start instead. This prevents the timer from
-        // accumulating extra seconds when the server clock is ahead of the client.
+        // CLOCK SKEW FIX: Use getCorrectedNow() (which applies the measured server
+        // clock offset) to determine if the server timestamp is in the future.
+        // Using raw Date.now() here would fire on every turn when the server clock
+        // is permanently ahead (e.g. 6s), flooding the log and causing the timer to
+        // start 6s early because localTurnStartRef becomes 6s behind the server stamp.
+        // getCorrectedNow() (Date.now() + offsetMs) cancels out the constant drift,
+        // so serverElapsed is a small positive value → no spurious skew detected.
         const serverStart = new Date(turnStartedAt).getTime();
-        const clientNow = Date.now();
-        const serverElapsed = clientNow - serverStart;
+        const correctedClientNow = getCorrectedNowRef.current();
+        const serverElapsed = correctedClientNow - serverStart;
         if (serverElapsed < -2000) {
-          // Server clock is >2s ahead — use client time as start
+          // Even after applying the measured offset, server timestamp is >2s in the
+          // future — genuine residual skew. Store a raw Date.now() anchor so that
+          // the elapsed path stays stable if getCorrectedNow()'s offset changes
+          // after this point (avoids a jump equal to the offset delta).
           networkLogger.warn(
-            `⏰ [TurnTimer] Clock skew detected: server is ${Math.abs(serverElapsed)}ms ahead. Using client-local start time.`
+            `⏰ [TurnTimer] Clock skew detected: corrected time still ${Math.abs(serverElapsed)}ms behind server. Using raw local anchor.`
           );
-          localTurnStartRef.current = clientNow;
+          localTurnStartRef.current = Date.now();
         } else {
           localTurnStartRef.current = null; // Use server timestamp normally
         }
         networkLogger.debug('⏰ [TurnTimer] Tracking new turn sequence:', seqId);
       }
 
-      // Calculate remaining time — use local start if clock skew was detected
+      // Calculate remaining time — use local start if clock skew was detected.
+      // When the local anchor is in use, compute elapsed with raw Date.now() (not
+      // getCorrectedNow) so that a subsequent clock-sync offset update cannot jump
+      // the elapsed value and cause a premature timeout.
       const startTime = localTurnStartRef.current ?? new Date(turnStartedAt).getTime();
-      const correctedNow = getCorrectedNowRef.current();
-      const elapsed = correctedNow - startTime;
+      const effectiveNow =
+        localTurnStartRef.current !== null ? Date.now() : getCorrectedNowRef.current();
+      const elapsed = effectiveNow - startTime;
       const remaining = Math.max(0, TURN_TIMEOUT_MS - elapsed);
 
       // Update UI state ONLY when boolean flags change — NOT on every 500ms tick.
@@ -338,7 +354,14 @@ export function useTurnInactivityTimer({
     return () => {
       networkLogger.debug('⏰ [TurnTimer] Cleaning up turn polling interval');
       clearInterval(interval);
+      // 5.6 MEDIUM: Reset ALL tracking refs on cleanup so a remounted hook starts
+      // from a known-clean state. Partial cleanup (only activeTurnSequenceRef) left
+      // hasExpiredRef / lastAutoPlayAttemptRef / localTurnStartRef with stale values,
+      // which could suppress auto-play or use the wrong clock-skew anchor on re-mount.
       activeTurnSequenceRef.current = null;
+      hasExpiredRef.current = false;
+      lastAutoPlayAttemptRef.current = 0;
+      localTurnStartRef.current = null;
     };
   }, [room?.id, currentUserId, tryAutoPlayTurn]);
 

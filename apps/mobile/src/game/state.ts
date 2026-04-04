@@ -181,6 +181,8 @@ export class GameStateManager {
   private listeners: GameStateListener[] = [];
   private timerInterval: ReturnType<typeof setInterval> | null = null;
   private isExecutingAutoPass: boolean = false; // Prevent re-entry
+  /** Instance-level flag to prevent duplicate "Stats Not Saved" alerts across concurrent handleMatchEnd calls. */
+  private _statsAlertShown: boolean = false;
 
   constructor() {
     this.state = null;
@@ -324,6 +326,11 @@ export class GameStateManager {
    * Initialize a new game
    */
   async initializeGame(config: GameConfig): Promise<GameState> {
+    // Reset alert flag at the start of each new game so a "Stats Not Saved"
+    // alert is shown if saving fails, even when the same GameStateManager
+    // instance is reused across multiple games in the same session.
+    this._statsAlertShown = false;
+
     const { playerName, botCount, botDifficulty } = config;
 
     // Create players (1 human + 3 bots by default)
@@ -1196,7 +1203,10 @@ export class GameStateManager {
 
       // Save game stats to database (async, don't await to avoid blocking UI)
       statsLogger.info('🔄 [Stats] Starting saveGameStatsToDatabase...');
-      let alertShown = false; // Track if alert was shown to prevent duplicate alerts
+      // Do NOT reset _statsAlertShown here. The flag is initialized to false when the
+      // GameStateManager instance is created (new game). Re-setting it inside
+      // handleMatchEnd would re-arm the flag on every invocation, allowing a delayed
+      // second call (race condition) to show a duplicate "Stats Not Saved" alert.
       this.saveGameStatsToDatabase().catch(err => {
         // Only log error message/code to avoid exposing database internals or sensitive data
         statsLogger.error(
@@ -1205,9 +1215,11 @@ export class GameStateManager {
         );
 
         // Notify user that stats weren't saved (dismissible, non-blocking)
-        // Only show alert if we haven't already shown one (prevents duplicate alerts if user navigates)
-        if (!alertShown) {
-          alertShown = true;
+        // Use instance-level flag so concurrent calls from race conditions don't spam alerts.
+        // Gate on gameOver so a delayed failure from a previous game (which started before
+        // initializeGame reset _statsAlertShown) cannot arm the flag for a new game.
+        if (this.state?.gameOver && !this._statsAlertShown) {
+          this._statsAlertShown = true;
           setTimeout(() => {
             // Check if game is still active (user hasn't navigated away)
             // If game state still exists, show the alert

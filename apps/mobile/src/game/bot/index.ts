@@ -337,6 +337,27 @@ export class BotAI {
       }
     }
 
+    // If next player has 1 card and last play was a pair or triple, play the HIGHEST
+    // valid matching combo to maximally block the opponent from winning this round.
+    // OCL does not formally restrict pairs/triples (i18n rule), but the bot should
+    // still be as aggressive as possible when an opponent is about to win.
+    if (
+      !lastPlayerHasWon &&
+      nextPlayerCardCount === 1 &&
+      lastPlay.cards.length >= 2 &&
+      lastPlay.cards.length <= 3
+    ) {
+      const validPlays = this.findAllValidPlays(sorted, lastPlay);
+      if (validPlays.length > 0) {
+        const highestValidPlay = validPlays[validPlays.length - 1];
+        const comboLabel = lastPlay.cards.length === 2 ? 'pair' : 'triple';
+        return {
+          cards: highestValidPlay,
+          reasoning: `One Card Left rule: playing highest valid ${comboLabel} to block opponent with 1 card`,
+        };
+      }
+    }
+
     // ========== EASY DIFFICULTY: Dumb following ==========
     if (this._difficulty === 'easy') {
       // 50% chance to pass even if can beat (very passive)
@@ -585,6 +606,21 @@ export class BotAI {
           validPlays.push(pair);
         }
       }
+      // Sort pairs by ascending strength so validPlays[last] == strongest.
+      // findAllPairs enumerates via object key order (not always rank order),
+      // so an explicit sort is required.
+      if (validPlays.length > 1) {
+        const byId = new Map(hand.map(c => [c.id, c] as const));
+        validPlays.sort((a, b) => {
+          const cardsA = a.map(id => byId.get(id)!);
+          const cardsB = b.map(id => byId.get(id)!);
+          const aBeatsB = canBeatPlay(cardsA, { position: 0, cards: cardsB, combo_type: 'Pair' });
+          const bBeatsA = canBeatPlay(cardsB, { position: 0, cards: cardsA, combo_type: 'Pair' });
+          if (aBeatsB && !bBeatsA) return 1;
+          if (!aBeatsB && bBeatsA) return -1;
+          return 0;
+        });
+      }
     } else if (numCards === 3) {
       // Triples
       const triples = this.findAllTriples(hand);
@@ -593,6 +629,19 @@ export class BotAI {
         if (canBeatPlay(tripleCards, lastPlay)) {
           validPlays.push(triple);
         }
+      }
+      // Sort triples by ascending strength so validPlays[last] == strongest.
+      if (validPlays.length > 1) {
+        const byId = new Map(hand.map(c => [c.id, c] as const));
+        validPlays.sort((a, b) => {
+          const cardsA = a.map(id => byId.get(id)!);
+          const cardsB = b.map(id => byId.get(id)!);
+          const aBeatsB = canBeatPlay(cardsA, { position: 0, cards: cardsB, combo_type: 'Triple' });
+          const bBeatsA = canBeatPlay(cardsB, { position: 0, cards: cardsA, combo_type: 'Triple' });
+          if (aBeatsB && !bBeatsA) return 1;
+          if (!aBeatsB && bBeatsA) return -1;
+          return 0;
+        });
       }
     } else if (numCards === 5) {
       // 5-card combos — search all C(n,5) combinations.
