@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
     //
     // Declared here (outer scope) so it is visible at the final return even
     // when the reconnect broadcast block is bypassed (e.g. sweepOnly path).
-    let reconnectBroadcastFailed = false;
+    // (reconnect_broadcast_failed flag removed — no mobile client consumer reads it)
     if (!sweepOnly) {
       // Update heartbeat timestamp.
       // NOTE: Heartbeat now clears disconnect_timer_started_at atomically so the
@@ -203,17 +203,16 @@ Deno.serve(async (req) => {
             await new Promise<void>((resolve) => {
               const ch = supabaseClient.channel(`room:${room_id}`);
               let settled = false;
-              const finish = (failed = false): void => {
+              const finish = (): void => {
                 if (!settled) {
                   settled = true;
-                  if (failed) reconnectBroadcastFailed = true;
                   supabaseClient.removeChannel(ch).catch(() => {});
                   resolve();
                 }
               };
               const safetyTimeout = setTimeout(() => {
                 console.warn(`[update-heartbeat] Reconnect broadcast safety timeout for room ${room_id}`);
-                finish(true);
+                finish();
               }, 5000);
               ch.subscribe((status: string) => {
                 // Guard: if the safety timeout already fired and settled the
@@ -228,36 +227,36 @@ Deno.serve(async (req) => {
                       if (result?.error) {
                         console.error(`[update-heartbeat] Reconnect broadcast delivery failure — room ${room_id}:`, result.error);
                         clearTimeout(safetyTimeout);
-                        finish(true);
+                        finish();
                       } else {
                         console.log(`📡 [update-heartbeat] Broadcast player_reconnected for player_index=${player.player_index} in room ${room_id}`);
                         clearTimeout(safetyTimeout);
-                        finish(false);
+                        finish();
                       }
                     })
                     .catch((e: unknown) => {
                       console.error('[update-heartbeat] Reconnect broadcast send failed — room', room_id, ':', e);
                       clearTimeout(safetyTimeout);
-                      finish(true);
+                      finish();
                     });
                 } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
                   console.warn(`[update-heartbeat] Reconnect broadcast channel error (${status}) for room ${room_id}`);
                   clearTimeout(safetyTimeout);
-                  finish(true);
+                  finish();
                 }
               });
             });
           } catch (bcastErr: any) {
             console.error('[update-heartbeat] Reconnect broadcast exception — room', room_id, ':', bcastErr?.message);
-            reconnectBroadcastFailed = true;
           }
         })();
-        // Always await the broadcast so reconnectBroadcastFailed is reliably
-        // populated before the HTTP response is sent. The broadcast promise
-        // has an internal 5s safety timeout so this never blocks indefinitely.
-        await reconnectBroadcast;
-        if (reconnectBroadcastFailed) {
-          console.warn(`[update-heartbeat] reconnect_broadcast_failed=true for room ${room_id} — caller should refresh player list`);
+        // Fire-and-forget: broadcast continues after the HTTP response.
+        // Uses EdgeRuntime.waitUntil so the Edge Function runtime keeps the
+        // promise alive past the response flush (consistent with bot-watchdog).
+        try {
+          (globalThis as any).EdgeRuntime?.waitUntil(reconnectBroadcast);
+        } catch (_) {
+          await reconnectBroadcast;
         }
       }
     }
@@ -476,7 +475,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify(reconnectBroadcastFailed ? { success: true, reconnect_broadcast_failed: true } : { success: true }),
+      JSON.stringify({ success: true }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error: any) {
