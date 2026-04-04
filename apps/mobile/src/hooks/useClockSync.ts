@@ -79,14 +79,17 @@ export function useClockSync(timerState: AutoPassTimerState | null): ClockSyncRe
     // Check if timer has server_time_at_creation (new architecture)
     const serverTime = timerState.server_time_at_creation;
     if (typeof serverTime !== 'number') {
-      // Fallback: No clock sync data, use local time (old architecture)
-      // Only reset if we haven't synced before
-      if (!syncedRef.current) {
-        offsetRef.current = 0;
-        setOffsetMs(0);
-        setIsSynced(false);
-        networkLogger.warn('[Clock Sync] ⚠️ No server time in timer state - using local time');
-      }
+      // Fallback: No clock sync data, use local time (old architecture).
+      // Always reset to the un-synced baseline — a stale offset from a
+      // previous timer must not be applied when the current payload has
+      // no server_time_at_creation (e.g. old-architecture payloads).
+      offsetRef.current = 0;
+      syncedRef.current = false;
+      lastSyncedServerTime.current = null;
+      lastSyncedStartedAt.current = null;
+      setOffsetMs(0);
+      setIsSynced(false);
+      networkLogger.warn('[Clock Sync] ⚠️ No server time in timer state - using local time');
       return;
     }
 
