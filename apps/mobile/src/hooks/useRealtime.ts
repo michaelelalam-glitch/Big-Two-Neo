@@ -612,12 +612,28 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 setRealtimeChannel(null);
                 setIsConnected(false);
                 onDisconnect?.();
+                // Best-effort cleanup: remove the closed channel from the Supabase
+                // client to prevent ghost channel accumulation across reconnects.
+                void channel
+                  .unsubscribe()
+                  .then(() => supabase.removeChannel(channel))
+                  .catch(() => {
+                    supabase.removeChannel(channel);
+                  });
                 reject(new Error('Channel closed'));
               } else if (status === 'CHANNEL_ERROR') {
                 settled = true;
                 clearTimeout(timeout);
                 channelRef.current = null;
                 setRealtimeChannel(null);
+                // Best-effort cleanup: remove the errored channel from the Supabase
+                // client to prevent ghost channel accumulation on transient errors.
+                void channel
+                  .unsubscribe()
+                  .then(() => supabase.removeChannel(channel))
+                  .catch(() => {
+                    supabase.removeChannel(channel);
+                  });
                 // Brief delay gives Supabase a window to recover from transient
                 // network blips before the caller triggers a full reconnect cycle.
                 setTimeout(() => reject(new Error('Channel error')), 1_000);

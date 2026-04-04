@@ -22,6 +22,7 @@ import {
   useMemo,
   useReducer,
   useRef,
+  useState,
 } from 'react';
 
 import type {
@@ -188,6 +189,11 @@ export function useDisconnectDetection({
   // transitions. A 1.5 s hold prevents the disconnect ring from flashing
   // during those single-frame false negatives.
   const localEffectivelyActiveUntilRef = useRef<number>(0);
+  // stableActiveRefreshToken: incremented by the hold-expiry timer to force the
+  // useMemo to re-evaluate stableActive on wall-clock time rather than waiting
+  // for an unrelated render to happen after the 1.5 s window elapses.
+  const [stableActiveRefreshToken, setStableActiveRefreshToken] = useState(0);
+  const stableActiveExpiryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     return () => {
       if (sweepRetryTimeoutRef.current !== null) {
@@ -542,6 +548,44 @@ export function useDisconnectDetection({
     clientDisconnections,
     showBotReplacedModal,
     isReconnecting,
+    stableActiveRefreshToken, // force re-eval when the 1.5 s hold expires
+  ]);
+
+  // ── 6.2: Hold-expiry timer ─────────────────────────────────────────────────
+  // Schedules a state tick to fire when localEffectivelyActiveUntilRef expires so
+  // the useMemo re-evaluates stableActive on wall-clock time. Without this, if
+  // isEffectivelyActive flips false and no dep changes trigger a re-render within
+  // 1.5 s, stableActive would remain true indefinitely.
+  useEffect(() => {
+    if (stableActiveExpiryTimerRef.current !== null) {
+      clearTimeout(stableActiveExpiryTimerRef.current);
+      stableActiveExpiryTimerRef.current = null;
+    }
+    const remaining = localEffectivelyActiveUntilRef.current - Date.now();
+    if (remaining > 0) {
+      stableActiveExpiryTimerRef.current = setTimeout(() => {
+        stableActiveExpiryTimerRef.current = null;
+        setStableActiveRefreshToken(n => n + 1);
+      }, remaining);
+    }
+    return () => {
+      if (stableActiveExpiryTimerRef.current !== null) {
+        clearTimeout(stableActiveExpiryTimerRef.current);
+        stableActiveExpiryTimerRef.current = null;
+      }
+    };
+  }, [
+    layoutPlayersWithScores,
+    handleLocalPlayerCountdownExpired,
+    handleOtherPlayerDisconnectExpired,
+    multiplayerGameState?.turn_started_at,
+    multiplayerGameState?.current_turn,
+    clientDisconnections,
+    showBotReplacedModal,
+    isReconnecting,
+    // stableActiveRefreshToken intentionally omitted: the timer-expiry itself
+    // sets the token; including it would create a re-schedule loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   ]);
 
   return { enrichedLayoutPlayers };
