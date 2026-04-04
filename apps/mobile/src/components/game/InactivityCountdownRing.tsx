@@ -150,11 +150,11 @@ export default function InactivityCountdownRing({
   // the same stable T0 anchor, preventing tiny Date.now() drift between consumers.
   const startTimeMs = useMemo(() => resolveStartTimeMs(startedAt), [startedAt]);
 
-  // Log a one-time warning when the server clock is significantly ahead. Placed in a
-  // useEffect (not inside resolveStartTimeMs / useMemo) so it fires exactly once per
-  // startedAt change even under React 18 StrictMode double-invocation of pure
-  // functions in development. Skews ≤ CLOCK_SKEW_WARN_THRESHOLD_MS are minor drift
-  // and not logged.
+  // Log a one-time debug message when the server clock is significantly ahead. Placed
+  // in a useEffect (not inside resolveStartTimeMs / useMemo) so it fires exactly once
+  // per startedAt change even under React 18 StrictMode double-invocation of pure
+  // functions in development. Logs at debug level (not warn) to avoid flooding prod
+  // log files. Skews ≤ CLOCK_SKEW_WARN_THRESHOLD_MS are minor drift and not logged.
   useEffect(() => {
     const serverMs = new Date(startedAt).getTime();
     const skew = serverMs - Date.now(); // positive when server is ahead of client

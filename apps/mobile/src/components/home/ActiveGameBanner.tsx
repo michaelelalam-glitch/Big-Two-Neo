@@ -119,11 +119,13 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
     }
   }, []);
 
-  // Re-check offline game every time the screen gains focus
+  // Re-check offline game every time the screen gains focus.
+  // Also reset isRejoining so a failed navigation doesn't permanently disable buttons.
   // (React Navigation keeps screens alive — useEffect only runs on mount)
   useFocusEffect(
     useCallback(() => {
       checkOfflineGame();
+      setIsRejoining(false);
     }, [checkOfflineGame])
   );
 
