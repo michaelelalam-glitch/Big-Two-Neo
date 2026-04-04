@@ -49,10 +49,39 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
+    // ── Authentication gate ───────────────────────────────────────────────────
+    // start_new_match advances game state (deals cards, resets match).  All callers
+    // must be authenticated.  Service-role callers (bot-coordinator, internal
+    // automation) are identified by their bearer token or x-bot-auth header;
+    // client fallback callers (useMatchTransition, realtimeActions) must supply a
+    // valid user JWT via the Authorization header.
+    const authHeader  = req.headers.get('authorization') ?? '';
+    const botAuthHdr  = req.headers.get('x-bot-auth') ?? '';
+    const internalKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
+    const isServiceRole =
+      (serviceKey !== '' && authHeader === `Bearer ${serviceKey}`) ||
+      (internalKey !== '' && botAuthHdr === internalKey);
+
+    if (!isServiceRole) {
+      const anonClient = createClient(
+        supabaseUrl,
+        Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+        { global: { headers: { Authorization: authHeader } } },
+      );
+      const { data: { user }, error: authError } = await anonClient.auth.getUser();
+      if (authError || !user) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const supabaseClient = createClient(supabaseUrl, serviceKey);
 
     const { room_id, expected_match_number: rawExpectedMatchNumber } = await req.json();
     // Coerce to a number so string callers (e.g. HTTP tools) don't break the strict === comparison.
