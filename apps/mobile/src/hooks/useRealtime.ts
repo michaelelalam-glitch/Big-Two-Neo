@@ -584,10 +584,10 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
             }, 10000);
 
             channel.subscribe(async status => {
-              if (settled) return; // timeout already fired – ignore late callbacks
               networkLogger.info('[useRealtime] 📡 joinChannel subscription status:', status);
 
               if (status === 'SUBSCRIBED') {
+                if (settled) return; // timeout already fired – ignore late SUBSCRIBED callbacks
                 settled = true;
                 clearTimeout(timeout);
                 // Guard: if a newer joinChannel call has replaced channelRef.current,
@@ -631,9 +631,9 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 );
                 resolve();
               } else if (status === 'CLOSED') {
-                settled = true;
-                clearTimeout(timeout);
-                // Only clear reactive state if this channel is still active.
+                // Always update reactive state — CLOSED can fire after a successful
+                // SUBSCRIBED (e.g. server-side disconnect), so we must not gate this
+                // on `settled` to avoid leaving isConnected/channel state stale.
                 if (channelRef.current === channel) {
                   channelRef.current = null;
                   setRealtimeChannel(null);
@@ -648,11 +648,15 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                   .catch(() => {
                     supabase.removeChannel(channel);
                   });
-                reject(new Error('Channel closed'));
+                // Only reject the initial promise if it hasn't been settled yet
+                // (i.e. CLOSED fired before SUBSCRIBED / timeout in the connection race).
+                if (!settled) {
+                  settled = true;
+                  clearTimeout(timeout);
+                  reject(new Error('Channel closed'));
+                }
               } else if (status === 'CHANNEL_ERROR') {
-                settled = true;
-                clearTimeout(timeout);
-                // Only clear reactive state if this channel is still active.
+                // Always update reactive state — CHANNEL_ERROR can fire after SUBSCRIBED.
                 if (channelRef.current === channel) {
                   channelRef.current = null;
                   setRealtimeChannel(null);
@@ -665,9 +669,14 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                   .catch(() => {
                     supabase.removeChannel(channel);
                   });
-                // Brief delay gives Supabase a window to recover from transient
-                // network blips before the caller triggers a full reconnect cycle.
-                setTimeout(() => reject(new Error('Channel error')), 1_000);
+                // Only reject the initial promise if it hasn't been settled yet.
+                if (!settled) {
+                  settled = true;
+                  clearTimeout(timeout);
+                  // Brief delay gives Supabase a window to recover from transient
+                  // network blips before the caller triggers a full reconnect cycle.
+                  setTimeout(() => reject(new Error('Channel error')), 1_000);
+                }
               }
             });
           });
