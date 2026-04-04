@@ -372,7 +372,6 @@ describe('useGameActions — client-side card validation (Task #573)', () => {
     it('rejects a single when OCL rule requires a higher card and nextPlayerCardCount=1', async () => {
       (validateOneCardLeftRule as jest.Mock).mockReturnValue({
         valid: false,
-        error: 'Must play highest single when opponent has 1 card left',
       });
 
       const card = makeCard('6D');
@@ -384,9 +383,7 @@ describe('useGameActions — client-side card validation (Task #573)', () => {
       });
 
       expect(multiplayerPlayCards).not.toHaveBeenCalled();
-      expect(showError).toHaveBeenCalledWith(
-        'Must play highest single when opponent has 1 card left'
-      );
+      expect(showError).toHaveBeenCalledWith('game.oneCardLeftMustPlayHighestSingle');
       expect(soundManager.playSound).toHaveBeenCalledWith(SoundType.INVALID_MOVE);
     });
 
@@ -479,7 +476,6 @@ describe('useGameActions — client-side card validation (Task #573)', () => {
     it('rejects offline OCL rule violation', async () => {
       (validateOneCardLeftRule as jest.Mock).mockReturnValue({
         valid: false,
-        error: 'Must play highest single (AS) when opponent has 1 card left',
       });
 
       const mockLast: LastPlay = {
@@ -498,9 +494,7 @@ describe('useGameActions — client-side card validation (Task #573)', () => {
       });
 
       expect(gameManager.playCards).not.toHaveBeenCalled();
-      expect(showError).toHaveBeenCalledWith(
-        'Must play highest single (AS) when opponent has 1 card left'
-      );
+      expect(showError).toHaveBeenCalledWith('game.oneCardLeftMustPlayHighestSingle');
     });
 
     it('calls gameManager.playCards when getOfflineValidationState returns null', async () => {

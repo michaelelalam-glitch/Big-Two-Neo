@@ -206,10 +206,7 @@ export function useGameActions({
                 );
                 if (!oclValidation.valid) {
                   soundManager.playSound(SoundType.INVALID_MOVE);
-                  alertError(
-                    oclValidation.error ??
-                      'Must play your highest single when opponent has 1 card left'
-                  );
+                  alertError(i18n.t('game.oneCardLeftMustPlayHighestSingle'));
                   trackGameplayAction('play_validation_error', {
                     mode: 'local_ai',
                     error_type: 'one_card_left_rule',
@@ -354,10 +351,7 @@ export function useGameActions({
                 );
                 if (!oclValidation.valid) {
                   soundManager.playSound(SoundType.INVALID_MOVE);
-                  const m =
-                    oclValidation.error ??
-                    'Must play your highest single when opponent has 1 card left';
-                  alertError(m);
+                  alertError(i18n.t('game.oneCardLeftMustPlayHighestSingle'));
                   trackGameplayAction('play_validation_error', {
                     mode: 'multiplayer',
                     error_type: 'one_card_left_rule',
