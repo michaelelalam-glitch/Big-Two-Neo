@@ -159,7 +159,7 @@ export default function InactivityCountdownRing({
     const serverMs = new Date(startedAt).getTime();
     const skew = serverMs - Date.now(); // positive when server is ahead of client
     if (skew > CLOCK_SKEW_WARN_THRESHOLD_MS) {
-      networkLogger.warn(
+      networkLogger.debug(
         `[InactivityRing] ⚠️ Clock skew: server ~${Math.round(skew / 100) / 10}s ahead. Using Date.now() as anchor.`
       );
     }
@@ -212,7 +212,7 @@ export default function InactivityCountdownRing({
     // the daily prod log file with every opponent's ring expiry.
     networkLogger.info(`[InactivityRing] Timer expired: type=${typeRef.current}`);
     setVisible(false);
-    onExpiredRef.current?.();
+    onExpiredRef.current();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // intentionally stable — type read from typeRef, onExpired read from onExpiredRef
 
@@ -229,7 +229,7 @@ export default function InactivityCountdownRing({
     const remaining = Math.max(0, COUNTDOWN_DURATION_MS - elapsed);
     const initial = remaining / COUNTDOWN_DURATION_MS;
 
-    networkLogger.info(
+    networkLogger.debug(
       `[InactivityRing] Scheduling ${typeRef.current} ring: elapsed=${elapsed}ms, remaining=${remaining}ms`
     );
 
