@@ -550,6 +550,7 @@ export function MultiplayerGame() {
     multiplayerPlayers,
     gameStartedAt,
     botDifficulty,
+    getGameModeForAnalytics,
   ]);
 
   // Ensure multiplayer realtime channel is joined when entering the Game screen.
@@ -709,7 +710,7 @@ export function MultiplayerGame() {
     }
     trackGameEvent('game_abandoned', abandonedParams);
     navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
-  }, [navigation]);
+  }, [navigation, getGameModeForAnalytics]);
   // ─────────────────────────────────────────────────────────────────────────────
 
   // ─── MULTIPLAYER SCORE HISTORY PERSISTENCE ─────────────────────────────────

@@ -121,23 +121,46 @@ Deno.serve(async (req) => {
       .eq('status', 'waiting')
       .lt('joined_at', new Date(Date.now() - 5 * 60 * 1000).toISOString());
 
-    // 4. Insert or update user in waiting room
+    // 4. Insert or update user in waiting room.
+    // Two-step upsert that protects rows already in 'processing' state:
+    //   Step A — INSERT the new row; if a row already exists, do nothing (ignoreDuplicates)
+    //            so that a concurrent find-match that already flipped this user's row to
+    //            'processing' is not overwritten back to 'waiting'.
+    //   Step B — UPDATE the row only when it is still in 'waiting' state so stale
+    //            skill_rating / region / match_type data is refreshed, but
+    //            'processing' rows (mid-assembly by another invocation) are left intact.
+    const entryData = {
+      user_id: userId,
+      username,
+      skill_rating,
+      region,
+      status: 'waiting' as const,
+      match_type,
+      joined_at: new Date().toISOString(),
+    };
+
+    // Step A: Insert if absent; skip silently if the row already exists.
+    const { error: insertOnlyError } = await supabaseClient
+      .from('waiting_room')
+      .upsert(entryData, { onConflict: 'user_id', ignoreDuplicates: true });
+
+    if (insertOnlyError) {
+      console.error('❌ [find-match] Failed to insert into waiting room:', insertOnlyError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to join matchmaking' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Step B: Refresh the existing row's data only if it's still 'waiting' (not 'processing').
     const { error: insertError } = await supabaseClient
       .from('waiting_room')
-      .upsert({
-        user_id: userId,
-        username,
-        skill_rating,
-        region,
-        status: 'waiting',
-        match_type,
-        joined_at: new Date().toISOString(),
-      }, {
-        onConflict: 'user_id',
-      });
+      .update({ username, skill_rating, region, match_type, joined_at: entryData.joined_at })
+      .eq('user_id', userId)
+      .eq('status', 'waiting');
 
     if (insertError) {
-      console.error('❌ [find-match] Failed to insert into waiting room:', insertError);
+      console.error('❌ [find-match] Failed to update waiting room entry:', insertError);
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to join matchmaking' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -206,12 +229,15 @@ Deno.serve(async (req) => {
       if (lockedCount < 4) {
         // Another concurrent caller already claimed some of these players; back off.
         console.log(`⏳ [find-match] Lost optimistic lock (locked ${lockedCount}/4), backing off`);
-        // Reset only the rows THIS invocation locked — don't touch rows locked by others.
+        // Reset only the rows THIS invocation locked — only revert rows still in
+        // 'processing' to avoid clobbering a row that may have legitimately advanced
+        // (e.g. matched by another invocation after this backup read).
         if (lockedIds.length > 0) {
           await supabaseClient
             .from('waiting_room')
             .update({ status: 'waiting' })
-            .in('user_id', lockedIds);
+            .in('user_id', lockedIds)
+            .eq('status', 'processing'); // Only revert rows we actually own
         }
         return new Response(
           JSON.stringify({ success: false, matched: false, waiting_count: waitingCount }),

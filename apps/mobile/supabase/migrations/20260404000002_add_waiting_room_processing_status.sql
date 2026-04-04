@@ -10,7 +10,7 @@
 -- persist; cleanup_stale_waiting_room_entries() handles any leaked rows.
 
 ALTER TABLE waiting_room
-  DROP CONSTRAINT check_status;
+  DROP CONSTRAINT IF EXISTS check_status;
 
 ALTER TABLE waiting_room
   ADD CONSTRAINT check_status

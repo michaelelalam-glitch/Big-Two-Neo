@@ -264,12 +264,13 @@ Deno.serve(async (req) => {
     //   3. _bot_auth field in the request body (guaranteed to pass through unchanged)
     const authHeader  = req.headers.get('authorization') ?? '';
     const botAuthHdr  = req.headers.get('x-bot-auth') ?? '';
-    const internalKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') || 'c1d8e407-49ca-4754-a12b-72a819d5bc17';
+    const internalKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
+    const hasInternalKey = internalKey !== '';
     const botBodyAuth = bodyJson?._bot_auth ?? '';
     const isServiceRole =
       (serviceKey !== '' && authHeader === `Bearer ${serviceKey}`) ||
-      (internalKey !== '' && botAuthHdr === internalKey) ||
-      (internalKey !== '' && botBodyAuth === internalKey);
+      (hasInternalKey && botAuthHdr === internalKey) ||
+      (hasInternalKey && botBodyAuth === internalKey);
     let callerJwtUserId: string | null = null;
 
     if (!isServiceRole) {
