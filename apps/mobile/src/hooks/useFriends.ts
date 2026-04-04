@@ -237,7 +237,7 @@ export function useFriends(): UseFriendsResult {
       }
       // Send offline push notification to the addressee
       const senderName = profile?.username || user.email || i18n.t('friends.unknownPlayer');
-      notifyFriendRequest(userId, senderName).catch(() => {
+      notifyFriendRequest(userId, senderName, user.id).catch(() => {
         // Swallow push errors — the request was saved successfully
       });
       await fetchAll();
@@ -262,7 +262,7 @@ export function useFriends(): UseFriendsResult {
       // Notify the requester that their request was accepted
       const requesterId = data[0].requester_id;
       const accepterName = profile?.username || user.email || i18n.t('friends.unknownPlayer');
-      notifyFriendAccepted(requesterId, accepterName).catch(() => {
+      notifyFriendAccepted(requesterId, accepterName, user.id).catch(() => {
         // Swallow push errors — the acceptance was saved successfully
       });
       await fetchAll();

@@ -135,13 +135,18 @@ export async function notifyGameStarted(userIds: string[], roomCode: string): Pr
 /**
  * Send friend request notification
  */
-export async function notifyFriendRequest(userId: string, senderName: string): Promise<boolean> {
+export async function notifyFriendRequest(
+  userId: string,
+  senderName: string,
+  senderId: string
+): Promise<boolean> {
   return sendPushNotifications({
     userIds: [userId],
     title: 'Friend Request',
     body: `${senderName} sent you a friend request`,
     data: {
       type: 'friend_request',
+      senderId,
     },
   });
 }
@@ -149,13 +154,18 @@ export async function notifyFriendRequest(userId: string, senderName: string): P
 /**
  * Send notification when a friend request is accepted
  */
-export async function notifyFriendAccepted(userId: string, accepterName: string): Promise<boolean> {
+export async function notifyFriendAccepted(
+  userId: string,
+  accepterName: string,
+  accepterId: string
+): Promise<boolean> {
   return sendPushNotifications({
     userIds: [userId],
     title: 'Friend Request Accepted',
     body: `${accepterName} accepted your friend request`,
     data: {
       type: 'friend_accepted',
+      senderId: accepterId,
     },
   });
 }
