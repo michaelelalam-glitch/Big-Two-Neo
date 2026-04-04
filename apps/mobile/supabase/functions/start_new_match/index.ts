@@ -65,6 +65,8 @@ Deno.serve(async (req) => {
       (serviceKey !== '' && authHeader === `Bearer ${serviceKey}`) ||
       (internalKey !== '' && botAuthHdr === internalKey);
 
+    let authenticatedUserId: string | null = null;
+    let anonClientForMembershipCheck: ReturnType<typeof createClient> | null = null;
     if (!isServiceRole) {
       const anonClient = createClient(
         supabaseUrl,
@@ -78,6 +80,8 @@ Deno.serve(async (req) => {
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+      authenticatedUserId = user.id;
+      anonClientForMembershipCheck = anonClient;
     }
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -112,6 +116,33 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // ── Room membership gate (non-service-role callers only) ─────────────────
+    // Any authenticated user who knows a room_id could otherwise call
+    // start_new_match to advance game state. Verify the caller is an active
+    // member of the room before proceeding with service-role mutations.
+    if (authenticatedUserId && anonClientForMembershipCheck) {
+      const { data: memberRow, error: memberError } = await anonClientForMembershipCheck
+        .from('room_players')
+        .select('id')
+        .eq('room_id', room_id)
+        .eq('user_id', authenticatedUserId)
+        .limit(1)
+        .maybeSingle();
+      if (memberError) {
+        return new Response(
+          JSON.stringify({ error: 'Membership check failed' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (!memberRow) {
+        return new Response(
+          JSON.stringify({ error: 'Forbidden' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     // 1. Get current game state
     const { data: gameState, error: gameStateError } = await supabaseClient

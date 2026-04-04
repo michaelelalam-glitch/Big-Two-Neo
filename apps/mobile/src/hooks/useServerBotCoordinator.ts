@@ -41,8 +41,10 @@ interface UseServerBotCoordinatorProps {
 /**
  * Grace period (ms) before triggering a fallback bot-coordinator call.
  * The server-side trigger (EdgeRuntime.waitUntil) should fire within ~100ms,
- * but cold starts can push that to ~400ms. 300ms catches a failed primary
- * trigger quickly without racing a slow-but-working one.
+ * but cold starts can push that to ~400ms. At 300ms, this fallback may still
+ * race a slow-but-working primary trigger during cold starts; that tradeoff is
+ * intentional to detect failed primaries sooner, with duplicate work mitigated
+ * by the server-side lease/coordinator logic.
  */
 const FALLBACK_GRACE_PERIOD_MS = 300;
 
