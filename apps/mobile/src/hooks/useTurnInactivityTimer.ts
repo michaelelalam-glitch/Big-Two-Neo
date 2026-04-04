@@ -294,21 +294,27 @@ export function useTurnInactivityTimer({
         const serverElapsed = correctedClientNow - serverStart;
         if (serverElapsed < -2000) {
           // Even after applying the measured offset, server timestamp is >2s in the
-          // future — genuine residual skew. Fall back to local anchor.
+          // future — genuine residual skew. Store a raw Date.now() anchor so that
+          // the elapsed path stays stable if getCorrectedNow()'s offset changes
+          // after this point (avoids a jump equal to the offset delta).
           networkLogger.warn(
-            `⏰ [TurnTimer] Clock skew detected: corrected time still ${Math.abs(serverElapsed)}ms behind server. Using corrected local anchor.`
+            `⏰ [TurnTimer] Clock skew detected: corrected time still ${Math.abs(serverElapsed)}ms behind server. Using raw local anchor.`
           );
-          localTurnStartRef.current = correctedClientNow;
+          localTurnStartRef.current = Date.now();
         } else {
           localTurnStartRef.current = null; // Use server timestamp normally
         }
         networkLogger.debug('⏰ [TurnTimer] Tracking new turn sequence:', seqId);
       }
 
-      // Calculate remaining time — use local start if clock skew was detected
+      // Calculate remaining time — use local start if clock skew was detected.
+      // When the local anchor is in use, compute elapsed with raw Date.now() (not
+      // getCorrectedNow) so that a subsequent clock-sync offset update cannot jump
+      // the elapsed value and cause a premature timeout.
       const startTime = localTurnStartRef.current ?? new Date(turnStartedAt).getTime();
-      const correctedNow = getCorrectedNowRef.current();
-      const elapsed = correctedNow - startTime;
+      const effectiveNow =
+        localTurnStartRef.current !== null ? Date.now() : getCorrectedNowRef.current();
+      const elapsed = effectiveNow - startTime;
       const remaining = Math.max(0, TURN_TIMEOUT_MS - elapsed);
 
       // Update UI state ONLY when boolean flags change — NOT on every 500ms tick.
