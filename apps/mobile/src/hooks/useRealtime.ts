@@ -681,8 +681,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         throw error;
       }
     },
-    // refreshGameState replaced by inline fetchGameState(room.id) in error path (defined above)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // refreshGameState replaced by inline fetchGameState(room.id) in error path (see above)
     [gameState, currentPlayer, roomPlayers, room, broadcastMessage, fetchGameState]
   );
 

@@ -250,8 +250,10 @@ Deno.serve(async (req) => {
       
       if (codeError || !roomCodeData) {
         console.error('❌ [find-match] Failed to generate room code:', codeError);
-        // Release optimistic lock so these players can be re-matched
-        await supabaseClient.from('waiting_room').update({ status: 'waiting' }).in('user_id', lockedIds);
+        // Release optimistic lock so these players can be re-matched.
+        // Guard on status='processing' to avoid clobbering rows advanced by a
+        // concurrent invocation after this lock was acquired.
+        await supabaseClient.from('waiting_room').update({ status: 'waiting' }).in('user_id', lockedIds).eq('status', 'processing');
         return new Response(
           JSON.stringify({ success: false, error: 'Failed to generate room code' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
