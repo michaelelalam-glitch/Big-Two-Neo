@@ -239,7 +239,12 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         return joiningChannelPromiseRef.current.promise;
       }
 
-      const joinPromise = (async () => {
+      // Use definite assignment assertion so the IIFE's finally block can
+      // reference `joinPromise` by identity to guard against clearing a newer
+      // in-flight promise. TypeScript would otherwise report TS2454 (use before assign).
+      let joinPromise!: Promise<void>; // eslint-disable-line prefer-const
+      // eslint-disable-next-line prefer-const
+      joinPromise = (async () => {
         try {
           // Remove existing channel. Clear the reactive state immediately so
           // consumers (e.g. useGameChat) stop using the old channel the moment
@@ -506,10 +511,12 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                     const existing = prev[idx];
                     // Only re-render when UI-relevant fields change.
                     // last_heartbeat / heartbeat_count are heartbeat-only and never affect rendering.
-                    // 7.3: Normalize disconnect_timer_started_at to numeric milliseconds before
-                    // comparing — Supabase realtime can return the same timestamp in different
-                    // ISO formats (with/without ms, +00:00 vs Z), causing spurious re-renders
-                    // on every 5s heartbeat even when the timer anchor hasn't changed.
+                    // 7.3: Normalize ISO timestamp format to a numeric millisecond
+                    // value before comparing — Supabase realtime can return the same
+                    // timestamp in different ISO formats (with/without ms, +00:00 vs Z),
+                    // causing spurious re-renders on every 5s heartbeat even when the
+                    // timer anchor hasn't changed. `new Date(ts).getTime()` normalizes
+                    // any valid ISO string to a stable numeric representation.
                     const normalizeTs = (ts: string | null | undefined): number | null =>
                       ts ? new Date(ts).getTime() : null;
                     const meaningfullyChanged =
@@ -622,7 +629,12 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           // captured gameState) so that joinChannel's identity stays stable across
           // game-state updates and does not trigger unnecessary reconnects.
         } finally {
-          joiningChannelPromiseRef.current = null;
+          // Only clear the ref if it still points to this invocation. If a newer
+          // joinChannel(roomId) call has already set a different entry, we must
+          // not erase it — doing so would re-enable duplicate channel creation.
+          if (joiningChannelPromiseRef.current?.promise === joinPromise) {
+            joiningChannelPromiseRef.current = null;
+          }
         }
       })();
 

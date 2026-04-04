@@ -130,6 +130,10 @@ Deno.serve(async (req) => {
     // process_disconnected_players() can find and replace this player.
     // A normal heartbeat would flip connection_status back to 'connected',
     // causing Phase B to miss the player entirely.
+    //
+    // Declared here (outer scope) so it is visible at the final return even
+    // when the reconnect broadcast block is bypassed (e.g. sweepOnly path).
+    let reconnectBroadcastFailed = false;
     if (!sweepOnly) {
       // Update heartbeat timestamp.
       // NOTE: Heartbeat now clears disconnect_timer_started_at atomically so the
@@ -180,7 +184,6 @@ Deno.serve(async (req) => {
       // 6.4: Track broadcast delivery so failures can be included in the HTTP
       // response. Declared in outer scope so it is visible at the final return.
       // Only set to true when player transitions disconnected → connected.
-      let reconnectBroadcastFailed = false;
       if (player.connection_status === 'disconnected') {
         // Promise registered with EdgeRuntime.waitUntil (see try/catch below)
         // so the edge runtime does not terminate the subscribe→send flow before
@@ -249,23 +252,12 @@ Deno.serve(async (req) => {
             reconnectBroadcastFailed = true;
           }
         })();
-        // In production, register with EdgeRuntime.waitUntil so the broadcast
-        // completes in the background after the HTTP response is sent — this
-        // keeps heartbeat latency low during reconnection storms.
-        // In test harness / local dev (no waitUntil), await inline so the
-        // reconnectBroadcastFailed flag is populated before we respond.
-        const waitUntilFn = (globalThis as any).EdgeRuntime?.waitUntil;
-        if (typeof waitUntilFn === 'function') {
-          // Production: background the broadcast; response returns immediately.
-          waitUntilFn.call((globalThis as any).EdgeRuntime, reconnectBroadcast);
-        } else {
-          // Dev / test: await inline so we can surface broadcast failures.
-          await reconnectBroadcast;
-          if (reconnectBroadcastFailed) {
-            // Log the failure; do NOT return early — fall through to complete the
-            // bot watchdog / sweep logic. The flag is surfaced in the final response.
-            console.warn(`[update-heartbeat] reconnect_broadcast_failed=true for room ${room_id} — caller should refresh player list`);
-          }
+        // Always await the broadcast so reconnectBroadcastFailed is reliably
+        // populated before the HTTP response is sent. The broadcast promise
+        // has an internal 5s safety timeout so this never blocks indefinitely.
+        await reconnectBroadcast;
+        if (reconnectBroadcastFailed) {
+          console.warn(`[update-heartbeat] reconnect_broadcast_failed=true for room ${room_id} — caller should refresh player list`);
         }
       }
     }

@@ -93,9 +93,11 @@ export function useGameCleanup({
             );
             try {
               const markResult = await Promise.race<{ error: unknown }>([
-                supabase.functions.invoke('mark-disconnected', {
-                  body: { room_id: currentRoomId },
-                }),
+                supabase.functions
+                  .invoke('mark-disconnected', {
+                    body: { room_id: currentRoomId },
+                  })
+                  .catch((err: unknown) => ({ error: err })),
                 new Promise<{ error: Error }>(resolve =>
                   setTimeout(() => resolve({ error: new Error('mark-disconnected timeout') }), 3000)
                 ),
@@ -124,7 +126,10 @@ export function useGameCleanup({
 
           // 7.10: Resume navigation now that async cleanup is complete. Only
           // needed when we called e.preventDefault() above (online rooms).
-          if (isOnlineRoom && roomIdRef.current) {
+          // Use captured currentRoomId (not roomIdRef.current) to mirror the
+          // condition under which preventDefault() was called — roomIdRef
+          // could become null during the await, permanently blocking navigation.
+          if (isOnlineRoom && currentRoomId) {
             navigation.dispatch(e.data.action as Parameters<typeof navigation.dispatch>[0]);
           }
         }
