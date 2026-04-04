@@ -473,11 +473,12 @@ Deno.serve(async (req) => {
         // DB roundtrip on every iteration (was the largest per-move latency source).
         // Periodically refresh from DB every 4 iterations to catch human-reconnects:
         // reconnect_player() sets is_bot=FALSE and the snapshot would become stale.
-        // We also always refresh on iteration 0 to guard against the race where
-        // reconnect_player() flips is_bot=FALSE after play-cards/player-pass already
-        // verified the next player is a bot but before the first iteration executes.
+        // Always re-fetch the current-turn player so a human who reclaims a bot seat
+        // is detected on the very next iteration rather than after up-to-3 additional
+        // bot moves. The extra DB call per iteration is acceptable given the
+        // safety-critical nature of the check.
         const snapshotPlayer = roomPlayers.find(p => p.player_index === gs.current_turn);
-        const needsPlayerRefresh = !snapshotPlayer?.is_bot || (iteration % 4 === 0);
+        const needsPlayerRefresh = true;
 
         let currentPlayer: RoomPlayer | null | undefined = snapshotPlayer;
         if (needsPlayerRefresh) {
