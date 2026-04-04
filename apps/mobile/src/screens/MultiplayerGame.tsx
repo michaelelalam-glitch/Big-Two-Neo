@@ -19,6 +19,7 @@ import { supabase } from '../services/supabase';
 import { useConnectionManager } from '../hooks/useConnectionManager';
 import { useDisconnectDetection } from '../hooks/useDisconnectDetection';
 import { useServerBotCoordinator } from '../hooks/useServerBotCoordinator';
+import { useMatchTransition } from '../hooks/useMatchTransition';
 import { useTurnInactivityTimer } from '../hooks/useTurnInactivityTimer';
 import { useCardSelection } from '../hooks/useCardSelection';
 import { useGameActions, type GameMode } from '../hooks/useGameActions';
@@ -549,6 +550,7 @@ export function MultiplayerGame() {
     multiplayerPlayers,
     gameStartedAt,
     botDifficulty,
+    getGameModeForAnalytics,
   ]);
 
   // Ensure multiplayer realtime channel is joined when entering the Game screen.
@@ -708,7 +710,7 @@ export function MultiplayerGame() {
     }
     trackGameEvent('game_abandoned', abandonedParams);
     navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
-  }, [navigation]);
+  }, [navigation, getGameModeForAnalytics]);
   // ─────────────────────────────────────────────────────────────────────────────
 
   // ─── MULTIPLAYER SCORE HISTORY PERSISTENCE ─────────────────────────────────
@@ -899,6 +901,15 @@ export function MultiplayerGame() {
     gameState: multiplayerGameState,
     players: playersWithCards,
     isAutoPassInProgress,
+  });
+
+  // Match transition safety net: calls start_new_match if game stays in 'finished'
+  // phase for longer than MATCH_TRANSITION_GRACE_MS (1500ms). Critical for the
+  // bot-won-match case where bot-coordinator is the primary caller but can fail.
+  useMatchTransition({
+    gameState: multiplayerGameState,
+    room: roomInfo,
+    enabled: isMultiplayerDataReady && isConnected,
   });
 
   // Multiplayer play history tracking

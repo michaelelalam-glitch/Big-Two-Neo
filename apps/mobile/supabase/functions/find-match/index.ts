@@ -121,23 +121,92 @@ Deno.serve(async (req) => {
       .eq('status', 'waiting')
       .lt('joined_at', new Date(Date.now() - 5 * 60 * 1000).toISOString());
 
-    // 4. Insert or update user in waiting room
+    // 3b. Recover stale 'processing' rows for this user.
+    // A crashed/timed-out find-match invocation may leave the user's row stuck
+    // in 'processing', which causes the ignoreDuplicates INSERT in Step 4 to
+    // silently skip the row and the Step B UPDATE (constrained to status='waiting')
+    // to also skip it. This blocks the user from re-joining matchmaking until the
+    // row is cleaned up. We revert it back to 'waiting' if it has been in
+    // 'processing' for more than 30 seconds (well past any normal match-assembly
+    // window), so the subsequent upsert can refresh the row's data as usual.
+    // Use processing_started_at when available (set by step 6a) for an accurate
+    // staleness check; fall back to joined_at for legacy rows that predate the
+    // column addition (COALESCE logic via OR filter).
+    const thirtySecsAgo = new Date(Date.now() - 30 * 1000).toISOString();
+    const { error: staleProcessingRecoveryError } = await supabaseClient
+      .from('waiting_room')
+      .update({ status: 'waiting', processing_started_at: null })
+      .eq('user_id', userId)
+      .eq('status', 'processing')
+      .or(`processing_started_at.lt.${thirtySecsAgo},and(processing_started_at.is.null,joined_at.lt.${thirtySecsAgo})`);
+    if (staleProcessingRecoveryError) {
+      console.error('❌ [find-match] Stale processing recovery failed:', staleProcessingRecoveryError.message);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to recover from stale matchmaking state' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 3c. Recover stale 'matched' rows for this user.
+    // A 'matched' row whose room was abandoned (room expired / ON DELETE logic
+    // didn't clean the waiting_room row) prevents the user from re-entering the
+    // queue: Step A (ignoreDuplicates) silently skips the existing row and Step B
+    // only refreshes rows in 'waiting' state. Reset matched rows that are >5 min
+    // old so the subsequent upsert can proceed normally.
+    const { error: staleMatchedRecoveryError } = await supabaseClient
+      .from('waiting_room')
+      .update({ status: 'waiting', matched_room_id: null, matched_at: null })
+      .eq('user_id', userId)
+      .eq('status', 'matched')
+      .lt('matched_at', new Date(Date.now() - 5 * 60 * 1000).toISOString());
+    if (staleMatchedRecoveryError) {
+      console.error('❌ [find-match] Stale matched recovery failed:', staleMatchedRecoveryError.message);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to recover from stale matched state' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 4. Insert or update user in waiting room.
+    // Two-step upsert that protects rows already in 'processing' state:
+    //   Step A — INSERT the new row; if a row already exists, do nothing (ignoreDuplicates)
+    //            so that a concurrent find-match that already flipped this user's row to
+    //            'processing' is not overwritten back to 'waiting'.
+    //   Step B — UPDATE the row only when it is still in 'waiting' state so stale
+    //            skill_rating / region / match_type data is refreshed, but
+    //            'processing' rows (mid-assembly by another invocation) are left intact.
+    const entryData = {
+      user_id: userId,
+      username,
+      skill_rating,
+      region,
+      status: 'waiting' as const,
+      match_type,
+      joined_at: new Date().toISOString(),
+    };
+
+    // Step A: Insert if absent; skip silently if the row already exists.
+    const { error: insertOnlyError } = await supabaseClient
+      .from('waiting_room')
+      .upsert(entryData, { onConflict: 'user_id', ignoreDuplicates: true });
+
+    if (insertOnlyError) {
+      console.error('❌ [find-match] Failed to insert into waiting room:', insertOnlyError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to join matchmaking' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Step B: Refresh the existing row's data only if it's still 'waiting' (not 'processing').
     const { error: insertError } = await supabaseClient
       .from('waiting_room')
-      .upsert({
-        user_id: userId,
-        username,
-        skill_rating,
-        region,
-        status: 'waiting',
-        match_type,
-        joined_at: new Date().toISOString(),
-      }, {
-        onConflict: 'user_id',
-      });
+      .update({ username, skill_rating, region, match_type, joined_at: entryData.joined_at })
+      .eq('user_id', userId)
+      .eq('status', 'waiting');
 
     if (insertError) {
-      console.error('❌ [find-match] Failed to insert into waiting room:', insertError);
+      console.error('❌ [find-match] Failed to update waiting room entry:', insertError);
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to join matchmaking' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -171,21 +240,66 @@ Deno.serve(async (req) => {
     console.log(`🔍 [find-match] Found ${waitingCount} waiting players`);
 
     // 6. If we have 4+ players, create a match
-    // ⚠️ RACE CONDITION: Multiple concurrent find-match calls can try to match the same players.
-    // This can cause match creation failures or players being matched to multiple rooms.
-    // TODO: Implement one of these mitigations before production deployment:
-    // 1. Use database-level locking (SELECT ... FOR UPDATE) on waiting_room entries
-    // 2. Implement optimistic concurrency control with 'processing' status
-    // 3. Use a distributed lock (Redis) for the matchmaking critical section
-    // Current implementation has no concurrency control and may fail under load.
     if (waitingCount >= 4) {
       console.log('✅ [find-match] Creating match with 4 players');
+
+      // 6a. Optimistic concurrency lock — atomically claim all 4 seats by flipping
+      // status 'waiting' → 'processing'. Only one concurrent find-match invocation
+      // can succeed because the others will see 'processing' rows and get < 4 hits.
+      // Any invocation that doesn't update all 4 rows backs off and returns "waiting".
+      // This eliminates the previous race condition where two concurrent callers could
+      // match the same players and create two rooms for the same group.
+      const candidateIds = (waitingPlayers as any[]).slice(0, 4).map((p: any) => p.user_id);
+      // Use .select() (not head:true) so we get the actual row IDs back.
+      // This lets us revert EXACTLY the rows this invocation flipped, without
+      // touching rows already locked by a concurrent caller.
+      const { data: lockedRows, error: lockError } = await supabaseClient
+        .from('waiting_room')
+        .update({ status: 'processing', processing_started_at: new Date().toISOString() })
+        .in('user_id', candidateIds)
+        .eq('status', 'waiting') // Only lock rows still in 'waiting' state
+        .select('user_id');
+
+      if (lockError) {
+        console.error('❌ [find-match] Optimistic lock update failed:', lockError);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Failed to join matchmaking' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const lockedCount = lockedRows?.length ?? 0;
+      // The IDs we actually flipped in THIS invocation (not rows owned by concurrent callers)
+      const lockedIds = (lockedRows ?? []).map((r: any) => r.user_id);
+
+      if (lockedCount < 4) {
+        // Another concurrent caller already claimed some of these players; back off.
+        console.log(`⏳ [find-match] Lost optimistic lock (locked ${lockedCount}/4), backing off`);
+        // Reset only the rows THIS invocation locked — only revert rows still in
+        // 'processing' to avoid clobbering a row that may have legitimately advanced
+        // (e.g. matched by another invocation after this backup read).
+        if (lockedIds.length > 0) {
+          await supabaseClient
+            .from('waiting_room')
+            .update({ status: 'waiting', processing_started_at: null })
+            .in('user_id', lockedIds)
+            .eq('status', 'processing'); // Only revert rows we actually own
+        }
+        return new Response(
+          JSON.stringify({ success: false, matched: false, waiting_count: waitingCount }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
       // Generate room code using RPC
       const { data: roomCodeData, error: codeError } = await supabaseClient.rpc('generate_room_code_v2');
       
       if (codeError || !roomCodeData) {
         console.error('❌ [find-match] Failed to generate room code:', codeError);
+        // Release optimistic lock so these players can be re-matched.
+        // Guard on status='processing' to avoid clobbering rows advanced by a
+        // concurrent invocation after this lock was acquired.
+        await supabaseClient.from('waiting_room').update({ status: 'waiting', processing_started_at: null }).in('user_id', lockedIds).eq('status', 'processing');
         return new Response(
           JSON.stringify({ success: false, error: 'Failed to generate room code' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -213,6 +327,8 @@ Deno.serve(async (req) => {
 
       if (roomError || !room) {
         console.error('❌ [find-match] Failed to create room:', roomError);
+        // Release optimistic lock so these players can be re-matched
+        await supabaseClient.from('waiting_room').update({ status: 'waiting', processing_started_at: null }).in('user_id', lockedIds).eq('status', 'processing');
         return new Response(
           JSON.stringify({ success: false, error: 'Failed to create room' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -221,12 +337,7 @@ Deno.serve(async (req) => {
 
       const roomId = room.id;
 
-      // Add players to room
-      // ⚠️ LIMITATION: This performs multiple database operations without a transaction wrapper.
-      // PostgreSQL transactions ARE supported in Supabase Edge Functions via the client library.
-      // TODO: For production reliability, implement proper database transactions to prevent
-      // partial state (orphaned rooms, mismatched waiting_room entries) if any step fails.
-      // Current approach uses manual rollback which itself can fail.
+      // Add players to room (multiple ops without a transaction; failures are rolled back manually below)
       const playersToAdd = waitingPlayers.slice(0, 4).map((player, index) => ({
         room_id: roomId,
         user_id: player.user_id,
@@ -243,8 +354,9 @@ Deno.serve(async (req) => {
 
       if (playersError) {
         console.error('❌ [find-match] Failed to add players:', playersError);
-        // Rollback: delete the room
+        // Rollback: delete the room and release optimistic lock
         await supabaseClient.from('rooms').delete().eq('id', roomId);
+        await supabaseClient.from('waiting_room').update({ status: 'waiting', processing_started_at: null }).in('user_id', lockedIds).eq('status', 'processing');
         return new Response(
           JSON.stringify({ success: false, error: 'Failed to add players to room' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -253,7 +365,7 @@ Deno.serve(async (req) => {
 
       // Update waiting room status for matched players
       const matchedUserIds = waitingPlayers.slice(0, 4).map(p => p.user_id);
-      await supabaseClient
+      const { error: matchedUpdateError } = await supabaseClient
         .from('waiting_room')
         .update({
           status: 'matched',
@@ -261,6 +373,22 @@ Deno.serve(async (req) => {
           matched_at: new Date().toISOString(),
         })
         .in('user_id', matchedUserIds);
+
+      if (matchedUpdateError) {
+        console.error('❌ [find-match] Failed to mark players as matched:', matchedUpdateError);
+        // Rollback: rows are still in 'processing'; delete room/players and release lock
+        await supabaseClient.from('rooms').delete().eq('id', roomId);
+        await supabaseClient.from('room_players').delete().eq('room_id', roomId);
+        await supabaseClient
+          .from('waiting_room')
+          .update({ status: 'waiting', processing_started_at: null })
+          .in('user_id', lockedIds)
+          .eq('status', 'processing');
+        return new Response(
+          JSON.stringify({ success: false, error: 'Failed to update match status' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
       // Start game with bots (0 bots since we have 4 players)
       const { data: startResult, error: startError } = await supabaseClient.rpc('start_game_with_bots', {
@@ -272,13 +400,15 @@ Deno.serve(async (req) => {
       if (startError || !startResult?.success) {
         console.error('❌ [find-match] Failed to auto-start game:', startError || startResult);
         
-        // Rollback: Delete room and reset waiting room entries
+        // Rollback: Delete room, room_players, and release optimistic lock.
+        // matched-status update succeeded above, so lockedIds rows are in 'matched' state;
+        // no status predicate needed — lockedIds already scopes to only rows this invocation locked.
         await supabaseClient.from('rooms').delete().eq('id', roomId);
         await supabaseClient.from('room_players').delete().eq('room_id', roomId);
         await supabaseClient
           .from('waiting_room')
-          .update({ status: 'waiting', matched_room_id: null, matched_at: null })
-          .in('user_id', matchedUserIds);
+          .update({ status: 'waiting', matched_room_id: null, matched_at: null, processing_started_at: null })
+          .in('user_id', lockedIds);
         
         return new Response(
           JSON.stringify({ success: false, error: 'Failed to start game' }),

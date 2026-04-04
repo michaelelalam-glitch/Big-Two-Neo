@@ -216,7 +216,9 @@ export const GameEndProvider: React.FC<GameEndProviderProps> = ({ children }) =>
 
       gameLogger.info('✅ [GameEndContext] State updated, modal opening with valid data');
     },
-    [trackScreenView, gameLogger]
+    // All captured values are either stable state setters (guaranteed by React)
+    // or module-level imports (outer scope constants). No reactive deps needed.
+    []
   );
 
   // -------------------------------------------------------------------------

@@ -263,7 +263,7 @@ function AutoPassTimerComponent({
     if (!timerState || !timerState.active || remainingMs <= 0) {
       cancelAnimation(progressAnim);
     }
-  }, [timerState?.active, remainingMs, progressAnim]);
+  }, [timerState, remainingMs, progressAnim]);
 
   // Don't render if timer is not active or has expired.
   if (!timerState || !timerState.active || remainingMs <= 0) {

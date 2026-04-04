@@ -283,8 +283,8 @@ export async function executePlayCards({
   }
 
   // Wait for Realtime sync
-  gameLogger.info('[useRealtime] ⏳ Waiting 300ms for Realtime sync...');
-  await new Promise(resolve => setTimeout(resolve, 300));
+  gameLogger.info('[useRealtime] ⏳ Waiting 50ms for Realtime sync...');
+  await new Promise(resolve => setTimeout(resolve, 50));
 
   // --- Match end / game over broadcasting ---
   if (matchWillEnd && matchScores && !alreadyFinished) {
@@ -313,8 +313,8 @@ export async function executePlayCards({
       // Start next match (fire-and-forget)
       (async () => {
         try {
-          gameLogger.info('[useRealtime] 🔄 Starting next match in 1.5 seconds...');
-          await new Promise(resolve => setTimeout(resolve, 1500));
+          gameLogger.info('[useRealtime] 🔄 Starting next match in 0.6 seconds...');
+          await new Promise(resolve => setTimeout(resolve, 600));
 
           gameLogger.info('[useRealtime] 🎴 Calling start_new_match edge function...');
           const { data: newMatchData, error: newMatchError } =
@@ -517,6 +517,6 @@ export async function executePass({
   await broadcastMessage('player_passed', { player_index: passingPlayer.player_index });
 
   // Wait for Realtime propagation
-  gameLogger.info('[useRealtime] ⏳ Waiting 300ms for Realtime sync after pass...');
-  await new Promise(resolve => setTimeout(resolve, 300));
+  gameLogger.info('[useRealtime] ⏳ Waiting 50ms for Realtime sync after pass...');
+  await new Promise(resolve => setTimeout(resolve, 50));
 }

@@ -629,6 +629,29 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         throw new Error('Game state not loaded');
       }
 
+      // Optimistic UI: immediately remove played cards from the human's displayed hand.
+      // The Realtime postgres_changes subscription will correct the full game state
+      // (~200ms after the EF updates the DB), so this snapshot is short-lived.
+      // Only apply for human plays (playerIndex === undefined); bot plays go through
+      // the same path but do not need an optimistic update.
+      if (playerIndex === undefined) {
+        const humanIndex = currentPlayer?.player_index;
+        if (humanIndex !== undefined) {
+          const cardIds = new Set(cards.map(c => c.id));
+          setGameState(prev => {
+            if (!prev) return prev;
+            const handKey = String(humanIndex);
+            return {
+              ...prev,
+              hands: {
+                ...prev.hands,
+                [handKey]: (prev.hands[handKey] ?? []).filter(c => !cardIds.has(c.id)),
+              },
+            };
+          });
+        }
+      }
+
       try {
         await executePlayCards({
           cards,
@@ -650,11 +673,16 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         // caused duplicate error popups.
         if (playerIndex !== undefined) {
           gameLogger.warn('[useRealtime] ⚠️ Bot play error (suppressed from UI):', error.message);
+        } else {
+          // Re-sync the hand in case the optimistic update was wrong (server rejected the play).
+          // Fire-and-forget — the throw below surfaces the error to the UI immediately.
+          if (room?.id) void fetchGameState(room.id).catch(() => {});
         }
         throw error;
       }
     },
-    [gameState, currentPlayer, roomPlayers, room, broadcastMessage]
+    // refreshGameState replaced by inline fetchGameState(room.id) in error path (see above)
+    [gameState, currentPlayer, roomPlayers, room, broadcastMessage, fetchGameState]
   );
 
   /**

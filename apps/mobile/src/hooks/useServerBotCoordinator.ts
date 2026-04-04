@@ -40,15 +40,18 @@ interface UseServerBotCoordinatorProps {
 
 /**
  * Grace period (ms) before triggering a fallback bot-coordinator call.
- * The server-side trigger should fire within ~100ms of the move completing.
- * If after this period the turn hasn't advanced, we trigger the fallback.
+ * The server-side trigger (EdgeRuntime.waitUntil) should fire within ~100ms,
+ * but cold starts can push that to ~400ms. At 300ms, this fallback may still
+ * race a slow-but-working primary trigger during cold starts; that tradeoff is
+ * intentional to detect failed primaries sooner, with duplicate work mitigated
+ * by the server-side lease/coordinator logic.
  */
-const FALLBACK_GRACE_PERIOD_MS = 3000;
+const FALLBACK_GRACE_PERIOD_MS = 300;
 
 /**
  * Cooldown (ms) between fallback trigger attempts to prevent spam.
  */
-const TRIGGER_COOLDOWN_MS = 5000;
+const TRIGGER_COOLDOWN_MS = 2000;
 
 export function useServerBotCoordinator({
   roomCode,
@@ -83,14 +86,16 @@ export function useServerBotCoordinator({
     gameLogger.info(`[ServerBotCoordinator] 🤖 Fallback trigger for room ${roomCode}`);
 
     try {
-      const { error } = await supabase.functions.invoke('bot-coordinator', {
+      const { data, error } = await supabase.functions.invoke('bot-coordinator', {
         body: { room_code: roomCode },
       });
 
       if (error) {
         gameLogger.error('[ServerBotCoordinator] ❌ Fallback trigger failed:', error.message);
       } else {
-        gameLogger.info('[ServerBotCoordinator] ✅ Fallback trigger succeeded');
+        gameLogger.info(
+          `[ServerBotCoordinator] ✅ Fallback trigger result: moves=${data?.moves_executed ?? '?'} skipped=${data?.skipped ?? false} err=${data?.error ?? 'none'} exit=${data?.exit_reason ?? 'none'}`
+        );
       }
     } catch (err) {
       gameLogger.error(

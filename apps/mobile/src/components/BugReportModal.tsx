@@ -159,6 +159,7 @@ export default function BugReportModal({
         position: start,
         length: maxBytes,
         encoding: EncodingType.UTF8,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
     } catch {
       return null;

@@ -28,11 +28,12 @@ const corsHeaders = {
 };
 
 /**
- * Delay between bot moves (ms) — allows Realtime to propagate for smooth client animations.
- * Note: the original PR description approximated this as ~500ms. 300ms is the intentional
- * deployed value; it provides adequate Realtime propagation time while keeping games snappy.
+ * Delay between bot moves (ms).
+ * Realtime itself adds ~100–150ms of delivery latency per DB write, so no
+ * additional artificial delay is needed. 0ms keeps consecutive bot moves as
+ * fast as possible while Realtime still propagates each update to clients.
  */
-const BOT_MOVE_DELAY_MS = 300;
+const BOT_MOVE_DELAY_MS = 0;
 
 /** Maximum bot moves per invocation — prevents infinite loops */
 const MAX_BOT_MOVES = 20;
@@ -132,17 +133,20 @@ async function callPlayCards(
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   let res: Response;
   try {
+    const botAuthKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
     res = await fetch(url, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${serviceKey}`,
         'Content-Type': 'application/json',
         'x-bot-coordinator': 'true', // Signal to skip recursive bot trigger
+        ...(botAuthKey !== '' ? { 'x-bot-auth': botAuthKey } : {}),
       },
       body: JSON.stringify({
         room_code: roomCode,
         player_id: playerId,
         cards: cards.map(c => ({ id: c.id, rank: c.rank, suit: c.suit })),
+        ...(botAuthKey !== '' ? { _bot_auth: botAuthKey } : {}),
       }),
       signal: controller.signal,
     });
@@ -194,16 +198,19 @@ async function callPlayerPass(
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   let res: Response;
   try {
+    const botAuthKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
     res = await fetch(url, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${serviceKey}`,
         'Content-Type': 'application/json',
         'x-bot-coordinator': 'true',
+        ...(botAuthKey !== '' ? { 'x-bot-auth': botAuthKey } : {}),
       },
       body: JSON.stringify({
         room_code: roomCode,
         player_id: playerId,
+        ...(botAuthKey !== '' ? { _bot_auth: botAuthKey } : {}),
       }),
       signal: controller.signal,
     });
@@ -325,69 +332,70 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 2. Get all room players (including bots)
-    const { data: roomPlayers, error: playersError } = await supabaseClient
-      .from('room_players')
-      .select('*')
-      .eq('room_id', room.id)
-      .order('player_index', { ascending: true });
-
-    if (playersError || !roomPlayers) {
-      console.error('[bot-coordinator] Room players not found:', playersError);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Room players not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
-    }
-
-    // 3. Acquire a row-based coordinator lease to prevent concurrent bot coordinators.
-    //    Row-based leases work reliably across all PgBouncer/pooled connections,
-    //    unlike pg_advisory_lock which is session-scoped and can leak across pools.
-    //    Retry up to 3× with 500 ms backoff so transient contention (two Edge Function
-    //    invocations landing within milliseconds of each other) doesn't cause a missed
-    //    bot turn. Each retry is still well within the LOCK_TIMEOUT_MS budget.
+    // 2. Get room players first. The lease is acquired AFTER players are confirmed
+    //    to exist so we never hold an unreleased lease when we exit early with 404.
+    //    (Previous parallel Promise.all could acquire the lease even when the players
+    //    fetch failed, leaving the lease held until it expired ~45 s later.)
     const MAX_LEASE_RETRIES = 3;
     const LEASE_RETRY_DELAY_MS = 500;
     const coordinatorId = crypto.randomUUID();
     const leaseTimeoutSeconds = Math.ceil((LOCK_TIMEOUT_MS * 1.5) / 1000);
 
-    let leaseAcquired = false;
-    const leaseErrors: string[] = [];
+    const playersResult = await supabaseClient
+      .from('room_players')
+      .select('*')
+      .eq('room_id', room.id)
+      .order('player_index', { ascending: true });
 
-    for (let leaseAttempt = 0; leaseAttempt < MAX_LEASE_RETRIES; leaseAttempt++) {
-      // Bail out early if overall timeout has been hit
-      if (Date.now() - startTime > LOCK_TIMEOUT_MS) break;
-
-      const { data, error } = await supabaseClient
-        .rpc('try_acquire_bot_coordinator_lease', {
-          p_room_code: room_code,
-          p_coordinator_id: coordinatorId,
-          // Use 1.5× the loop budget so the lease outlives even a worst-case run.
-          // If p_timeout_seconds == LOCK_TIMEOUT_MS and an HTTP call stalls near the
-          // deadline, the lease can expire mid-run allowing a second coordinator to overlap.
-          p_timeout_seconds: leaseTimeoutSeconds,
-        });
-
-      if (error) {
-        leaseErrors.push(error.message);
-        break; // DB error — don't retry
-      }
-
-      if (data === true) {
-        leaseAcquired = true;
-        break;
-      }
-
-      console.log(`[bot-coordinator] ⏳ Lease contention (attempt ${leaseAttempt + 1}/${MAX_LEASE_RETRIES}), retrying in ${LEASE_RETRY_DELAY_MS}ms...`);
-      await delay(LEASE_RETRY_DELAY_MS);
+    if (playersResult.error || !playersResult.data) {
+      console.error('[bot-coordinator] Room players not found:', playersResult.error);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Room players not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
     }
+    // roomPlayers is mutated in-loop to reflect fresh player data on periodic refreshes.
+    const roomPlayers: RoomPlayer[] = playersResult.data as RoomPlayer[];
 
-    if (leaseErrors.length > 0) {
-      console.error('[bot-coordinator] Failed to acquire coordinator lease:', leaseErrors);
+    // 3. Acquire coordinator lease (sequential, after players confirmed above).
+    const firstLeaseResult = await supabaseClient.rpc('try_acquire_bot_coordinator_lease', {
+      p_room_code: room_code,
+      p_coordinator_id: coordinatorId,
+      // Use 1.5× the loop budget so the lease outlives even a worst-case run.
+      p_timeout_seconds: leaseTimeoutSeconds,
+    });
+
+    if (firstLeaseResult.error) {
+      console.error('[bot-coordinator] Failed to acquire coordinator lease:', firstLeaseResult.error.message);
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to acquire coordinator lease' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
+    }
+
+    let leaseAcquired = firstLeaseResult.data === true;
+
+    // Retry lease acquisition if first attempt found contention.
+    if (!leaseAcquired) {
+      for (let leaseAttempt = 1; leaseAttempt < MAX_LEASE_RETRIES; leaseAttempt++) {
+        if (Date.now() - startTime > LOCK_TIMEOUT_MS) break;
+        console.log(`[bot-coordinator] ⏳ Lease contention (attempt ${leaseAttempt + 1}/${MAX_LEASE_RETRIES}), retrying in ${LEASE_RETRY_DELAY_MS}ms...`);
+        await delay(LEASE_RETRY_DELAY_MS);
+        const { data, error } = await supabaseClient
+          .rpc('try_acquire_bot_coordinator_lease', {
+            p_room_code: room_code,
+            p_coordinator_id: coordinatorId,
+            p_timeout_seconds: leaseTimeoutSeconds,
+          });
+        if (error) {
+          console.error('[bot-coordinator] Failed to acquire coordinator lease:', error.message);
+          return new Response(
+            JSON.stringify({ success: false, error: 'Failed to acquire coordinator lease' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          );
+        }
+        if (data === true) { leaseAcquired = true; break; }
+      }
     }
 
     if (!leaseAcquired) {
@@ -401,6 +409,7 @@ Deno.serve(async (req) => {
     // 4. Bot turn execution loop
     let movesExecuted = 0;
     let lastError: string | null = null;
+    let lastExitReason: string | null = null;
     // Track whether a match/game ended during bot play so we can start the next match
     let matchEndedData: {
       match_ended: boolean;
@@ -418,6 +427,25 @@ Deno.serve(async (req) => {
           break;
         }
 
+        // Refresh the bot-coordinator lease every 3 iterations to prevent mid-loop expiry.
+        // BOT_MOVE_DELAY_MS is 0, so latency is dominated by DB + network round-trips
+        // (~100–500 ms per move). Over 10+ moves without a refresh the lease can expire,
+        // allowing a concurrent coordinator to acquire it and cause dual execution.
+        if (iteration > 0 && iteration % 3 === 0) {
+          const { data: refreshed, error: refreshErr } = await supabaseClient
+            .rpc('refresh_bot_coordinator_lease', {
+              p_room_code: room_code,
+              p_coordinator_id: coordinatorId,
+              p_timeout_seconds: leaseTimeoutSeconds,
+            });
+          if (refreshErr || !refreshed) {
+            // Another coordinator may have stolen the lease — stop to avoid dual execution.
+            console.warn('[bot-coordinator] ⚠️ Lease refresh failed (stolen or expired), stopping');
+            lastExitReason = 'lease_refresh_failed';
+            break;
+          }
+        }
+
         // Fetch fresh game state
         const { data: gameState, error: gsError } = await supabaseClient
           .from('game_state')
@@ -428,6 +456,7 @@ Deno.serve(async (req) => {
         if (gsError || !gameState) {
           console.error('[bot-coordinator] Game state not found:', gsError);
           lastError = 'Game state not found';
+          lastExitReason = `game_state_not_found: ${gsError?.message}`;
           break;
         }
 
@@ -436,34 +465,46 @@ Deno.serve(async (req) => {
         // Check if game is still active
         if (gs.game_phase === 'finished' || gs.game_phase === 'game_over') {
           console.log(`[bot-coordinator] 🏁 Game phase is '${gs.game_phase}', stopping`);
+          lastExitReason = `game_phase_${gs.game_phase}`;
           break;
         }
 
-        // Re-fetch the current-turn player from DB on every iteration.
-        // This is the PRIMARY fix for the game-freeze-on-rejoin bug:
-        // the initial `roomPlayers` snapshot is fetched ONCE before this loop,
-        // so it cannot detect a human reclaiming their seat mid-run.
-        // A fresh DB read ensures that when reconnect_player() sets is_bot=FALSE,
-        // the coordinator sees it on the next iteration and stops immediately.
-        const { data: freshTurnPlayer, error: freshPlayerErr } = await supabaseClient
-          .from('room_players')
-          .select('*')
-          .eq('room_id', room.id)
-          .eq('player_index', gs.current_turn)
-          .maybeSingle();
+        // Re-fetch the current-turn player from the DB on every iteration.
+        // reconnect_player() can flip is_bot=FALSE at any time; always reading a
+        // fresh row ensures a human who reclaims a bot seat is detected
+        // immediately. The in-memory snapshot is kept only as a null-fallback
+        // if the DB fetch fails.
+        const snapshotPlayer = roomPlayers.find(p => p.player_index === gs.current_turn);
+        const needsPlayerRefresh = true;
 
-        if (freshPlayerErr) {
-          console.error('[bot-coordinator] Error fetching turn player:', freshPlayerErr.message);
-          lastError = 'Failed to fetch current turn player';
-          break;
+        let currentPlayer: RoomPlayer | null | undefined = snapshotPlayer;
+        if (needsPlayerRefresh) {
+          const { data: freshTurnPlayer, error: freshPlayerErr } = await supabaseClient
+            .from('room_players')
+            .select('*')
+            .eq('room_id', room.id)
+            .eq('player_index', gs.current_turn)
+            .maybeSingle();
+
+          if (freshPlayerErr) {
+            console.error('[bot-coordinator] Error fetching turn player:', freshPlayerErr.message);
+            lastError = 'Failed to fetch current turn player';
+            lastExitReason = `player_fetch_error: ${freshPlayerErr.message}`;
+            break;
+          }
+
+          currentPlayer = (freshTurnPlayer as RoomPlayer | null) ?? snapshotPlayer;
+          // Update the snapshot so subsequent iterations within this run see the
+          // refreshed is_bot value without another DB query.
+          if (freshTurnPlayer) {
+            const snapshotIdx = roomPlayers.findIndex(p => p.player_index === gs.current_turn);
+            if (snapshotIdx >= 0) roomPlayers[snapshotIdx] = freshTurnPlayer as RoomPlayer;
+          }
         }
-
-        // Prefer fresh DB row; fall back to initial snapshot only if row vanished
-        const currentPlayer = (freshTurnPlayer as RoomPlayer | null) ??
-          (roomPlayers.find(p => p.player_index === gs.current_turn) as RoomPlayer | undefined);
 
         if (!currentPlayer || !currentPlayer.is_bot) {
           console.log(`[bot-coordinator] 👤 Turn ${gs.current_turn} is human (${currentPlayer?.username || 'unknown'}), stopping`);
+          lastExitReason = `human_turn_${gs.current_turn}`;
           break;
         }
 
@@ -475,6 +516,7 @@ Deno.serve(async (req) => {
 
         if (botHand.length === 0) {
           console.warn(`[bot-coordinator] ⚠️ Bot ${currentPlayer.username} has no cards, skipping`);
+          lastExitReason = `empty_hand_player_${currentPlayer.player_index}`;
           break;
         }
 
@@ -562,6 +604,7 @@ Deno.serve(async (req) => {
             } else {
               console.error(`[bot-coordinator] ❌ Card ${cardId} not found in bot's hand`);
               lastError = `Card ${cardId} not found in bot's hand`;
+              lastExitReason = `card_not_found: ${cardId}`;
               break;
             }
           }
@@ -571,6 +614,7 @@ Deno.serve(async (req) => {
           const result = await callPlayCards(supabaseUrl, serviceKey, room.code, currentPlayer.id, cardsToPlay);
           if (!result.success) {
             lastError = result.error || 'play-cards failed';
+            lastExitReason = `play_cards_failed: ${lastError}`;
             console.error(`[bot-coordinator] ❌ Bot play failed: ${lastError}`);
             break;
           }
@@ -595,6 +639,7 @@ Deno.serve(async (req) => {
           const result = await callPlayerPass(supabaseUrl, serviceKey, room.code, currentPlayer.id);
           if (!result.success) {
             lastError = result.error || 'player-pass failed';
+            lastExitReason = `player_pass_failed: ${lastError}`;
             console.error(`[bot-coordinator] ❌ Bot pass failed: ${lastError}`);
             break;
           }
@@ -627,8 +672,8 @@ Deno.serve(async (req) => {
       // A bot won the match (but the overall game continues).
       // The client-side coordinator (useServerBotCoordinator) stops when it sees
       // game_phase='finished', so nobody calls start_new_match.  We must do it here.
-      console.log('[bot-coordinator] 🔄 Bot won match — calling start_new_match in 500ms...');
-      await delay(500); // Let the final play-cards update propagate via Realtime
+      console.log('[bot-coordinator] 🔄 Bot won match — calling start_new_match in 200ms...');
+      await delay(200); // Let the final play-cards update propagate via Realtime
 
       // CRITICAL: await the start_new_match call — fire-and-forget is unreliable in
       // Deno Edge Functions because the runtime may terminate dangling promises once
@@ -692,7 +737,7 @@ Deno.serve(async (req) => {
     }
 
     const elapsed = Date.now() - startTime;
-    console.log(`🤖 [bot-coordinator] Done: ${movesExecuted} moves in ${elapsed}ms${lastError ? ` (last error: ${lastError})` : ''}`);
+    console.log(`🤖 [bot-coordinator] Done: ${movesExecuted} moves in ${elapsed}ms${lastError ? ` (last error: ${lastError})` : ''}${lastExitReason ? ` (exit: ${lastExitReason})` : ''}`);
 
     return new Response(
       JSON.stringify({
@@ -700,6 +745,7 @@ Deno.serve(async (req) => {
         moves_executed: movesExecuted,
         elapsed_ms: elapsed,
         error: lastError,
+        exit_reason: lastExitReason,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );

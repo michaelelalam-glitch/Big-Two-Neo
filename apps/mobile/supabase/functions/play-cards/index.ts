@@ -717,12 +717,79 @@ Deno.serve(async (req) => {
 
     const supabaseClient = createClient(supabaseUrl, serviceKey);
 
+    // ── Request size guard (DoS mitigation) ─────────────────────────────────
+    // When Content-Length is present and valid, reject early (before body read).
+    // When absent (e.g., chunked transfer encoding), allow the request through
+    // but enforce a hard byte cap during streaming so an oversized body is
+    // rejected while reading rather than after full buffering.
+    // Legitimate play-cards payloads (room_code + player_id + card array + optional
+    // _bot_auth) are well under 4 KB even for a full 13-card hand; 10 KB is a
+    // generous cap.
+    const PC_MAX_BODY_BYTES = 10_240;
+    const clHeader = req.headers.get('content-length');
+    if (clHeader !== null) {
+      const cl = Number(clHeader);
+      if (!Number.isFinite(cl) || cl < 0 || cl > PC_MAX_BODY_BYTES) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Request body too large' }),
+          { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // ── Early body peek for bot-coordinator authentication ─────────────────────
+    // Body is streamed with a hard byte cap so oversized bodies are rejected
+    // during reading (not after buffering). JSON parse errors are caught below.
+    let bodyJson: Record<string, any> | null = null;
+    let rawBodyText = '';
+    if (req.body) {
+      const reader = req.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let totalBytes = 0;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (!value) continue;
+          totalBytes += value.byteLength;
+          if (totalBytes > PC_MAX_BODY_BYTES) {
+            await reader.cancel().catch(() => undefined);
+            return new Response(
+              JSON.stringify({ success: false, error: 'Request body too large' }),
+              { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          chunks.push(value);
+        }
+      } catch { /* fall through — rawBodyText stays '' */ } finally { reader.releaseLock(); }
+      if (chunks.length > 0) {
+        const bodyBytes = new Uint8Array(totalBytes);
+        let offset = 0;
+        for (const chunk of chunks) { bodyBytes.set(chunk, offset); offset += chunk.byteLength; }
+        rawBodyText = new TextDecoder().decode(bodyBytes);
+      }
+    }
+    try { bodyJson = rawBodyText ? JSON.parse(rawBodyText) : null; } catch { /* handled below */ }
+
     // ── Authorization check (BEFORE body parse, matching bot-coordinator pattern) ──
     // Service-role callers (bot-coordinator) may act for any player_id.
     // Non-service-role callers (clients) must present a valid user JWT; the resolved
     // user.id is compared against player_id after the body is parsed below.
-    const authHeader = req.headers.get('authorization') ?? '';
-    const isServiceRole = serviceKey !== '' && authHeader === `Bearer ${serviceKey}`;
+    //
+    // Three equivalent ways to identify a service-role / bot-coordinator caller:
+    //   1. SUPABASE_SERVICE_ROLE_KEY bearer match (may fail due to key rotation lag)
+    //   2. INTERNAL_BOT_AUTH_KEY custom header (may be stripped by internal routing)
+    //   3. _bot_auth field in the request body — guaranteed to pass through unchanged
+    const authHeader  = req.headers.get('authorization') ?? '';
+    const botAuthHdr  = req.headers.get('x-bot-auth') ?? '';
+    const internalKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
+    const hasInternalKey = internalKey !== '';
+    const botBodyAuth = bodyJson?._bot_auth ?? '';
+    const isServiceRole =
+      (serviceKey !== '' && authHeader === `Bearer ${serviceKey}`) ||
+      (hasInternalKey && botAuthHdr === internalKey) ||
+      (hasInternalKey && botBodyAuth === internalKey);
+
     let callerJwtUserId: string | null = null;
 
     if (!isServiceRole) {
@@ -742,14 +809,14 @@ Deno.serve(async (req) => {
     }
     // ────────────────────────────────────────────────────────────────────────
 
-    // Parse body AFTER auth so unauthenticated callers with a bad JSON body get
-    // a 401/403 rather than leaking a 500 before auth even runs.
+    // Parse body AFTER auth — re-use the pre-parsed bodyJson from the early peek.
+    // If the body was invalid JSON (bodyJson === null), return 400.
     let room_code: string, player_id: string, cards: any[];
     try {
-      const body = await req.json();
-      room_code = body.room_code;
-      player_id = body.player_id;
-      cards     = body.cards;
+      if (!bodyJson) throw new Error('no body');
+      room_code = bodyJson.room_code;
+      player_id = bodyJson.player_id;
+      cards     = bodyJson.cards;
     } catch (_e) {
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid JSON body' }),
@@ -1488,14 +1555,21 @@ Deno.serve(async (req) => {
 
     // 15. Trigger bot-coordinator if next player is a bot (Task #551)
     // Only suppress the trigger when this call came from the coordinator itself.
-    // Verify BOTH the custom header AND that the request used the service_role key —
-    // clients can set arbitrary headers, but they cannot forge the service_role JWT.
-    const serviceKeyForCheck = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-    const authHeaderForCheck = req.headers.get('authorization') ?? '';
+    // Accept either the service-role key match OR the stable internal bot auth key —
+    // the same dual-check used at the top of this function for isServiceRole.
+    const serviceKeyForCheck  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const internalKeyForCheck = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
+    const hasInternalKeyForCheck = internalKeyForCheck !== '';
+    const authHeaderForCheck  = req.headers.get('authorization') ?? '';
+    const botAuthHdrForCheck  = req.headers.get('x-bot-auth') ?? '';
+    const botBodyAuthForCheck = bodyJson?._bot_auth ?? '';
     const isInternalCoordinatorCall =
       req.headers.get('x-bot-coordinator') === 'true' &&
-      serviceKeyForCheck !== '' &&
-      authHeaderForCheck === `Bearer ${serviceKeyForCheck}`;
+      (
+        (serviceKeyForCheck !== '' && authHeaderForCheck === `Bearer ${serviceKeyForCheck}`) ||
+        (hasInternalKeyForCheck && botAuthHdrForCheck === internalKeyForCheck) ||
+        (hasInternalKeyForCheck && botBodyAuthForCheck === internalKeyForCheck)
+      );
 
     if (!isInternalCoordinatorCall && !matchEnded && !gameOver) {
       try {

@@ -6,6 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 interface Card {
   id: string;
   suit: 'D' | 'C' | 'H' | 'S';
@@ -49,27 +51,125 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
-    const { room_id, expected_match_number: rawExpectedMatchNumber } = await req.json();
+    // ── Authentication gate ───────────────────────────────────────────────────
+    // start_new_match advances game state (deals cards, resets match).  All callers
+    // must be authenticated.  Service-role callers (bot-coordinator, internal
+    // automation) are identified by their bearer token or x-bot-auth header;
+    // client fallback callers (useMatchTransition, realtimeActions) must supply a
+    // valid user JWT via the Authorization header.
+    const authHeader  = req.headers.get('authorization') ?? '';
+    const botAuthHdr  = req.headers.get('x-bot-auth') ?? '';
+    const internalKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
+    const isServiceRole =
+      (serviceKey !== '' && authHeader === `Bearer ${serviceKey}`) ||
+      (internalKey !== '' && botAuthHdr === internalKey);
+
+    let authenticatedUserId: string | null = null;
+    let anonClientForMembershipCheck: ReturnType<typeof createClient> | null = null;
+    if (!isServiceRole) {
+      const anonClient = createClient(
+        supabaseUrl,
+        Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+        { global: { headers: { Authorization: authHeader } } },
+      );
+      const { data: { user }, error: authError } = await anonClient.auth.getUser();
+      if (authError || !user) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      authenticatedUserId = user.id;
+      anonClientForMembershipCheck = anonClient;
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const supabaseClient = createClient(supabaseUrl, serviceKey);
+
+    let room_id: unknown;
+    let rawExpectedMatchNumber: unknown;
+    try {
+      ({ room_id, expected_match_number: rawExpectedMatchNumber } = await req.json());
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     // Coerce to a number so string callers (e.g. HTTP tools) don't break the strict === comparison.
     const expected_match_number = rawExpectedMatchNumber != null ? Number(rawExpectedMatchNumber) : undefined;
 
-    if (!room_id) {
+    if (!room_id || typeof room_id !== 'string') {
       return new Response(
         JSON.stringify({ error: 'room_id is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    // Trim and validate UUID format to prevent malformed inputs from reaching
+    // the membership query or game_state DB queries.
+    const roomId = (room_id as string).trim();
+    if (!UUID_REGEX.test(roomId)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid room_id format' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // expected_match_number is now REQUIRED. Callers must supply the current match_number
+    // from their game state snapshot so start_new_match can detect double-advance:
+    //   caller A reads match_number=1, calls start_new_match(expected=1)  → advances to 2
+    //   caller B's stale call also has expected=1 → idempotency guard returns no-op
+    // Without this, a stale or duplicate HTTP retry skips the idempotency guard at
+    // step 1b and can advance the match a second time.
+    if (
+      expected_match_number === undefined ||
+      expected_match_number === null ||
+      !Number.isFinite(expected_match_number) ||
+      !Number.isInteger(expected_match_number) ||
+      expected_match_number < 1
+    ) {
+      return new Response(
+        JSON.stringify({ error: 'expected_match_number must be a positive integer' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ── Room membership gate (non-service-role callers only) ─────────────────
+    // Any authenticated user who knows a room_id could otherwise call
+    // start_new_match to advance game state. Verify the caller is an active
+    // member of the room before proceeding with service-role mutations.
+    if (authenticatedUserId && anonClientForMembershipCheck) {
+      const { data: memberRow, error: memberError } = await anonClientForMembershipCheck
+        .from('room_players')
+        .select('id')
+        .eq('room_id', roomId)
+        .eq('user_id', authenticatedUserId)
+        .limit(1)
+        .maybeSingle();
+      if (memberError) {
+        return new Response(
+          JSON.stringify({ error: 'Membership check failed' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (!memberRow) {
+        return new Response(
+          JSON.stringify({ error: 'Forbidden' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     // 1. Get current game state
     const { data: gameState, error: gameStateError } = await supabaseClient
       .from('game_state')
       .select('*')
-      .eq('room_id', room_id)
+      .eq('room_id', roomId)
       .single();
 
     if (gameStateError || !gameState) {
@@ -125,7 +225,7 @@ Deno.serve(async (req) => {
       const { data: currentScores } = await supabaseClient
         .from('room_players')
         .select('player_index, score')
-        .eq('room_id', room_id);
+        .eq('room_id', roomId);
 
       if (currentScores?.some(p => (p.score || 0) >= 101)) {
         console.log('[start_new_match] 🏆 Safety guard: player has ≥ 101 points — forcing game_over');
@@ -133,13 +233,13 @@ Deno.serve(async (req) => {
         const { error: gamePhaseUpdateError } = await supabaseClient
           .from('game_state')
           .update({ game_phase: 'game_over' })
-          .eq('room_id', room_id)
+          .eq('room_id', roomId)
           .neq('game_phase', 'playing'); // Do not clobber a legitimately running game
 
         if (gamePhaseUpdateError) {
           console.error(
             '[start_new_match] ❌ Failed to force game_phase=game_over for room',
-            room_id,
+            roomId,
             gamePhaseUpdateError
           );
         }
@@ -226,7 +326,7 @@ Deno.serve(async (req) => {
     const { data: roomPlayersData, error: playersError } = await supabaseClient
       .from('room_players')
       .select('player_index, score')
-      .eq('room_id', room_id)
+      .eq('room_id', roomId)
       .order('player_index');
 
     if (playersError) {
@@ -302,7 +402,7 @@ Deno.serve(async (req) => {
       const { data: startingPlayer } = await supabaseClient
         .from('room_players')
         .select('is_bot')
-        .eq('room_id', room_id)
+        .eq('room_id', roomId)
         .eq('player_index', winner_index)
         .single();
 
@@ -311,7 +411,7 @@ Deno.serve(async (req) => {
         const { data: roomRow } = await supabaseClient
           .from('rooms')
           .select('code')
-          .eq('id', room_id)
+          .eq('id', roomId)
           .single();
 
         if (roomRow?.code) {

@@ -9,6 +9,13 @@ import { checkRateLimit, rateLimitResponse } from '../_shared/rateLimiter.ts';
 const PLAYER_PASS_RATE_LIMIT_MAX    = 10;
 const PLAYER_PASS_RATE_LIMIT_WINDOW = 10; // seconds
 
+// Higher budget for service-role callers (bots / internal) to prevent a compromised
+// service key from performing unlimited passes while still bounding DoS impact.
+// At 300 ms per move, a legitimate bot coordinator executes at most ~3 passes/s.
+// 30 passes per 30 s (1/s sustained ceiling) is generous but finite.
+const SERVICE_ROLE_RATE_LIMIT_MAX    = 30;
+const SERVICE_ROLE_RATE_LIMIT_WINDOW = 30; // seconds
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -138,19 +145,28 @@ async function fireTrainingPassInsert(
 
 // ==================== BOT-COORDINATOR HELPER ====================
 /**
- * Fire-and-forget bot-coordinator trigger.
- * Checks if the next player at `nextTurn` is a bot, and if so, calls the
- * bot-coordinator edge function in the background via EdgeRuntime.waitUntil.
+ * Trigger bot-coordinator when the next player is a bot.
+ *
+ * Execution model:
+ *   - The async DB lookup (is next player a bot?) is awaited at all call sites,
+ *     so player-pass waits ~50 ms for the DB round-trip before returning.
+ *   - The bot-coordinator HTTP fetch itself is background via EdgeRuntime.waitUntil:
+ *     player-pass returns its Response once the DB lookup resolves; the runtime
+ *     then keeps the background fetch alive until bot-coordinator finishes its full
+ *     loop (up to LOCK_TIMEOUT_MS ≈ 30 s). The function's return value is void.
+ *   - In environments without EdgeRuntime (local dev / unit tests) the fetch runs
+ *     as a detached promise which may be GC'd; this is acceptable in non-prod contexts.
  *
  * Skips the call if the current request itself came from bot-coordinator
  * (prevents infinite loops).
  *
- * @param supabaseClient  Service-role Supabase client
- * @param roomId          Room UUID (for bot lookup)
- * @param roomCode        Room code (for bot-coordinator body)
- * @param nextTurn        Player index of the next player
- * @param req             Original request (to check x-bot-coordinator header)
- * @param label           Log label for tracing (e.g. "trick clear", "cascade", "normal pass")
+ * @param supabaseClient     Service-role Supabase client
+ * @param roomId             Room UUID (for bot lookup)
+ * @param roomCode           Room code (for bot-coordinator body)
+ * @param nextTurn           Player index of the next player
+ * @param req                Original request (to check x-bot-coordinator header)
+ * @param label              Log label for tracing
+ * @param callerIsServiceRole Whether the current request has service-role auth
  */
 async function triggerBotCoordinatorIfNeeded(
   supabaseClient: any,
@@ -159,13 +175,14 @@ async function triggerBotCoordinatorIfNeeded(
   nextTurn: number,
   req: Request,
   label: string,
+  callerIsServiceRole: boolean,
 ): Promise<void> {
   const sk = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-  const authHeader = req.headers.get('authorization') ?? '';
+  // If the incoming request was already identified as service-role AND has x-bot-coordinator
+  // header, it came from bot-coordinator — don't recurse.
   const isInternalCall =
-    req.headers.get('x-bot-coordinator') === 'true' &&
-    sk !== '' &&
-    authHeader === `Bearer ${sk}`;
+    callerIsServiceRole &&
+    req.headers.get('x-bot-coordinator') === 'true';
 
   if (isInternalCall) return; // Don't recurse into bot-coordinator
 
@@ -185,6 +202,11 @@ async function triggerBotCoordinatorIfNeeded(
 
     if (nextPlayer?.is_bot) {
       const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+      // Start the bot-coordinator fetch in the background via EdgeRuntime.waitUntil.
+      // player-pass returns immediately; the runtime keeps the task alive after the
+      // Response is sent. This prevents blocking player-pass on bot turn execution
+      // (bot-coordinator can run up to LOCK_TIMEOUT_MS ≈ 30 s) while guaranteeing
+      // the coordinator runs to completion (unlike a fully detached void promise).
       const botPromise = fetch(`${supabaseUrl}/functions/v1/bot-coordinator`, {
         method: 'POST',
         headers: {
@@ -193,15 +215,19 @@ async function triggerBotCoordinatorIfNeeded(
           'x-bot-coordinator': 'true',
         },
         body: JSON.stringify({ room_code: roomCode }),
-      }).then(res => {
+      }).then(async (res) => {
         if (res.ok) {
           console.log(`🤖 [player-pass] Bot coordinator triggered (${label}) for player ${nextTurn}`);
         } else {
-          res.text().then(body => console.error(`[player-pass] ⚠️ Bot coordinator (${label}) non-2xx: ${res.status}`, body)).catch(() => {});
+          const body = await res.text().catch(() => '');
+          console.error(`[player-pass] ⚠️ Bot coordinator (${label}) non-2xx: ${res.status}`, body);
         }
-      }).catch(err => {
-        console.error(`[player-pass] ⚠️ Bot coordinator trigger (${label}) failed:`, err);
+      }).catch((fetchErr: any) => {
+        console.error(`[player-pass] ⚠️ Bot coordinator trigger (${label}) failed:`, fetchErr);
       });
+      // EdgeRuntime.waitUntil ensures the background task completes even after
+      // the handler has returned its Response. Falls back silently in environments
+      // where EdgeRuntime is not available (local dev, unit tests).
       try { (globalThis as any).EdgeRuntime?.waitUntil(botPromise); } catch (_) {}
     }
   } catch (err) {
@@ -222,12 +248,77 @@ Deno.serve(async (req) => {
 
     const supabaseClient = createClient(supabaseUrl, serviceKey);
 
+    // ── Request size guard (DoS mitigation) ─────────────────────────────────
+    // When Content-Length is present and valid, reject early (before body read).
+    // When absent (e.g., chunked transfer encoding), allow the request through
+    // but enforce a hard byte cap during streaming so an oversized body is
+    // rejected while reading rather than after full buffering.
+    // Legitimate player-pass payloads (room_code + player_id + optional _bot_auth)
+    // are tiny; 4 KB is a generous cap.
+    const PP_MAX_BODY_BYTES = 4_096;
+    const clHeader = req.headers.get('content-length');
+    if (clHeader !== null) {
+      const cl = Number(clHeader);
+      if (!Number.isFinite(cl) || cl < 0 || cl > PP_MAX_BODY_BYTES) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Request body too large' }),
+          { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // ── Early body peek for bot-coordinator authentication ─────────────────────
+    // Body is streamed with a hard byte cap so oversized bodies are rejected
+    // during reading (not after buffering). JSON parse errors are caught below.
+    let bodyJson: Record<string, any> | null = null;
+    let rawBodyText = '';
+    if (req.body) {
+      const reader = req.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let totalBytes = 0;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (!value) continue;
+          totalBytes += value.byteLength;
+          if (totalBytes > PP_MAX_BODY_BYTES) {
+            await reader.cancel().catch(() => undefined);
+            return new Response(
+              JSON.stringify({ success: false, error: 'Request body too large' }),
+              { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          chunks.push(value);
+        }
+      } catch { /* fall through — rawBodyText stays '' */ } finally { reader.releaseLock(); }
+      if (chunks.length > 0) {
+        const bodyBytes = new Uint8Array(totalBytes);
+        let offset = 0;
+        for (const chunk of chunks) { bodyBytes.set(chunk, offset); offset += chunk.byteLength; }
+        rawBodyText = new TextDecoder().decode(bodyBytes);
+      }
+    }
+    try { bodyJson = rawBodyText ? JSON.parse(rawBodyText) : null; } catch { /* handled below */ }
+
     // ── Authorization check (BEFORE body parse, matching bot-coordinator pattern) ──
     // Service-role callers (bot-coordinator) may act for any player_id.
     // Non-service-role callers (clients) must present a valid user JWT; the resolved
     // user.id is compared against player_id after the body is parsed below.
-    const authHeader = req.headers.get('authorization') ?? '';
-    const isServiceRole = serviceKey !== '' && authHeader === `Bearer ${serviceKey}`;
+    //
+    // Three equivalent auth paths (header OR body token):
+    //   1. SUPABASE_SERVICE_ROLE_KEY bearer match
+    //   2. INTERNAL_BOT_AUTH_KEY custom header
+    //   3. _bot_auth field in the request body (guaranteed to pass through unchanged)
+    const authHeader  = req.headers.get('authorization') ?? '';
+    const botAuthHdr  = req.headers.get('x-bot-auth') ?? '';
+    const internalKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
+    const hasInternalKey = internalKey !== '';
+    const botBodyAuth = bodyJson?._bot_auth ?? '';
+    const isServiceRole =
+      (serviceKey !== '' && authHeader === `Bearer ${serviceKey}`) ||
+      (hasInternalKey && botAuthHdr === internalKey) ||
+      (hasInternalKey && botBodyAuth === internalKey);
     let callerJwtUserId: string | null = null;
 
     if (!isServiceRole) {
@@ -247,13 +338,12 @@ Deno.serve(async (req) => {
     }
     // ────────────────────────────────────────────────────────────────────────
 
-    // Parse body AFTER auth so unauthenticated callers with a bad JSON body get
-    // a 401/403 rather than leaking a 500 before auth even runs.
+    // Parse body AFTER auth — re-use the pre-parsed bodyJson from the early peek.
     let room_code: string, player_id: string;
     try {
-      const body = await req.json();
-      room_code = body.room_code;
-      player_id = body.player_id;
+      if (!bodyJson) throw new Error('no body');
+      room_code = bodyJson.room_code;
+      player_id = bodyJson.player_id;
     } catch (_e) {
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid JSON body' }),
@@ -280,16 +370,22 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ── Rate limiting (client callers only; service-role / bot-coordinator bypass) ──
-    // Prevents pass spam (e.g. scripted bot abuse of the pass endpoint).
+    // ── Rate limiting (applies to ALL callers; service-role gets a higher budget) ──
+    // Prevents pass spam from client-side AND a compromised service-role key.
     // Uses the shared rate_limit_tracking table — Task #556.
-    if (!isServiceRole) {
+    // For service-role calls: player_id is room_players.id (not user_id), so each
+    // bot player slot is tracked independently — a rogue coordinator cannot saturate
+    // the limit across all bots simultaneously using a single bucket.
+    {
+      const [rlMax, rlWindow] = isServiceRole
+        ? [SERVICE_ROLE_RATE_LIMIT_MAX, SERVICE_ROLE_RATE_LIMIT_WINDOW]
+        : [PLAYER_PASS_RATE_LIMIT_MAX, PLAYER_PASS_RATE_LIMIT_WINDOW];
       const rl = await checkRateLimit(
         supabaseClient,
         player_id,
         'player_pass',
-        PLAYER_PASS_RATE_LIMIT_MAX,
-        PLAYER_PASS_RATE_LIMIT_WINDOW,
+        rlMax,
+        rlWindow,
       );
       if (!rl.allowed) {
         return rateLimitResponse(rl.retryAfterMs, corsHeaders);
@@ -633,7 +729,7 @@ Deno.serve(async (req) => {
       fireTrainingPassInsert(supabaseClient, room, room_code, gameState, player);
 
       // Trigger bot-coordinator if next player is a bot (Task #551)
-      void triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, finalNextTurn, req, 'trick clear');
+      await triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, finalNextTurn, req, 'trick clear', isServiceRole);
 
       return new Response(
         JSON.stringify({
@@ -730,7 +826,7 @@ Deno.serve(async (req) => {
       fireTrainingPassInsert(supabaseClient, room, room_code, gameState, player);
 
       // Trigger bot-coordinator if the exempt player is a bot
-      void triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, cascadeNextTurn, req, 'cascade');
+      await triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, cascadeNextTurn, req, 'cascade', isServiceRole);
 
       return new Response(
         JSON.stringify({
@@ -772,7 +868,7 @@ Deno.serve(async (req) => {
     fireTrainingPassInsert(supabaseClient, room, room_code, gameState, player);
 
     // Trigger bot-coordinator if next player is a bot (Task #551)
-    void triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, nextTurn, req, 'normal pass');
+    await triggerBotCoordinatorIfNeeded(supabaseClient, room.id, room_code, nextTurn, req, 'normal pass', isServiceRole);
 
     return new Response(
       JSON.stringify({
