@@ -121,6 +121,21 @@ Deno.serve(async (req) => {
       .eq('status', 'waiting')
       .lt('joined_at', new Date(Date.now() - 5 * 60 * 1000).toISOString());
 
+    // 3b. Recover stale 'processing' rows for this user.
+    // A crashed/timed-out find-match invocation may leave the user's row stuck
+    // in 'processing', which causes the ignoreDuplicates INSERT in Step 4 to
+    // silently skip the row and the Step B UPDATE (constrained to status='waiting')
+    // to also skip it. This blocks the user from re-joining matchmaking until the
+    // row is cleaned up. We revert it back to 'waiting' if it has been in
+    // 'processing' for more than 30 seconds (well past any normal match-assembly
+    // window), so the subsequent upsert can refresh the row's data as usual.
+    await supabaseClient
+      .from('waiting_room')
+      .update({ status: 'waiting' })
+      .eq('user_id', userId)
+      .eq('status', 'processing')
+      .lt('joined_at', new Date(Date.now() - 30 * 1000).toISOString());
+
     // 4. Insert or update user in waiting room.
     // Two-step upsert that protects rows already in 'processing' state:
     //   Step A — INSERT the new row; if a row already exists, do nothing (ignoreDuplicates)
