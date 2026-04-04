@@ -1216,7 +1216,9 @@ export class GameStateManager {
 
         // Notify user that stats weren't saved (dismissible, non-blocking)
         // Use instance-level flag so concurrent calls from race conditions don't spam alerts.
-        if (!this._statsAlertShown) {
+        // Gate on gameOver so a delayed failure from a previous game (which started before
+        // initializeGame reset _statsAlertShown) cannot arm the flag for a new game.
+        if (this.state?.gameOver && !this._statsAlertShown) {
           this._statsAlertShown = true;
           setTimeout(() => {
             // Check if game is still active (user hasn't navigated away)
