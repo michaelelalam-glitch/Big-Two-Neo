@@ -550,11 +550,12 @@ function isHighestRemainingFiveCardCombo(
         }
       }
 
-      // Must have strictly the highest triple rank — pair rank is irrelevant.
-      // Use strict rank-value comparison: the played triple rank must be GREATER
-      // than the highest remaining triple rank (not equal) so that when another
-      // Full House of the same triple rank can still be formed from remaining
-      // cards the current play is not prematurely flagged as unbeatable.
+      // Must have the highest triple rank among Full Houses that can still be formed;
+      // pair rank is irrelevant because canBeatPlay compares Full Houses by triple rank only.
+      // `remaining` excludes the current 5-card play, so in a single-deck game an equal
+      // triple rank cannot also appear here with count >= 3 for the same Full House rank.
+      // Therefore a strict `>` correctly captures the "no remaining Full House can beat it"
+      // condition.
       return (
         playedTripleRank !== null && RANK_VALUE[playedTripleRank] > RANK_VALUE[highestTripleRank]
       );

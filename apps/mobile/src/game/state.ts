@@ -1198,9 +1198,10 @@ export class GameStateManager {
 
       // Save game stats to database (async, don't await to avoid blocking UI)
       statsLogger.info('🔄 [Stats] Starting saveGameStatsToDatabase...');
-      // Reset instance-level alert flag for this game-over event so we get exactly one alert
-      // even if handleMatchEnd is called more than once in a race condition.
-      this._statsAlertShown = false;
+      // Do NOT reset _statsAlertShown here. The flag is initialized to false when the
+      // GameStateManager instance is created (new game). Re-setting it inside
+      // handleMatchEnd would re-arm the flag on every invocation, allowing a delayed
+      // second call (race condition) to show a duplicate "Stats Not Saved" alert.
       this.saveGameStatsToDatabase().catch(err => {
         // Only log error message/code to avoid exposing database internals or sensitive data
         statsLogger.error(

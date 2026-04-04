@@ -537,9 +537,12 @@ export function findRecommendedPlay(
       }
     }
 
-    // Try to find flushes — iterate all windows of 5 consecutive suited cards
-    // (sorted hand guarantees ascending order within each suit) so we pick the
-    // minimum-strength beating flush rather than only trying the lowest 5 cards.
+    // Try to find flushes — minimum-kicker algorithm.
+    // Big Two flush comparison uses only the highest card, so we fix the kicker
+    // (the highest card of our flush) at progressively higher positions and pair
+    // it with the 4 lowest other cards of the same suit. This correctly handles
+    // non-consecutive combinations that the sliding-window approach would miss
+    // (e.g., [3,5,7,8,Q] where 3 and Q are not adjacent in the sorted array).
     const bySuit = sorted.reduce(
       (acc, card) => {
         if (!acc[card.suit]) acc[card.suit] = [];
@@ -551,8 +554,11 @@ export function findRecommendedPlay(
 
     for (const suitCards of Object.values(bySuit)) {
       if (suitCards.length >= 5) {
-        for (let wi = 0; wi <= suitCards.length - 5; wi++) {
-          const flush = suitCards.slice(wi, wi + 5);
+        // Iterate kicker positions from index 4 upward (lowest possible kicker first
+        // so we return the minimum-strength beating flush for card conservation).
+        for (let ki = 4; ki < suitCards.length; ki++) {
+          // Pair kicker with the 4 lowest suit cards (indices 0-3, all below ki).
+          const flush = [...suitCards.slice(0, 4), suitCards[ki]];
           if (canBeatPlay(flush, lastPlay)) {
             return flush.map(c => c.id);
           }

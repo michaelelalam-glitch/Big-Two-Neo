@@ -606,6 +606,21 @@ export class BotAI {
           validPlays.push(pair);
         }
       }
+      // Sort pairs by ascending strength so validPlays[last] == strongest.
+      // findAllPairs enumerates via object key order (not always rank order),
+      // so an explicit sort is required.
+      if (validPlays.length > 1) {
+        const byId = new Map(hand.map(c => [c.id, c] as const));
+        validPlays.sort((a, b) => {
+          const cardsA = a.map(id => byId.get(id)!);
+          const cardsB = b.map(id => byId.get(id)!);
+          const aBeatsB = canBeatPlay(cardsA, { position: 0, cards: cardsB, combo_type: 'Pair' });
+          const bBeatsA = canBeatPlay(cardsB, { position: 0, cards: cardsA, combo_type: 'Pair' });
+          if (aBeatsB && !bBeatsA) return 1;
+          if (!aBeatsB && bBeatsA) return -1;
+          return 0;
+        });
+      }
     } else if (numCards === 3) {
       // Triples
       const triples = this.findAllTriples(hand);
@@ -614,6 +629,19 @@ export class BotAI {
         if (canBeatPlay(tripleCards, lastPlay)) {
           validPlays.push(triple);
         }
+      }
+      // Sort triples by ascending strength so validPlays[last] == strongest.
+      if (validPlays.length > 1) {
+        const byId = new Map(hand.map(c => [c.id, c] as const));
+        validPlays.sort((a, b) => {
+          const cardsA = a.map(id => byId.get(id)!);
+          const cardsB = b.map(id => byId.get(id)!);
+          const aBeatsB = canBeatPlay(cardsA, { position: 0, cards: cardsB, combo_type: 'Triple' });
+          const bBeatsA = canBeatPlay(cardsB, { position: 0, cards: cardsA, combo_type: 'Triple' });
+          if (aBeatsB && !bBeatsA) return 1;
+          if (!aBeatsB && bBeatsA) return -1;
+          return 0;
+        });
       }
     } else if (numCards === 5) {
       // 5-card combos — search all C(n,5) combinations.
