@@ -362,7 +362,11 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
 
         {/* Leave button (always shown) */}
         <TouchableOpacity
-          style={[styles.button, styles.leaveButton, isLeaving && styles.buttonLoading]}
+          style={[
+            styles.button,
+            styles.leaveButton,
+            (isRejoining || isLeaving) && styles.buttonLoading,
+          ]}
           onPress={() => {
             setIsLeaving(true);
             onLeave(gameInfo, () => setIsLeaving(false));
