@@ -611,11 +611,20 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 networkLogger.info('[useRealtime] ✅ Channel subscribed successfully');
 
                 // Track presence
-                await channel.track({
-                  user_id: userId,
-                  username,
-                  online_at: new Date().toISOString(),
-                });
+                try {
+                  await channel.track({
+                    user_id: userId,
+                    username,
+                    online_at: new Date().toISOString(),
+                  });
+                } catch (trackErr: unknown) {
+                  networkLogger.warn(
+                    '[useRealtime] ⚠️ Presence track failed (non-fatal):',
+                    trackErr
+                  );
+                  // Resolve anyway — the channel is subscribed; presence failure is
+                  // non-fatal and will be retried when the component re-renders.
+                }
 
                 networkLogger.info(
                   '[useRealtime] ✅ Presence tracked, resolving joinChannel promise'

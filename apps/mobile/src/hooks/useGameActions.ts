@@ -572,7 +572,9 @@ export function useGameActions({
 
   const handleCardHandPass = useCallback(() => {
     if (onPassRef.current) {
-      onPassRef.current();
+      void onPassRef.current().catch((err: unknown) => {
+        gameLogger.error('❌ [GameActions] Pass error:', err);
+      });
     }
   }, []);
 
