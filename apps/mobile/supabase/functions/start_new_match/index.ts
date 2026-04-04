@@ -6,6 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 interface Card {
   id: string;
   suit: 'D' | 'C' | 'H' | 'S';
@@ -87,13 +89,32 @@ Deno.serve(async (req) => {
 
     const supabaseClient = createClient(supabaseUrl, serviceKey);
 
-    const { room_id, expected_match_number: rawExpectedMatchNumber } = await req.json();
+    let room_id: unknown;
+    let rawExpectedMatchNumber: unknown;
+    try {
+      ({ room_id, expected_match_number: rawExpectedMatchNumber } = await req.json());
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     // Coerce to a number so string callers (e.g. HTTP tools) don't break the strict === comparison.
     const expected_match_number = rawExpectedMatchNumber != null ? Number(rawExpectedMatchNumber) : undefined;
 
-    if (!room_id) {
+    if (!room_id || typeof room_id !== 'string') {
       return new Response(
         JSON.stringify({ error: 'room_id is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Trim and validate UUID format to prevent malformed inputs from reaching
+    // the membership query or game_state DB queries.
+    const roomId = (room_id as string).trim();
+    if (!UUID_REGEX.test(roomId)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid room_id format' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -125,7 +146,7 @@ Deno.serve(async (req) => {
       const { data: memberRow, error: memberError } = await anonClientForMembershipCheck
         .from('room_players')
         .select('id')
-        .eq('room_id', room_id)
+        .eq('room_id', roomId)
         .eq('user_id', authenticatedUserId)
         .limit(1)
         .maybeSingle();
@@ -148,7 +169,7 @@ Deno.serve(async (req) => {
     const { data: gameState, error: gameStateError } = await supabaseClient
       .from('game_state')
       .select('*')
-      .eq('room_id', room_id)
+      .eq('room_id', roomId)
       .single();
 
     if (gameStateError || !gameState) {
@@ -204,7 +225,7 @@ Deno.serve(async (req) => {
       const { data: currentScores } = await supabaseClient
         .from('room_players')
         .select('player_index, score')
-        .eq('room_id', room_id);
+        .eq('room_id', roomId);
 
       if (currentScores?.some(p => (p.score || 0) >= 101)) {
         console.log('[start_new_match] 🏆 Safety guard: player has ≥ 101 points — forcing game_over');
@@ -212,13 +233,13 @@ Deno.serve(async (req) => {
         const { error: gamePhaseUpdateError } = await supabaseClient
           .from('game_state')
           .update({ game_phase: 'game_over' })
-          .eq('room_id', room_id)
+          .eq('room_id', roomId)
           .neq('game_phase', 'playing'); // Do not clobber a legitimately running game
 
         if (gamePhaseUpdateError) {
           console.error(
             '[start_new_match] ❌ Failed to force game_phase=game_over for room',
-            room_id,
+            roomId,
             gamePhaseUpdateError
           );
         }
@@ -305,7 +326,7 @@ Deno.serve(async (req) => {
     const { data: roomPlayersData, error: playersError } = await supabaseClient
       .from('room_players')
       .select('player_index, score')
-      .eq('room_id', room_id)
+      .eq('room_id', roomId)
       .order('player_index');
 
     if (playersError) {
@@ -381,7 +402,7 @@ Deno.serve(async (req) => {
       const { data: startingPlayer } = await supabaseClient
         .from('room_players')
         .select('is_bot')
-        .eq('room_id', room_id)
+        .eq('room_id', roomId)
         .eq('player_index', winner_index)
         .single();
 
@@ -390,7 +411,7 @@ Deno.serve(async (req) => {
         const { data: roomRow } = await supabaseClient
           .from('rooms')
           .select('code')
-          .eq('id', room_id)
+          .eq('id', roomId)
           .single();
 
         if (roomRow?.code) {

@@ -365,7 +365,7 @@ Deno.serve(async (req) => {
 
       // Update waiting room status for matched players
       const matchedUserIds = waitingPlayers.slice(0, 4).map(p => p.user_id);
-      await supabaseClient
+      const { error: matchedUpdateError } = await supabaseClient
         .from('waiting_room')
         .update({
           status: 'matched',
@@ -373,6 +373,22 @@ Deno.serve(async (req) => {
           matched_at: new Date().toISOString(),
         })
         .in('user_id', matchedUserIds);
+
+      if (matchedUpdateError) {
+        console.error('❌ [find-match] Failed to mark players as matched:', matchedUpdateError);
+        // Rollback: rows are still in 'processing'; delete room/players and release lock
+        await supabaseClient.from('rooms').delete().eq('id', roomId);
+        await supabaseClient.from('room_players').delete().eq('room_id', roomId);
+        await supabaseClient
+          .from('waiting_room')
+          .update({ status: 'waiting', processing_started_at: null })
+          .in('user_id', lockedIds)
+          .eq('status', 'processing');
+        return new Response(
+          JSON.stringify({ success: false, error: 'Failed to update match status' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
       // Start game with bots (0 bots since we have 4 players)
       const { data: startResult, error: startError } = await supabaseClient.rpc('start_game_with_bots', {
@@ -384,14 +400,15 @@ Deno.serve(async (req) => {
       if (startError || !startResult?.success) {
         console.error('❌ [find-match] Failed to auto-start game:', startError || startResult);
         
-        // Rollback: Delete room, room_players, and release optimistic lock
+        // Rollback: Delete room, room_players, and release optimistic lock.
+        // matched-status update succeeded above, so lockedIds rows are in 'matched' state;
+        // no status predicate needed — lockedIds already scopes to only rows this invocation locked.
         await supabaseClient.from('rooms').delete().eq('id', roomId);
         await supabaseClient.from('room_players').delete().eq('room_id', roomId);
         await supabaseClient
           .from('waiting_room')
           .update({ status: 'waiting', matched_room_id: null, matched_at: null, processing_started_at: null })
-          .in('user_id', lockedIds)
-          .eq('status', 'matched');
+          .in('user_id', lockedIds);
         
         return new Response(
           JSON.stringify({ success: false, error: 'Failed to start game' }),
