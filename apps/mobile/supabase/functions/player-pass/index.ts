@@ -249,16 +249,17 @@ Deno.serve(async (req) => {
     const supabaseClient = createClient(supabaseUrl, serviceKey);
 
     // ── Request size guard (DoS mitigation) ─────────────────────────────────
-    // ── Request size guard (DoS mitigation) ─────────────────────────────────
     // When Content-Length is present and valid, reject early (before body read).
     // When absent (e.g., chunked transfer encoding), allow the request through
-    // but apply a hard cap on the actual bytes read below.
+    // but enforce a hard byte cap during streaming so an oversized body is
+    // rejected while reading rather than after full buffering.
     // Legitimate player-pass payloads (room_code + player_id + optional _bot_auth)
     // are tiny; 4 KB is a generous cap.
+    const PP_MAX_BODY_BYTES = 4_096;
     const clHeader = req.headers.get('content-length');
     if (clHeader !== null) {
       const cl = Number(clHeader);
-      if (!Number.isFinite(cl) || cl < 0 || cl > 4_096) {
+      if (!Number.isFinite(cl) || cl < 0 || cl > PP_MAX_BODY_BYTES) {
         return new Response(
           JSON.stringify({ success: false, error: 'Request body too large' }),
           { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -267,16 +268,36 @@ Deno.serve(async (req) => {
     }
 
     // ── Early body peek for bot-coordinator authentication ─────────────────────
-    // Body is read after the Content-Length guard above.
-    // JSON parse errors are caught; all further body access uses pre-parsed bodyJson.
+    // Body is streamed with a hard byte cap so oversized bodies are rejected
+    // during reading (not after buffering). JSON parse errors are caught below.
     let bodyJson: Record<string, any> | null = null;
-    const rawBodyText = await req.text().catch(() => '');
-    // Hard cap on actual payload bytes (covers chunked requests without Content-Length).
-    if (rawBodyText.length > 4_096) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Request body too large' }),
-        { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    let rawBodyText = '';
+    if (req.body) {
+      const reader = req.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let totalBytes = 0;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (!value) continue;
+          totalBytes += value.byteLength;
+          if (totalBytes > PP_MAX_BODY_BYTES) {
+            await reader.cancel().catch(() => undefined);
+            return new Response(
+              JSON.stringify({ success: false, error: 'Request body too large' }),
+              { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          chunks.push(value);
+        }
+      } catch { /* fall through — rawBodyText stays '' */ } finally { reader.releaseLock(); }
+      if (chunks.length > 0) {
+        const bodyBytes = new Uint8Array(totalBytes);
+        let offset = 0;
+        for (const chunk of chunks) { bodyBytes.set(chunk, offset); offset += chunk.byteLength; }
+        rawBodyText = new TextDecoder().decode(bodyBytes);
+      }
     }
     try { bodyJson = rawBodyText ? JSON.parse(rawBodyText) : null; } catch { /* handled below */ }
 
