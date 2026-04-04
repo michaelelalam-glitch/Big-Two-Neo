@@ -177,11 +177,11 @@ Deno.serve(async (req) => {
       // call fetchPlayers() and get fresh room_players data. Without this, clients
       // rely solely on Realtime postgres_changes — which can be delayed or lost on
       // mobile networks — leaving the grey ring stuck on the reconnected player.
+      // 6.4: Track broadcast delivery so failures can be included in the HTTP
+      // response. Declared in outer scope so it is visible at the final return.
+      // Only set to true when player transitions disconnected → connected.
+      let reconnectBroadcastFailed = false;
       if (player.connection_status === 'disconnected') {
-        // 6.4: Track broadcast delivery so failures are reflected in the HTTP
-        // response. Callers can inspect `reconnect_broadcast_failed` and handle
-        // (e.g. trigger a client-side refresh) if delivery did not succeed.
-        let reconnectBroadcastFailed = false;
         // Promise registered with EdgeRuntime.waitUntil (see try/catch below)
         // so the edge runtime does not terminate the subscribe→send flow before
         // it completes — even after the HTTP response has already been returned.
@@ -262,14 +262,9 @@ Deno.serve(async (req) => {
           // Dev / test: await inline so we can surface broadcast failures.
           await reconnectBroadcast;
           if (reconnectBroadcastFailed) {
-            // Surface to caller so it can trigger a client-side player-list refresh
-            // as a fallback when Realtime broadcast delivery failed.
+            // Log the failure; do NOT return early — fall through to complete the
+            // bot watchdog / sweep logic. The flag is surfaced in the final response.
             console.warn(`[update-heartbeat] reconnect_broadcast_failed=true for room ${room_id} — caller should refresh player list`);
-            // Return early with the failure flag; heartbeat itself succeeded.
-            return new Response(
-              JSON.stringify({ success: true, reconnect_broadcast_failed: true }),
-              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
           }
         }
       }
@@ -489,7 +484,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify(reconnectBroadcastFailed ? { success: true, reconnect_broadcast_failed: true } : { success: true }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error: any) {

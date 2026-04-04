@@ -65,7 +65,9 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   // 7.2: Guard against ghost channels from rapid joinChannel calls (e.g. quick
   // reconnects).  If a join is already in-flight, concurrent calls return the
   // same in-progress promise instead of spawning a second channel.
-  const joiningChannelPromiseRef = useRef<Promise<void> | null>(null);
+  // 7.2: Keyed by roomId so a join in-flight for roomA never eclipses a new
+  // join request for roomB (rapid room-switch / reconnect safety).
+  const joiningChannelPromiseRef = useRef<{ roomId: string; promise: Promise<void> } | null>(null);
   // Mutable ref to the latest gameState — updated below via useEffect so that
   // joinChannel's broadcast handlers always read fresh data without needing
   // gameState itself in joinChannel's dependency array (which would change
@@ -230,10 +232,11 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
    */
   const joinChannel = useCallback(
     async (roomId: string): Promise<void> => {
-      // 7.2: Deduplicate concurrent joinChannel calls — return the in-flight
-      // promise so rapid reconnects don't create multiple Realtime channels.
-      if (joiningChannelPromiseRef.current) {
-        return joiningChannelPromiseRef.current;
+      // 7.2: Deduplicate concurrent joinChannel calls — only reuse the in-flight
+      // promise when it's for the SAME roomId. A different roomId must start a
+      // fresh join so we don't accidentally join the wrong channel.
+      if (joiningChannelPromiseRef.current?.roomId === roomId) {
+        return joiningChannelPromiseRef.current.promise;
       }
 
       const joinPromise = (async () => {
@@ -623,7 +626,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         }
       })();
 
-      joiningChannelPromiseRef.current = joinPromise;
+      joiningChannelPromiseRef.current = { roomId, promise: joinPromise };
       return joinPromise;
     },
     [userId, username, onDisconnect, fetchPlayers, fetchGameState]
