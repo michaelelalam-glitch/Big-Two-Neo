@@ -216,7 +216,8 @@ export const GameEndProvider: React.FC<GameEndProviderProps> = ({ children }) =>
 
       gameLogger.info('✅ [GameEndContext] State updated, modal opening with valid data');
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // All captured values are either stable state setters (guaranteed by React)
+    // or module-level imports (outer scope constants). No reactive deps needed.
     []
   );
 
