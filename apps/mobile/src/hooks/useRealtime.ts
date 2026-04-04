@@ -62,6 +62,10 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 5;
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // 7.2: Guard against ghost channels from rapid joinChannel calls (e.g. quick
+  // reconnects).  If a join is already in-flight, concurrent calls return the
+  // same in-progress promise instead of spawning a second channel.
+  const joiningChannelPromiseRef = useRef<Promise<void> | null>(null);
   // Mutable ref to the latest gameState — updated below via useEffect so that
   // joinChannel's broadcast handlers always read fresh data without needing
   // gameState itself in joinChannel's dependency array (which would change
@@ -226,375 +230,401 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
    */
   const joinChannel = useCallback(
     async (roomId: string): Promise<void> => {
-      // Remove existing channel. Clear the reactive state immediately so
-      // consumers (e.g. useGameChat) stop using the old channel the moment
-      // joinChannel is called, not only after the new subscription reaches
-      // SUBSCRIBED (Copilot PR-150 r2950195919).
-      if (channelRef.current) {
-        setRealtimeChannel(null);
-        await channelRef.current.unsubscribe();
-        await supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
+      // 7.2: Deduplicate concurrent joinChannel calls — return the in-flight
+      // promise so rapid reconnects don't create multiple Realtime channels.
+      if (joiningChannelPromiseRef.current) {
+        return joiningChannelPromiseRef.current;
       }
 
-      // Create new channel with presence
-      const channel = supabase.channel(`room:${roomId}`, {
-        config: {
-          presence: {
-            key: userId,
-          },
-        },
-      });
+      const joinPromise = (async () => {
+        try {
+          // Remove existing channel. Clear the reactive state immediately so
+          // consumers (e.g. useGameChat) stop using the old channel the moment
+          // joinChannel is called, not only after the new subscription reaches
+          // SUBSCRIBED (Copilot PR-150 r2950195919).
+          if (channelRef.current) {
+            setRealtimeChannel(null);
+            await channelRef.current.unsubscribe();
+            await supabase.removeChannel(channelRef.current);
+            channelRef.current = null;
+          }
 
-      // Subscribe to presence events — 'leave' triggers instant disconnect detection
-      channel
-        .on('presence', { event: 'sync' }, () => {})
-        .on('presence', { event: 'join' }, ({ key: _key, newPresences: _newPresences }) => {})
-        .on(
-          'presence',
-          { event: 'leave' },
-          ({ key: leftUserId, leftPresences: _leftPresences }) => {
-            // When a player's presence leaves (WebSocket drops), immediately mark their
-            // last_seen_at as stale so the client-side staleness detector in MultiplayerGame
-            // picks it up on the very next polling cycle (~1s) instead of waiting 30s.
-            if (leftUserId && leftUserId !== userId) {
-              networkLogger.warn(
-                `[useRealtime] 🔌 Presence LEAVE detected for user ${leftUserId.substring(0, 8)} — marking stale for instant disconnect`
-              );
-              // Find the room_players row for this user via the ref-based mapping
-              // and backdate last_seen_at to 60s ago so staleness detector fires immediately.
-              const staleTimestamp = new Date(Date.now() - 60_000).toISOString();
-              for (const [playerId, mappedUserId] of Object.entries(playerIdToUserIdRef.current)) {
-                if (mappedUserId === leftUserId) {
-                  playerLastSeenAtRef.current[playerId] = staleTimestamp;
-                  networkLogger.info(
-                    `[useRealtime] ⚡ Backdated last_seen_at for playerId=${playerId.substring(0, 8)} (instant disconnect detection)`
+          // Create new channel with presence
+          const channel = supabase.channel(`room:${roomId}`, {
+            config: {
+              presence: {
+                key: userId,
+              },
+            },
+          });
+
+          // Subscribe to presence events — 'leave' triggers instant disconnect detection
+          channel
+            .on('presence', { event: 'sync' }, () => {})
+            .on('presence', { event: 'join' }, ({ key: _key, newPresences: _newPresences }) => {})
+            .on(
+              'presence',
+              { event: 'leave' },
+              ({ key: leftUserId, leftPresences: _leftPresences }) => {
+                // When a player's presence leaves (WebSocket drops), immediately mark their
+                // last_seen_at as stale so the client-side staleness detector in MultiplayerGame
+                // picks it up on the very next polling cycle (~1s) instead of waiting 30s.
+                if (leftUserId && leftUserId !== userId) {
+                  networkLogger.warn(
+                    `[useRealtime] 🔌 Presence LEAVE detected for user ${leftUserId.substring(0, 8)} — marking stale for instant disconnect`
                   );
+                  // Find the room_players row for this user via the ref-based mapping
+                  // and backdate last_seen_at to 60s ago so staleness detector fires immediately.
+                  const staleTimestamp = new Date(Date.now() - 60_000).toISOString();
+                  for (const [playerId, mappedUserId] of Object.entries(
+                    playerIdToUserIdRef.current
+                  )) {
+                    if (mappedUserId === leftUserId) {
+                      playerLastSeenAtRef.current[playerId] = staleTimestamp;
+                      networkLogger.info(
+                        `[useRealtime] ⚡ Backdated last_seen_at for playerId=${playerId.substring(0, 8)} (instant disconnect detection)`
+                      );
+                    }
+                  }
+
+                  // 10.6 robustness: also schedule a server-side force-sweep so that even
+                  // if Realtime is unreliable (missed presence leaves), the server will
+                  // start the 60-second disconnect timer at the right moment.
+                  // We find the LOCAL player's room_players.id (not the leaving player's)
+                  // because update-heartbeat validates against auth.uid() of the caller.
+                  // The sweep_only flag skips updating our own heartbeat row; force_sweep
+                  // runs process_disconnected_players() immediately when validated.
+                  // This call will be rejected server-side if the player is not yet stale
+                  // (< 30s silence), but that's fine — the staleness detector + ring
+                  // expiry (forceSweep) handles the confirmed path. This is belt-and-suspenders.
+                  let localPlayerId: string | null = null;
+                  for (const [pid, uid] of Object.entries(playerIdToUserIdRef.current)) {
+                    if (uid === userId) {
+                      localPlayerId = pid;
+                      break;
+                    }
+                  }
+                  if (localPlayerId) {
+                    void supabase.functions
+                      .invoke('update-heartbeat', {
+                        body: {
+                          room_id: roomId,
+                          player_id: localPlayerId,
+                          sweep_only: true,
+                          force_sweep: true,
+                        },
+                      })
+                      .catch((err: unknown) => {
+                        networkLogger.warn(
+                          '[useRealtime] Presence-leave force-sweep failed (non-critical):',
+                          err
+                        );
+                      });
+                  }
                 }
               }
-
-              // 10.6 robustness: also schedule a server-side force-sweep so that even
-              // if Realtime is unreliable (missed presence leaves), the server will
-              // start the 60-second disconnect timer at the right moment.
-              // We find the LOCAL player's room_players.id (not the leaving player's)
-              // because update-heartbeat validates against auth.uid() of the caller.
-              // The sweep_only flag skips updating our own heartbeat row; force_sweep
-              // runs process_disconnected_players() immediately when validated.
-              // This call will be rejected server-side if the player is not yet stale
-              // (< 30s silence), but that's fine — the staleness detector + ring
-              // expiry (forceSweep) handles the confirmed path. This is belt-and-suspenders.
-              let localPlayerId: string | null = null;
-              for (const [pid, uid] of Object.entries(playerIdToUserIdRef.current)) {
-                if (uid === userId) {
-                  localPlayerId = pid;
-                  break;
-                }
-              }
-              if (localPlayerId) {
-                void supabase.functions
-                  .invoke('update-heartbeat', {
-                    body: {
-                      room_id: roomId,
-                      player_id: localPlayerId,
-                      sweep_only: true,
-                      force_sweep: true,
-                    },
-                  })
-                  .catch((err: unknown) => {
-                    networkLogger.warn(
-                      '[useRealtime] Presence-leave force-sweep failed (non-critical):',
-                      err
-                    );
-                  });
-              }
-            }
-          }
-        );
-
-      // Subscribe to broadcast events
-      channel
-        .on('broadcast', { event: 'player_joined' }, _payload => {
-          fetchPlayers(roomId);
-        })
-        .on('broadcast', { event: 'player_left' }, _payload => {
-          fetchPlayers(roomId);
-        })
-        .on('broadcast', { event: 'player_ready' }, _payload => {
-          fetchPlayers(roomId);
-        })
-        // fix/rejoin: human reclaimed seat from bot — refresh both players and
-        // game state so all clients update their UI (stop waiting for "bot" turn)
-        .on('broadcast', { event: 'player_reconnected' }, payload => {
-          networkLogger.info('🔄 [Realtime] player_reconnected broadcast received:', payload);
-          fetchPlayers(roomId);
-          fetchGameState(roomId);
-        })
-        .on('broadcast', { event: 'game_started' }, _payload => {
-          fetchGameState(roomId);
-        })
-        .on('broadcast', { event: 'cards_played' }, _payload => {
-          fetchGameState(roomId);
-        })
-        .on('broadcast', { event: 'player_passed' }, _payload => {
-          fetchGameState(roomId);
-        })
-        .on('broadcast', { event: 'game_ended' }, payload => {
-          networkLogger.info('🎉 [Realtime] game_ended broadcast received:', payload);
-          fetchGameState(roomId);
-        })
-        .on('broadcast', { event: 'game_over' }, payload => {
-          networkLogger.info('🎉 [Realtime] game_over broadcast received:', payload);
-          fetchGameState(roomId);
-          // Use onGameOverRef.current so the latest callback is always invoked
-          // without needing to re-subscribe the channel when the prop changes.
-          const broadcastData = ((payload as { data?: Record<string, unknown> })?.data ??
-            payload) as Record<string, unknown>;
-          const rawScores = (broadcastData?.final_scores as unknown[] | undefined) ?? [];
-          // Shape-validate each entry — must have the fields useMultiplayerScoreHistory expects.
-          const isValidScore = (s: unknown): s is PlayerMatchScoreDetail =>
-            typeof s === 'object' &&
-            s !== null &&
-            typeof (s as Record<string, unknown>).player_index === 'number' &&
-            typeof (s as Record<string, unknown>).matchScore === 'number' &&
-            typeof (s as Record<string, unknown>).cumulativeScore === 'number';
-          const finalScores: PlayerMatchScoreDetail[] = Array.isArray(rawScores)
-            ? rawScores.filter(isValidScore)
-            : [];
-          if (Array.isArray(rawScores) && finalScores.length !== rawScores.length) {
-            networkLogger.warn(
-              '[Realtime] game_over: some final_scores entries had unexpected shape and were filtered'
             );
-          }
-          const matchNumber =
-            (broadcastData?.match_number as number | undefined) ??
-            gameStateRef.current?.match_number ??
-            1;
-          // onMatchEnded + onGameOver calls removed — score history is handled by
-          // useMultiplayerScoreHistory and modal by useMatchEndHandler (both DB-authoritative).
-          // fetchGameState above will update multiplayerGameState which triggers both hooks.
-          gameLogger.info(
-            '[Realtime] game_over received; fetchGameState triggered for modal/score-history refresh',
-            { matchNumber }
-          );
-        })
-        .on('broadcast', { event: 'match_ended' }, payload => {
-          networkLogger.info('🏆 [Realtime] match_ended broadcast received:', payload);
-          // broadcastMessage wraps data as { event, data: {...}, timestamp }
-          // Access payload.data first, fall back to top-level for robustness
-          const broadcastData =
-            (
-              payload as {
-                data?: { match_scores?: PlayerMatchScoreDetail[]; match_number?: number };
+
+          // Subscribe to broadcast events
+          channel
+            .on('broadcast', { event: 'player_joined' }, _payload => {
+              fetchPlayers(roomId);
+            })
+            .on('broadcast', { event: 'player_left' }, _payload => {
+              fetchPlayers(roomId);
+            })
+            .on('broadcast', { event: 'player_ready' }, _payload => {
+              fetchPlayers(roomId);
+            })
+            // fix/rejoin: human reclaimed seat from bot — refresh both players and
+            // game state so all clients update their UI (stop waiting for "bot" turn)
+            .on('broadcast', { event: 'player_reconnected' }, payload => {
+              networkLogger.info('🔄 [Realtime] player_reconnected broadcast received:', payload);
+              fetchPlayers(roomId);
+              fetchGameState(roomId);
+            })
+            .on('broadcast', { event: 'game_started' }, _payload => {
+              fetchGameState(roomId);
+            })
+            .on('broadcast', { event: 'cards_played' }, _payload => {
+              fetchGameState(roomId);
+            })
+            .on('broadcast', { event: 'player_passed' }, _payload => {
+              fetchGameState(roomId);
+            })
+            .on('broadcast', { event: 'game_ended' }, payload => {
+              networkLogger.info('🎉 [Realtime] game_ended broadcast received:', payload);
+              fetchGameState(roomId);
+            })
+            .on('broadcast', { event: 'game_over' }, payload => {
+              networkLogger.info('🎉 [Realtime] game_over broadcast received:', payload);
+              fetchGameState(roomId);
+              // Use onGameOverRef.current so the latest callback is always invoked
+              // without needing to re-subscribe the channel when the prop changes.
+              const broadcastData = ((payload as { data?: Record<string, unknown> })?.data ??
+                payload) as Record<string, unknown>;
+              const rawScores = (broadcastData?.final_scores as unknown[] | undefined) ?? [];
+              // Shape-validate each entry — must have the fields useMultiplayerScoreHistory expects.
+              const isValidScore = (s: unknown): s is PlayerMatchScoreDetail =>
+                typeof s === 'object' &&
+                s !== null &&
+                typeof (s as Record<string, unknown>).player_index === 'number' &&
+                typeof (s as Record<string, unknown>).matchScore === 'number' &&
+                typeof (s as Record<string, unknown>).cumulativeScore === 'number';
+              const finalScores: PlayerMatchScoreDetail[] = Array.isArray(rawScores)
+                ? rawScores.filter(isValidScore)
+                : [];
+              if (Array.isArray(rawScores) && finalScores.length !== rawScores.length) {
+                networkLogger.warn(
+                  '[Realtime] game_over: some final_scores entries had unexpected shape and were filtered'
+                );
               }
-            )?.data || payload;
-          const matchNumber =
-            (broadcastData as { match_number?: number })?.match_number ||
-            gameStateRef.current?.match_number ||
-            1;
-          gameLogger.info(
-            '[Realtime] match_ended received; fetchGameState triggered for score-history refresh',
-            { matchNumber }
-          );
-          // onMatchEnded call removed — useMultiplayerScoreHistory reads from DB scores_history.
-          fetchGameState(roomId);
-        })
-        .on('broadcast', { event: 'auto_pass_timer_started' }, payload => {
-          if (isValidTimerStatePayload(payload)) {
-            setGameState(prevState => {
-              if (!prevState) return prevState;
-              return {
-                ...prevState,
-                auto_pass_timer: payload.timer_state,
-              };
-            });
-          } else {
-            networkLogger.warn('[Timer] Invalid timer payload');
-          }
-          fetchGameState(roomId);
-        })
-        .on('broadcast', { event: 'auto_pass_timer_cancelled' }, _payload => {
-          setGameState(prevState => {
-            if (!prevState) return prevState;
-            return { ...prevState, auto_pass_timer: null };
-          });
-          fetchGameState(roomId);
-        })
-        .on('broadcast', { event: 'auto_pass_executed' }, _payload => {
-          setGameState(prevState => {
-            if (!prevState) return prevState;
-            return { ...prevState, auto_pass_timer: null };
-          });
-          fetchGameState(roomId);
-        });
-
-      // Subscribe to database changes
-      channel
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'rooms',
-            filter: `id=eq.${roomId}`,
-          },
-          payload => {
-            setRoom(payload.new as Room);
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'game_state',
-            filter: `room_id=eq.${roomId}`,
-          },
-          payload => {
-            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-              setGameState(payload.new as GameState);
-            }
-          }
-        )
-        // ✅ FIX: Listen to room_players changes to catch is_host updates.
-        // PERF: For UPDATE events, merge the changed row directly instead of re-fetching
-        // all players from the DB. Heartbeats fire every 5 s per player (×4 players ≈ 1/s)
-        // and previously triggered a full SELECT + setState + 2-3 cascading re-renders.
-        // Returning the SAME prev reference when only heartbeat fields changed prevents
-        // those unnecessary re-renders entirely.
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'room_players',
-            filter: `room_id=eq.${roomId}`,
-          },
-          async payload => {
-            if (payload.eventType === 'UPDATE') {
-              const updated = payload.new as Player;
-              // Always track last_seen_at in a mutable ref (no re-render).
-              // Used by the client-side staleness detector to detect disconnects
-              // even when the server's process_disconnected_players hasn't fired yet.
-              if (updated.id && updated.last_seen_at) {
-                playerLastSeenAtRef.current[updated.id] = updated.last_seen_at;
+              const matchNumber =
+                (broadcastData?.match_number as number | undefined) ??
+                gameStateRef.current?.match_number ??
+                1;
+              // onMatchEnded + onGameOver calls removed — score history is handled by
+              // useMultiplayerScoreHistory and modal by useMatchEndHandler (both DB-authoritative).
+              // fetchGameState above will update multiplayerGameState which triggers both hooks.
+              gameLogger.info(
+                '[Realtime] game_over received; fetchGameState triggered for modal/score-history refresh',
+                { matchNumber }
+              );
+            })
+            .on('broadcast', { event: 'match_ended' }, payload => {
+              networkLogger.info('🏆 [Realtime] match_ended broadcast received:', payload);
+              // broadcastMessage wraps data as { event, data: {...}, timestamp }
+              // Access payload.data first, fall back to top-level for robustness
+              const broadcastData =
+                (
+                  payload as {
+                    data?: { match_scores?: PlayerMatchScoreDetail[]; match_number?: number };
+                  }
+                )?.data || payload;
+              const matchNumber =
+                (broadcastData as { match_number?: number })?.match_number ||
+                gameStateRef.current?.match_number ||
+                1;
+              gameLogger.info(
+                '[Realtime] match_ended received; fetchGameState triggered for score-history refresh',
+                { matchNumber }
+              );
+              // onMatchEnded call removed — useMultiplayerScoreHistory reads from DB scores_history.
+              fetchGameState(roomId);
+            })
+            .on('broadcast', { event: 'auto_pass_timer_started' }, payload => {
+              if (isValidTimerStatePayload(payload)) {
+                setGameState(prevState => {
+                  if (!prevState) return prevState;
+                  return {
+                    ...prevState,
+                    auto_pass_timer: payload.timer_state,
+                  };
+                });
+              } else {
+                networkLogger.warn('[Timer] Invalid timer payload');
               }
-              // Track user_id mapping for presence leave → disconnect detection
-              if (updated.id && updated.user_id) {
-                playerIdToUserIdRef.current[updated.id] = updated.user_id;
-              }
-              setRoomPlayers(prev => {
-                const idx = prev.findIndex(p => p.id === updated.id);
-                if (idx === -1) return [...prev, updated]; // new row — insert
-
-                const existing = prev[idx];
-                // Only re-render when UI-relevant fields change.
-                // last_heartbeat / heartbeat_count are heartbeat-only and never affect rendering.
-                const meaningfullyChanged =
-                  existing.is_host !== updated.is_host ||
-                  existing.is_bot !== updated.is_bot ||
-                  existing.connection_status !== updated.connection_status ||
-                  existing.player_index !== updated.player_index ||
-                  existing.username !== updated.username ||
-                  existing.human_user_id !== updated.human_user_id ||
-                  existing.user_id !== updated.user_id ||
-                  existing.disconnect_timer_started_at !== updated.disconnect_timer_started_at;
-
-                if (!meaningfullyChanged) {
-                  return prev; // same reference → React bails out → no re-render
-                }
-
-                const next = [...prev];
-                next[idx] = updated;
-                return next;
+              fetchGameState(roomId);
+            })
+            .on('broadcast', { event: 'auto_pass_timer_cancelled' }, _payload => {
+              setGameState(prevState => {
+                if (!prevState) return prevState;
+                return { ...prevState, auto_pass_timer: null };
               });
-            } else {
-              // INSERT / DELETE: full re-fetch to ensure consistent ordering
-              await fetchPlayers(roomId);
-            }
-          }
-        );
-
-      // Assign channelRef BEFORE subscribing so that any reactive consumers
-      // (e.g. useGameChat) that read the ref during the re-render triggered by
-      // setIsConnected(true) will already see the channel instance.
-      channelRef.current = channel;
-      // NOTE: setRealtimeChannel is called only after SUBSCRIBED so that the
-      // reactive channel state is non-null only when the channel is fully ready
-      // (Copilot PR-150 r2950125694).
-
-      // Subscribe and track presence - WAIT for subscription to complete
-      await new Promise<void>((resolve, reject) => {
-        // `settled` prevents a late subscribe callback from re-exposing the
-        // channel after the timeout has already fired and rejected the promise
-        // (Copilot PR-150 r2950333912).
-        let settled = false;
-        const timeout = setTimeout(() => {
-          if (settled) return;
-          settled = true;
-          // Unsubscribe AND remove from the Supabase client so the channel
-          // doesn't remain registered and leak handlers on subsequent joins
-          // (Copilot PR-150 r2950125715).
-          void channel
-            .unsubscribe()
-            .then(() => supabase.removeChannel(channel))
-            .catch(() => {
-              // Ensure the channel is removed even if unsubscribe rejects
-              // (Copilot PR-150 r3964546887).
-              supabase.removeChannel(channel);
-            });
-          channelRef.current = null;
-          setRealtimeChannel(null);
-          reject(new Error('Subscription timeout after 10s'));
-        }, 10000);
-
-        channel.subscribe(async status => {
-          if (settled) return; // timeout already fired – ignore late callbacks
-          networkLogger.info('[useRealtime] 📡 joinChannel subscription status:', status);
-
-          if (status === 'SUBSCRIBED') {
-            settled = true;
-            clearTimeout(timeout);
-            // Only expose channel to reactive consumers after subscription is
-            // confirmed so that chat/send can't race against a still-connecting
-            // channel (Copilot PR-150 r2950125694).
-            setRealtimeChannel(channel);
-            setIsConnected(true);
-            networkLogger.info('[useRealtime] ✅ Channel subscribed successfully');
-
-            // Track presence
-            await channel.track({
-              user_id: userId,
-              username,
-              online_at: new Date().toISOString(),
+              fetchGameState(roomId);
+            })
+            .on('broadcast', { event: 'auto_pass_executed' }, _payload => {
+              setGameState(prevState => {
+                if (!prevState) return prevState;
+                return { ...prevState, auto_pass_timer: null };
+              });
+              fetchGameState(roomId);
             });
 
-            networkLogger.info('[useRealtime] ✅ Presence tracked, resolving joinChannel promise');
-            resolve();
-          } else if (status === 'CLOSED') {
-            settled = true;
-            clearTimeout(timeout);
-            // Clear reactive channel so consumers (e.g. useGameChat) don't try to
-            // use a closed channel. Both ref and state must be cleared.
-            channelRef.current = null;
-            setRealtimeChannel(null);
-            setIsConnected(false);
-            onDisconnect?.();
-            reject(new Error('Channel closed'));
-          } else if (status === 'CHANNEL_ERROR') {
-            settled = true;
-            clearTimeout(timeout);
-            channelRef.current = null;
-            setRealtimeChannel(null);
-            // Brief delay gives Supabase a window to recover from transient
-            // network blips before the caller triggers a full reconnect cycle.
-            setTimeout(() => reject(new Error('Channel error')), 1_000);
-          }
-        });
-      });
+          // Subscribe to database changes
+          channel
+            .on(
+              'postgres_changes',
+              {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'rooms',
+                filter: `id=eq.${roomId}`,
+              },
+              payload => {
+                setRoom(payload.new as Room);
+              }
+            )
+            .on(
+              'postgres_changes',
+              {
+                event: '*',
+                schema: 'public',
+                table: 'game_state',
+                filter: `room_id=eq.${roomId}`,
+              },
+              payload => {
+                if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+                  setGameState(payload.new as GameState);
+                }
+              }
+            )
+            // ✅ FIX: Listen to room_players changes to catch is_host updates.
+            // PERF: For UPDATE events, merge the changed row directly instead of re-fetching
+            // all players from the DB. Heartbeats fire every 5 s per player (×4 players ≈ 1/s)
+            // and previously triggered a full SELECT + setState + 2-3 cascading re-renders.
+            // Returning the SAME prev reference when only heartbeat fields changed prevents
+            // those unnecessary re-renders entirely.
+            .on(
+              'postgres_changes',
+              {
+                event: '*',
+                schema: 'public',
+                table: 'room_players',
+                filter: `room_id=eq.${roomId}`,
+              },
+              async payload => {
+                if (payload.eventType === 'UPDATE') {
+                  const updated = payload.new as Player;
+                  // Always track last_seen_at in a mutable ref (no re-render).
+                  // Used by the client-side staleness detector to detect disconnects
+                  // even when the server's process_disconnected_players hasn't fired yet.
+                  if (updated.id && updated.last_seen_at) {
+                    playerLastSeenAtRef.current[updated.id] = updated.last_seen_at;
+                  }
+                  // Track user_id mapping for presence leave → disconnect detection
+                  if (updated.id && updated.user_id) {
+                    playerIdToUserIdRef.current[updated.id] = updated.user_id;
+                  }
+                  setRoomPlayers(prev => {
+                    const idx = prev.findIndex(p => p.id === updated.id);
+                    if (idx === -1) return [...prev, updated]; // new row — insert
 
-      // Note: broadcast handlers use gameStateRef.current (instead of the
-      // captured gameState) so that joinChannel's identity stays stable across
-      // game-state updates and does not trigger unnecessary reconnects.
+                    const existing = prev[idx];
+                    // Only re-render when UI-relevant fields change.
+                    // last_heartbeat / heartbeat_count are heartbeat-only and never affect rendering.
+                    // 7.3: Normalize disconnect_timer_started_at to numeric milliseconds before
+                    // comparing — Supabase realtime can return the same timestamp in different
+                    // ISO formats (with/without ms, +00:00 vs Z), causing spurious re-renders
+                    // on every 5s heartbeat even when the timer anchor hasn't changed.
+                    const normalizeTs = (ts: string | null | undefined): number | null =>
+                      ts ? new Date(ts).getTime() : null;
+                    const meaningfullyChanged =
+                      existing.is_host !== updated.is_host ||
+                      existing.is_bot !== updated.is_bot ||
+                      existing.connection_status !== updated.connection_status ||
+                      existing.player_index !== updated.player_index ||
+                      existing.username !== updated.username ||
+                      existing.human_user_id !== updated.human_user_id ||
+                      existing.user_id !== updated.user_id ||
+                      normalizeTs(existing.disconnect_timer_started_at) !==
+                        normalizeTs(updated.disconnect_timer_started_at);
+
+                    if (!meaningfullyChanged) {
+                      return prev; // same reference → React bails out → no re-render
+                    }
+
+                    const next = [...prev];
+                    next[idx] = updated;
+                    return next;
+                  });
+                } else {
+                  // INSERT / DELETE: full re-fetch to ensure consistent ordering
+                  await fetchPlayers(roomId);
+                }
+              }
+            );
+
+          // Assign channelRef BEFORE subscribing so that any reactive consumers
+          // (e.g. useGameChat) that read the ref during the re-render triggered by
+          // setIsConnected(true) will already see the channel instance.
+          channelRef.current = channel;
+          // NOTE: setRealtimeChannel is called only after SUBSCRIBED so that the
+          // reactive channel state is non-null only when the channel is fully ready
+          // (Copilot PR-150 r2950125694).
+
+          // Subscribe and track presence - WAIT for subscription to complete
+          await new Promise<void>((resolve, reject) => {
+            // `settled` prevents a late subscribe callback from re-exposing the
+            // channel after the timeout has already fired and rejected the promise
+            // (Copilot PR-150 r2950333912).
+            let settled = false;
+            const timeout = setTimeout(() => {
+              if (settled) return;
+              settled = true;
+              // Unsubscribe AND remove from the Supabase client so the channel
+              // doesn't remain registered and leak handlers on subsequent joins
+              // (Copilot PR-150 r2950125715).
+              void channel
+                .unsubscribe()
+                .then(() => supabase.removeChannel(channel))
+                .catch(() => {
+                  // Ensure the channel is removed even if unsubscribe rejects
+                  // (Copilot PR-150 r3964546887).
+                  supabase.removeChannel(channel);
+                });
+              channelRef.current = null;
+              setRealtimeChannel(null);
+              reject(new Error('Subscription timeout after 10s'));
+            }, 10000);
+
+            channel.subscribe(async status => {
+              if (settled) return; // timeout already fired – ignore late callbacks
+              networkLogger.info('[useRealtime] 📡 joinChannel subscription status:', status);
+
+              if (status === 'SUBSCRIBED') {
+                settled = true;
+                clearTimeout(timeout);
+                // Only expose channel to reactive consumers after subscription is
+                // confirmed so that chat/send can't race against a still-connecting
+                // channel (Copilot PR-150 r2950125694).
+                setRealtimeChannel(channel);
+                setIsConnected(true);
+                networkLogger.info('[useRealtime] ✅ Channel subscribed successfully');
+
+                // Track presence
+                await channel.track({
+                  user_id: userId,
+                  username,
+                  online_at: new Date().toISOString(),
+                });
+
+                networkLogger.info(
+                  '[useRealtime] ✅ Presence tracked, resolving joinChannel promise'
+                );
+                resolve();
+              } else if (status === 'CLOSED') {
+                settled = true;
+                clearTimeout(timeout);
+                // Clear reactive channel so consumers (e.g. useGameChat) don't try to
+                // use a closed channel. Both ref and state must be cleared.
+                channelRef.current = null;
+                setRealtimeChannel(null);
+                setIsConnected(false);
+                onDisconnect?.();
+                reject(new Error('Channel closed'));
+              } else if (status === 'CHANNEL_ERROR') {
+                settled = true;
+                clearTimeout(timeout);
+                channelRef.current = null;
+                setRealtimeChannel(null);
+                // Brief delay gives Supabase a window to recover from transient
+                // network blips before the caller triggers a full reconnect cycle.
+                setTimeout(() => reject(new Error('Channel error')), 1_000);
+              }
+            });
+          });
+
+          // Note: broadcast handlers use gameStateRef.current (instead of the
+          // captured gameState) so that joinChannel's identity stays stable across
+          // game-state updates and does not trigger unnecessary reconnects.
+        } finally {
+          joiningChannelPromiseRef.current = null;
+        }
+      })();
+
+      joiningChannelPromiseRef.current = joinPromise;
+      return joinPromise;
     },
     [userId, username, onDisconnect, fetchPlayers, fetchGameState]
   ); // reconnect intentionally omitted to avoid circular dependency

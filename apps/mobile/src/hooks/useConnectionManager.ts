@@ -203,6 +203,10 @@ export function useConnectionManager({
             '[useConnectionManager] heartbeat recovered — restoring normal interval'
           );
           heartbeatBackedOffRef.current = false;
+          // 6.3: Reset the rate-limiter so the next heartbeat fires immediately
+          // instead of waiting up to HEARTBEAT_BACKOFF_INTERVAL (30 s) for the
+          // already-elapsed backoff window to expire.
+          nextHeartbeatAllowedAtRef.current = 0;
         }
         consecutiveFailuresRef.current = 0;
       }

@@ -178,10 +178,14 @@ Deno.serve(async (req) => {
       // rely solely on Realtime postgres_changes — which can be delayed or lost on
       // mobile networks — leaving the grey ring stuck on the reconnected player.
       if (player.connection_status === 'disconnected') {
+        // 6.4: Track broadcast delivery so failures are reflected in the HTTP
+        // response. Callers can inspect `reconnect_broadcast_failed` and handle
+        // (e.g. trigger a client-side refresh) if delivery did not succeed.
+        let reconnectBroadcastFailed = false;
         // Promise registered with EdgeRuntime.waitUntil (see try/catch below)
         // so the edge runtime does not terminate the subscribe→send flow before
         // it completes — even after the HTTP response has already been returned.
-        const reconnectBroadcast = (async () => {
+        const reconnectBroadcast = (async (): Promise<void> => {
           try {
             // IMPORTANT: channel name must use room_id (UUID) to match the
             // client's Realtime subscription in useRealtime.ts joinChannel().
@@ -196,14 +200,18 @@ Deno.serve(async (req) => {
             await new Promise<void>((resolve) => {
               const ch = supabaseClient.channel(`room:${room_id}`);
               let settled = false;
-              const finish = (): void => {
+              const finish = (failed = false): void => {
                 if (!settled) {
                   settled = true;
+                  if (failed) reconnectBroadcastFailed = true;
                   supabaseClient.removeChannel(ch).catch(() => {});
                   resolve();
                 }
               };
-              const safetyTimeout = setTimeout(finish, 5000);
+              const safetyTimeout = setTimeout(() => {
+                console.warn(`[update-heartbeat] Reconnect broadcast safety timeout for room ${room_id}`);
+                finish(true);
+              }, 5000);
               ch.subscribe((status: string) => {
                 // Guard: if the safety timeout already fired and settled the
                 // Promise, ignore any late SUBSCRIBED / status callbacks to
@@ -215,32 +223,51 @@ Deno.serve(async (req) => {
                       // supabase-js Realtime send() resolves (not rejects) on
                       // delivery failures; inspect the resolved value for errors.
                       if (result?.error) {
-                        console.warn(`[update-heartbeat] Reconnect broadcast delivery failure (non-critical):`, result.error);
+                        console.error(`[update-heartbeat] Reconnect broadcast delivery failure — room ${room_id}:`, result.error);
+                        clearTimeout(safetyTimeout);
+                        finish(true);
                       } else {
                         console.log(`📡 [update-heartbeat] Broadcast player_reconnected for player_index=${player.player_index} in room ${room_id}`);
+                        clearTimeout(safetyTimeout);
+                        finish(false);
                       }
-                      clearTimeout(safetyTimeout);
-                      finish();
                     })
                     .catch((e: unknown) => {
-                      console.warn('[update-heartbeat] Reconnect broadcast send error (non-critical):', e);
+                      console.error('[update-heartbeat] Reconnect broadcast send failed — room', room_id, ':', e);
                       clearTimeout(safetyTimeout);
-                      finish();
+                      finish(true);
                     });
                 } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+                  console.warn(`[update-heartbeat] Reconnect broadcast channel error (${status}) for room ${room_id}`);
                   clearTimeout(safetyTimeout);
-                  finish();
+                  finish(true);
                 }
               });
             });
           } catch (bcastErr: any) {
-            console.warn('[update-heartbeat] Reconnect broadcast error (non-critical):', bcastErr?.message);
+            console.error('[update-heartbeat] Reconnect broadcast exception — room', room_id, ':', bcastErr?.message);
+            reconnectBroadcastFailed = true;
           }
         })();
+        // Await broadcast inline when EdgeRuntime.waitUntil is unavailable —
+        // this is the code path that executes in the test harness / local dev.
+        // In production the broadcast completes via waitUntil and the response
+        // is returned immediately; reconnectBroadcastFailed is read after await.
         try {
           (globalThis as any).EdgeRuntime?.waitUntil(reconnectBroadcast);
+          await reconnectBroadcast; // also awaited so reconnectBroadcastFailed is populated
         } catch (_) {
           await reconnectBroadcast;
+        }
+        if (reconnectBroadcastFailed) {
+          // Surface to caller so it can trigger a client-side player-list refresh
+          // as a fallback when Realtime broadcast delivery failed.
+          console.warn(`[update-heartbeat] reconnect_broadcast_failed=true for room ${room_id} — caller should refresh player list`);
+          // Return early with the failure flag; heartbeat itself succeeded.
+          return new Response(
+            JSON.stringify({ success: true, reconnect_broadcast_failed: true }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
       }
     }

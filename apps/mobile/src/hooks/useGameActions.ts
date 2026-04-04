@@ -548,19 +548,19 @@ export function useGameActions({
     onPassRef.current = handlePass;
   }, [handlePlayCards, handlePass]);
 
-  const handlePlaySuccess = () => {
+  const handlePlaySuccess = useCallback(() => {
     if (isMountedRef.current) {
       setSelectedCardIds(new Set());
     }
-  };
+  }, [setSelectedCardIds]);
 
-  const handlePassSuccess = () => {
+  const handlePassSuccess = useCallback(() => {
     if (isMountedRef.current) {
       setSelectedCardIds(new Set());
     }
-  };
+  }, [setSelectedCardIds]);
 
-  const handleCardHandPlayCards = (cards: Card[]) => {
+  const handleCardHandPlayCards = useCallback((cards: Card[]) => {
     trackGameplayAction('play_method_used', { method: 'drag' });
     playMethodRef.current = 'drag';
     if (onPlayCardsRef.current) {
@@ -568,50 +568,53 @@ export function useGameActions({
         gameLogger.error('❌ [GameActions] Drag-to-play error:', err);
       });
     }
-  };
+  }, []);
 
-  const handleCardHandPass = () => {
+  const handleCardHandPass = useCallback(() => {
     if (onPassRef.current) {
       onPassRef.current();
     }
-  };
+  }, []);
 
-  const handleLeaveGame = (skipConfirmation = false) => {
-    if (skipConfirmation) {
-      // Game is already over (e.g., game_over phase) — no confirm dialog needed.
-      // Still fire analytics so every exit path is counted.
-      trackGameEvent('game_abandoned', {
-        source: 'skip_confirmation',
-        game_mode: resolvedGameMode,
-      });
-      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
-      return;
-    }
-
-    showConfirm({
-      title: i18n.t('game.leaveGameConfirm'),
-      message: i18n.t('game.leaveGameMessage'),
-      confirmText: i18n.t('game.leaveGame'),
-      cancelText: i18n.t('game.stay'),
-      destructive: true,
-      onConfirm: () => {
-        trackGameEvent('game_abandoned', { source: 'leave_button', game_mode: resolvedGameMode });
-        trackGameEvent('game_not_completed', {
-          reason: 'player_left',
+  const handleLeaveGame = useCallback(
+    (skipConfirmation = false) => {
+      if (skipConfirmation) {
+        // Game is already over (e.g., game_over phase) — no confirm dialog needed.
+        // Still fire analytics so every exit path is counted.
+        trackGameEvent('game_abandoned', {
+          source: 'skip_confirmation',
           game_mode: resolvedGameMode,
-          ...(humanCount !== undefined && { human_count: humanCount }),
-          ...(botCount !== undefined && { bot_count: botCount }),
-          ...(botDifficultyLevel !== undefined && { bot_difficulty: botDifficultyLevel }),
         });
-        sentryCapture.breadcrumb(
-          'Game abandoned',
-          { source: 'leave_button', game_mode: resolvedGameMode },
-          'game'
-        );
         navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
-      },
-    });
-  };
+        return;
+      }
+
+      showConfirm({
+        title: i18n.t('game.leaveGameConfirm'),
+        message: i18n.t('game.leaveGameMessage'),
+        confirmText: i18n.t('game.leaveGame'),
+        cancelText: i18n.t('game.stay'),
+        destructive: true,
+        onConfirm: () => {
+          trackGameEvent('game_abandoned', { source: 'leave_button', game_mode: resolvedGameMode });
+          trackGameEvent('game_not_completed', {
+            reason: 'player_left',
+            game_mode: resolvedGameMode,
+            ...(humanCount !== undefined && { human_count: humanCount }),
+            ...(botCount !== undefined && { bot_count: botCount }),
+            ...(botDifficultyLevel !== undefined && { bot_difficulty: botDifficultyLevel }),
+          });
+          sentryCapture.breadcrumb(
+            'Game abandoned',
+            { source: 'leave_button', game_mode: resolvedGameMode },
+            'game'
+          );
+          navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+        },
+      });
+    },
+    [navigation, resolvedGameMode, humanCount, botCount, botDifficultyLevel]
+  );
 
   return {
     handlePlayCards,

@@ -136,6 +136,10 @@ export function usePresence(): UsePresenceResult {
     if (!user?.id || !channelRef.current) return;
     if (!showOnlineStatus) {
       void channelRef.current.untrack().catch(() => {});
+      // 7.12: Clear stale in-memory presence data. When the setting is off the
+      // listener guard (showOnlineStatusRef) stops processing new events, so
+      // the Set would remain frozen at whatever was present at toggle time.
+      setOnlineUserIds(new Set());
     } else {
       void channelRef.current.track({ user_id: user.id }).catch(() => {});
     }

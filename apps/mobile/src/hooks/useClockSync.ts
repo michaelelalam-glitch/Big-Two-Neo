@@ -27,6 +27,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import { networkLogger } from '../utils/logger';
 import type { AutoPassTimerState } from '../types/multiplayer';
 
@@ -135,6 +136,28 @@ export function useClockSync(timerState: AutoPassTimerState | null): ClockSyncRe
   const getCorrectedNow = useCallback((): number => {
     return Date.now() + offsetRef.current;
   }, []); // Empty deps: the function identity never changes; it reads the ref
+
+  // ── 6.1: Invalidate offset when app returns from background ──────────
+  // When the app moves to the background for an extended period, the stored
+  // offset becomes stale (device clock drift, NTP correction from OS, etc.).
+  // Clearing lastSyncedServerTime / lastSyncedStartedAt forces the offset
+  // effect above to re-run and recalculate on the very next render where
+  // timerState is active.
+  useEffect(() => {
+    let prevAppState: AppStateStatus = AppState.currentState;
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active' && prevAppState !== 'active') {
+        // Force a fresh offset calculation on the next render with an active timer.
+        lastSyncedServerTime.current = null;
+        lastSyncedStartedAt.current = null;
+        networkLogger.info(
+          '[Clock Sync] 🔄 App foregrounded — clock offset invalidated for re-sync'
+        );
+      }
+      prevAppState = nextAppState;
+    });
+    return () => subscription.remove();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- no reactive deps
 
   return {
     offsetMs,

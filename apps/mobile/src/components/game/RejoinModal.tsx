@@ -14,7 +14,7 @@
  * fix/rejoin branch
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { COLORS, FONT_SIZES, SPACING } from '../../constants';
 import { i18n } from '../../i18n';
@@ -60,6 +60,16 @@ export function RejoinModal({
   const [isReclaiming, setIsReclaiming] = useState(false);
   const [reclaimed, setReclaimed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 6.6: Guard against stale setState calls if the component unmounts while
+  // onReclaim() is still in-flight (e.g. user navigates away before the RPC
+  // response arrives).
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // Reset internal state each time the modal is opened so a previously-shown
   // "Seat reclaimed" or error state does not bleed into the next appearance.
@@ -72,17 +82,20 @@ export function RejoinModal({
   }, [visible]);
 
   const handleReclaim = async () => {
+    if (!isMountedRef.current) return;
     setIsReclaiming(true);
     setError(null);
     try {
       await onReclaim();
-      setReclaimed(true);
+      if (isMountedRef.current) setReclaimed(true);
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to reclaim seat. Please try again.';
-      setError(message);
+      if (isMountedRef.current) {
+        const message =
+          err instanceof Error ? err.message : 'Failed to reclaim seat. Please try again.';
+        setError(message);
+      }
     } finally {
-      setIsReclaiming(false);
+      if (isMountedRef.current) setIsReclaiming(false);
     }
   };
 

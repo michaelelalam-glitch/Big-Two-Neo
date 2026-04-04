@@ -57,6 +57,13 @@ export const Linking = {
   openURL: jest.fn().mockResolvedValue(undefined),
 };
 
+// 6.1: AppState mock — useClockSync reads AppState.currentState on init
+export const AppState = {
+  currentState: 'active' as const,
+  addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+  removeEventListener: jest.fn(),
+};
+
 const createMockAnimation = () => {
   const anim: any = {
     start: jest.fn((cb?: any) => {

@@ -183,8 +183,13 @@ export const GameEndProvider: React.FC<GameEndProviderProps> = ({ children }) =>
       // This can happen when the backend fires game_over before final_scores are
       // persisted. The GameEndModal will still render the winner + player list
       // and can show 0-point placeholders rather than a blank screen.
+      // 7.9: Also guard when scores arrive but all points_added are 0 — this
+      // indicates the DB row was inserted but the score calculation hasn't
+      // committed yet. Treat it the same as the missing-scores case.
+      const allScoresZero =
+        scores.length > 0 && scores.every(s => s.points_added === 0 && s.cumulative_score === 0);
       const resolvedScores: FinalScore[] =
-        scores.length > 0
+        scores.length > 0 && !allScoresZero
           ? scores
           : names.map((name, idx) => ({
               player_index: idx,
@@ -193,7 +198,7 @@ export const GameEndProvider: React.FC<GameEndProviderProps> = ({ children }) =>
               points_added: 0,
             }));
 
-      if (scores.length === 0) {
+      if (scores.length === 0 || allScoresZero) {
         gameLogger.warn(
           '⚠️ [GameEndContext] scores array was empty — built placeholder scores from player names:',
           {

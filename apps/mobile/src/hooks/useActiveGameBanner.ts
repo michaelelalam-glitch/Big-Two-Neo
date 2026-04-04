@@ -159,15 +159,14 @@ export function useActiveGameBanner(
             });
             if (statusData?.success) {
               if (statusData.status === 'disconnected' || statusData.disconnect_timer_active) {
-                if (statusData.disconnect_timer_started_at) {
-                  const serverTs = new Date(statusData.disconnect_timer_started_at).getTime();
-                  const elapsed = Math.max(0, Date.now() - serverTs);
-                  setDisconnectTimestamp(Date.now() - elapsed);
-                } else {
-                  const secondsLeft = statusData.seconds_left ?? 60;
-                  const elapsed = 60 - secondsLeft;
-                  setDisconnectTimestamp(Date.now() - elapsed * 1000);
-                }
+                // 6.5: Unified single source of truth — always derive the anchor
+                // from disconnect_timer_started_at when available. If the server
+                // omits this field, fall back to seconds_left to approximate it.
+                // Using one formula prevents subtle drift between the two paths.
+                const serverAnchorMs = statusData.disconnect_timer_started_at
+                  ? new Date(statusData.disconnect_timer_started_at).getTime()
+                  : Date.now() - (60 - (statusData.seconds_left ?? 0)) * 1000;
+                setDisconnectTimestamp(serverAnchorMs);
               } else if (statusData.status === 'replaced_by_bot') {
                 setDisconnectTimestamp(null);
                 setCanRejoinAfterExpiry(true);
