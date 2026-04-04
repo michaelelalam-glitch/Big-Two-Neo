@@ -286,6 +286,35 @@ export function LocalAIGame() {
     multiplayerGameState: null,
   });
 
+  // Client-side pre-validation state for offline mode (Task #660 / 4.4)
+  // Mirrors getMultiplayerValidationState so useGameActions can pre-validate plays
+  // before calling the game manager, giving immediate UI feedback.
+  const getOfflineValidationState = useCallback(() => {
+    if (!gameState) return null;
+    // Walk forward using the engine's anticlockwise turn order [3,2,0,1] to find
+    // the first active next player (has cards). Using simple modular arithmetic
+    // would produce the wrong player index for the 4-player offline engine.
+    const turnOrder = [3, 2, 0, 1] as const;
+    const n = gameState.players.length;
+    let nextPlayerCardCount: number | undefined;
+    if (n > 1) {
+      let nextIndex = turnOrder[gameState.currentPlayerIndex as 0 | 1 | 2 | 3];
+      for (let checked = 1; checked < n; checked++) {
+        if (nextIndex >= 0 && nextIndex < n && gameState.players[nextIndex].hand.length > 0) {
+          nextPlayerCardCount = gameState.players[nextIndex].hand.length;
+          break;
+        }
+        nextIndex = turnOrder[nextIndex as 0 | 1 | 2 | 3];
+      }
+    }
+    return {
+      lastPlay: gameState.lastPlay ?? null,
+      isFirstPlayOfGame: gameState.isFirstPlayOfGame ?? false,
+      playerHand: effectivePlayerHand,
+      nextPlayerCardCount,
+    };
+  }, [gameState, effectivePlayerHand]);
+
   // Play/Pass action handlers
   const {
     handlePlayCards,
@@ -303,6 +332,7 @@ export function LocalAIGame() {
     setSelectedCardIds,
     navigation,
     isMountedRef,
+    getOfflineValidationState,
     onAlert: showInGameAlert,
     // Local AI: 1 human + 3 bots
     humanCount: 1,

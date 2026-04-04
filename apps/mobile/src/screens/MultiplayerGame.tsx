@@ -1064,12 +1064,38 @@ export function MultiplayerGame() {
   // Client-side pre-validation state supplier for Task #573
   const getMultiplayerValidationState = React.useCallback(() => {
     if (!multiplayerGameState) return null;
+    // Compute next active player's card count for OCL validation.
+    // Walk forward from the local player's seat, skipping players with 0 cards.
+    let nextPlayerCardCount: number | undefined;
+    if (
+      multiplayerSeatIndex !== null &&
+      multiplayerSeatIndex !== undefined &&
+      multiplayerHandsByIndex
+    ) {
+      const n = effectiveMultiplayerPlayers.length;
+      for (let i = 1; i < n; i++) {
+        const candidateIndex = (multiplayerSeatIndex + i) % n;
+        const count = multiplayerHandsByIndex[String(candidateIndex)]?.length ?? 0;
+        if (count > 0) {
+          nextPlayerCardCount = count;
+          break;
+        }
+      }
+    }
     return {
       lastPlay: multiplayerLastPlay ?? null,
       isFirstPlayOfGame: multiplayerGameState.game_phase === 'first_play',
       playerHand: effectivePlayerHand,
+      nextPlayerCardCount,
     };
-  }, [multiplayerGameState, multiplayerLastPlay, effectivePlayerHand]);
+  }, [
+    multiplayerGameState,
+    multiplayerLastPlay,
+    effectivePlayerHand,
+    multiplayerSeatIndex,
+    multiplayerHandsByIndex,
+    effectiveMultiplayerPlayers,
+  ]);
 
   // Play/Pass action handlers
   const {

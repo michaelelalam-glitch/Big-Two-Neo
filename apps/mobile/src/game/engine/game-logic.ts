@@ -537,7 +537,12 @@ export function findRecommendedPlay(
       }
     }
 
-    // Try to find flushes
+    // Try to find flushes — minimum-kicker algorithm.
+    // Big Two flush comparison uses only the highest card, so we fix the kicker
+    // (the highest card of our flush) at progressively higher positions and pair
+    // it with the 4 lowest other cards of the same suit. This correctly handles
+    // non-consecutive combinations that the sliding-window approach would miss
+    // (e.g., [3,5,7,8,Q] where 3 and Q are not adjacent in the sorted array).
     const bySuit = sorted.reduce(
       (acc, card) => {
         if (!acc[card.suit]) acc[card.suit] = [];
@@ -549,9 +554,14 @@ export function findRecommendedPlay(
 
     for (const suitCards of Object.values(bySuit)) {
       if (suitCards.length >= 5) {
-        const flush = suitCards.slice(0, 5);
-        if (canBeatPlay(flush, lastPlay)) {
-          return flush.map(c => c.id);
+        // Iterate kicker positions from index 4 upward (lowest possible kicker first
+        // so we return the minimum-strength beating flush for card conservation).
+        for (let ki = 4; ki < suitCards.length; ki++) {
+          // Pair kicker with the 4 lowest suit cards (indices 0-3, all below ki).
+          const flush = [...suitCards.slice(0, 4), suitCards[ki]];
+          if (canBeatPlay(flush, lastPlay)) {
+            return flush.map(c => c.id);
+          }
         }
       }
     }
@@ -691,8 +701,15 @@ export function canPassWithOneCardLeftRule(
     return { canPass: false, error: 'Cannot pass when leading' };
   }
 
-  // Rule only applies when next player has exactly 1 card AND last play was a single
-  if (nextPlayerCardCount !== 1 || lastPlay.cards.length !== 1) {
+  // Rule only applies when next player has exactly 1 card AND last play was a single.
+  // Use combo_type for semantically correct Single detection (guards against a
+  // malformed lastPlay where cards.length === 1 but combo_type !== 'Single').
+  if (nextPlayerCardCount !== 1 || lastPlay.combo_type !== 'Single') {
+    return { canPass: true };
+  }
+
+  // Guard: empty hand means nothing to play, allow pass
+  if (!Array.isArray(currentPlayerHand) || currentPlayerHand.length === 0) {
     return { canPass: true };
   }
 

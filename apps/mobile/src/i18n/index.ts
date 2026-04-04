@@ -418,6 +418,7 @@ export interface Translations {
     invalidCombo: string;
     cardNotInHand: string;
     firstPlayMustInclude3D: string;
+    oneCardLeftMustPlayHighestSingle: string;
     mustPlayHigher: string;
     autoPassTimer: string;
     secondsRemaining: string;
@@ -1199,6 +1200,7 @@ const en: Translations = {
     invalidCombo: 'Invalid card combination',
     cardNotInHand: 'Card not in hand',
     firstPlayMustInclude3D: 'First play must include 3♦',
+    oneCardLeftMustPlayHighestSingle: 'Must play your highest single — opponent has 1 card left',
     mustPlayHigher: 'Must play higher combo',
     autoPassTimer: 'Auto-pass in',
     secondsRemaining: 'seconds if no manual pass',
@@ -1906,6 +1908,7 @@ const ar: Translations = {
     invalidCombo: 'مجموعة بطاقات غير صالحة',
     cardNotInHand: 'البطاقة ليست في يدك',
     firstPlayMustInclude3D: 'اللعبة الأولى يجب أن تتضمن 3♦',
+    oneCardLeftMustPlayHighestSingle: 'يجب لعب أعلى ورقة منفردة — الخصم لديه ورقة واحدة متبقية',
     mustPlayHigher: 'يجب لعب كومبو أعلى',
     autoPassTimer: 'التمرير التلقائي في',
     secondsRemaining: 'ثانية إذا لم يتم التمرير يدويًا',
@@ -2704,6 +2707,8 @@ const de: Translations = {
     invalidCombo: 'Ungültige Kartenkombination',
     cardNotInHand: 'Karte nicht in der Hand',
     firstPlayMustInclude3D: 'Erstes Spiel muss 3♦ enthalten',
+    oneCardLeftMustPlayHighestSingle:
+      'Muss die höchste Einzelkarte spielen — Gegner hat noch 1 Karte',
     mustPlayHigher: 'Muss höhere Kombo spielen',
     autoPassTimer: 'Auto-Pass in',
     secondsRemaining: 'Sekunden, wenn kein manuelles Passen',
