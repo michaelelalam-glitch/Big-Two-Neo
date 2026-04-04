@@ -30,8 +30,11 @@ AS $$
 DECLARE
   v_rows_updated int;
 BEGIN
+  IF p_timeout_seconds <= 0 THEN
+    RAISE EXCEPTION 'p_timeout_seconds must be a positive integer, got %', p_timeout_seconds;
+  END IF;
   UPDATE bot_coordinator_locks
-  SET    expires_at = now() + (p_timeout_seconds || ' seconds')::interval
+  SET    expires_at = now() + make_interval(secs => p_timeout_seconds)
   WHERE  room_code = p_room_code
     AND  coordinator_id = p_coordinator_id
     AND  expires_at > now(); -- only refresh a lease that is still alive

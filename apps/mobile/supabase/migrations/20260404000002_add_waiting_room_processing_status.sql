@@ -34,7 +34,7 @@ ALTER TABLE waiting_room
 CREATE OR REPLACE FUNCTION cleanup_stale_waiting_room_entries()
 RETURNS void
 LANGUAGE plpgsql
-SECURITY DEFINER
+SECURITY INVOKER
 SET search_path = public, pg_catalog
 AS $$
 BEGIN

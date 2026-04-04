@@ -7,10 +7,8 @@ import {
   Pressable,
   ScrollView,
   useWindowDimensions,
-  Share,
   ActivityIndicator,
 } from 'react-native';
-import { tryCopyTextWithShareFallback } from '../../utils/clipboard';
 import {
   COLORS,
   SPACING,
@@ -69,7 +67,6 @@ function GameSettingsModalComponent({
   onToggleVideoChat,
   onToggleCamera,
   onToggleMic,
-  showInGameAlert,
 }: GameSettingsModalProps) {
   // Detect orientation
   const { width, height } = useWindowDimensions();
@@ -121,38 +118,6 @@ function GameSettingsModalComponent({
     onClose();
     onLeaveGame();
   };
-
-  const _handleCopyRoomCode = useCallback(async () => {
-    if (!roomCode) return;
-    const result = await tryCopyTextWithShareFallback(roomCode, i18n.t('lobby.shareTitle'));
-    if (result === 'copied') {
-      if (vibrationEnabled) hapticManager.trigger(HapticType.SUCCESS);
-      showInGameAlert?.({
-        title: i18n.t('lobby.copiedTitle'),
-        message: i18n.t('lobby.copiedMessage', { roomCode }),
-      });
-    } else if (result === 'failed') {
-      showInGameAlert?.({
-        title: i18n.t('lobby.copyFailedTitle'),
-        message: i18n.t('lobby.copyFailedMessage', { roomCode }),
-      });
-    }
-    // 'shared': Share sheet was presented — no additional alert needed
-  }, [roomCode, vibrationEnabled, showInGameAlert]);
-
-  const _handleShareRoomCode = useCallback(async () => {
-    if (!roomCode) return;
-    try {
-      await Share.share({
-        message:
-          i18n.t('lobby.shareMessage', { roomCode }) ||
-          `Join my Big Two game! Room code: ${roomCode}`,
-        title: i18n.t('lobby.shareTitle') || 'Join Big Two Game',
-      });
-    } catch {
-      // User dismissed the share sheet — no action needed
-    }
-  }, [roomCode]);
 
   return (
     <Modal

@@ -133,12 +133,19 @@ Deno.serve(async (req) => {
     // staleness check; fall back to joined_at for legacy rows that predate the
     // column addition (COALESCE logic via OR filter).
     const thirtySecsAgo = new Date(Date.now() - 30 * 1000).toISOString();
-    await supabaseClient
+    const { error: staleProcessingRecoveryError } = await supabaseClient
       .from('waiting_room')
       .update({ status: 'waiting', processing_started_at: null })
       .eq('user_id', userId)
       .eq('status', 'processing')
       .or(`processing_started_at.lt.${thirtySecsAgo},and(processing_started_at.is.null,joined_at.lt.${thirtySecsAgo})`);
+    if (staleProcessingRecoveryError) {
+      console.error('❌ [find-match] Stale processing recovery failed:', staleProcessingRecoveryError.message);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to recover from stale matchmaking state' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // 3c. Recover stale 'matched' rows for this user.
     // A 'matched' row whose room was abandoned (room expired / ON DELETE logic
@@ -146,12 +153,19 @@ Deno.serve(async (req) => {
     // queue: Step A (ignoreDuplicates) silently skips the existing row and Step B
     // only refreshes rows in 'waiting' state. Reset matched rows that are >5 min
     // old so the subsequent upsert can proceed normally.
-    await supabaseClient
+    const { error: staleMatchedRecoveryError } = await supabaseClient
       .from('waiting_room')
       .update({ status: 'waiting', matched_room_id: null, matched_at: null })
       .eq('user_id', userId)
       .eq('status', 'matched')
       .lt('matched_at', new Date(Date.now() - 5 * 60 * 1000).toISOString());
+    if (staleMatchedRecoveryError) {
+      console.error('❌ [find-match] Stale matched recovery failed:', staleMatchedRecoveryError.message);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to recover from stale matched state' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // 4. Insert or update user in waiting room.
     // Two-step upsert that protects rows already in 'processing' state:
