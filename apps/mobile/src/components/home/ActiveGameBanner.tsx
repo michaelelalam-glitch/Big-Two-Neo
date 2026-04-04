@@ -317,13 +317,17 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
         {!botHasReplaced ? (
           // Timer still running — show plain Rejoin
           <TouchableOpacity
-            style={[styles.button, styles.resumeButton, isRejoining && styles.buttonLoading]}
+            style={[
+              styles.button,
+              styles.resumeButton,
+              (isRejoining || isLeaving) && styles.buttonLoading,
+            ]}
             onPress={() => {
               setIsRejoining(true);
               onResume(gameInfo);
             }}
             activeOpacity={0.8}
-            disabled={isRejoining}
+            disabled={isRejoining || isLeaving}
           >
             {isRejoining ? (
               <ActivityIndicator size="small" color="#fff" />
@@ -334,7 +338,11 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
         ) : (
           // Timer expired — always show Replace Bot & Rejoin alongside Leave
           <TouchableOpacity
-            style={[styles.button, styles.replaceBotButton, isRejoining && styles.buttonLoading]}
+            style={[
+              styles.button,
+              styles.replaceBotButton,
+              (isRejoining || isLeaving) && styles.buttonLoading,
+            ]}
             onPress={() => {
               if (onReplaceBotAndRejoin) {
                 setIsRejoining(true);
@@ -342,7 +350,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
               }
             }}
             activeOpacity={0.8}
-            disabled={isRejoining}
+            disabled={isRejoining || isLeaving}
           >
             {isRejoining ? (
               <ActivityIndicator size="small" color="#fff" />
