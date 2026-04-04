@@ -334,13 +334,6 @@ export function useGameActions({
                 return;
               }
 
-              gameLogger.info('✅ [GameActions] Client-side validation passed', {
-                combo,
-                cardCount: sortedCards.length,
-                isFirstPlay: isFirstPlayOfGame,
-                hasLastPlay: !!lastPlay,
-              });
-
               // 5. One Card Left rule — only applies to singles (Task #660)
               if (nextPlayerCardCount !== undefined) {
                 const oclValidation = validateOneCardLeftRule(
@@ -360,6 +353,13 @@ export function useGameActions({
                   return;
                 }
               }
+
+              gameLogger.info('✅ [GameActions] Client-side validation passed', {
+                combo,
+                cardCount: sortedCards.length,
+                isFirstPlay: isFirstPlayOfGame,
+                hasLastPlay: !!lastPlay,
+              });
             }
           }
           await multiplayerPlayCards(sortedCards as Card[]);

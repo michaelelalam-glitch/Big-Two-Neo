@@ -314,7 +314,7 @@ describe('useGameActions — client-side card validation (Task #573)', () => {
       player_index: 1,
       cards: [makeCard('5H')],
       combo_type: 'Single',
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
     };
 
     it('rejects when the play cannot beat the last play', async () => {
@@ -366,7 +366,7 @@ describe('useGameActions — client-side card validation (Task #573)', () => {
       player_index: 1,
       cards: [makeCard('5H')],
       combo_type: 'Single',
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
     };
 
     it('rejects a single when OCL rule requires a higher card and nextPlayerCardCount=1', async () => {
@@ -482,7 +482,7 @@ describe('useGameActions — client-side card validation (Task #573)', () => {
         player_index: 1,
         cards: [makeCard('7H')],
         combo_type: 'Single',
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
       };
 
       const card = makeCard('9D');
