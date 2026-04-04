@@ -35,11 +35,11 @@ CREATE OR REPLACE FUNCTION cleanup_stale_waiting_room_entries()
 RETURNS void
 LANGUAGE plpgsql
 SECURITY INVOKER
-SET search_path = public, pg_catalog
+SET search_path = ''
 AS $$
 BEGIN
   -- Remove rows that have been waiting longer than 5 minutes.
-  DELETE FROM waiting_room
+  DELETE FROM public.waiting_room
   WHERE status = 'waiting'
     AND joined_at < NOW() - INTERVAL '5 minutes';
 
@@ -49,7 +49,7 @@ BEGIN
   -- Use COALESCE so that legacy rows without processing_started_at fall back
   -- to joined_at (backward-compatible), while new rows use the accurate
   -- lock-acquisition timestamp.
-  UPDATE waiting_room
+  UPDATE public.waiting_room
   SET status = 'waiting',
       processing_started_at = NULL
   WHERE status = 'processing'
@@ -57,12 +57,12 @@ BEGIN
 END;
 $$;
 
--- This function runs as SECURITY DEFINER and can UPDATE/DELETE any
--- waiting_room row, bypassing RLS. Revoke both the default PUBLIC EXECUTE
--- privilege and the explicit GRANT TO authenticated that was added in the
--- baseline migration so that no authenticated client can invoke it directly
--- (which would allow griefing matchmaking). Only service_role (used by
--- server-side edge functions and scheduled jobs) may call it.
+-- This function runs as SECURITY INVOKER, so it executes with the caller's
+-- privileges and does not itself bypass RLS. Revoke both the default PUBLIC
+-- EXECUTE privilege and the explicit GRANT TO authenticated that was added in
+-- the baseline migration so that no authenticated client can invoke it
+-- directly (which would allow griefing matchmaking). Only service_role (used
+-- by server-side edge functions and scheduled jobs) may call it.
 REVOKE EXECUTE ON FUNCTION cleanup_stale_waiting_room_entries() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION cleanup_stale_waiting_room_entries() FROM authenticated;
 GRANT  EXECUTE ON FUNCTION cleanup_stale_waiting_room_entries() TO service_role;

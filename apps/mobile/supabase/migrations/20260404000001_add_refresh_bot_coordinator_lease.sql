@@ -22,10 +22,12 @@ RETURNS boolean
 LANGUAGE plpgsql
 -- SECURITY INVOKER: function runs with the CALLER's privileges (service_role).
 -- Only service_role can execute this function (see REVOKE/GRANT below).
--- search_path is pinned to prevent mutable search_path injection (matches
--- existing hardening in 20260322000000_security_hardening.sql).
+-- search_path = '' pins the path to empty to prevent mutable search_path
+-- injection, matching the established pattern in
+-- 20260322000000_security_hardening.sql. All relation references are
+-- schema-qualified (public.*) so the empty path does not break resolution.
 SECURITY INVOKER
-SET search_path = public, pg_catalog
+SET search_path = ''
 AS $$
 DECLARE
   v_rows_updated int;
@@ -33,7 +35,7 @@ BEGIN
   IF p_timeout_seconds <= 0 THEN
     RAISE EXCEPTION 'p_timeout_seconds must be a positive integer, got %', p_timeout_seconds;
   END IF;
-  UPDATE bot_coordinator_locks
+  UPDATE public.bot_coordinator_locks
   SET    expires_at = now() + make_interval(secs => p_timeout_seconds)
   WHERE  room_code = p_room_code
     AND  coordinator_id = p_coordinator_id
