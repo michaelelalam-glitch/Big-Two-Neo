@@ -51,12 +51,12 @@ interface ActiveGameBannerProps {
   onlineRoomStatus?: 'waiting' | 'playing';
   /** Called when user wants to rejoin/resume */
   onResume: (gameInfo: ActiveGameInfo) => void;
-  /** Called when user wants to leave/discard */
-  onLeave: (gameInfo: ActiveGameInfo) => void;
+  /** Called when user wants to leave/discard. onDone is called when the action completes or is cancelled. */
+  onLeave: (gameInfo: ActiveGameInfo, onDone?: () => void) => void;
   /** Called when bot replacement countdown expires (online only) */
   onBotReplaced?: () => void;
-  /** Called when user wants to replace the bot after 60s */
-  onReplaceBotAndRejoin?: (roomCode: string) => void;
+  /** Called when user wants to replace the bot after 60s. onDone is called when the action completes or is cancelled. */
+  onReplaceBotAndRejoin?: (roomCode: string, onDone?: () => void) => void;
   /** Timestamp when the user left the online game (for countdown) */
   disconnectTimestamp?: number | null;
   /** Increment to force re-check of offline game state (e.g. after discard) */
@@ -338,7 +338,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
             onPress={() => {
               if (onReplaceBotAndRejoin) {
                 setIsRejoining(true);
-                onReplaceBotAndRejoin(gameInfo.roomCode);
+                onReplaceBotAndRejoin(gameInfo.roomCode, () => setIsRejoining(false));
               }
             }}
             activeOpacity={0.8}
@@ -357,7 +357,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
           style={[styles.button, styles.leaveButton, isLeaving && styles.buttonLoading]}
           onPress={() => {
             setIsLeaving(true);
-            onLeave(gameInfo);
+            onLeave(gameInfo, () => setIsLeaving(false));
           }}
           activeOpacity={0.8}
           disabled={isRejoining || isLeaving}
