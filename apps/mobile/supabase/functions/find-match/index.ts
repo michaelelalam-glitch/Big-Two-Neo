@@ -328,7 +328,7 @@ Deno.serve(async (req) => {
       if (roomError || !room) {
         console.error('❌ [find-match] Failed to create room:', roomError);
         // Release optimistic lock so these players can be re-matched
-        await supabaseClient.from('waiting_room').update({ status: 'waiting', processing_started_at: null }).in('user_id', candidateIds).eq('status', 'processing');
+        await supabaseClient.from('waiting_room').update({ status: 'waiting', processing_started_at: null }).in('user_id', lockedIds).eq('status', 'processing');
         return new Response(
           JSON.stringify({ success: false, error: 'Failed to create room' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -356,7 +356,7 @@ Deno.serve(async (req) => {
         console.error('❌ [find-match] Failed to add players:', playersError);
         // Rollback: delete the room and release optimistic lock
         await supabaseClient.from('rooms').delete().eq('id', roomId);
-        await supabaseClient.from('waiting_room').update({ status: 'waiting', processing_started_at: null }).in('user_id', candidateIds).eq('status', 'processing');
+        await supabaseClient.from('waiting_room').update({ status: 'waiting', processing_started_at: null }).in('user_id', lockedIds).eq('status', 'processing');
         return new Response(
           JSON.stringify({ success: false, error: 'Failed to add players to room' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -390,7 +390,8 @@ Deno.serve(async (req) => {
         await supabaseClient
           .from('waiting_room')
           .update({ status: 'waiting', matched_room_id: null, matched_at: null, processing_started_at: null })
-          .in('user_id', candidateIds);
+          .in('user_id', lockedIds)
+          .eq('status', 'matched');
         
         return new Response(
           JSON.stringify({ success: false, error: 'Failed to start game' }),
