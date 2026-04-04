@@ -165,8 +165,11 @@ export function useActiveGameBanner(
                 // Using one formula prevents subtle drift between the two paths.
                 // Guard: if seconds_left is also absent, use null rather than
                 // computing an anchor 60s in the past (which appears expired).
-                const serverAnchorMs = statusData.disconnect_timer_started_at
-                  ? Math.min(new Date(statusData.disconnect_timer_started_at).getTime(), Date.now())
+                const parsedDisconnectStartedAtMs = statusData.disconnect_timer_started_at
+                  ? new Date(statusData.disconnect_timer_started_at).getTime()
+                  : null;
+                const serverAnchorMs = Number.isFinite(parsedDisconnectStartedAtMs)
+                  ? Math.min(parsedDisconnectStartedAtMs as number, Date.now())
                   : typeof statusData.seconds_left === 'number'
                     ? Date.now() - (60 - statusData.seconds_left) * 1000
                     : null;

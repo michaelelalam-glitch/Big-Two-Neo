@@ -591,7 +591,8 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 settled = true;
                 clearTimeout(timeout);
                 // Guard: if a newer joinChannel call has replaced channelRef.current,
-                // this channel is stale — clean it up and bail without mutating state.
+                // this channel is stale — clean it up and settle the promise as a no-op
+                // so the joiningChannelPromiseRef finally-block can clear correctly.
                 if (channelRef.current !== channel) {
                   void channel
                     .unsubscribe()
@@ -599,6 +600,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                     .catch(() => {
                       supabase.removeChannel(channel);
                     });
+                  resolve(); // settle promise so callers don't hang indefinitely
                   return;
                 }
                 // Only expose channel to reactive consumers after subscription is
