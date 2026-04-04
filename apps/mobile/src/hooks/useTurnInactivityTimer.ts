@@ -242,6 +242,11 @@ export function useTurnInactivityTimer({
           activeTurnSequenceRef.current = null;
           hasExpiredRef.current = false;
           lastAutoPlayAttemptRef.current = 0;
+          // 5.2 CRITICAL: Reset localTurnStartRef on every turn change so the next
+          // turn always recomputes its clock-skew anchor from fresh game state.
+          // Without this, a stale skew-corrected start time can bleed into subsequent
+          // turns when the server clock drift picture changes between rounds.
+          localTurnStartRef.current = null;
         }
         setTimerState(prev =>
           !prev.isMyTurn && prev.remainingMs === TURN_TIMEOUT_MS && !prev.isAutoPlayInProgress
@@ -338,7 +343,14 @@ export function useTurnInactivityTimer({
     return () => {
       networkLogger.debug('⏰ [TurnTimer] Cleaning up turn polling interval');
       clearInterval(interval);
+      // 5.6 MEDIUM: Reset ALL tracking refs on cleanup so a remounted hook starts
+      // from a known-clean state. Partial cleanup (only activeTurnSequenceRef) left
+      // hasExpiredRef / lastAutoPlayAttemptRef / localTurnStartRef with stale values,
+      // which could suppress auto-play or use the wrong clock-skew anchor on re-mount.
       activeTurnSequenceRef.current = null;
+      hasExpiredRef.current = false;
+      lastAutoPlayAttemptRef.current = 0;
+      localTurnStartRef.current = null;
     };
   }, [room?.id, currentUserId, tryAutoPlayTurn]);
 

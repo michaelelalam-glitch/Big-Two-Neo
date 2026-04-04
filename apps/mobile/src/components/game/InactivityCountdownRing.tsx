@@ -74,8 +74,16 @@ interface InactivityCountdownRingProps {
   type: 'turn' | 'connection';
   /** UTC ISO-8601 timestamp when the countdown started */
   startedAt: string;
-  /** Called when the countdown reaches 0 (timer expired) */
-  onExpired?: () => void;
+  /**
+   * Called when the countdown reaches 0 (timer expired).
+   *
+   * 5.5 HIGH: Now required. For display-only rings on opponent avatars where the local
+   * client has no action to take on expiry, pass a no-op `() => {}`. Making this
+   * required prevents silent omissions at call sites that DO need expiry handling
+   * (e.g. the local player's turn ring), ensuring the caller explicitly acknowledges
+   * whether they need an expiry action rather than silently ignoring the event.
+   */
+  onExpired: () => void;
   /** Optional size override — defaults to LAYOUT.avatarSize (70px) */
   size?: number;
 }
@@ -198,16 +206,8 @@ export default function InactivityCountdownRing({
   // the `type` prop, which would force the scheduling effect to re-run on type changes
   // and restart the animation.
   const handleExpired = useCallback(() => {
-    // Warn only when a handler is registered (actionable event): for display-only
-    // rings (onExpired={undefined}, e.g. opponent's PlayerInfo) use debug so
-    // normal expiry doesn't pollute production warn logs.
-    if (onExpiredRef.current) {
-      networkLogger.warn(`[InactivityRing] Timer expired: type=${typeRef.current}`);
-    } else {
-      networkLogger.debug(
-        `[InactivityRing] Timer expired with no onExpired handler: type=${typeRef.current}`
-      );
-    }
+    // onExpired is now required (5.5), so always log at warn level on expiry.
+    networkLogger.warn(`[InactivityRing] Timer expired: type=${typeRef.current}`);
     setVisible(false);
     onExpiredRef.current?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -30,8 +30,7 @@ import InactivityCountdownRing from '../InactivityCountdownRing';
 const COUNTDOWN_DURATION_MS = 60_000;
 
 /** Build an ISO timestamp that is `elapsedMs` in the past */
-const startedAt = (elapsedMs: number) =>
-  new Date(Date.now() - elapsedMs).toISOString();
+const startedAt = (elapsedMs: number) => new Date(Date.now() - elapsedMs).toISOString();
 
 /** Get the static animated props returned by the last useAnimatedProps call during render. */
 function getLastAnimatedProps(): Record<string, unknown> {
@@ -56,14 +55,18 @@ describe('InactivityCountdownRing', () => {
   describe('Rendering', () => {
     it('renders without crashing for a fresh turn ring', () => {
       const { toJSON } = render(
-        <InactivityCountdownRing type="turn" startedAt={startedAt(1000)} />,
+        <InactivityCountdownRing type="turn" startedAt={startedAt(1000)} onExpired={() => {}} />
       );
       expect(toJSON()).not.toBeNull();
     });
 
     it('renders without crashing for a fresh connection ring', () => {
       const { toJSON } = render(
-        <InactivityCountdownRing type="connection" startedAt={startedAt(1000)} />,
+        <InactivityCountdownRing
+          type="connection"
+          startedAt={startedAt(1000)}
+          onExpired={() => {}}
+        />
       );
       expect(toJSON()).not.toBeNull();
     });
@@ -72,7 +75,7 @@ describe('InactivityCountdownRing', () => {
       // startedAt is > 60s ago → initial progress = 0 → visible starts false → returns null
       const expired = startedAt(COUNTDOWN_DURATION_MS + 5000);
       const { toJSON } = render(
-        <InactivityCountdownRing type="turn" startedAt={expired} />,
+        <InactivityCountdownRing type="turn" startedAt={expired} onExpired={() => {}} />
       );
       expect(toJSON()).toBeNull();
     });
@@ -80,7 +83,7 @@ describe('InactivityCountdownRing', () => {
     it('renders null for a startedAt exactly at the deadline', () => {
       const exactlyExpired = startedAt(COUNTDOWN_DURATION_MS);
       const { toJSON } = render(
-        <InactivityCountdownRing type="turn" startedAt={exactlyExpired} />,
+        <InactivityCountdownRing type="turn" startedAt={exactlyExpired} onExpired={() => {}} />
       );
       expect(toJSON()).toBeNull();
     });
@@ -95,7 +98,11 @@ describe('InactivityCountdownRing', () => {
       const dateSpy = jest.spyOn(Date, 'now').mockReturnValue(frozenNow);
       const elapsedMs = 10_000; // 10s elapsed → ~50s remaining
       render(
-        <InactivityCountdownRing type="turn" startedAt={startedAt(elapsedMs)} />,
+        <InactivityCountdownRing
+          type="turn"
+          startedAt={startedAt(elapsedMs)}
+          onExpired={() => {}}
+        />
       );
       dateSpy.mockRestore();
 
@@ -108,7 +115,7 @@ describe('InactivityCountdownRing', () => {
 
     it('calls cancelAnimation on unmount to prevent stale completion callbacks', () => {
       const { unmount } = render(
-        <InactivityCountdownRing type="turn" startedAt={startedAt(5000)} />,
+        <InactivityCountdownRing type="turn" startedAt={startedAt(5000)} onExpired={() => {}} />
       );
       unmount();
       expect(cancelAnimation).toHaveBeenCalledTimes(1);
@@ -116,10 +123,10 @@ describe('InactivityCountdownRing', () => {
 
     it('re-schedules withTiming when startedAt changes', () => {
       const { rerender } = render(
-        <InactivityCountdownRing type="turn" startedAt={startedAt(5000)} />,
+        <InactivityCountdownRing type="turn" startedAt={startedAt(5000)} onExpired={() => {}} />
       );
       rerender(
-        <InactivityCountdownRing type="turn" startedAt={startedAt(15000)} />,
+        <InactivityCountdownRing type="turn" startedAt={startedAt(15000)} onExpired={() => {}} />
       );
       // Mount + rerender = 2 withTiming calls
       expect(withTiming).toHaveBeenCalledTimes(2);
@@ -131,19 +138,15 @@ describe('InactivityCountdownRing', () => {
       // color on the UI thread — no animation restart occurs.
       const ts = startedAt(5000);
       const { rerender } = render(
-        <InactivityCountdownRing type="turn" startedAt={ts} />,
+        <InactivityCountdownRing type="turn" startedAt={ts} onExpired={() => {}} />
       );
-      rerender(
-        <InactivityCountdownRing type="connection" startedAt={ts} />,
-      );
+      rerender(<InactivityCountdownRing type="connection" startedAt={ts} onExpired={() => {}} />);
       expect(withTiming).toHaveBeenCalledTimes(1);
     });
 
     it('does NOT call withTiming when the timer is already expired', () => {
       const expired = startedAt(COUNTDOWN_DURATION_MS + 5000);
-      render(
-        <InactivityCountdownRing type="turn" startedAt={expired} />,
-      );
+      render(<InactivityCountdownRing type="turn" startedAt={expired} onExpired={() => {}} />);
       // remaining <= 0 path → no withTiming is scheduled
       expect(withTiming).not.toHaveBeenCalled();
     });
@@ -155,7 +158,7 @@ describe('InactivityCountdownRing', () => {
 
     it('computes non-zero visibleArc for a ring with time remaining', () => {
       render(
-        <InactivityCountdownRing type="turn" startedAt={startedAt(5000)} />,
+        <InactivityCountdownRing type="turn" startedAt={startedAt(5000)} onExpired={() => {}} />
       );
       const arcProps = getLastAnimatedProps();
       // strokeDasharray is now a space-separated string (e.g. "119.38 81.68")
@@ -166,7 +169,7 @@ describe('InactivityCountdownRing', () => {
 
     it('strokeDashoffset equals -gap', () => {
       render(
-        <InactivityCountdownRing type="turn" startedAt={startedAt(5000)} />,
+        <InactivityCountdownRing type="turn" startedAt={startedAt(5000)} onExpired={() => {}} />
       );
       const arcProps = getLastAnimatedProps();
       const [, gap] = (arcProps.strokeDasharray as string).split(' ').map(Number);
@@ -176,14 +179,18 @@ describe('InactivityCountdownRing', () => {
     it('uses full yellow (#FFD700) for turn ring at >25% progress', () => {
       // 5s elapsed → 55s remaining → progress ≈ 91.7% (> 25%)
       render(
-        <InactivityCountdownRing type="turn" startedAt={startedAt(5000)} />,
+        <InactivityCountdownRing type="turn" startedAt={startedAt(5000)} onExpired={() => {}} />
       );
       expect(getLastAnimatedProps().stroke).toBe('#FFD700');
     });
 
     it('uses full charcoal (#4A4A4A) for connection ring at >25% progress', () => {
       render(
-        <InactivityCountdownRing type="connection" startedAt={startedAt(5000)} />,
+        <InactivityCountdownRing
+          type="connection"
+          startedAt={startedAt(5000)}
+          onExpired={() => {}}
+        />
       );
       expect(getLastAnimatedProps().stroke).toBe('#4A4A4A');
     });
@@ -191,14 +198,18 @@ describe('InactivityCountdownRing', () => {
     it('switches to low-yellow (#FFC107) when progress ≤ 25% for turn ring', () => {
       // 50s elapsed → 10s remaining → progress = 10/60 ≈ 16.7% (≤ 25%)
       render(
-        <InactivityCountdownRing type="turn" startedAt={startedAt(50_000)} />,
+        <InactivityCountdownRing type="turn" startedAt={startedAt(50_000)} onExpired={() => {}} />
       );
       expect(getLastAnimatedProps().stroke).toBe('#FFC107');
     });
 
     it('switches to low-charcoal (#2E2E2E) when progress ≤ 25% for connection ring', () => {
       render(
-        <InactivityCountdownRing type="connection" startedAt={startedAt(50_000)} />,
+        <InactivityCountdownRing
+          type="connection"
+          startedAt={startedAt(50_000)}
+          onExpired={() => {}}
+        />
       );
       expect(getLastAnimatedProps().stroke).toBe('#2E2E2E');
     });
@@ -208,11 +219,7 @@ describe('InactivityCountdownRing', () => {
     it('does not call onExpired for a timer with time remaining', () => {
       const onExpired = jest.fn();
       render(
-        <InactivityCountdownRing
-          type="turn"
-          startedAt={startedAt(5000)}
-          onExpired={onExpired}
-        />,
+        <InactivityCountdownRing type="turn" startedAt={startedAt(5000)} onExpired={onExpired} />
       );
       // withTiming mock returns target value (0) but ignores the completion callback,
       // so onExpired is never triggered synchronously.
@@ -227,7 +234,7 @@ describe('InactivityCountdownRing', () => {
           type="turn"
           startedAt={startedAt(COUNTDOWN_DURATION_MS + 1000)}
           onExpired={onExpired}
-        />,
+        />
       );
       expect(onExpired).toHaveBeenCalledTimes(1);
     });
@@ -237,19 +244,17 @@ describe('InactivityCountdownRing', () => {
       // → runOnJS(handleExpired)() → onExpired called + ring hidden.
       const onExpired = jest.fn();
       const { toJSON } = render(
-        <InactivityCountdownRing
-          type="turn"
-          startedAt={startedAt(5000)}
-          onExpired={onExpired}
-        />,
+        <InactivityCountdownRing type="turn" startedAt={startedAt(5000)} onExpired={onExpired} />
       );
       // Extract the completion callback passed as withTiming's 3rd argument.
       const completionCb = (withTiming as jest.Mock).mock.calls[0][2] as (
-        finished: boolean,
+        finished: boolean
       ) => void;
       expect(completionCb).toBeDefined();
       // Invoke inside act() so React processes the resulting setVisible(false) update.
-      act(() => { completionCb(true); });
+      act(() => {
+        completionCb(true);
+      });
       expect(onExpired).toHaveBeenCalledTimes(1);
       expect(toJSON()).toBeNull(); // ring removes itself from the render tree
     });
@@ -259,16 +264,14 @@ describe('InactivityCountdownRing', () => {
       // handleExpired() must not be invoked to avoid hiding the ring prematurely.
       const onExpired = jest.fn();
       render(
-        <InactivityCountdownRing
-          type="turn"
-          startedAt={startedAt(5000)}
-          onExpired={onExpired}
-        />,
+        <InactivityCountdownRing type="turn" startedAt={startedAt(5000)} onExpired={onExpired} />
       );
       const completionCb = (withTiming as jest.Mock).mock.calls[0][2] as (
-        finished: boolean,
+        finished: boolean
       ) => void;
-      act(() => { completionCb(false); });
+      act(() => {
+        completionCb(false);
+      });
       expect(onExpired).not.toHaveBeenCalled();
     });
   });
@@ -278,7 +281,7 @@ describe('InactivityCountdownRing', () => {
       // Server 500ms ahead of client → elapsed = -500ms → treated as 0 elapsed → full ring
       const futureTs = new Date(Date.now() + 500).toISOString();
       const { toJSON } = render(
-        <InactivityCountdownRing type="turn" startedAt={futureTs} />,
+        <InactivityCountdownRing type="turn" startedAt={futureTs} onExpired={() => {}} />
       );
       expect(toJSON()).not.toBeNull();
     });
@@ -291,9 +294,7 @@ describe('InactivityCountdownRing', () => {
       // Server 1s ahead — below CLOCK_SKEW_WARN_THRESHOLD_MS (2s), so resolveStartTimeMs
       // returns serverMs. elapsed in the effect is clamped to 0 → remaining = exactly 60s.
       const futureTs = new Date(frozenNow + 1000).toISOString();
-      render(
-        <InactivityCountdownRing type="turn" startedAt={futureTs} />,
-      );
+      render(<InactivityCountdownRing type="turn" startedAt={futureTs} onExpired={() => {}} />);
       dateSpy.mockRestore();
       expect(withTiming).toHaveBeenCalledTimes(1);
       const [, opts] = (withTiming as jest.Mock).mock.calls[0];
@@ -302,4 +303,3 @@ describe('InactivityCountdownRing', () => {
     });
   });
 });
-
