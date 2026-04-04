@@ -129,12 +129,16 @@ Deno.serve(async (req) => {
     // row is cleaned up. We revert it back to 'waiting' if it has been in
     // 'processing' for more than 30 seconds (well past any normal match-assembly
     // window), so the subsequent upsert can refresh the row's data as usual.
+    // Use processing_started_at when available (set by step 6a) for an accurate
+    // staleness check; fall back to joined_at for legacy rows that predate the
+    // column addition (COALESCE logic via OR filter).
+    const thirtySecsAgo = new Date(Date.now() - 30 * 1000).toISOString();
     await supabaseClient
       .from('waiting_room')
-      .update({ status: 'waiting' })
+      .update({ status: 'waiting', processing_started_at: null })
       .eq('user_id', userId)
       .eq('status', 'processing')
-      .lt('joined_at', new Date(Date.now() - 30 * 1000).toISOString());
+      .or(`processing_started_at.lt.${thirtySecsAgo},and(processing_started_at.is.null,joined_at.lt.${thirtySecsAgo})`);
 
     // 4. Insert or update user in waiting room.
     // Two-step upsert that protects rows already in 'processing' state:
@@ -224,7 +228,7 @@ Deno.serve(async (req) => {
       // touching rows already locked by a concurrent caller.
       const { data: lockedRows, error: lockError } = await supabaseClient
         .from('waiting_room')
-        .update({ status: 'processing' })
+        .update({ status: 'processing', processing_started_at: new Date().toISOString() })
         .in('user_id', candidateIds)
         .eq('status', 'waiting') // Only lock rows still in 'waiting' state
         .select('user_id');

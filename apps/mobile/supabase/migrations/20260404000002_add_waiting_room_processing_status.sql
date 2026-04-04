@@ -16,6 +16,14 @@ ALTER TABLE waiting_room
   ADD CONSTRAINT check_status
   CHECK (status IN ('waiting', 'matched', 'cancelled', 'processing'));
 
+-- Track when a row enters 'processing' so the staleness check can use the
+-- actual lock-acquisition time rather than joined_at (which reflects when the
+-- user originally joined the queue and may be many minutes in the past).
+-- Without this, a player who waited >30 s before being locked could have their
+-- active optimistic lock immediately reverted by the cleanup function.
+ALTER TABLE waiting_room
+  ADD COLUMN IF NOT EXISTS processing_started_at TIMESTAMPTZ;
+
 -- Extend cleanup_stale_waiting_room_entries to also revert stale 'processing'
 -- rows back to 'waiting'. A find-match invocation that crashes or times out
 -- after acquiring the optimistic lock but before finishing match assembly will
@@ -38,17 +46,23 @@ BEGIN
   -- Revert rows stuck in 'processing' for more than 30 seconds back to
   -- 'waiting' so users are not permanently blocked from matchmaking by a
   -- crashed/timed-out find-match invocation.
+  -- Use COALESCE so that legacy rows without processing_started_at fall back
+  -- to joined_at (backward-compatible), while new rows use the accurate
+  -- lock-acquisition timestamp.
   UPDATE waiting_room
-  SET status = 'waiting'
+  SET status = 'waiting',
+      processing_started_at = NULL
   WHERE status = 'processing'
-    AND joined_at < NOW() - INTERVAL '30 seconds';
+    AND COALESCE(processing_started_at, joined_at) < NOW() - INTERVAL '30 seconds';
 END;
 $$;
 
 -- This function runs as SECURITY DEFINER and can UPDATE/DELETE any
--- waiting_room row, bypassing RLS. Revoke the default PUBLIC EXECUTE
--- privilege so authenticated clients cannot invoke it directly (which
--- would allow griefing matchmaking). Only service_role (used by
+-- waiting_room row, bypassing RLS. Revoke both the default PUBLIC EXECUTE
+-- privilege and the explicit GRANT TO authenticated that was added in the
+-- baseline migration so that no authenticated client can invoke it directly
+-- (which would allow griefing matchmaking). Only service_role (used by
 -- server-side edge functions and scheduled jobs) may call it.
 REVOKE EXECUTE ON FUNCTION cleanup_stale_waiting_room_entries() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION cleanup_stale_waiting_room_entries() FROM authenticated;
 GRANT  EXECUTE ON FUNCTION cleanup_stale_waiting_room_entries() TO service_role;
