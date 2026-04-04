@@ -1135,7 +1135,9 @@ export function MultiplayerGame() {
   // so getCorrectedNow() compensates for the server being ahead of the client.
   // This prevents spurious "clock skew detected" warnings on every turn and ensures
   // the auto-play edge function fires at the correct 60s server-relative deadline.
-  const { getCorrectedNow: getTurnCorrectedNow } = useClockSync(
+  // offsetMs is also forwarded to GameContext so InactivityCountdownRing uses the same
+  // corrected clock as AutoPassTimer (fixes the ⚠️ Clock skew log in InactivityRing).
+  const { getCorrectedNow: getTurnCorrectedNow, offsetMs: turnClockOffsetMs } = useClockSync(
     multiplayerGameState?.auto_pass_timer ?? null
   );
   const { isMyTurn: _isTurnInactivityMyTurn } = useTurnInactivityTimer({
@@ -1491,6 +1493,7 @@ export function MultiplayerGame() {
       isGameFinished,
       displayOrderScoreHistory,
       playHistoryByMatch,
+      turnClockOffsetMs,
       handlePlayCards,
       handlePass,
       handlePlaySuccess,
@@ -1571,6 +1574,7 @@ export function MultiplayerGame() {
       isGameFinished,
       displayOrderScoreHistory,
       playHistoryByMatch,
+      turnClockOffsetMs,
       handlePlayCards,
       handlePass,
       handlePlaySuccess,

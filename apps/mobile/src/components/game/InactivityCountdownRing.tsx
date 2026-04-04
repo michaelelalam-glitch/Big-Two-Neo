@@ -86,24 +86,32 @@ interface InactivityCountdownRingProps {
   onExpired: () => void;
   /** Optional size override — defaults to LAYOUT.avatarSize (70px) */
   size?: number;
+  /**
+   * Server-to-client clock offset in milliseconds (positive = client is behind server).
+   * Passed from useClockSync so elapsed time is computed against the corrected server
+   * clock rather than raw Date.now(). When omitted / 0, falls back to the previous
+   * skew-detection heuristic for backward compatibility.
+   */
+  clockOffsetMs?: number;
 }
 
 /**
  * Resolves the canonical start-time anchor in ms, handling server-ahead clock skew.
- * When the server timestamp is in the future relative to the client (skew > 0), use
- * Date.now() so the ring starts depleting immediately instead of freezing at 100%.
+ * When clockOffsetMs is provided (from useClockSync), the corrected now is used so
+ * the ring depletes at the same rate as the server-side timer. Without an offset,
+ * falls back to the previous heuristic: when the uncorrected elapsed is significantly
+ * negative (server >> client clock), uses Date.now() as anchor so the ring starts
+ * depleting immediately rather than appearing frozen at 100%.
  */
-function resolveStartTimeMs(startedAt: string): number {
+function resolveStartTimeMs(startedAt: string, clockOffsetMs: number): number {
   const serverMs = new Date(startedAt).getTime();
-  const elapsed = Date.now() - serverMs;
-  // For significant server-ahead skew (> CLOCK_SKEW_WARN_THRESHOLD_MS), return
-  // Date.now() so the ring starts depleting immediately instead of appearing frozen
-  // at 100% for multiple seconds. For minor drift (≤ threshold), serverMs is used
-  // directly — the ring starts at ≈100% and runs for a few ms longer, which is
-  // imperceptible. The warning itself is emitted in a useEffect (not here) to avoid
-  // duplicate log lines under React 18 StrictMode double-invocation of pure functions.
-  if (elapsed < -CLOCK_SKEW_WARN_THRESHOLD_MS) {
-    return Date.now();
+  const correctedNow = Date.now() + clockOffsetMs;
+  const correctedElapsed = correctedNow - serverMs;
+  // When the corrected time is still behind the server start by more than the
+  // threshold (extremely rare — means offset is stale / inaccurate), clamp to
+  // correctedNow so the ring starts depleting immediately rather than freezing.
+  if (correctedElapsed < -CLOCK_SKEW_WARN_THRESHOLD_MS) {
+    return correctedNow;
   }
   return serverMs;
 }
@@ -121,6 +129,7 @@ export default function InactivityCountdownRing({
   startedAt,
   onExpired,
   size = DEFAULT_RING_SIZE,
+  clockOffsetMs = 0,
 }: InactivityCountdownRingProps) {
   // Calculate ring dimensions based on size
   const ringDimensions = useMemo(() => {
@@ -145,32 +154,43 @@ export default function InactivityCountdownRing({
   const typeRef = useRef(type);
   typeRef.current = type;
 
-  // Memoised: resolveStartTimeMs() is called exactly once per `startedAt` change.
-  // All three consumers (useSharedValue init, useState init, scheduling effect) share
-  // the same stable T0 anchor, preventing tiny Date.now() drift between consumers.
-  const startTimeMs = useMemo(() => resolveStartTimeMs(startedAt), [startedAt]);
+  // Keep clockOffsetMs in a ref so the scheduling effect always reads the current
+  // value without needing it in the effect's dep array (which would restart the
+  // animation on every minor offset drift). clockOffsetMs changes atomically with
+  // startedAt (new timer → new offset), so the effect's [startTimeMs] dep already
+  // covers the meaningful re-schedule window.
+  const clockOffsetMsRef = useRef(clockOffsetMs);
+  clockOffsetMsRef.current = clockOffsetMs;
 
-  // Log a one-time debug message when the server clock is significantly ahead. Placed
-  // in a useEffect (not inside resolveStartTimeMs / useMemo) so it fires exactly once
-  // per startedAt change even under React 18 StrictMode double-invocation of pure
-  // functions in development. Logs at debug level (not warn) to avoid flooding prod
-  // log files. Skews ≤ CLOCK_SKEW_WARN_THRESHOLD_MS are minor drift and not logged.
+  // Memoised: resolveStartTimeMs() is called exactly once per `startedAt` / clockOffsetMs
+  // change. All three consumers (useSharedValue init, useState init, scheduling effect)
+  // share the same stable T0 anchor, preventing tiny Date.now() drift between consumers.
+  const startTimeMs = useMemo(
+    () => resolveStartTimeMs(startedAt, clockOffsetMs),
+    [startedAt, clockOffsetMs]
+  );
+
+  // Log a one-time debug message whenever the ring is scheduled so callers can verify
+  // the corrected anchor is being used. Placed in a useEffect (not inside
+  // resolveStartTimeMs / useMemo) so it fires exactly once per startedAt / offset
+  // change even under React 18 StrictMode double-invocation of pure functions.
   useEffect(() => {
     const serverMs = new Date(startedAt).getTime();
-    const skew = serverMs - Date.now(); // positive when server is ahead of client
-    if (skew > CLOCK_SKEW_WARN_THRESHOLD_MS) {
+    const correctedNow = Date.now() + clockOffsetMs;
+    const residualSkew = serverMs - correctedNow; // positive when server still ahead after correction
+    if (residualSkew > CLOCK_SKEW_WARN_THRESHOLD_MS) {
       networkLogger.debug(
-        `[InactivityRing] ⚠️ Clock skew: server ~${Math.round(skew / 100) / 10}s ahead. Using Date.now() as anchor.`
+        `[InactivityRing] Residual clock skew after sync: server ~${Math.round(residualSkew / 100) / 10}s ahead. Clamping to corrected anchor.`
       );
     }
-  }, [startedAt]);
+  }, [startedAt, clockOffsetMs]);
 
   // Initial progress fraction (0–1) at the moment this render executes.
   // Seeded into useSharedValue on mount and used to determine initial visibility.
   const initialProgress = useMemo(() => {
-    const elapsed = Math.max(0, Date.now() - startTimeMs);
+    const elapsed = Math.max(0, Date.now() + clockOffsetMs - startTimeMs);
     return Math.min(1, Math.max(0, (COUNTDOWN_DURATION_MS - elapsed) / COUNTDOWN_DURATION_MS));
-  }, [startTimeMs]);
+  }, [startTimeMs, clockOffsetMs]);
 
   // Static accessibility label derived from the initial ring state. Computed once per
   // startedAt/type change — no per-frame JS updates. Screen readers announce the ring
@@ -223,9 +243,9 @@ export default function InactivityCountdownRing({
   // thread — no animation restart); adding `type` to deps would reset progress and
   // restart withTiming on every turn→connection or connection→turn transition.
   useEffect(() => {
-    // Re-sample Date.now() at effect-execution time (slightly after render) for
+    // Re-sample corrected time at effect-execution time (slightly after render) for
     // the most accurate remaining-ms value; startTimeMs is the stable T0 anchor.
-    const elapsed = Math.max(0, Date.now() - startTimeMs);
+    const elapsed = Math.max(0, Date.now() + clockOffsetMsRef.current - startTimeMs);
     const remaining = Math.max(0, COUNTDOWN_DURATION_MS - elapsed);
     const initial = remaining / COUNTDOWN_DURATION_MS;
 
@@ -257,9 +277,10 @@ export default function InactivityCountdownRing({
       cancelAnimation(progress);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startTimeMs]); // startTimeMs is memoised on [startedAt] — same trigger, no duplicate
-  // resolveStartTimeMs call. type → typeShared.value (color only, no
-  // animation restart); handleExpired, progress, typeShared are stable.
+  }, [startTimeMs]); // startTimeMs is memoised on [startedAt, clockOffsetMs] — covers both axes.
+  // clockOffsetMs changes are read via clockOffsetMsRef so no separate dep needed.
+  // type → typeShared.value (color only, no animation restart); handleExpired, progress,
+  // typeShared are stable.
 
   // --- Animated props (UI thread worklet) ---
   // CLOCKWISE depletion from 12 o'clock:

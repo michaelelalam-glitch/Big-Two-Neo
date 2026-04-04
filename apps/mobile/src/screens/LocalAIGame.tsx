@@ -426,6 +426,8 @@ export function LocalAIGame() {
       isGameFinished,
       displayOrderScoreHistory,
       playHistoryByMatch,
+      // Local AI games have no server clock sync; offset is always 0
+      turnClockOffsetMs: 0,
       handlePlayCards,
       handlePass,
       handlePlaySuccess,

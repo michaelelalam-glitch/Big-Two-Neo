@@ -48,6 +48,9 @@ interface PlayerInfoProps {
   onNameLongPress?: () => void;
   /** Called when the local player presses the mic toggle button on the avatar */
   onMicToggle?: () => void;
+  /** Server-to-client clock offset (ms) from useClockSync — passed to InactivityCountdownRing
+   * so elapsed time is computed against the corrected server clock, not raw Date.now(). */
+  clockOffsetMs?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -134,6 +137,7 @@ function PlayerInfoComponent({
   videoStreamSlot,
   onNameLongPress,
   onMicToggle,
+  clockOffsetMs = 0,
 }: PlayerInfoProps) {
   // Profile photo size preference
   const profilePhotoSize = useUserPreferencesStore(s => s.profilePhotoSize);
@@ -276,6 +280,7 @@ function PlayerInfoComponent({
             startedAt={ringStartedAt}
             onExpired={ringType === 'connection' ? (onCountdownExpired ?? (() => {})) : () => {}}
             size={avatarScale.size}
+            clockOffsetMs={clockOffsetMs}
           />
         )}
         {/* Disconnect spinner overlay */}
