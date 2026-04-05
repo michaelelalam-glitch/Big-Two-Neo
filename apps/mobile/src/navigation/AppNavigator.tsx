@@ -177,18 +177,21 @@ export default function AppNavigator() {
     const MAX_ATTEMPTS = 20; // 20 × 100 ms = 2 s max
     const timerId = setInterval(() => {
       attempts += 1;
-      if (navigationRef.current?.isReady() || attempts >= MAX_ATTEMPTS) {
+      if (navigationRef.current?.isReady()) {
         clearInterval(timerId);
         Linking.openURL(replayUrl)
           .then(() => {
-            // Only clear the pending link after successful replay
             pendingLinkRef.current = null;
           })
           .catch(err => {
             authLogger.info('[AppNavigator] Failed to replay pending deep link', err);
-            // Restore the pending link so it can be retried on next sign-in
-            pendingLinkRef.current = url;
+            // Keep pendingLinkRef intact — it will be retried on next sign-in cycle
           });
+      } else if (attempts >= MAX_ATTEMPTS) {
+        // Nav stack never became ready within 2 s — leave pendingLinkRef
+        // intact so the link can be retried on the next sign-in / app resume.
+        clearInterval(timerId);
+        authLogger.info('[AppNavigator] Nav not ready after 2s, deferring deep link replay');
       }
     }, 100);
     return () => clearInterval(timerId);

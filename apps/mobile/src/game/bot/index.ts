@@ -42,8 +42,10 @@ export interface BotPlayResult {
  */
 export class BotAI {
   private readonly _difficulty: BotDifficulty;
-  /** Memoization cache for findBest5CardCombo keyed by sorted card IDs. */
+  /** Memoization cache for findBest5CardCombo keyed by sorted card IDs.
+   *  Capped at 256 entries (FIFO eviction) to bound memory in long sessions. */
   private _5cardCache = new Map<string, string[] | null>();
+  private static readonly _CACHE_MAX = 256;
 
   constructor(difficulty: BotDifficulty = 'medium') {
     this._difficulty = difficulty;
@@ -487,6 +489,12 @@ export class BotAI {
       .sort()
       .join(',');
     if (this._5cardCache.has(cacheKey)) return this._5cardCache.get(cacheKey)!;
+
+    // FIFO eviction: drop oldest entry when at capacity
+    if (this._5cardCache.size >= BotAI._CACHE_MAX) {
+      const oldest = this._5cardCache.keys().next().value;
+      if (oldest !== undefined) this._5cardCache.delete(oldest);
+    }
 
     const n = hand.length;
     for (let a = 0; a < n - 4; a++) {

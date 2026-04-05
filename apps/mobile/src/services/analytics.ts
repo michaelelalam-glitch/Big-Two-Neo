@@ -241,8 +241,14 @@ function getSessionId(): number {
 async function sendEvents(
   events: { name: string; params?: AnalyticsEventParams }[]
 ): Promise<void> {
-  if (!MEASUREMENT_ID || !API_SECRET) {
-    // Credentials not configured — no-op silently
+  if (!MEASUREMENT_ID) {
+    // Measurement ID not configured — no-op silently
+    return;
+  }
+  // In proxy mode (production), API_SECRET lives server-side in the Edge
+  // Function so it's not required on the client. In dev mode, it's needed
+  // for direct GA4 validation.
+  if (!USE_PROXY && !API_SECRET) {
     return;
   }
 

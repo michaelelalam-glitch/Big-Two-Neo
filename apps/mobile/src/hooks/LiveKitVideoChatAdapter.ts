@@ -194,25 +194,34 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
     // `startAudioSession` is also required to *activate* the session — without
     // it, AVAudioSession remains inactive and capture silently fails on iOS.
     if (_AudioSession) {
-      // Serialize audio session operations to prevent race conditions
-      this._audioSessionMutex = this._audioSessionMutex.then(async () => {
-        if (this._audioSessionActive) {
-          gameLogger.info('[LiveKit] Audio session already active, skipping start');
-          return;
-        }
-        try {
-          await _AudioSession!.startAudioSession();
-          this._audioSessionActive = true;
-        } catch (audioErr) {
-          this._audioSessionActive = false;
-          throw new Error(
-            `LiveKit: AVAudioSession activation failed — audio unavailable: ${
-              audioErr instanceof Error ? audioErr.message : String(audioErr)
-            }`
-          );
-        }
-      });
+      // Serialize audio session operations to prevent race conditions.
+      // We store the error (if any) so it can be re-thrown after awaiting,
+      // but we always resolve the mutex so subsequent operations aren't
+      // permanently blocked by a single failure ("poisoned chain" problem).
+      let audioStartError: Error | undefined;
+      this._audioSessionMutex = this._audioSessionMutex
+        .then(async () => {
+          if (this._audioSessionActive) {
+            gameLogger.info('[LiveKit] Audio session already active, skipping start');
+            return;
+          }
+          try {
+            await _AudioSession!.startAudioSession();
+            this._audioSessionActive = true;
+          } catch (audioErr) {
+            this._audioSessionActive = false;
+            audioStartError = new Error(
+              `LiveKit: AVAudioSession activation failed — audio unavailable: ${
+                audioErr instanceof Error ? audioErr.message : String(audioErr)
+              }`
+            );
+          }
+        })
+        .catch(() => {
+          /* keep chain alive */
+        });
       await this._audioSessionMutex;
+      if (audioStartError) throw audioStartError;
     }
     gameLogger.info(`[LiveKit] Connecting participant ${participantId} to room ${roomId}`);
     try {
