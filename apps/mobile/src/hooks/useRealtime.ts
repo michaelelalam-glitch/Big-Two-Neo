@@ -353,39 +353,45 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
             );
 
           // Subscribe to broadcast events
+          // Note: fetchPlayers and fetchGameState are called fire-and-forget with void+catch
+          // so that transient network errors in Realtime callbacks surface as warnings rather
+          // than unhandled promise rejections (addresses Copilot review comment).
+          const warnFetch = (label: string) => (err: unknown) =>
+            networkLogger.warn(`[Realtime] ${label} broadcast fetch error:`, err);
+
           channel
             .on('broadcast', { event: 'player_joined' }, _payload => {
-              fetchPlayers(roomId);
+              void fetchPlayers(roomId).catch(warnFetch('player_joined'));
             })
             .on('broadcast', { event: 'player_left' }, _payload => {
-              fetchPlayers(roomId);
+              void fetchPlayers(roomId).catch(warnFetch('player_left'));
             })
             .on('broadcast', { event: 'player_ready' }, _payload => {
-              fetchPlayers(roomId);
+              void fetchPlayers(roomId).catch(warnFetch('player_ready'));
             })
             // fix/rejoin: human reclaimed seat from bot — refresh both players and
             // game state so all clients update their UI (stop waiting for "bot" turn)
             .on('broadcast', { event: 'player_reconnected' }, payload => {
               networkLogger.info('🔄 [Realtime] player_reconnected broadcast received:', payload);
-              fetchPlayers(roomId);
-              fetchGameState(roomId);
+              void fetchPlayers(roomId).catch(warnFetch('player_reconnected/players'));
+              void fetchGameState(roomId).catch(warnFetch('player_reconnected/gameState'));
             })
             .on('broadcast', { event: 'game_started' }, _payload => {
-              fetchGameState(roomId);
+              void fetchGameState(roomId).catch(warnFetch('game_started'));
             })
             .on('broadcast', { event: 'cards_played' }, _payload => {
-              fetchGameState(roomId);
+              void fetchGameState(roomId).catch(warnFetch('cards_played'));
             })
             .on('broadcast', { event: 'player_passed' }, _payload => {
-              fetchGameState(roomId);
+              void fetchGameState(roomId).catch(warnFetch('player_passed'));
             })
             .on('broadcast', { event: 'game_ended' }, payload => {
               networkLogger.info('🎉 [Realtime] game_ended broadcast received:', payload);
-              fetchGameState(roomId);
+              void fetchGameState(roomId).catch(warnFetch('game_ended'));
             })
             .on('broadcast', { event: 'game_over' }, payload => {
               networkLogger.info('🎉 [Realtime] game_over broadcast received:', payload);
-              fetchGameState(roomId);
+              void fetchGameState(roomId).catch(warnFetch('game_over'));
               // Use onGameOverRef.current so the latest callback is always invoked
               // without needing to re-subscribe the channel when the prop changes.
               const broadcastData = ((payload as { data?: Record<string, unknown> })?.data ??
@@ -437,7 +443,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 { matchNumber }
               );
               // onMatchEnded call removed — useMultiplayerScoreHistory reads from DB scores_history.
-              fetchGameState(roomId);
+              void fetchGameState(roomId).catch(warnFetch('match_ended'));
             })
             .on('broadcast', { event: 'auto_pass_timer_started' }, payload => {
               if (isValidTimerStatePayload(payload)) {
@@ -451,21 +457,21 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
               } else {
                 networkLogger.warn('[Timer] Invalid timer payload');
               }
-              fetchGameState(roomId);
+              void fetchGameState(roomId).catch(warnFetch('auto_pass_timer_started'));
             })
             .on('broadcast', { event: 'auto_pass_timer_cancelled' }, _payload => {
               setGameState(prevState => {
                 if (!prevState) return prevState;
                 return { ...prevState, auto_pass_timer: null };
               });
-              fetchGameState(roomId);
+              void fetchGameState(roomId).catch(warnFetch('auto_pass_timer_cancelled'));
             })
             .on('broadcast', { event: 'auto_pass_executed' }, _payload => {
               setGameState(prevState => {
                 if (!prevState) return prevState;
                 return { ...prevState, auto_pass_timer: null };
               });
-              fetchGameState(roomId);
+              void fetchGameState(roomId).catch(warnFetch('auto_pass_executed'));
             });
 
           // Subscribe to database changes
