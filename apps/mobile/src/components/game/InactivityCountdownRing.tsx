@@ -278,8 +278,9 @@ export default function InactivityCountdownRing({
       cancelAnimation(progress);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startTimeMs]); // startTimeMs is memoised on [startedAt, clockOffsetMs] — covers both axes.
-  // clockOffsetMs changes are read via clockOffsetMsRef so no separate dep needed.
+  }, [startTimeMs]); // startTimeMs is stable per `startedAt` (via startAnchorRef) — only a genuinely
+  // new timer identity (new startedAt) triggers re-scheduling. clockOffsetMs refinements are read
+  // live via clockOffsetMsRef so they don't restart the animation mid-countdown.
   // type → typeShared.value (color only, no animation restart); handleExpired, progress,
   // typeShared are stable.
 

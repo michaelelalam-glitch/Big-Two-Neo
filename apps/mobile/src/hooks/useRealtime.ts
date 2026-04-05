@@ -669,7 +669,8 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                     trackErr
                   );
                   // Resolve anyway — the channel is subscribed; presence failure is
-                  // non-fatal and will be retried when the component re-renders.
+                  // non-fatal. Tracking will only be attempted again on a future
+                  // subscribe/reconnect/rejoin path that re-enters this block.
                 }
 
                 networkLogger.info(
