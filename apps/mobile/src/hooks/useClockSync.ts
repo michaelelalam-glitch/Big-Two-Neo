@@ -152,7 +152,7 @@ export function useClockSync(
       clientAhead: offset < 0,
       driftMs: Math.abs(offset),
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run when the timer identity changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-runs on timer identity changes (server_time_at_creation, started_at) and on fallbackServerTimestamp to seed a rough initial offset before the first precise sync
   }, [
     timerState?.active,
     timerState?.server_time_at_creation,

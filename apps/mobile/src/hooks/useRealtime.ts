@@ -257,12 +257,10 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         return joiningChannelPromiseRef.current.promise;
       }
 
-      // Use definite assignment assertion so the IIFE's finally block can
-      // reference `joinPromise` by identity to guard against clearing a newer
-      // in-flight promise. TypeScript would otherwise report TS2454 (use before assign).
-      let joinPromise!: Promise<void>; // eslint-disable-line prefer-const
-      // eslint-disable-next-line prefer-const
-      joinPromise = (async () => {
+      // `joinPromise` is assigned once from the IIFE and never reassigned;
+      // `const` is used so the `finally` block can compare it by identity
+      // against `joiningChannelPromiseRef.current?.promise`.
+      const joinPromise = (async () => {
         try {
           // Remove existing channel. Clear the reactive state immediately so
           // consumers (e.g. useGameChat) stop using the old channel the moment

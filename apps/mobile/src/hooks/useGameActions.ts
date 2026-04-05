@@ -568,6 +568,7 @@ export function useGameActions({
         gameLogger.error('❌ [GameActions] Drag-to-play error:', err);
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- all references are stable refs or module singletons
   }, []);
 
   const handleCardHandPass = useCallback(() => {
@@ -576,6 +577,7 @@ export function useGameActions({
         gameLogger.error('❌ [GameActions] Pass error:', err);
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- onPassRef is a stable ref; gameLogger is a module singleton
   }, []);
 
   const handleLeaveGame = useCallback(
