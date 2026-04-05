@@ -39,8 +39,5 @@ ALTER TABLE game_state ALTER COLUMN dealer_index SET DEFAULT 0;
 ALTER TABLE game_state ADD COLUMN IF NOT EXISTS game_started_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 ALTER TABLE game_state ALTER COLUMN game_started_at SET DEFAULT NOW();
 
-ALTER TABLE game_state ADD COLUMN IF NOT EXISTS auto_pass_active BOOLEAN DEFAULT FALSE;
-ALTER TABLE game_state ALTER COLUMN auto_pass_active SET DEFAULT FALSE;
-
 -- Signal PostgREST to reload its schema cache immediately.
 NOTIFY pgrst, 'reload schema';
