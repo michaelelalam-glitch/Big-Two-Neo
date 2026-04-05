@@ -1,173 +1,164 @@
 /**
  * useClockSync Hook
  *
- * Measures and maintains client-server clock offset for timer synchronization.
+ * Measures client–server clock drift via a one-time NTP-style ping to the
+ * `server-time` edge function.
  *
- * Architecture:
- * - When timer is created, server includes server_time_at_creation AND started_at
- * - Client calculates: offset = server_time - local_time  (ONCE per unique sync identity)
- * - Sync identity = (server_time_at_creation, started_at) — both fields together.
- *   A new timer whose server_time_at_creation === a previous timer's value but whose
- *   started_at differs (same server-clock millisecond, different timer) will still
- *   trigger a fresh offset calculation, preventing sticky-offset bugs.
- * - Client uses offset to correct all time calculations: correctedNow = Date.now() + offset
+ * WHY the old approach was broken
+ * ────────────────────────────────
+ * The previous implementation computed:
+ *   offset = server_time_at_creation − Date.now_at_receipt
+ * This is only valid at the EXACT moment the timer is first created.
+ * For a player who joins/rejoins mid-timer (e.g. 8 s after creation):
+ *   Date.now_at_rejoin ≈ server_time_at_creation + 8000
+ *   → offset = −8000  (not clock drift — it's elapsed time!)
+ *   → getCorrectedNow() = Date.now() − 8000 ≈ server_time_at_CREATION
+ *   → endTimestamp − getCorrectedNow() = duration_ms  (full ring on rejoin ✗)
  *
- * CRITICAL DESIGN DECISIONS (Mar 2026 fixes):
- * 1. offsetMs is stored in a REF so getCorrectedNow always reads the latest
- *    value, even inside stale closures (e.g. setInterval callbacks that
- *    captured getCorrectedNow on an earlier render).
- * 2. The offset is only recalculated when the sync identity (server_time_at_creation,
- *    started_at) CHANGES (new timer).  Re-rendering with the SAME identity does
- *    NOT recalculate, because `offset = fixed_serverTime - later_Date.now()`
- *    would produce a progressively smaller offset → wrong remaining time.
- * 3. When timerState goes null (e.g. brief Realtime flash between passes),
- *    we KEEP the last valid offset and isSynced=true.  Resetting would force
- *    the AutoPassTimer UI to show clamped duration (10s) instead of the real
- *    remaining, making the timer "restart" visually.
+ * Using Date.now() directly (the previous "fix") ignores real clock drift
+ * between devices, causing timers to show wrong values (e.g. 17 s instead
+ * of 10 s on a device whose clock is 7 s behind the server).
+ *
+ * NEW STRATEGY
+ * ─────────────
+ * 1. On first mount, fire a lightweight NTP-style round-trip to server-time:
+ *      t0 = Date.now()
+ *      server_ms = server-time response
+ *      true_drift = server_ms − t0 − rtt/2   ← device-specific, time-independent
+ * 2. getCorrectedNow() = Date.now() + true_drift  ≈ server_now
+ *    Works correctly for ALL players regardless of join time.
+ * 3. Results are cached (module-level) for 30 s so multiple hook instances
+ *    in the same game share one network round-trip.
+ * 4. While the ping is in flight (< ~300 ms), drift = 0 so timers use
+ *    Date.now() directly — imperceptible inaccuracy for a 10-second timer.
+ * 5. On ping failure, drift stays 0 — still better than a −elapsed offset.
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { supabase } from '../services/supabase';
 import { networkLogger } from '../utils/logger';
 import type { AutoPassTimerState } from '../types/multiplayer';
 
 interface ClockSyncResult {
-  /** Clock offset in milliseconds (positive = client is behind server) */
+  /** Clock drift in milliseconds (positive = client is behind server) */
   offsetMs: number;
-  /** Whether clock sync has been established */
+  /** Whether clock sync has been established (ping completed) */
   isSynced: boolean;
-  /** Get corrected current time: Date.now() + offset — always reads current offset (ref-based) */
+  /** Get estimated server time: Date.now() + NTP drift */
   getCorrectedNow: () => number;
 }
 
+// ── Module-level NTP cache — shared across all hook instances ──────────────
+// Avoids one ping per mounted component; refreshes every 30 s in long sessions.
+const NTP_CACHE_TTL_MS = 30_000;
+let _cachedDrift: { drift: number; measuredAt: number } | null = null;
+let _pendingPing: Promise<number> | null = null;
+
+async function getServerDriftMs(): Promise<number> {
+  const now = Date.now();
+  // Return cached result if fresh.
+  if (_cachedDrift && now - _cachedDrift.measuredAt < NTP_CACHE_TTL_MS) {
+    return _cachedDrift.drift;
+  }
+  // Deduplicate concurrent calls — only one in-flight ping at a time.
+  if (_pendingPing) return _pendingPing;
+
+  _pendingPing = (async () => {
+    try {
+      const t0 = Date.now();
+      const { data, error } = await supabase.functions.invoke('server-time');
+      const rtt = Date.now() - t0;
+      if (error || typeof data?.timestamp !== 'number') {
+        networkLogger.warn('[Clock Sync] ⚠️ server-time ping failed, drift=0:', error);
+        return 0;
+      }
+      const drift = (data.timestamp as number) - t0 - Math.round(rtt / 2);
+      _cachedDrift = { drift, measuredAt: Date.now() };
+      networkLogger.info('[Clock Sync] ✅ NTP drift measured:', {
+        serverMs: data.timestamp,
+        t0,
+        rtt,
+        drift,
+        clientAhead: drift < 0,
+        absMs: Math.abs(drift),
+      });
+      return drift;
+    } catch (err) {
+      networkLogger.warn('[Clock Sync] ⚠️ server-time ping threw, drift=0:', err);
+      return 0;
+    } finally {
+      _pendingPing = null;
+    }
+  })();
+
+  return _pendingPing;
+}
+
 /**
- * Hook to synchronize client clock with server clock
+ * Hook to synchronize client clock with server clock.
  *
- * @param timerState - Current timer state (includes server_time_at_creation)
- * @param fallbackServerTimestamp - Optional: a raw server-side timestamp (ms) used to seed an
- *   initial rough clock offset before the first auto-pass timer fires.  Typically derived from
- *   game_state.turn_started_at (converted to a numeric ms value).  Only applied when no precise
- *   sync has been established yet (syncedRef = false) and the server appears >1 s ahead.
- * @returns Clock sync information and corrected time function
+ * @param timerState - Current auto-pass timer state (used only for diagnostic logging).
+ * @param fallbackServerTimestamp - Optional server-side timestamp (ms) used to seed a rough
+ *   initial drift before the NTP ping completes when the device clock appears >1 s fast.
  */
 export function useClockSync(
   timerState: AutoPassTimerState | null,
   fallbackServerTimestamp?: number | null
 ): ClockSyncResult {
-  // ── Ref-based offset (primary source of truth) ──────────────────────────
-  // State is kept in sync for re-renders but the REF is what getCorrectedNow
-  // reads so that stale closures always get the latest value.
-  const offsetRef = useRef(0);
-  const syncedRef = useRef(false);
+  // Ref holds the live drift value; getCorrectedNow reads from it so stale
+  // closures (e.g. setInterval) always get the latest measurement.
+  const driftRef = useRef(0);
   const [offsetMs, setOffsetMs] = useState(0);
   const [isSynced, setIsSynced] = useState(false);
 
-  // Track which server_time_at_creation we already synced against so we
-  // never recalculate for the same value (which would drift the offset).
-  const lastSyncedServerTime = useRef<number | null>(null);
-  // 5.4/5.7: Track started_at alongside server_time_at_creation so that a new timer
-  // whose server_time_at_creation COLLIDES with a previous timer's value (extremely
-  // rare: same server-clock millisecond) is not silently treated as the same timer.
-  // Combining both fields as the sync identity prevents the "offset sticky after
-  // timer null window" bug where a brand-new timer skips re-sync because
-  // lastSyncedServerTime still holds the same numeric value from a past timer.
-  const lastSyncedStartedAt = useRef<string | null>(null);
-
+  // ── One-time NTP ping on mount ─────────────────────────────────────────
   useEffect(() => {
-    // ── CRITICAL: Do NOT reset when timer goes null ─────────────────────
-    // During a game-state transition (e.g. pass processed → Realtime update)
-    // auto_pass_timer can briefly flash to null before reappearing with the
-    // same data.  Resetting here would destroy the offset, causing the
-    // AutoPassTimer UI to show full duration (10s) and then snap back —
-    // the "timer restart" bug the user reported.
-    if (!timerState || !timerState.active) {
-      // Fallback path: if no precise sync has been established yet and a server
-      // timestamp is available (e.g. game_state.turn_started_at), seed a rough
-      // initial offset so InactivityRing / TurnTimer don't fire clock-skew warnings
-      // on the very first turn before any auto-pass timer has ever fired.
-      // Only apply when the server appears >1 s ahead (small values may just be
-      // network jitter and are not worth correcting).
-      if (!syncedRef.current && fallbackServerTimestamp && fallbackServerTimestamp > 0) {
-        const roughOffset = fallbackServerTimestamp - Date.now();
-        if (roughOffset > 1000) {
-          offsetRef.current = roughOffset;
-          setOffsetMs(roughOffset);
-          networkLogger.info('[Clock Sync] ⏱️ Rough initial sync from turn_started_at:', {
-            fallbackServerTimestamp,
-            roughOffset,
-          });
-        }
-      }
-      return; // Keep last valid offset — no reset
-    }
-
-    // Check if timer has server_time_at_creation (new architecture)
-    const serverTime = timerState.server_time_at_creation;
-    if (typeof serverTime !== 'number') {
-      // Fallback: No clock sync data, use local time (old architecture).
-      // Always reset to the un-synced baseline — a stale offset from a
-      // previous timer must not be applied when the current payload has
-      // no server_time_at_creation (e.g. old-architecture payloads).
-      offsetRef.current = 0;
-      syncedRef.current = false;
-      lastSyncedServerTime.current = null;
-      lastSyncedStartedAt.current = null;
-      setOffsetMs(0);
-      setIsSynced(false);
-      networkLogger.warn('[Clock Sync] ⚠️ No server time in timer state - using local time');
-      return;
-    }
-
-    // ── Already synced for this exact timer identity? Skip. ─────────────
-    // server_time_at_creation is a fixed snapshot. Recalculating
-    // `serverTime - Date.now()` at a later wall-clock time would produce
-    // a SMALLER offset, making remaining time appear larger (the "timer
-    // restart" bug).
-    // 5.4/5.7: Use started_at as a secondary identity key. Two timers with the
-    // same server_time_at_creation but different started_at values are distinct
-    // timers (e.g. new round that happened to start at the same clock ms). Using
-    // only serverTime would prevent the new timer from ever syncing its offset.
-    const currentStartedAt = timerState.started_at;
-    if (
-      lastSyncedServerTime.current === serverTime &&
-      lastSyncedStartedAt.current === currentStartedAt
-    ) {
-      return;
-    }
-
-    // ── First sync for this timer identity ──────────────────────────────
-    const receivedAt = Date.now();
-    const offset = serverTime - receivedAt;
-
-    lastSyncedServerTime.current = serverTime;
-    lastSyncedStartedAt.current = currentStartedAt;
-    offsetRef.current = offset;
-    syncedRef.current = true;
-    setOffsetMs(offset);
-    setIsSynced(true);
-
-    networkLogger.info('[Clock Sync] ⏱️ Synchronized with server:', {
-      serverTime,
-      receivedAt,
-      offsetMs: offset,
-      clientAhead: offset < 0,
-      driftMs: Math.abs(offset),
+    let cancelled = false;
+    getServerDriftMs().then(drift => {
+      if (cancelled) return;
+      driftRef.current = drift;
+      setOffsetMs(drift);
+      setIsSynced(true);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-runs on timer identity changes (server_time_at_creation, started_at) and on fallbackServerTimestamp to seed a rough initial offset before the first precise sync
-  }, [
-    timerState?.active,
-    timerState?.server_time_at_creation,
-    timerState?.started_at,
-    fallbackServerTimestamp,
-  ]);
+    return () => {
+      cancelled = true;
+    };
+  }, []); // runs once per component mount; shared cache handles de-duplication
 
-  // ── Stable getCorrectedNow — reads from ref, safe in any closure ──────
+  // ── Fallback: seed a rough drift from turn_started_at before ping lands ─
+  // Only applied when the NTP ping hasn't completed yet and the server clock
+  // appears to be >1 s ahead of the client (genuine clock-skew, not jitter).
+  useEffect(() => {
+    if (isSynced) return;
+    if (!fallbackServerTimestamp || fallbackServerTimestamp <= 0) return;
+    const rough = fallbackServerTimestamp - Date.now();
+    if (rough > 1000) {
+      driftRef.current = rough;
+      setOffsetMs(rough);
+      networkLogger.info('[Clock Sync] ⏱️ Rough initial drift from fallback:', {
+        fallbackServerTimestamp,
+        rough,
+      });
+    }
+  }, [fallbackServerTimestamp, isSynced]);
+
+  // ── Diagnostic: log when a new timer identity appears ─────────────────
+  const lastLoggedTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!timerState?.active || typeof timerState.server_time_at_creation !== 'number') return;
+    if (timerState.server_time_at_creation === lastLoggedTimerRef.current) return;
+    lastLoggedTimerRef.current = timerState.server_time_at_creation;
+    networkLogger.info('[Clock Sync] 🎯 New timer observed:', {
+      server_time_at_creation: timerState.server_time_at_creation,
+      driftMs: driftRef.current,
+      isSynced,
+    });
+  }, [timerState?.active, timerState?.server_time_at_creation, isSynced]);
+
+  // ── Stable getter — reads the ref so any closure gets the latest drift ─
   const getCorrectedNow = useCallback((): number => {
-    return Date.now() + offsetRef.current;
-  }, []); // Empty deps: the function identity never changes; it reads the ref
+    return Date.now() + driftRef.current;
+  }, []); // intentionally empty: reads ref, never needs to be recreated
 
-  return {
-    offsetMs,
-    isSynced,
-    getCorrectedNow,
-  };
+  return { offsetMs, isSynced, getCorrectedNow };
 }

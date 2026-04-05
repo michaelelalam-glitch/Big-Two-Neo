@@ -449,7 +449,27 @@ export interface Translations {
     noPlayHistoryYet: string;
     dragToPlayHint: string;
     dropZoneRelease: string;
+    dropZoneReleaseMultiple: string;
     dropZoneDrop: string;
+    // Helper button messages
+    hintNoValidPlay: string;
+    // Throwables
+    throwPickerTitle: string;
+    throwItemAction: string;
+    throwEgg: string;
+    throwSmoke: string;
+    throwConfetti: string;
+    throwCake: string;
+    throwSplatEgg: string;
+    throwSplatSmoke: string;
+    throwSplatConfetti: string;
+    throwSplatCake: string;
+    throwAtYou: string;
+    throwDismissHint: string;
+    throwAtPickerTitle: string;
+    positionTop: string;
+    positionLeft: string;
+    positionRight: string;
     // RejoinModal
     botReplacedYouTitle: string;
     botReplacedYouBody: string;
@@ -1231,7 +1251,27 @@ const en: Translations = {
     noPlayHistoryYet: 'No play history yet. Start playing to see card history!',
     dragToPlayHint: '↑ Drag up to play',
     dropZoneRelease: 'Release to play',
+    dropZoneReleaseMultiple: 'Release to play {{count}} cards',
     dropZoneDrop: 'Drop to play',
+    // Helper button messages
+    hintNoValidPlay: 'No valid play — recommend passing',
+    // Throwables
+    throwPickerTitle: 'Throw something',
+    throwItemAction: 'Throw {{item}}',
+    throwEgg: 'Egg',
+    throwSmoke: 'Smoke',
+    throwConfetti: 'Confetti',
+    throwCake: 'Cake',
+    throwSplatEgg: 'Splat!',
+    throwSplatSmoke: 'Poof!',
+    throwSplatConfetti: 'Surprise!',
+    throwSplatCake: 'Splat!',
+    throwAtYou: '{{name}} threw this at you!',
+    throwDismissHint: 'Double-tap to dismiss',
+    throwAtPickerTitle: 'Throw at…',
+    positionTop: 'Top',
+    positionLeft: 'Left',
+    positionRight: 'Right',
     // RejoinModal
     botReplacedYouTitle: 'A bot replaced you!',
     botReplacedYouBody: 'A bot is playing in your seat.',
@@ -1939,7 +1979,27 @@ const ar: Translations = {
     noPlayHistoryYet: 'لا يوجد سجل لعب بعد. ابدأ اللعب لرؤية سجل البطاقات!',
     dragToPlayHint: '↑ اسحب للأعلى للعب',
     dropZoneRelease: 'الإفلات للعب',
+    dropZoneReleaseMultiple: 'الإفلات للعب {{count}} أوراق',
     dropZoneDrop: 'وضع هنا للعب',
+    // Helper button messages
+    hintNoValidPlay: 'لا توجد لعبة صالحة — يُنصح بالتمرير',
+    // Throwables
+    throwPickerTitle: 'ارمِ شيئاً',
+    throwItemAction: 'ارمِ {{item}}',
+    throwEgg: 'بيضة',
+    throwSmoke: 'دخان',
+    throwConfetti: 'قصاصات',
+    throwCake: 'كعكة',
+    throwSplatEgg: 'ضربة!',
+    throwSplatSmoke: 'بوف!',
+    throwSplatConfetti: 'مفاجأة!',
+    throwSplatCake: 'ضربة!',
+    throwAtYou: 'رمى {{name}} هذا عليك!',
+    throwDismissHint: 'انقر مرتين للإغلاق',
+    throwAtPickerTitle: 'ارمِ على...',
+    positionTop: 'أعلى',
+    positionLeft: 'يسار',
+    positionRight: 'يمين',
     // RejoinModal
     botReplacedYouTitle: 'حل بوت محلك!',
     botReplacedYouBody: 'بوت يلعب في مقعدك.',
@@ -2740,7 +2800,27 @@ const de: Translations = {
     noPlayHistoryYet: 'Noch kein Spielverlauf. Spiele um den Kartenverlauf zu sehen!',
     dragToPlayHint: '↑ Nach oben ziehen zum Spielen',
     dropZoneRelease: 'Loslassen zum Spielen',
+    dropZoneReleaseMultiple: '{{count}} Karten loslassen zum Spielen',
     dropZoneDrop: 'Hier ablegen zum Spielen',
+    // Helper button messages
+    hintNoValidPlay: 'Kein gültiger Zug — Passen empfohlen',
+    // Throwables
+    throwPickerTitle: 'Etwas werfen',
+    throwItemAction: '{{item}} werfen',
+    throwEgg: 'Ei',
+    throwSmoke: 'Rauch',
+    throwConfetti: 'Konfetti',
+    throwCake: 'Kuchen',
+    throwSplatEgg: 'Klatsch!',
+    throwSplatSmoke: 'Puff!',
+    throwSplatConfetti: 'Überraschung!',
+    throwSplatCake: 'Klatsch!',
+    throwAtYou: '{{name}} hat das auf dich geworfen!',
+    throwDismissHint: 'Zweimal tippen zum Schließen',
+    throwAtPickerTitle: 'Werfen auf…',
+    positionTop: 'Oben',
+    positionLeft: 'Links',
+    positionRight: 'Rechts',
     // RejoinModal
     botReplacedYouTitle: 'Ein Bot hat dich ersetzt!',
     botReplacedYouBody: 'Ein Bot spielt auf deinem Platz.',

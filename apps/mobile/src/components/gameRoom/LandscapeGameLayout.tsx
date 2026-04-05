@@ -624,7 +624,17 @@ export function LandscapeGameLayout({
 
         {/* Action buttons - RIGHT SIDE (2-row layout) */}
         <View style={styles.actionButtonsContainer}>
-          {/* Top row: Play + Smart */}
+          {/* German mode: ThrowButton above the button grid to avoid overlapping Hinweis */}
+          {onThrowPress != null && i18n.getLanguage() === 'de' && (
+            <View style={styles.throwButtonRowAbove}>
+              <ThrowButton
+                onPress={onThrowPress}
+                isThrowCooldown={isThrowCooldown}
+                cooldownRemaining={cooldownRemaining}
+              />
+            </View>
+          )}
+          {/* Top row: Play + Smart (+ Throw for non-German) */}
           <View style={styles.buttonRow}>
             <Pressable
               style={[styles.playButton, (!canPlay || disabled) && { opacity: 0.5 }]}
@@ -644,7 +654,7 @@ export function LandscapeGameLayout({
             >
               <Text style={styles.smartButtonText}>{i18n.t('game.smart')}</Text>
             </Pressable>
-            {onThrowPress != null && (
+            {onThrowPress != null && i18n.getLanguage() !== 'de' && (
               <ThrowButton
                 onPress={onThrowPress}
                 isThrowCooldown={isThrowCooldown}
@@ -866,6 +876,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 6,
     pointerEvents: 'box-none', // IMPORTANT: Allow button touches while maintaining gesture handling
+  },
+
+  /** German-mode only: holds the ThrowButton above the two action button rows */
+  throwButtonRowAbove: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 4,
+    pointerEvents: 'box-none',
   },
 
   // Play button (Green)

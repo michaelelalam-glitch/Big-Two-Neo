@@ -19,6 +19,7 @@ import {
 import type { ThrowableType } from '../../types/multiplayer';
 import { trackEvent } from '../../services/analytics';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '../../constants';
+import { i18n } from '../../i18n';
 
 interface ThrowablePickerProps {
   visible: boolean;
@@ -26,11 +27,11 @@ interface ThrowablePickerProps {
   onClose: () => void;
 }
 
-const OPTIONS: { type: ThrowableType; emoji: string; label: string; color: string }[] = [
-  { type: 'egg', emoji: '🥚', label: 'Egg', color: '#FBBF24' },
-  { type: 'smoke', emoji: '💨', label: 'Smoke', color: '#6B7280' },
-  { type: 'confetti', emoji: '🎊', label: 'Confetti', color: '#7C3AED' },
-  { type: 'cake', emoji: '🎂', label: 'Cake', color: '#EC4899' },
+const OPTIONS: { type: ThrowableType; emoji: string; labelKey: string; color: string }[] = [
+  { type: 'egg', emoji: '🥚', labelKey: 'game.throwEgg', color: '#FBBF24' },
+  { type: 'smoke', emoji: '💨', labelKey: 'game.throwSmoke', color: '#6B7280' },
+  { type: 'confetti', emoji: '🎊', labelKey: 'game.throwConfetti', color: '#7C3AED' },
+  { type: 'cake', emoji: '🎂', labelKey: 'game.throwCake', color: '#EC4899' },
 ];
 
 export function ThrowablePicker({ visible, onSelect, onClose }: ThrowablePickerProps) {
@@ -71,7 +72,7 @@ export function ThrowablePicker({ visible, onSelect, onClose }: ThrowablePickerP
       {/* Sheet */}
       <Animated.View style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}>
         <View style={styles.handle} />
-        <Text style={styles.title}>Throw something</Text>
+        <Text style={styles.title}>{i18n.t('game.throwPickerTitle')}</Text>
         <View style={styles.options}>
           {OPTIONS.map(opt => (
             <Pressable
@@ -85,10 +86,10 @@ export function ThrowablePicker({ visible, onSelect, onClose }: ThrowablePickerP
                 onSelect(opt.type);
               }}
               accessibilityRole="button"
-              accessibilityLabel={`Throw ${opt.label}`}
+              accessibilityLabel={i18n.t('game.throwItemAction', { item: i18n.t(opt.labelKey) })}
             >
               <Text style={styles.optionEmoji}>{opt.emoji}</Text>
-              <Text style={styles.optionLabel}>{opt.label}</Text>
+              <Text style={styles.optionLabel}>{i18n.t(opt.labelKey)}</Text>
             </Pressable>
           ))}
         </View>

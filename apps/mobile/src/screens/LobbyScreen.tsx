@@ -222,6 +222,26 @@ export default function LobbyScreen() {
           }
         }
       )
+      // 8.2: Subscribe to rooms DELETE filtered by id (rooms DELETE events only carry
+      // replica-identity/PK columns, so the code-eq filter in subscribeToRoomsTable
+      // can't match them — this subscription uses id=eq.${roomId} which is always
+      // present in DELETE payloads).
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'rooms',
+          filter: `id=eq.${roomId}`,
+        },
+        () => {
+          roomLogger.warn('[LobbyScreen] Room hard-deleted — navigating Home');
+          if (!isLeavingRef.current) {
+            isLeavingRef.current = true;
+            navigation.replace('Home');
+          }
+        }
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -438,10 +458,26 @@ export default function LobbyScreen() {
           // Wrap in async IIFE with try/finally because supabase.rpc() returns
           // a PromiseLike that may not implement .finally(), causing a TypeError.
           (async () => {
+            let claimTimeoutId: ReturnType<typeof setTimeout> | undefined;
             try {
-              const { data: claimData, error: claimErr } = await supabase.rpc('lobby_claim_host', {
+              // 8.4: Race the RPC against a 5-second timeout so that a hung
+              // lobby_claim_host call does not keep claimHostInFlightRef=true
+              // forever and permanently block future host-claim attempts.
+              const rpcPromise = supabase.rpc('lobby_claim_host', {
                 p_room_id: currentRoomId,
               });
+              // Suppress unhandled rejection if timeoutPromise resolves first
+              Promise.resolve(rpcPromise).catch(() => {});
+              const timeoutPromise = new Promise<never>((_, reject) => {
+                claimTimeoutId = setTimeout(
+                  () => reject(new Error('lobby_claim_host timed out')),
+                  5000
+                );
+              });
+              const { data: claimData, error: claimErr } = await Promise.race([
+                rpcPromise,
+                timeoutPromise,
+              ]);
               if (claimErr) {
                 roomLogger.error('[LobbyScreen] lobby_claim_host failed:', claimErr.message);
               } else {
@@ -453,6 +489,7 @@ export default function LobbyScreen() {
                 extractErrorMessage(err)
               );
             } finally {
+              clearTimeout(claimTimeoutId);
               claimHostInFlightRef.current = false;
             }
           })();
@@ -572,7 +609,10 @@ export default function LobbyScreen() {
     }
   };
 
-  // Subscribes only to rooms table changes for this room (status updates, etc.)
+  // Subscribes to rooms table UPDATE events for this room (status updates, etc.).
+  // DELETE is handled separately in the useEffect([roomId]) block using an id-based
+  // filter, because Postgres DELETE events only carry replica-identity (PK) columns
+  // so a code=eq.${roomCode} filter would silently miss hard-deletes.
   // room_players changes are handled by a separate filtered subscription (see useEffect for roomId).
   const subscribeToRoomsTable = () => {
     roomLogger.info(`[LobbyScreen] Setting up rooms subscription for room: ${roomCode}`);
@@ -586,7 +626,11 @@ export default function LobbyScreen() {
           table: 'rooms',
           filter: `code=eq.${roomCode}`,
         },
-        (payload: { old?: { status?: string }; new?: { status?: string; code?: string } }) => {
+        (payload: {
+          eventType?: string;
+          old?: { status?: string };
+          new?: { status?: string; code?: string };
+        }) => {
           roomLogger.info('[LobbyScreen] Rooms table UPDATE event received:', {
             oldStatus: payload.old?.status,
             newStatus: payload.new?.status,

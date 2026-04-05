@@ -249,15 +249,23 @@ export function useDisconnectDetection({
           // ── Heartbeat freshness override ──────────────────────────────────
           // The postgres_changes event that flips connection_status → 'connected'
           // may arrive AFTER a fresh heartbeat has updated playerLastSeenAtRef.
-          // If the heartbeat is fresh, the player has reconnected — clear the ring.
+          // If the heartbeat is fresh AND disconnect_timer_started_at is null,
+          // the player has reconnected — clear the ring.
+          //
+          // GUARD: Only apply when disconnect_timer_started_at IS NULL, meaning
+          // the disconnection was detected by Phase A staleness (no explicit
+          // mark-disconnected call). If disconnect_timer_started_at IS set, it
+          // means mark-disconnected fired (player intentionally left or Phase A
+          // confirmed the drop) — trust the DB status rather than stale heartbeat
+          // cache values that may pre-date the disconnect event.
           const hbIso = playerLastSeenAtRef.current[rp.id] || rp.last_seen_at;
-          if (hbIso) {
+          if (hbIso && !rp.disconnect_timer_started_at) {
             const hbStaleMs = now - new Date(hbIso).getTime();
             if (hbStaleMs < STALE_THRESHOLD_MS) {
               if (clientDisconnectStartRef.current[rp.player_index] !== undefined) {
                 delete clientDisconnectStartRef.current[rp.player_index];
                 gameLogger.info(
-                  `[useDisconnectDetection] Heartbeat override: player_index=${rp.player_index} heartbeat fresh (${Math.round(hbStaleMs / 1000)}s) but connection_status=disconnected — clearing grey ring`
+                  `[useDisconnectDetection] Heartbeat override: player_index=${rp.player_index} heartbeat fresh (${Math.round(hbStaleMs / 1000)}s), disconnect_timer_started_at=null — clearing grey ring`
                 );
               }
               continue;

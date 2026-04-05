@@ -671,7 +671,13 @@ function GameViewComponent() {
 
             {/* Throw Button — multiplayer only, separate FAB on the right side */}
             {isMultiplayerGame && (
-              <View style={styles.throwButtonContainer}>
+              <View
+                style={
+                  i18n.getLanguage() === 'de'
+                    ? styles.throwButtonContainerAbove
+                    : styles.throwButtonContainer
+                }
+              >
                 <ThrowButton
                   onPress={() => setShowThrowablePicker(true)}
                   isThrowCooldown={isThrowCooldown}

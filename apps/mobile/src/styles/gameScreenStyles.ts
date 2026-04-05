@@ -83,6 +83,13 @@ export const gameScreenStyles = StyleSheet.create({
     right: SPACING.sm,
     zIndex: 175,
   },
+  // Throw Button — raised above helper buttons (used in portrait DE where longer labels overlap)
+  throwButtonContainerAbove: {
+    position: 'absolute',
+    bottom: POSITIONING.helperButtonsBottom + 50,
+    right: SPACING.sm,
+    zIndex: 175,
+  },
   // CARDS - FULLY INDEPENDENT positioning
   cardHandContainer: {
     position: 'absolute',

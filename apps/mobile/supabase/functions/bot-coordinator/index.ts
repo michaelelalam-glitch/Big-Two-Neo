@@ -316,12 +316,14 @@ Deno.serve(async (req) => {
     }
 
     // 1b. For authenticated (non-service-role) callers, confirm they are in this room.
+    // Also accepts callers whose seat was replaced by a bot (user_id=NULL, human_user_id=callerUserId)
+    // so that the replaced player can still trigger the coordinator before navigating away.
     if (!isServiceRole && callerUserId) {
       const { data: membership, error: memberError } = await supabaseClient
         .from('room_players')
         .select('id')
         .eq('room_id', room.id)
-        .eq('user_id', callerUserId)
+        .or(`user_id.eq.${callerUserId},human_user_id.eq.${callerUserId}`)
         .maybeSingle();
 
       if (memberError || !membership) {

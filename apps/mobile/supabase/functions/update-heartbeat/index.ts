@@ -148,12 +148,15 @@ Deno.serve(async (req) => {
         }, { count: 'exact' })
         .eq('id', player_id)
         .eq('room_id', room_id)
-        // Guard against race: do not flip a replaced_by_bot row back to 'connected'.
-        // If the row was claimed by a bot between the ownership SELECT above and this
-        // UPDATE, user_id will no longer match (it was set to the bot's UUID) and
-        // connection_status will be 'replaced_by_bot' — either predicate rejects it.
+        // Guard against race: do not flip a replaced_by_bot or disconnected row back
+        // to 'connected'. If the row was claimed by a bot, user_id will no longer
+        // match and connection_status will be 'replaced_by_bot'. If mark-disconnected
+        // already fired (beforeRemove path), skip the heartbeat so the disconnect is
+        // not silently undone (which would delay the grey ring by up to 30 s on other
+        // clients and prevent the HomeScreen banner from showing a countdown).
         .eq('user_id', user.id)
-        .neq('connection_status', 'replaced_by_bot');
+        .neq('connection_status', 'replaced_by_bot')
+        .neq('connection_status', 'disconnected');
 
       if (updateError) {
         console.error('❌ [update-heartbeat] Update failed:', updateError.message);
@@ -164,7 +167,38 @@ Deno.serve(async (req) => {
       }
 
       if (updateCount === 0) {
-        console.warn('[update-heartbeat] Update matched 0 rows — player may have been replaced');
+        // 0 rows matched — either player was replaced_by_bot, already set to
+        // 'disconnected' (mark-disconnected fired first — this is intentional),
+        // or the row was removed. Re-read to distinguish the two cases.
+        const { data: freshPlayer } = await supabaseClient
+          .from('room_players')
+          .select('connection_status')
+          .eq('id', player_id)
+          .eq('room_id', room_id)
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (!freshPlayer || freshPlayer.connection_status === 'replaced_by_bot') {
+          console.warn('[update-heartbeat] Update matched 0 rows — player was replaced by bot');
+          return new Response(
+            JSON.stringify({ success: false, replaced_by_bot: true }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        if (freshPlayer.connection_status === 'disconnected') {
+          // Expected: mark-disconnected fired before this heartbeat tick.
+          // Return success=false so the client knows it must call reconnect-player
+          // to come back (heartbeat alone can no longer clear 'disconnected').
+          console.log('[update-heartbeat] Skipped heartbeat UPDATE — row is disconnected (mark-disconnected took effect)');
+          return new Response(
+            JSON.stringify({ success: false, is_disconnected: true }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Some other 0-row situation (row removed, etc.)
+        console.warn('[update-heartbeat] Update matched 0 rows — unexpected state', freshPlayer.connection_status);
         return new Response(
           JSON.stringify({ success: false, replaced_by_bot: true }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

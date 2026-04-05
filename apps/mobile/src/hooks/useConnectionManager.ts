@@ -221,6 +221,17 @@ export function useConnectionManager({
         return;
       }
 
+      // Heartbeat UPDATE was skipped because the row is already 'disconnected'
+      // (mark-disconnected fired before this tick, or Phase A ran while we were
+      // in-game with a transient network disruption). The neq guard in
+      // update-heartbeat prevents the heartbeat from silently clearing the
+      // disconnected status. We must call reconnect() explicitly.
+      if (data?.is_disconnected) {
+        stopHeartbeat();
+        void reconnect();
+        return;
+      }
+
       if (data?.success) {
         setConnectionStatus('connected');
       }
@@ -389,13 +400,13 @@ export function useConnectionManager({
             break;
 
           case 'disconnected':
-            // Still in grace period — just resume heartbeat.
-            // The update-heartbeat edge function will set connection_status back
-            // to 'connected' without clearing disconnect_timer_started_at.
-            // This ensures the persistent 60-second server-side timer is NOT reset
-            // by merely reopening the app. Only an explicit rejoin (button press)
-            // or active game action (play/pass) clears the timer.
-            startHeartbeatRef.current();
+            // Still in grace period. With the neq('connection_status','disconnected')
+            // guard now in update-heartbeat, simply resuming the heartbeat can no
+            // longer flip the row back to 'connected' — we must call reconnect()
+            // which invokes reconnect-player explicitly and then restarts the heartbeat.
+            // reconnect_player handles both in-grace-period (was_replaced=false) and
+            // bot-already-took-over (was_replaced=true) transparently.
+            void reconnect();
             break;
 
           case 'replaced_by_bot':
