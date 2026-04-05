@@ -621,6 +621,15 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
             }, 10000);
 
             channel.subscribe(async status => {
+              // Guard: skip processing for stale ghost channels (not the current active
+              // channel AND the initial join promise is already settled). Without this,
+              // ghost channels from previous sessions trigger an infinite cascade:
+              //   removeChannel(ghost) → CLOSED callback → removeChannel(ghost) → CLOSED → …
+              // Each iteration logs + queues React setState, saturating the JS thread and
+              // permanently freezing the UI (buttons, countdown) — the "CLOSED storm".
+              // `settled` ensures we still process CLOSED for the current channel during
+              // its initial connection attempt (before the join promise is settled).
+              if (channelRef.current !== channel && settled) return;
               networkLogger.info('[useRealtime] 📡 joinChannel subscription status:', status);
 
               if (status === 'SUBSCRIBED') {
@@ -668,23 +677,22 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 );
                 resolve();
               } else if (status === 'CLOSED') {
-                // Always update reactive state — CLOSED can fire after a successful
-                // SUBSCRIBED (e.g. server-side disconnect), so we must not gate this
-                // on `settled` to avoid leaving isConnected/channel state stale.
+                // The removeChannel call MUST be inside the channelRef guard.
+                // Moving it outside (as it was before) causes an infinite cascade:
+                //   removeChannel → unsubscribe → CLOSED → removeChannel → CLOSED → …
+                // The early-return guard above also breaks the loop for ghost channels,
+                // but defence-in-depth here prevents any active-channel edge case too.
                 if (channelRef.current === channel) {
                   channelRef.current = null;
                   setRealtimeChannel(null);
                   setIsConnected(false);
                   onDisconnect?.();
-                }
-                // Best-effort cleanup: remove the closed channel from the Supabase
-                // client to prevent ghost channel accumulation across reconnects.
-                void channel
-                  .unsubscribe()
-                  .then(() => supabase.removeChannel(channel))
-                  .catch(() => {
-                    supabase.removeChannel(channel);
+                  // Remove from registry; subsequent CLOSED from this removal is a
+                  // no-op — channelRef is now null so the early-return guard fires.
+                  void supabase.removeChannel(channel).catch(() => {
+                    /* best-effort */
                   });
+                }
                 // Only reject the initial promise if it hasn't been settled yet
                 // (i.e. CLOSED fired before SUBSCRIBED / timeout in the connection race).
                 if (!settled) {
@@ -693,21 +701,17 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                   reject(new Error('Channel closed'));
                 }
               } else if (status === 'CHANNEL_ERROR') {
-                // Always update reactive state — CHANNEL_ERROR can fire after SUBSCRIBED.
+                // Same guard as CLOSED: removeChannel inside the channelRef check
+                // prevents the infinite cascade loop.
                 if (channelRef.current === channel) {
                   channelRef.current = null;
                   setRealtimeChannel(null);
                   setIsConnected(false);
                   onDisconnect?.();
-                }
-                // Best-effort cleanup: remove the errored channel from the Supabase
-                // client to prevent ghost channel accumulation on transient errors.
-                void channel
-                  .unsubscribe()
-                  .then(() => supabase.removeChannel(channel))
-                  .catch(() => {
-                    supabase.removeChannel(channel);
+                  void supabase.removeChannel(channel).catch(() => {
+                    /* best-effort */
                   });
+                }
                 // Only reject the initial promise if it hasn't been settled yet.
                 if (!settled) {
                   settled = true;
@@ -984,10 +988,15 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   useEffect(() => {
     return () => {
       if (channelRef.current) {
-        channelRef.current.unsubscribe();
+        const ch = channelRef.current;
+        // Null channelRef BEFORE calling removeChannel so that the async CLOSED
+        // callback triggered by the removal sees channelRef = null and hits the
+        // early-return guard, preventing any recursive cleanup or state updates
+        // on the unmounted component.
         channelRef.current = null;
         setRealtimeChannel(null);
         setIsConnected(false);
+        void supabase.removeChannel(ch); // removes from registry + unsubscribes
       }
       // Remove all ghost room:* channels so they don't accumulate across game sessions
       // and trigger a CLOSED storm the next time the WebSocket reconnects.
