@@ -100,8 +100,8 @@ describeWithCredentials('Concurrent Card Play Stress Tests', () => {
         insertedPlayers.map((p: any) => [p.player_index, p.id])
       );
 
-      // Create game state with current_turn = 0, populating all required NOT NULL columns
-      // (current_player defaults to 0 via migration 20260719000007)
+      // Insert only the columns guaranteed to be in any version of game_state.
+      // All other columns (scores, round, passes, etc.) default via migration 20260719000007.
       const { error: gsErr } = await supabase.from('game_state').insert({
         room_id: room.id,
         current_turn: 0,
@@ -112,13 +112,6 @@ describeWithCredentials('Concurrent Card Play Stress Tests', () => {
           '2': ['9H', '10D', 'JC'],
           '3': ['QH', 'KD', 'AC'],
         },
-        played_cards: [],
-        scores: [0, 0, 0, 0],
-        round: 1,
-        passes: 0,
-        passes_in_row: 0,
-        round_number: 1,
-        // dealer_index defaults to 0 via migration 20260719000007
       });
 
       if (gsErr) throw new Error(`game_state insert failed: ${gsErr.message}`);
@@ -216,19 +209,12 @@ describeWithCredentials('Concurrent Card Play Stress Tests', () => {
 
       const dtPlayerRowId = insertedDTPlayers[0].id;
 
-      // (current_player defaults to 0 via migration 20260719000007)
+      // Insert only guaranteed columns — optional columns default via migration 20260719000007.
       const { error: gsErr2 } = await supabase.from('game_state').insert({
         room_id: room.id,
         current_turn: 0,
         game_phase: 'playing',
         hands: { '0': ['3H', '4D', '5C'], '1': ['6H', '7D', '8C'], '2': ['9H'], '3': ['QH'] },
-        played_cards: [],
-        scores: [0, 0, 0, 0],
-        round: 1,
-        passes: 0,
-        passes_in_row: 0,
-        round_number: 1,
-        // dealer_index defaults to 0 via migration 20260719000007
       });
 
       if (gsErr2) throw new Error(`game_state insert failed: ${gsErr2.message}`);
