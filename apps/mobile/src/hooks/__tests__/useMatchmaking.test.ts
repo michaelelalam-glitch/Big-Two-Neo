@@ -343,9 +343,9 @@ describe('isCancelledRef guard on async room-fetch', () => {
 
     // Room fetch resolves only after cancel
     let resolveRoomFetch!: (v: { data: { code: string } | null; error: null }) => void;
-    const roomFetchPromise = new Promise<{ data: { code: string } | null; error: null }>(
-      r => { resolveRoomFetch = r; }
-    );
+    const roomFetchPromise = new Promise<{ data: { code: string } | null; error: null }>(r => {
+      resolveRoomFetch = r;
+    });
     (supabase.from as jest.Mock).mockReturnValue({
       select: jest.fn().mockReturnValue({
         eq: jest.fn().mockReturnValue({
@@ -389,7 +389,9 @@ describe('isStartingRef debounce', () => {
     (supabase.channel as jest.Mock).mockReturnValue(channel);
 
     let resolveFirst!: (v: object) => void;
-    const firstCall = new Promise<object>(r => { resolveFirst = r; });
+    const firstCall = new Promise<object>(r => {
+      resolveFirst = r;
+    });
 
     (supabase.functions.invoke as jest.Mock)
       .mockReturnValueOnce(firstCall)
@@ -558,6 +560,63 @@ describe('invalid response handling', () => {
     });
 
     expect(result.current.error).toBe('Matched response missing room details');
+    expect(result.current.isSearching).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 13. isCancelledRef — cancel while find-match is still in flight
+// ---------------------------------------------------------------------------
+// Fix 8.3: after find-match resolves with isCancelledRef=true, the hook
+// invokes cancel-matchmaking best-effort so the server-side waiting_room
+// entry is cleaned up even when the cancel() call raced the find-match
+// registration.
+// ---------------------------------------------------------------------------
+
+describe('isCancelledRef guard — cancel while find-match is in flight', () => {
+  it('invokes cancel-matchmaking when cancel is called before find-match resolves', async () => {
+    let resolveFindMatch!: (v: { data: object; error: null }) => void;
+    const findMatchPromise = new Promise<{ data: object; error: null }>(r => {
+      resolveFindMatch = r;
+    });
+
+    (supabase.functions.invoke as jest.Mock).mockImplementation((fnName: string) => {
+      if (fnName === 'find-match') return findMatchPromise;
+      // cancel-matchmaking and any other invocations resolve immediately
+      return Promise.resolve({ data: { success: true }, error: null });
+    });
+
+    const { result } = renderHook(() => useMatchmaking());
+
+    // Start matchmaking in the background (do not await — find-match is held)
+    let startPromise!: ReturnType<typeof result.current.startMatchmaking>;
+    await act(async () => {
+      startPromise = result.current.startMatchmaking('Player1');
+    });
+
+    // Yield enough microtasks for getUser() to resolve and userIdRef to be set
+    // so that cancelMatchmaking() is called at the right point in the flow.
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Cancel while find-match is still in flight; userIdRef is now set
+    await act(async () => {
+      await result.current.cancelMatchmaking();
+    });
+
+    // Resolve find-match — the post-cancel guard should invoke cancel-matchmaking
+    await act(async () => {
+      resolveFindMatch({ data: { matched: false, waiting_count: 1 }, error: null });
+      await startPromise;
+    });
+
+    // cancel-matchmaking must have been called at least once (from the post-
+    // find-match guard, and possibly also directly from cancelMatchmaking())
+    expect(supabase.functions.invoke).toHaveBeenCalledWith('cancel-matchmaking', expect.anything());
+    expect(result.current.matchFound).toBe(false);
     expect(result.current.isSearching).toBe(false);
   });
 });

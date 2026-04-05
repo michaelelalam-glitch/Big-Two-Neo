@@ -160,9 +160,17 @@ export function useMatchmaking(): UseMatchmakingReturn {
           throw matchError;
         }
 
-        // Bail out if cancel() was called while find-match was in flight
+        // Bail out if cancel() was called while find-match was in flight.
+        // 8.3: If we reach here, find-match has already registered the user in
+        // the waiting_room server-side.  Re-invoke cancel-matchmaking to ensure
+        // the server removes that entry (the earlier cancel() call may have
+        // raced the find-match insertion and returned early because
+        // userIdRef.current was not yet set at that point).
         if (isCancelledRef.current) {
           setIsSearching(false);
+          supabase.functions.invoke('cancel-matchmaking', { body: {} }).catch(() => {
+            /* best-effort server cleanup */
+          });
           return;
         }
 

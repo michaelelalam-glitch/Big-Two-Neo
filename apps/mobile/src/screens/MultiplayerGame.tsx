@@ -194,58 +194,17 @@ export function MultiplayerGame() {
           return;
         }
 
-        // 0. Capture host status BEFORE any async cleanup so that the
-        //    connection-status-dependent isHostRef is not affected by DB
-        //    changes triggered by the cleanup steps below.
-        const amHost = isHostRef.current;
-        gameLogger.info('🔄 [MultiplayerGame] Play Again: amHost=', amHost);
-
-        // 1a. Non-hosts: start listening for the host's broadcast IMMEDIATELY,
-        //     before cleanup, so we are subscribed and will catch re-broadcasts
-        //     that happen while cleanup is still in flight.
-        let receivePlayAgainPromise: Promise<string | null> | null = null;
-        if (!amHost && info.id) {
-          const listenChannel = supabase.channel(`play-again:${info.id}`);
-          receivePlayAgainPromise = new Promise<string | null>(resolve => {
-            // 8s: 2s for cleanup + 5s rebroadcast window + 1s buffer margin
-            const timeout = setTimeout(() => {
-              supabase.removeChannel(listenChannel);
-              resolve(null);
-            }, 8000);
-
-            listenChannel
-              .on('broadcast', { event: 'play_again_room' }, payload => {
-                clearTimeout(timeout);
-                const code = payload?.payload?.room_code as string | undefined;
-                if (code) {
-                  gameLogger.info('🔄 [MultiplayerGame] Received play_again_room broadcast:', code);
-                  resolve(code);
-                } else {
-                  resolve(null);
-                }
-                supabase.removeChannel(listenChannel);
-              })
-              .subscribe();
+        if (!info.id) {
+          gameLogger.error('❌ [MultiplayerGame] Play Again: missing room id.');
+          showInGameAlert({
+            message: 'Unable to create a new game room right now. Please try again.',
           });
+          return;
         }
 
-        // 1b. Clean up old room membership (scoped to current room) to prevent
-        //     "already in room" conflicts. Uses both user_id (direct) and
-        //     human_user_id (bot-replacement) cleanup paths.
-        if (info.id) {
-          const { error: cleanupError } = await supabase
-            .from('room_players')
-            .delete()
-            .eq('user_id', user.id)
-            .eq('room_id', info.id);
-          if (cleanupError) {
-            gameLogger.warn(
-              '⚠️ [MultiplayerGame] Play Again: old room cleanup warning:',
-              cleanupError.message
-            );
-          }
-        }
-        // Also clean up bot-replacement rows where user was replaced
+        // Clean up any bot-replacement rows (the source-room membership row
+        // is now removed atomically inside get_or_create_rematch_room so the
+        // RPC can perform a reliable participation check before deleting it).
         const { error: botCleanupError } = await supabase.rpc(
           'delete_room_players_by_human_user_id',
           { human_user_id: user.id }
@@ -259,131 +218,47 @@ export function MultiplayerGame() {
 
         const username = profile?.username || user?.email?.split('@')[0] || 'Player';
 
-        // 2. Non-host: wait for the broadcast that was already being listened to
-        //    (started before cleanup, so we can't miss re-broadcasts).
-        let receivedRoomCode: string | null = null;
-        if (!amHost && receivePlayAgainPromise) {
-          receivedRoomCode = await receivePlayAgainPromise;
-        }
-
-        if (receivedRoomCode) {
-          // Another player already created a room — join it
-          gameLogger.info(
-            '🔄 [MultiplayerGame] Play Again → Joining existing room:',
-            receivedRoomCode
-          );
-          const { error: joinError } = await supabase.rpc('join_room_atomic', {
-            p_room_code: receivedRoomCode,
+        // 2. Atomically get-or-create the rematch room.
+        //    The server-side RPC guarantees that no matter how many players
+        //    press Play Again simultaneously, exactly ONE new room is created.
+        //    The first caller (by DB transaction ordering) becomes the host;
+        //    all subsequent callers join that same room.
+        const { data: rematchResult, error: rematchError } = await supabase.rpc(
+          'get_or_create_rematch_room',
+          {
+            p_source_room_id: info.id,
             p_user_id: user.id,
             p_username: username,
-          });
-
-          if (joinError) {
-            gameLogger.warn(
-              '⚠️ [MultiplayerGame] Failed to join broadcasted room, creating new one:',
-              joinError.message
-            );
-            // Fall through to create own room
-          } else {
-            navigation.reset({
-              index: 1,
-              routes: [{ name: 'Home' }, { name: 'Lobby', params: { roomCode: receivedRoomCode } }],
-            });
-            return;
+            p_is_public: info.is_public,
+            p_is_matchmaking: info.is_matchmaking,
+            p_ranked_mode: info.ranked_mode,
           }
-        }
+        );
 
-        // 3. Create new room AND join atomically via get_or_create_room RPC.
-        const { data: roomResult, error: createError } = await supabase.rpc('get_or_create_room', {
-          p_user_id: user.id,
-          p_username: username,
-          p_is_public: info.is_public,
-          p_is_matchmaking: info.is_matchmaking,
-          p_ranked_mode: info.ranked_mode,
-        });
-
-        const result = roomResult as {
+        const result = rematchResult as {
           success: boolean;
           room_code: string;
           room_id: string;
+          is_host: boolean;
         } | null;
 
-        if (createError || !result?.success || !result.room_code) {
+        if (rematchError || !result?.success || !result.room_code) {
           gameLogger.error(
-            '❌ [MultiplayerGame] Play Again: failed to create room:',
-            createError?.message
+            '❌ [MultiplayerGame] Play Again: rematch RPC failed:',
+            rematchError?.message
           );
           showInGameAlert({ message: 'Failed to create new room. Please try again.' });
           return;
         }
 
-        gameLogger.info('🔄 [MultiplayerGame] Play Again → Created new room:', result.room_code);
+        gameLogger.info(
+          '🔄 [MultiplayerGame] Play Again → rematch room:',
+          result.room_code,
+          'is_host:',
+          result.is_host
+        );
 
-        // 4. Broadcast the new room code to other players on the old room channel.
-        //    Non-hosts started their listener BEFORE cleanup (step 1a), so they
-        //    are already subscribed and will receive this broadcast as long as it
-        //    arrives within their 8-second window.
-        if (info.id) {
-          const broadcastChannel = supabase.channel(`play-again:${info.id}`);
-          // Guard against recursive removeChannel calls: when removeChannel is
-          // called it triggers a CLOSED status callback, which would call
-          // removeChannel again → infinite recursion → stack overflow
-          // (Fixes BIG2-MOBILE-3).
-          let broadcastChannelRemoved = false;
-          let rebroadcastIntervalId: ReturnType<typeof setInterval> | null = null;
-          let rebroadcastTimeoutId: ReturnType<typeof setTimeout> | null = null;
-          const safeRemoveBroadcastChannel = () => {
-            if (broadcastChannelRemoved) return;
-            broadcastChannelRemoved = true;
-            if (rebroadcastIntervalId !== null) {
-              clearInterval(rebroadcastIntervalId);
-              rebroadcastIntervalId = null;
-            }
-            if (rebroadcastTimeoutId !== null) {
-              clearTimeout(rebroadcastTimeoutId);
-              rebroadcastTimeoutId = null;
-            }
-            supabase.removeChannel(broadcastChannel);
-          };
-          broadcastChannel.subscribe(async status => {
-            if (status === 'SUBSCRIBED') {
-              await broadcastChannel.send({
-                type: 'broadcast',
-                event: 'play_again_room',
-                payload: { room_code: result.room_code },
-              });
-              gameLogger.info(
-                '📡 [MultiplayerGame] Broadcasted play_again_room:',
-                result.room_code
-              );
-              // Re-broadcast every 1s for 8 seconds to match non-host listener window.
-              // Supabase broadcasts are not buffered — late subscribers miss one-shots.
-              rebroadcastIntervalId = setInterval(async () => {
-                try {
-                  await broadcastChannel.send({
-                    type: 'broadcast',
-                    event: 'play_again_room',
-                    payload: { room_code: result.room_code },
-                  });
-                } catch {
-                  /* best-effort */
-                }
-              }, 1000);
-              rebroadcastTimeoutId = setTimeout(() => {
-                safeRemoveBroadcastChannel();
-              }, 8000);
-            } else if (
-              status === 'CHANNEL_ERROR' ||
-              status === 'TIMED_OUT' ||
-              status === 'CLOSED'
-            ) {
-              gameLogger.warn(`📡 [MultiplayerGame] Broadcast channel ${status} — removing`);
-              safeRemoveBroadcastChannel();
-            }
-          });
-        }
-
-        // Navigate to the Lobby with the new room code
+        // 3. Navigate every player (host and non-host alike) to the new lobby.
         navigation.reset({
           index: 1,
           routes: [{ name: 'Home' }, { name: 'Lobby', params: { roomCode: result.room_code } }],
