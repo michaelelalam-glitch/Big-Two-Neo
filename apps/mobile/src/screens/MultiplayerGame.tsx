@@ -936,6 +936,7 @@ export function MultiplayerGame() {
     navigation,
     orientationAvailable,
     roomId: roomInfo?.id,
+    stopHeartbeat: stopHeartbeats,
   });
 
   // Audio/haptic feedback

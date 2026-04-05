@@ -26,6 +26,13 @@ interface UseGameCleanupOptions {
   orientationAvailable: boolean;
   /** Room UUID — required for online rooms so mark-disconnected can be called */
   roomId?: string;
+  /**
+   * Stop the heartbeat before calling mark-disconnected to prevent a racing
+   * heartbeat from overwriting the 'disconnected' status that mark-disconnected
+   * sets (neq guard in update-heartbeat now blocks heartbeats from clearing
+   * 'disconnected', so stopping first is belt-and-suspenders).
+   */
+  stopHeartbeat?: () => void;
 }
 
 interface UseGameCleanupReturn {
@@ -38,6 +45,7 @@ export function useGameCleanup({
   navigation,
   orientationAvailable,
   roomId,
+  stopHeartbeat,
 }: UseGameCleanupOptions): UseGameCleanupReturn {
   // Track component mount status for async operations
   const isMountedRef = useRef(true);
@@ -53,6 +61,11 @@ export function useGameCleanup({
   // without re-registering the listener on every roomInfo change.
   const roomIdRef = useRef(roomId);
   roomIdRef.current = roomId;
+
+  // Keep a stable ref to stopHeartbeat so the beforeRemove async closure always
+  // calls the latest version without re-registering the listener.
+  const stopHeartbeatRef = useRef(stopHeartbeat);
+  stopHeartbeatRef.current = stopHeartbeat;
 
   // Cleanup: Handle player exit when deliberately leaving
   // - Online playing rooms: call mark-disconnected (starts 60s bot-replacement timer)
@@ -93,6 +106,18 @@ export function useGameCleanup({
             gameLogger.info(
               `🔌 [GameScreen] Marking player disconnected in room ${roomCode} (starting 60s timer)`
             );
+
+            // Stop the heartbeat BEFORE calling mark-disconnected so a racing
+            // heartbeat tick cannot overwrite the 'disconnected' status back to
+            // 'connected'. The neq guard in update-heartbeat now also blocks this
+            // race, but stopping first is belt-and-suspenders.
+            stopHeartbeatRef.current?.();
+
+            // Write the disconnect timestamp optimistically so HomeScreen can
+            // show the 60s countdown immediately, even if mark-disconnected
+            // times out or the network is unreliable.
+            AsyncStorage.setItem(DISCONNECT_TIMER_KEY, String(Date.now())).catch(() => {});
+
             try {
               const markResult = await Promise.race<{ error: unknown }>([
                 supabase.functions
@@ -108,9 +133,6 @@ export function useGameCleanup({
                 gameLogger.error('❌ [GameScreen] mark-disconnected error:', markResult.error);
               } else {
                 gameLogger.info('✅ [GameScreen] mark-disconnected success — 60s timer started');
-                // Cache the disconnect start time so HomeScreen can show the
-                // countdown immediately without waiting for get-rejoin-status.
-                AsyncStorage.setItem(DISCONNECT_TIMER_KEY, String(Date.now())).catch(() => {});
               }
             } catch (err: unknown) {
               gameLogger.error('❌ [GameScreen] mark-disconnected exception:', err);

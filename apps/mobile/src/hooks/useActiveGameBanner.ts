@@ -56,14 +56,30 @@ export function useActiveGameBanner(
   const [currentRoom, setCurrentRoom] = useState<string | null>(null);
   /** Ref that always holds the latest currentRoom so closures can read it */
   const currentRoomRef = useRef<string | null>(null);
-  /** At most one scheduled 1s re-check can be pending at a time. */
+  /** At most one scheduled re-check can be pending at a time. */
   const hasScheduledRecheckRef = useRef(false);
-  /** Handle for the pending 1s re-check so it can be cleared on unmount. */
+  /** Handle for the pending re-check so it can be cleared on unmount. */
   const recheckTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /**
+   * Tracks how many consecutive 'connected' responses we have seen from
+   * get-rejoin-status when we expected to be disconnected. Drives the
+   * exponential-backoff multi-retry cycle. Reset to 0 any time we get a
+   * non-connected response or whenever checkCurrentRoom is called externally
+   * (focus event, Realtime event).
+   */
+  const recheckAttemptRef = useRef(0);
+  /**
+   * Delays for the multi-retry cycle (milliseconds):
+   * 1 s → 2 s → 4 s → 8 s → 16 s  (∼ 31 s total budget)
+   * Covers the ~3 s mark-disconnected window AND the Phase A 30 s frequency.
+   */
+  const RECHECK_DELAYS_MS = [1000, 2000, 4000, 8000, 16000] as const;
   const voluntarilyLeftRoomsRef = useRef<Set<string>>(new Set());
   const storageLoadedRef = useRef<boolean>(false);
   /** Stable UUID for the room currently shown in banner, for voluntarily-left writes. */
   const currentRoomIdRef = useRef<string | null>(null);
+  /** Stable ref to checkCurrentRoom so Realtime callback can always call the latest version. */
+  const checkCurrentRoomRef = useRef<(() => Promise<void>) | null>(null);
 
   const [currentRoomStatus, setCurrentRoomStatus] = useState<'waiting' | 'playing' | undefined>(
     undefined
@@ -181,6 +197,7 @@ export function useActiveGameBanner(
             });
             if (statusData?.success) {
               if (statusData.status === 'disconnected' || statusData.disconnect_timer_active) {
+                recheckAttemptRef.current = 0; // stop any pending retry cycle
                 // 6.5: Unified single source of truth — always derive the anchor
                 // from disconnect_timer_started_at when available. If the server
                 // omits this field, fall back to seconds_left to approximate it.
@@ -197,28 +214,45 @@ export function useActiveGameBanner(
                     : null;
                 setDisconnectTimestamp(serverAnchorMs);
               } else if (statusData.status === 'replaced_by_bot') {
+                recheckAttemptRef.current = 0;
                 AsyncStorage.removeItem(DISCONNECT_TIMER_KEY).catch(() => {});
                 setDisconnectTimestamp(null);
                 setCanRejoinAfterExpiry(true);
               } else if (statusData.status === 'room_closed') {
+                recheckAttemptRef.current = 0;
                 AsyncStorage.removeItem(DISCONNECT_TIMER_KEY).catch(() => {});
                 setCurrentRoom(null);
                 setCurrentRoomStatus(undefined);
                 setDisconnectTimestamp(null);
                 setCanRejoinAfterExpiry(null);
               } else {
-                // 'connected' — mark-disconnected may still be in-flight. Poll once.
-                AsyncStorage.removeItem(DISCONNECT_TIMER_KEY).catch(() => {});
-                setDisconnectTimestamp(null);
-                if (!hasScheduledRecheckRef.current) {
-                  hasScheduledRecheckRef.current = true;
+                // 'connected' — mark-disconnected window may not have completed yet
+                // (there's a brief async gap between stopHeartbeat and the server
+                // committing 'disconnected'). The heartbeat neq-guard now prevents
+                // the race from lasting >3 s, but we still need to wait it out.
+                //
+                // Strategy: keep the optimistic DISCONNECT_TIMER_KEY timestamp
+                // (do NOT remove it; it drives the visible countdown). Schedule
+                // retries at [1, 2, 4, 8, 16] s. Only clear the timestamp after
+                // ALL retries are exhausted and the server still says 'connected'
+                // (meaning the player is genuinely online, no disconnect happened).
+                hasScheduledRecheckRef.current = false; // allow re-entry per attempt
+                const attempt = recheckAttemptRef.current;
+                if (attempt < RECHECK_DELAYS_MS.length) {
+                  recheckAttemptRef.current = attempt + 1;
                   recheckTimeoutRef.current = setTimeout(() => {
                     recheckTimeoutRef.current = null;
-                    hasScheduledRecheckRef.current = false;
                     if (currentRoomRef.current) {
-                      checkCurrentRoom();
+                      checkCurrentRoomRef.current?.();
+                    } else {
+                      recheckAttemptRef.current = 0;
                     }
-                  }, 1000);
+                  }, RECHECK_DELAYS_MS[attempt]);
+                } else {
+                  // All retries exhausted — player is genuinely connected (no disconnect).
+                  recheckAttemptRef.current = 0;
+                  AsyncStorage.removeItem(DISCONNECT_TIMER_KEY).catch(() => {});
+                  setDisconnectTimestamp(null);
                 }
               }
             }
@@ -312,9 +346,55 @@ export function useActiveGameBanner(
   // recreate the callback on every countdown tick, causing useFocusEffect to
   // re-invoke checkCurrentRoom in a tight restart loop.
 
+  // Keep checkCurrentRoomRef in sync so Realtime callbacks always call the latest version.
+  useEffect(() => {
+    checkCurrentRoomRef.current = checkCurrentRoom;
+  }, [checkCurrentRoom]);
+
+  // Realtime subscription: listen for this user's own room_players row changes.
+  // Covers two scenarios that polling misses:
+  //   1. Android: Phase A marks the player disconnected (30 s stale heartbeat) while
+  //      HomeScreen is already focused — useFocusEffect won't fire again.
+  //   2. Any platform: 'replaced_by_bot' fires while on HomeScreen.
+  // On either event, reset the retry counter and re-run checkCurrentRoom so the
+  // banner immediately shows the countdown or bot-replacement UI.
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`banner_presence_${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'room_players',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          // Any UPDATE to this user's room_players row — clear retry counter
+          // (a server-delivered event supersedes the local retry cycle) and
+          // re-run the full banner check.
+          recheckAttemptRef.current = 0;
+          if (recheckTimeoutRef.current) {
+            clearTimeout(recheckTimeoutRef.current);
+            recheckTimeoutRef.current = null;
+            hasScheduledRecheckRef.current = false;
+          }
+          checkCurrentRoomRef.current?.();
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
   // Refresh banner state every time HomeScreen regains focus.
   useFocusEffect(
     useCallback(() => {
+      // Reset retry counter on every focus event so external calls always
+      // get a fresh check (not a continuation of a stale retry cycle).
+      recheckAttemptRef.current = 0;
       checkCurrentRoom();
     }, [checkCurrentRoom])
   );
