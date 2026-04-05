@@ -121,7 +121,7 @@ describeWithCredentials('Matchmaking Timeout Edge Cases', () => {
     const { error: pErr } = await supabase.from('room_players').insert(players);
     if (pErr) throw new Error(`Player insert failed: ${pErr.message}`);
 
-    // Try to add 5th player
+    // Try to add 5th player — should be rejected by DB constraint or RLS
     const { error: fifthErr } = await supabase.from('room_players').insert({
       room_id: room.id,
       user_id: authUserIds[4],
@@ -130,8 +130,10 @@ describeWithCredentials('Matchmaking Timeout Edge Cases', () => {
       is_bot: false,
     });
 
-    // Should fail — room is full (constraint or RLS should block)
-    // The exact error depends on DB constraints; we just verify it doesn't succeed silently
+    // Assert the insert was rejected (constraint violation or RLS denial)
+    expect(fifthErr).not.toBeNull();
+
+    // Double-check: room should still have at most 4 players
     const { data: playerCount } = await supabase
       .from('room_players')
       .select('id', { count: 'exact' })
