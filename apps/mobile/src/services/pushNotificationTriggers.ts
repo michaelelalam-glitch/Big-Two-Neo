@@ -170,15 +170,10 @@ async function sendPushNotification(payload: NotificationPayload): Promise<boole
           }
         });
 
-        // Record rate-limit timestamps for the subset of users whose tickets succeeded,
-        // so they aren't immediately re-sent on retry of the failed ones.
-        const okCount = data.results.filter((r: ExpoPushTicket) => r.status === 'ok').length;
-        if (okCount > 0 && filteredUserIds.length > 0) {
-          // Best-effort: record for all filteredUserIds since we can't map tickets back to
-          // individual userIds (Expo batches by push token, not by user).
-          recordRateLimitSent(filteredUserIds, eventType);
-        }
-
+        // Don't record rate-limit timestamps on partial failure — Expo ticket
+        // results are indexed by push token, not user ID, so we cannot determine
+        // which specific users received their notification. Skipping ensures
+        // failed recipients aren't suppressed on retry.
         return false;
       }
     }
