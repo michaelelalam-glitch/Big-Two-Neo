@@ -466,6 +466,8 @@ export default function LobbyScreen() {
               const rpcPromise = supabase.rpc('lobby_claim_host', {
                 p_room_id: currentRoomId,
               });
+              // Suppress unhandled rejection if timeoutPromise resolves first
+              Promise.resolve(rpcPromise).catch(() => {});
               const timeoutPromise = new Promise<never>((_, reject) => {
                 claimTimeoutId = setTimeout(
                   () => reject(new Error('lobby_claim_host timed out')),

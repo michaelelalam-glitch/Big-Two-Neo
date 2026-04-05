@@ -452,9 +452,7 @@ export interface Translations {
     dropZoneReleaseMultiple: string;
     dropZoneDrop: string;
     // Helper button messages
-    smartOrganized: string;
     hintNoValidPlay: string;
-    hintRecommended: string;
     // Throwables
     throwPickerTitle: string;
     throwEgg: string;
@@ -467,6 +465,10 @@ export interface Translations {
     throwSplatCake: string;
     throwAtYou: string;
     throwDismissHint: string;
+    throwAtPickerTitle: string;
+    positionTop: string;
+    positionLeft: string;
+    positionRight: string;
     // RejoinModal
     botReplacedYouTitle: string;
     botReplacedYouBody: string;
@@ -1251,9 +1253,7 @@ const en: Translations = {
     dropZoneReleaseMultiple: 'Release to play {{count}} cards',
     dropZoneDrop: 'Drop to play',
     // Helper button messages
-    smartOrganized: 'Hand organized by combos',
     hintNoValidPlay: 'No valid play — recommend passing',
-    hintRecommended: 'Recommended: {{combo}}',
     // Throwables
     throwPickerTitle: 'Throw something',
     throwEgg: 'Egg',
@@ -1266,6 +1266,10 @@ const en: Translations = {
     throwSplatCake: 'Splat!',
     throwAtYou: '{{name}} threw this at you!',
     throwDismissHint: 'Double-tap to dismiss',
+    throwAtPickerTitle: 'Throw at…',
+    positionTop: 'Top',
+    positionLeft: 'Left',
+    positionRight: 'Right',
     // RejoinModal
     botReplacedYouTitle: 'A bot replaced you!',
     botReplacedYouBody: 'A bot is playing in your seat.',
@@ -1976,9 +1980,7 @@ const ar: Translations = {
     dropZoneReleaseMultiple: 'الإفلات للعب {{count}} أوراق',
     dropZoneDrop: 'وضع هنا للعب',
     // Helper button messages
-    smartOrganized: 'تم تنظيم اليد حسب التركيبات',
     hintNoValidPlay: 'لا توجد لعبة صالحة — يُنصح بالتمرير',
-    hintRecommended: 'مقترح: {{combo}}',
     // Throwables
     throwPickerTitle: 'ارمِ شيئاً',
     throwEgg: 'بيضة',
@@ -1991,6 +1993,10 @@ const ar: Translations = {
     throwSplatCake: 'ضربة!',
     throwAtYou: 'رمى {{name}} هذا عليك!',
     throwDismissHint: 'انقر مرتين للإغلاق',
+    throwAtPickerTitle: 'ارمِ على...',
+    positionTop: 'أعلى',
+    positionLeft: 'يسار',
+    positionRight: 'يمين',
     // RejoinModal
     botReplacedYouTitle: 'حل بوت محلك!',
     botReplacedYouBody: 'بوت يلعب في مقعدك.',
@@ -2794,9 +2800,7 @@ const de: Translations = {
     dropZoneReleaseMultiple: '{{count}} Karten loslassen zum Spielen',
     dropZoneDrop: 'Hier ablegen zum Spielen',
     // Helper button messages
-    smartOrganized: 'Hand nach Kombinationen sortiert',
     hintNoValidPlay: 'Kein gültiger Zug — Passen empfohlen',
-    hintRecommended: 'Empfohlen: {{combo}}',
     // Throwables
     throwPickerTitle: 'Etwas werfen',
     throwEgg: 'Ei',
@@ -2809,6 +2813,10 @@ const de: Translations = {
     throwSplatCake: 'Klatsch!',
     throwAtYou: '{{name}} hat das auf dich geworfen!',
     throwDismissHint: 'Zweimal tippen zum Schließen',
+    throwAtPickerTitle: 'Werfen auf…',
+    positionTop: 'Oben',
+    positionLeft: 'Links',
+    positionRight: 'Rechts',
     // RejoinModal
     botReplacedYouTitle: 'Ein Bot hat dich ersetzt!',
     botReplacedYouBody: 'Ein Bot spielt auf deinem Platz.',

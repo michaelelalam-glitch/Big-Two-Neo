@@ -218,9 +218,12 @@ function AutoPassTimerComponent({
     ? computeRemainingMs(timerState, isSynced, getCorrectedNow)
     : 0;
 
-  // Ref to hold the current pulse loop so we can stop it before starting a new one
-  // or during cleanup. Without this, every re-render that triggers the effect would
-  // start an additional concurrent loop, leaking animations.
+  // Keep a ref so the pulse effect can read the latest value without being
+  // in its dependency array — avoids stop/start of Animated.loop every 200ms
+  // (which caused SIGSEGV in the native animation driver).
+  const remainingMsRef = useRef(0);
+  remainingMsRef.current = remainingMs;
+
   const pulseLoopRef = useRef<Animated.CompositeAnimation | null>(null);
 
   useEffect(() => {
@@ -230,7 +233,7 @@ function AutoPassTimerComponent({
       pulseLoopRef.current = null;
     }
 
-    if (!timerState || !timerState.active || remainingMs <= 0) {
+    if (!timerState || !timerState.active || remainingMsRef.current <= 0) {
       pulseAnim.setValue(1);
       return;
     }
@@ -264,7 +267,7 @@ function AutoPassTimerComponent({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displaySeconds, timerState?.active, remainingMs, pulseAnim]);
+  }, [displaySeconds, timerState?.active, pulseAnim]);
 
   // Cancel the Reanimated progress animation when the timer becomes inactive or expires,
   // so the shared value is not updated after the animated view is unmounted — prevents

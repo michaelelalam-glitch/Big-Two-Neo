@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import type { ThrowableType } from '../../types/multiplayer';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '../../constants';
+import { i18n } from '../../i18n';
 
 interface PlayerTargetPickerProps {
   visible: boolean;
@@ -35,11 +36,11 @@ const THROWABLE_EMOJI: Record<ThrowableType, string> = {
   cake: '🎂',
 };
 
-const POSITION_LABEL: Record<number, string> = {
-  1: 'Top',
-  2: 'Left',
-  3: 'Right',
-};
+function getPositionLabel(displayOffsetIdx: number): string {
+  if (displayOffsetIdx === 0) return i18n.t('game.positionTop');
+  if (displayOffsetIdx === 1) return i18n.t('game.positionLeft');
+  return i18n.t('game.positionRight');
+}
 
 export function PlayerTargetPicker({
   visible,
@@ -83,7 +84,9 @@ export function PlayerTargetPicker({
 
       <Animated.View style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}>
         <View style={styles.handle} />
-        <Text style={styles.title}>{THROWABLE_EMOJI[throwable]} Throw at…</Text>
+        <Text style={styles.title}>
+          {THROWABLE_EMOJI[throwable]} {i18n.t('game.throwAtPickerTitle')}
+        </Text>
 
         <View style={styles.playerList}>
           {opponents.map((opp, displayOffsetIdx) => (
@@ -92,16 +95,14 @@ export function PlayerTargetPicker({
               style={({ pressed }) => [styles.playerButton, pressed && styles.playerButtonPressed]}
               onPress={() => onSelect(opp.player_index)}
               accessibilityRole="button"
-              accessibilityLabel={`Throw at ${opp.name}`}
+              accessibilityLabel={`${i18n.t('game.throwAtPickerTitle')} ${opp.name}`}
             >
               <Text style={styles.playerEmoji}>🎯</Text>
               <View style={styles.playerInfo}>
                 <Text style={styles.playerName} numberOfLines={1}>
                   {opp.name}
                 </Text>
-                <Text style={styles.playerPosition}>
-                  {POSITION_LABEL[displayOffsetIdx + 1] ?? ''}
-                </Text>
+                <Text style={styles.playerPosition}>{getPositionLabel(displayOffsetIdx)}</Text>
               </View>
             </Pressable>
           ))}

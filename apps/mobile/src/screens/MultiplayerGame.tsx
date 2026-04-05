@@ -778,9 +778,13 @@ export function MultiplayerGame() {
   // Server-side bot coordinator fallback (Tasks #551/#552)
   useServerBotCoordinator({
     roomCode,
-    enabled: isMultiplayerDataReady && playersWithCards.length > 0,
+    enabled: isMultiplayerDataReady && (realtimePlayers.length > 0 || playersWithCards.length > 0),
     gameState: multiplayerGameState,
-    players: playersWithCards,
+    players: (realtimePlayers.length > 0 ? realtimePlayers : playersWithCards) as unknown as {
+      player_index: number;
+      is_bot?: boolean | null;
+      [key: string]: unknown;
+    }[],
     isAutoPassInProgress,
   });
 
