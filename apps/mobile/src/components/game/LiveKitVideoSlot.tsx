@@ -42,13 +42,6 @@ class VideoSlotErrorBoundary extends React.Component<
     return { hasError: true };
   }
 
-  componentDidUpdate(prevProps: Readonly<{ children: React.ReactNode }>): void {
-    if (this.state.hasError && prevProps.children !== this.props.children) {
-      gameLogger.warn('[LiveKitVideoSlot] Resetting video slot error boundary after child change');
-      this.setState({ hasError: false });
-    }
-  }
-
   componentDidCatch(error: Error): void {
     gameLogger.warn('[LiveKitVideoSlot] Render error caught by boundary:', error.message);
   }
@@ -161,8 +154,14 @@ export function LiveKitVideoSlot({
 
   const VideoTrackComponent = _VideoTrack;
 
+  // Key the error boundary by track identity so React remounts it (clearing
+  // hasError) when trackRef changes — avoids permanent null after a transient error.
+  const boundaryKey = (trackRef.publication as any)?.trackSid
+    ?? (trackRef.participant as any)?.identity
+    ?? 'video-slot';
+
   return (
-    <VideoSlotErrorBoundary>
+    <VideoSlotErrorBoundary key={boundaryKey}>
       <View style={styles.container}>
         <VideoTrackComponent
           trackRef={trackRef}

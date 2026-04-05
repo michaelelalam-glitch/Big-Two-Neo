@@ -26,7 +26,15 @@ function isRateLimited(userId: string, eventType: string): boolean {
     );
     return true;
   }
-  _rateLimitMap.set(key, now);
+  return false;
+}
+
+/** Record that a notification was successfully sent. Call AFTER a successful send. */
+function recordRateLimitSent(userIds: string[], eventType: string): void {
+  const now = Date.now();
+  for (const userId of userIds) {
+    _rateLimitMap.set(`${userId}:${eventType}`, now);
+  }
   // Cleanup: purge expired entries when the map exceeds the cap OR every 100th
   // invocation. Uses an invocation counter (not map size) so sweeps happen on a
   // predictable cadence regardless of how many distinct keys exist.
@@ -47,7 +55,6 @@ function isRateLimited(userId: string, eventType: string): boolean {
       }
     }
   }
-  return false;
 }
 
 /** Filter out rate-limited user IDs for a given event type */
@@ -171,6 +178,10 @@ async function sendPushNotification(payload: NotificationPayload): Promise<boole
       sent: data?.sent || 0,
       successful: data?.results?.filter((r: ExpoPushTicket) => r.status === 'ok').length || 0,
     });
+
+    // Record rate limit timestamps only after successful send
+    recordRateLimitSent(filteredUserIds, eventType);
+
     return true;
   } catch (error: unknown) {
     notificationLogger.error(
