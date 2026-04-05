@@ -128,6 +128,9 @@ export interface LandscapeGameLayoutProps {
   videoStreamSlots?: (React.ReactNode | undefined)[];
   /** Orientation-aware alert (replaces native Alert.alert for landscape) */
   showInGameAlert?: (options: InGameAlertOptions) => void;
+  /** Server-to-client clock offset (ms) from useClockSync — forwarded to each LandscapeOpponent
+   * so InactivityCountdownRing computes elapsed time against the corrected server clock. */
+  turnClockOffsetMs?: number;
 }
 
 // ============================================================================
@@ -200,6 +203,7 @@ export function LandscapeGameLayout({
   isVideoChatConnectings,
   videoStreamSlots,
   showInGameAlert,
+  turnClockOffsetMs = 0,
 }: LandscapeGameLayoutProps) {
   // Friends context to check friendship status in-game
   const { friends } = useFriendsContext();
@@ -424,6 +428,7 @@ export function LandscapeGameLayout({
             isMicOn={isMicOns?.[1]}
             isVideoChatConnecting={isVideoChatConnectings?.[1]}
             videoStreamSlot={videoStreamSlots?.[1]}
+            clockOffsetMs={turnClockOffsetMs}
           />
           {throwableActiveEffects?.[1] != null && (
             <View
@@ -465,6 +470,7 @@ export function LandscapeGameLayout({
             isMicOn={isMicOns?.[2]}
             isVideoChatConnecting={isVideoChatConnectings?.[2]}
             videoStreamSlot={videoStreamSlots?.[2]}
+            clockOffsetMs={turnClockOffsetMs}
           />
           {throwableActiveEffects?.[2] != null && (
             <View
@@ -504,6 +510,7 @@ export function LandscapeGameLayout({
             isMicOn={isMicOns?.[3]}
             isVideoChatConnecting={isVideoChatConnectings?.[3]}
             videoStreamSlot={videoStreamSlots?.[3]}
+            clockOffsetMs={turnClockOffsetMs}
           />
           {throwableActiveEffects?.[3] != null && (
             <View
@@ -605,6 +612,7 @@ export function LandscapeGameLayout({
             isCameraOn={isCameraOns?.[0]}
             isVideoChatConnecting={isVideoChatConnectings?.[0]}
             videoStreamSlot={videoStreamSlots?.[0]}
+            clockOffsetMs={turnClockOffsetMs}
           />
           {throwableActiveEffects?.[0] != null && (
             <ThrowablePlayerEffect

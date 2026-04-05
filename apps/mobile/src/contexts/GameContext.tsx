@@ -96,6 +96,12 @@ export interface GameContextType {
   displayOrderScoreHistory: ScoreHistory[];
   playHistoryByMatch: PlayHistoryMatch[];
 
+  // ── Clock synchronisation ─────────────────────────────────────────────
+  /** Server-to-client clock offset in ms from useClockSync (positive = client behind server).
+   * 0 for local AI games. Forwarded to InactivityCountdownRing so the ring depletes at
+   * the correct server-relative rate instead of relying on raw Date.now(). */
+  turnClockOffsetMs: number;
+
   // ── Action callbacks ───────────────────────────────────────────────────
   handlePlayCards: (cards: Card[]) => Promise<void>;
   handlePass: () => Promise<void>;

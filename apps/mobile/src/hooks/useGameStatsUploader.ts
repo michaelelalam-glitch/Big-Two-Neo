@@ -124,11 +124,11 @@ export function useGameStatsUploader({
 
     const { hands } = multiplayerGameState;
 
-    // Mark as uploaded optimistically BEFORE the winner/final_scores null guard.
-    // This prevents a second upload attempt if the effect re-fires while winner
-    // data hasn't propagated yet — the null-guard path now safely exits without
-    // clearing the flag, so the upload won't be retried on the next state tick.
-    hasUploadedRef.current = true;
+    // 7.11: Do NOT set hasUploadedRef optimistically here. The one-shot lock
+    // must only be committed after auth is confirmed (inside uploadStats below).
+    // Setting it here before auth caused a race: if auth failed and reset the
+    // flag, a later retry could land in this block again — but the first null-
+    // guard exit would have left it true, permanently blocking the upload.
 
     // Resolve winner — try 'winner' column first, fall back to 'game_winner_index'
     const resolvedWinner =

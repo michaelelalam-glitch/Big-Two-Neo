@@ -177,11 +177,14 @@ Deno.serve(async (req) => {
       // call fetchPlayers() and get fresh room_players data. Without this, clients
       // rely solely on Realtime postgres_changes — which can be delayed or lost on
       // mobile networks — leaving the grey ring stuck on the reconnected player.
+      // This broadcast is only attempted for disconnected → connected transitions
+      // and runs asynchronously via EdgeRuntime.waitUntil / fallback await below.
+      // Its success or failure is logged, but it is not tracked in the HTTP response.
       if (player.connection_status === 'disconnected') {
         // Promise registered with EdgeRuntime.waitUntil (see try/catch below)
         // so the edge runtime does not terminate the subscribe→send flow before
         // it completes — even after the HTTP response has already been returned.
-        const reconnectBroadcast = (async () => {
+        const reconnectBroadcast = (async (): Promise<void> => {
           try {
             // IMPORTANT: channel name must use room_id (UUID) to match the
             // client's Realtime subscription in useRealtime.ts joinChannel().
@@ -203,7 +206,10 @@ Deno.serve(async (req) => {
                   resolve();
                 }
               };
-              const safetyTimeout = setTimeout(finish, 5000);
+              const safetyTimeout = setTimeout(() => {
+                console.warn(`[update-heartbeat] Reconnect broadcast safety timeout for room ${room_id}`);
+                finish();
+              }, 5000);
               ch.subscribe((status: string) => {
                 // Guard: if the safety timeout already fired and settled the
                 // Promise, ignore any late SUBSCRIBED / status callbacks to
@@ -215,28 +221,34 @@ Deno.serve(async (req) => {
                       // supabase-js Realtime send() resolves (not rejects) on
                       // delivery failures; inspect the resolved value for errors.
                       if (result?.error) {
-                        console.warn(`[update-heartbeat] Reconnect broadcast delivery failure (non-critical):`, result.error);
+                        console.warn(`[update-heartbeat] Reconnect broadcast delivery failure — room ${room_id}:`, result.error);
+                        clearTimeout(safetyTimeout);
+                        finish();
                       } else {
                         console.log(`📡 [update-heartbeat] Broadcast player_reconnected for player_index=${player.player_index} in room ${room_id}`);
+                        clearTimeout(safetyTimeout);
+                        finish();
                       }
-                      clearTimeout(safetyTimeout);
-                      finish();
                     })
                     .catch((e: unknown) => {
-                      console.warn('[update-heartbeat] Reconnect broadcast send error (non-critical):', e);
+                      console.warn('[update-heartbeat] Reconnect broadcast send failed — room', room_id, ':', e);
                       clearTimeout(safetyTimeout);
                       finish();
                     });
                 } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+                  console.warn(`[update-heartbeat] Reconnect broadcast channel error (${status}) for room ${room_id}`);
                   clearTimeout(safetyTimeout);
                   finish();
                 }
               });
             });
           } catch (bcastErr: any) {
-            console.warn('[update-heartbeat] Reconnect broadcast error (non-critical):', bcastErr?.message);
+            console.warn('[update-heartbeat] Reconnect broadcast exception — room', room_id, ':', bcastErr?.message);
           }
         })();
+        // Fire-and-forget: broadcast continues after the HTTP response.
+        // Uses EdgeRuntime.waitUntil so the Edge Function runtime keeps the
+        // promise alive past the response flush (consistent with bot-watchdog).
         try {
           (globalThis as any).EdgeRuntime?.waitUntil(reconnectBroadcast);
         } catch (_) {

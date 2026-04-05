@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -18,7 +18,7 @@ import {
   MODAL_SUPPORTED_ORIENTATIONS,
 } from '../../constants';
 import { i18n } from '../../i18n';
-import { soundManager, hapticManager, HapticType } from '../../utils';
+import { hapticManager, HapticType } from '../../utils';
 import { useUserPreferencesStore } from '../../store';
 import type { InGameAlertOptions } from './InGameAlert';
 
@@ -57,7 +57,7 @@ function GameSettingsModalComponent({
   visible,
   onClose,
   onLeaveGame,
-  roomCode,
+  roomCode: _roomCode,
   isInChatSession = false,
   isLocalMicOn = false,
   isLocalCameraOn = false,
@@ -77,22 +77,9 @@ function GameSettingsModalComponent({
   const vibrationEnabled = useUserPreferencesStore(s => s.vibrationEnabled);
   const setSoundEnabled = useUserPreferencesStore(s => s.setSoundEnabled);
   const setVibrationEnabled = useUserPreferencesStore(s => s.setVibrationEnabled);
-  const hydrate = useUserPreferencesStore(s => s.hydrate);
-
-  // On mount: sync sound/vibration from the manager singletons using the
-  // side-effect-free hydrate() action so no manager AsyncStorage writes are
-  // triggered. isAudioEnabled / isHapticsEnabled are synchronous.
-  useEffect(() => {
-    try {
-      hydrate({
-        soundEnabled: soundManager.isAudioEnabled(),
-        vibrationEnabled: hapticManager.isHapticsEnabled(),
-      });
-    } catch {
-      // Non-fatal: Zustand defaults (true/true) remain in effect
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // 7.5: hydrate() removed — AuthContext now performs a single hydration after
+  // managers initialize from AsyncStorage. Re-reading here on every modal open
+  // could revert Zustand state if managers hadn't finished initializing yet.
 
   const handleToggleSound = () => {
     const newValue = !soundEnabled;

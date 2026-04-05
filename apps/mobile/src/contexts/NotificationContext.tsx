@@ -143,12 +143,45 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       };
       setStoredNotifications(prev => {
         const existingIndex = prev.findIndex(n => n.id === entry.id);
+        // 7.6: For friend_request/friend_accepted, deduplicate by a stable
+        // identifier from content.data (friendshipId / sender user id) to prevent
+        // duplicate entries when the same push fires twice. Avoid deduping by
+        // body text, which incorrectly collapses distinct notifications from
+        // different users who share the same display name.
+        const getFriendDedupKey = (
+          notificationType: AppNotification['type'],
+          data: Record<string, unknown>
+        ): string | null => {
+          if (notificationType !== 'friend_request' && notificationType !== 'friend_accepted') {
+            return null;
+          }
+          for (const candidate of [
+            data.friendshipId,
+            data.senderId,
+            data.senderUserId,
+            data.userId,
+          ]) {
+            if (typeof candidate === 'string' && candidate.length > 0) return candidate;
+            if (typeof candidate === 'number' || typeof candidate === 'bigint')
+              return String(candidate);
+          }
+          return null;
+        };
+        const entryDedupKey = getFriendDedupKey(type, entry.data);
+        const contentDupIndex =
+          existingIndex === -1 && entryDedupKey
+            ? prev.findIndex(n => {
+                if (n.type !== type) return false;
+                return getFriendDedupKey(n.type, n.data) === entryDedupKey;
+              })
+            : -1;
+        const dupeIndex = existingIndex !== -1 ? existingIndex : contentDupIndex;
         let next: AppNotification[];
-        if (existingIndex === -1) {
+        if (dupeIndex === -1) {
           next = [entry, ...prev];
         } else {
           const withoutExisting = [...prev];
-          withoutExisting.splice(existingIndex, 1);
+          withoutExisting.splice(dupeIndex, 1);
           next = [entry, ...withoutExisting];
         }
         const limited = next.slice(0, MAX_STORED_NOTIFICATIONS);
@@ -293,6 +326,18 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
 
   // Setup notification listeners
   useEffect(() => {
+    // 7.7: When logged out, remove any stale listeners so they never fire
+    // against a null-user context (prevent spurious setNotification calls
+    // and ensure addStoredNotification's user?.id guard is never relied upon
+    // as the sole protection).
+    if (!isLoggedIn) {
+      notificationListener.current?.remove();
+      notificationListener.current = null;
+      responseListener.current?.remove();
+      responseListener.current = null;
+      return;
+    }
+
     // Handle notification received while app is open
     notificationListener.current = Notifications.addNotificationReceivedListener(notif => {
       // Log only essential fields to avoid exposing sensitive user data
@@ -344,7 +389,7 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- navigation intentionally excluded: React Navigation's navigation object is stable across renders; adding it would add noise and risk re-subscribing to notification listeners unnecessarily
-  }, [handleNotificationResponse, addStoredNotification]);
+  }, [handleNotificationResponse, addStoredNotification, isLoggedIn]);
 
   // Auto-register when user logs in
   useEffect(() => {

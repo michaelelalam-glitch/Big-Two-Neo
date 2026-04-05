@@ -61,6 +61,9 @@ interface GameLayoutProps {
   opponentPlayerIds?: readonly string[];
   /** Active throwable effect for each display position (0=bottom/local, 1=top, 2=left, 3=right). */
   throwableActiveEffects?: readonly (ActiveThrowableEffect | null)[];
+  /** Server-to-client clock offset (ms) from useClockSync — forwarded to each PlayerInfo
+   * so InactivityCountdownRing computes elapsed time against the corrected server clock. */
+  clockOffsetMs?: number;
 }
 
 /**
@@ -88,6 +91,7 @@ function GameLayoutComponent({
   onOpponentNameLongPress,
   opponentPlayerIds,
   throwableActiveEffects,
+  clockOffsetMs = 0,
 }: GameLayoutProps) {
   const profilePhotoSize = useUserPreferencesStore(s => s.profilePhotoSize);
   const throwableClipSize = useMemo(() => {
@@ -186,6 +190,7 @@ function GameLayoutComponent({
               ? () => onOpponentNameLongPress(1)
               : undefined
           }
+          clockOffsetMs={clockOffsetMs}
         />
         {throwableActiveEffects?.[1] != null && (
           <View
@@ -242,6 +247,7 @@ function GameLayoutComponent({
                   ? () => onOpponentNameLongPress(2)
                   : undefined
               }
+              clockOffsetMs={clockOffsetMs}
             />
             {throwableActiveEffects?.[2] != null && (
               <View
@@ -301,6 +307,7 @@ function GameLayoutComponent({
                   ? () => onOpponentNameLongPress(3)
                   : undefined
               }
+              clockOffsetMs={clockOffsetMs}
             />
             {throwableActiveEffects?.[3] != null && (
               <View

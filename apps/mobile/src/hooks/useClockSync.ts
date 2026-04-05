@@ -43,9 +43,16 @@ interface ClockSyncResult {
  * Hook to synchronize client clock with server clock
  *
  * @param timerState - Current timer state (includes server_time_at_creation)
+ * @param fallbackServerTimestamp - Optional: a raw server-side timestamp (ms) used to seed an
+ *   initial rough clock offset before the first auto-pass timer fires.  Typically derived from
+ *   game_state.turn_started_at (converted to a numeric ms value).  Only applied when no precise
+ *   sync has been established yet (syncedRef = false) and the server appears >1 s ahead.
  * @returns Clock sync information and corrected time function
  */
-export function useClockSync(timerState: AutoPassTimerState | null): ClockSyncResult {
+export function useClockSync(
+  timerState: AutoPassTimerState | null,
+  fallbackServerTimestamp?: number | null
+): ClockSyncResult {
   // ── Ref-based offset (primary source of truth) ──────────────────────────
   // State is kept in sync for re-renders but the REF is what getCorrectedNow
   // reads so that stale closures always get the latest value.
@@ -73,6 +80,23 @@ export function useClockSync(timerState: AutoPassTimerState | null): ClockSyncRe
     // AutoPassTimer UI to show full duration (10s) and then snap back —
     // the "timer restart" bug the user reported.
     if (!timerState || !timerState.active) {
+      // Fallback path: if no precise sync has been established yet and a server
+      // timestamp is available (e.g. game_state.turn_started_at), seed a rough
+      // initial offset so InactivityRing / TurnTimer don't fire clock-skew warnings
+      // on the very first turn before any auto-pass timer has ever fired.
+      // Only apply when the server appears >1 s ahead (small values may just be
+      // network jitter and are not worth correcting).
+      if (!syncedRef.current && fallbackServerTimestamp && fallbackServerTimestamp > 0) {
+        const roughOffset = fallbackServerTimestamp - Date.now();
+        if (roughOffset > 1000) {
+          offsetRef.current = roughOffset;
+          setOffsetMs(roughOffset);
+          networkLogger.info('[Clock Sync] ⏱️ Rough initial sync from turn_started_at:', {
+            fallbackServerTimestamp,
+            roughOffset,
+          });
+        }
+      }
       return; // Keep last valid offset — no reset
     }
 
@@ -128,8 +152,13 @@ export function useClockSync(timerState: AutoPassTimerState | null): ClockSyncRe
       clientAhead: offset < 0,
       driftMs: Math.abs(offset),
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run when the timer identity changes
-  }, [timerState?.active, timerState?.server_time_at_creation, timerState?.started_at]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-runs on timer identity changes (server_time_at_creation, started_at) and on fallbackServerTimestamp to seed a rough initial offset before the first precise sync
+  }, [
+    timerState?.active,
+    timerState?.server_time_at_creation,
+    timerState?.started_at,
+    fallbackServerTimestamp,
+  ]);
 
   // ── Stable getCorrectedNow — reads from ref, safe in any closure ──────
   const getCorrectedNow = useCallback((): number => {

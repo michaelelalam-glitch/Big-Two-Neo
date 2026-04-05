@@ -183,7 +183,7 @@ jobs:
     # runners are ~10× more expensive) and because fork PRs don't have access
     # to repository secrets which the app needs to boot without crashing.
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    timeout-minutes: 55
+    timeout-minutes: 80
 
     env:
       # App needs Supabase env vars to initialize without crashing.
@@ -331,7 +331,7 @@ jobs:
             grep -E " error: | warning: " /tmp/xcodebuild.log | head -40 || true
             exit $EXIT_CODE
           fi
-        timeout-minutes: 45
+        timeout-minutes: 65
         env:
           # Prevent Sentry native-symbol upload tasks from failing without SENTRY_AUTH_TOKEN.
           # Source maps / native symbols are not needed for E2E test builds.

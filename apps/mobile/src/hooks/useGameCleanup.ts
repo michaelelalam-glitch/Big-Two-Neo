@@ -12,10 +12,12 @@
 
 import { useEffect, useRef } from 'react';
 import type { StackNavigationProp } from '@react-navigation/stack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { supabase } from '../services/supabase';
 import { gameLogger } from '../utils/logger';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import { DISCONNECT_TIMER_KEY } from './useActiveGameBanner';
 
 interface UseGameCleanupOptions {
   userId: string | undefined;
@@ -58,6 +60,9 @@ export function useGameCleanup({
   // Also unlock orientation to prevent orientation lock from persisting
   useEffect(() => {
     let isDeliberateLeave = false;
+    // 7.10 re-entry guard: prevents the dispatched action from re-triggering
+    // this beforeRemove handler and creating an infinite loop.
+    let cleanupInProgress = false;
 
     const isOnlineRoom = roomCode !== 'LOCAL_AI_GAME';
 
@@ -65,47 +70,76 @@ export function useGameCleanup({
     // Without RESET, mark-disconnected is never called on an explicit leave, the heartbeat
     // stops silently, and process_disconnected_players only detects it after ~30s.
     const allowedActionTypes = ['POP', 'GO_BACK', 'NAVIGATE', 'RESET'];
-    const unsubscribe = navigation.addListener('beforeRemove', async (e: { data: { action: { type: string } }; preventDefault: () => void }) => {
-      const actionType = e?.data?.action?.type;
-      if (
-        typeof actionType === 'string' &&
-        allowedActionTypes.includes(actionType)
-      ) {
-        isDeliberateLeave = true;
+    const unsubscribe = navigation.addListener(
+      'beforeRemove',
+      async (e: { data: { action: { type: string } }; preventDefault: () => void }) => {
+        // Skip re-entry: the navigation.dispatch() below re-triggers beforeRemove;
+        // this guard prevents the handler from running a second time.
+        if (cleanupInProgress) return;
+        const actionType = e?.data?.action?.type;
+        if (typeof actionType === 'string' && allowedActionTypes.includes(actionType)) {
+          isDeliberateLeave = true;
 
-        // For online rooms, fire mark-disconnected ASAP in beforeRemove
-        // (before the component unmounts) so the server-side timer starts
-        // immediately and HomeScreen can show the 60s countdown.
-        const currentRoomId = roomIdRef.current;
-        if (isOnlineRoom && currentRoomId) {
-          gameLogger.info(`🔌 [GameScreen] Marking player disconnected in room ${roomCode} (starting 60s timer)`);
-          supabase.functions
-            .invoke('mark-disconnected', { body: { room_id: currentRoomId } })
-            .then(({ error }) => {
-              if (error) {
-                gameLogger.error('❌ [GameScreen] mark-disconnected error:', error);
+          // For online rooms, fire mark-disconnected ASAP in beforeRemove
+          // (before the component unmounts) so the server-side timer starts
+          // immediately and HomeScreen can show the 60s countdown.
+          // 7.10: Use preventDefault + await + dispatch so the call is guaranteed
+          // to reach the server before the screen unmounts. A 3s timeout ensures
+          // we never block navigation indefinitely on network failure.
+          const currentRoomId = roomIdRef.current;
+          if (isOnlineRoom && currentRoomId) {
+            cleanupInProgress = true;
+            e.preventDefault();
+            gameLogger.info(
+              `🔌 [GameScreen] Marking player disconnected in room ${roomCode} (starting 60s timer)`
+            );
+            try {
+              const markResult = await Promise.race<{ error: unknown }>([
+                supabase.functions
+                  .invoke('mark-disconnected', {
+                    body: { room_id: currentRoomId },
+                  })
+                  .catch((err: unknown) => ({ error: err })),
+                new Promise<{ error: Error }>(resolve =>
+                  setTimeout(() => resolve({ error: new Error('mark-disconnected timeout') }), 3000)
+                ),
+              ]);
+              if (markResult.error) {
+                gameLogger.error('❌ [GameScreen] mark-disconnected error:', markResult.error);
               } else {
                 gameLogger.info('✅ [GameScreen] mark-disconnected success — 60s timer started');
+                // Cache the disconnect start time so HomeScreen can show the
+                // countdown immediately without waiting for get-rejoin-status.
+                AsyncStorage.setItem(DISCONNECT_TIMER_KEY, String(Date.now())).catch(() => {});
               }
-            })
-            .catch((err: unknown) => {
+            } catch (err: unknown) {
               gameLogger.error('❌ [GameScreen] mark-disconnected exception:', err);
-            });
-        }
+            }
+          }
 
-        // Unlock orientation immediately when leaving GameScreen
-        if (orientationAvailable) {
-          try {
-            // eslint-disable-next-line @typescript-eslint/no-require-imports -- dynamic require inside try/catch; static import cannot be inside a conditional block
-            const ScreenOrientation = require('expo-screen-orientation');
-            await ScreenOrientation.unlockAsync();
-            gameLogger.info('🔓 [Orientation] Unlocked on navigation away from GameScreen');
-          } catch (error) {
-            gameLogger.error('❌ [Orientation] Failed to unlock on navigation:', error);
+          // Unlock orientation immediately when leaving GameScreen
+          if (orientationAvailable) {
+            try {
+              // eslint-disable-next-line @typescript-eslint/no-require-imports -- dynamic require inside try/catch; static import cannot be inside a conditional block
+              const ScreenOrientation = require('expo-screen-orientation');
+              await ScreenOrientation.unlockAsync();
+              gameLogger.info('🔓 [Orientation] Unlocked on navigation away from GameScreen');
+            } catch (error) {
+              gameLogger.error('❌ [Orientation] Failed to unlock on navigation:', error);
+            }
+          }
+
+          // 7.10: Resume navigation now that async cleanup is complete. Only
+          // needed when we called e.preventDefault() above (online rooms).
+          // Use captured currentRoomId (not roomIdRef.current) to mirror the
+          // condition under which preventDefault() was called — roomIdRef
+          // could become null during the await, permanently blocking navigation.
+          if (isOnlineRoom && currentRoomId) {
+            navigation.dispatch(e.data.action as Parameters<typeof navigation.dispatch>[0]);
           }
         }
       }
-    });
+    );
 
     return () => {
       unsubscribe();
@@ -116,10 +150,14 @@ export function useGameCleanup({
           // above. Do NOT delete the room_players row — the player is still in
           // the room with a 60s bot-replacement timer. The HomeScreen banner
           // will show the countdown and offer Rejoin / Leave options.
-          gameLogger.info(`🧹 [GameScreen] Deliberate exit from online room ${roomCode} — keeping player row for rejoin`);
+          gameLogger.info(
+            `🧹 [GameScreen] Deliberate exit from online room ${roomCode} — keeping player row for rejoin`
+          );
         } else {
           // Offline room: delete player row immediately
-          gameLogger.info(`🧹 [GameScreen] Deliberate exit from offline room: Removing user ${userId}`);
+          gameLogger.info(
+            `🧹 [GameScreen] Deliberate exit from offline room: Removing user ${userId}`
+          );
 
           supabase
             .from('room_players')
@@ -127,7 +165,10 @@ export function useGameCleanup({
             .eq('user_id', userId)
             .then(({ error }) => {
               if (error) {
-                gameLogger.error('❌ [GameScreen] Cleanup error:', error?.message || error?.code || 'Unknown error');
+                gameLogger.error(
+                  '❌ [GameScreen] Cleanup error:',
+                  error?.message || error?.code || 'Unknown error'
+                );
               } else {
                 gameLogger.info('✅ [GameScreen] Successfully removed from room');
               }

@@ -131,6 +131,7 @@ function GameViewComponent() {
     isThrowCooldown,
     cooldownRemaining,
     showInGameAlert,
+    turnClockOffsetMs,
   } = useGameContext();
 
   const isMultiplayerGame = !isLocalAIGame;
@@ -344,6 +345,7 @@ function GameViewComponent() {
             )}
             turnTimerStartedAts={layoutPlayersWithScores.map(p => p.turnTimerStartedAt ?? null)}
             onCountdownExpireds={layoutPlayersWithScores.map(p => p.onCountdownExpired)}
+            turnClockOffsetMs={turnClockOffsetMs}
             // Table data
             lastPlayedCards={effectiveLastPlayedCards}
             lastPlayedBy={effectiveLastPlayedBy ?? undefined}
@@ -579,6 +581,7 @@ function GameViewComponent() {
               }
               opponentPlayerIds={isMultiplayerGame ? remotePlayerIds : undefined}
               throwableActiveEffects={throwableActiveEffects}
+              clockOffsetMs={turnClockOffsetMs}
             />
 
             {/* PlayerInfo - INDEPENDENT ABSOLUTE POSITIONING */}
@@ -596,6 +599,7 @@ function GameViewComponent() {
                 disconnectTimerStartedAt={layoutPlayersWithScores[0]?.disconnectTimerStartedAt}
                 turnTimerStartedAt={layoutPlayersWithScores[0]?.turnTimerStartedAt}
                 onCountdownExpired={layoutPlayersWithScores[0]?.onCountdownExpired}
+                clockOffsetMs={turnClockOffsetMs}
                 isLocalPlayer={isMultiplayerGame}
                 isCameraOn={isMultiplayerGame && isChatConnected ? isLocalCameraOn : undefined}
                 isMicOn={isMultiplayerGame && isChatConnected ? isLocalMicOn : undefined}

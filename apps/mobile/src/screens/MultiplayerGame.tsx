@@ -5,7 +5,7 @@
  * Created as part of Task #570: Split GameScreen component.
  */
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Alert } from 'react-native';
+import { Alert, InteractionManager } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRoute, RouteProp, useNavigation, useIsFocused } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -608,12 +608,17 @@ export function MultiplayerGame() {
       }
     };
 
-    // Fire-and-forget: the async retry chain manages its own lifecycle via the
-    // cancelled flag and retryTimerResolve; we don't need to await it here.
-    void connectWithRetry(0);
+    // Defer until the navigation animation finishes so connectWithRetry doesn't
+    // run during an active Fabric navigation transaction. Concurrent async state
+    // updates during a transaction cause EXC_BAD_ACCESS crashes in
+    // Scheduler::uiManagerDidFinishTransaction / RuntimeScheduler_Modern::updateRendering.
+    const interactionHandle = InteractionManager.runAfterInteractions(() => {
+      if (!cancelled) void connectWithRetry(0);
+    });
 
     return () => {
       cancelled = true;
+      interactionHandle.cancel();
       suppressConnectErrorsRef.current = false;
       if (retryTimer !== null) {
         clearTimeout(retryTimer);
@@ -1135,8 +1140,17 @@ export function MultiplayerGame() {
   // so getCorrectedNow() compensates for the server being ahead of the client.
   // This prevents spurious "clock skew detected" warnings on every turn and ensures
   // the auto-play edge function fires at the correct 60s server-relative deadline.
-  const { getCorrectedNow: getTurnCorrectedNow } = useClockSync(
-    multiplayerGameState?.auto_pass_timer ?? null
+  // offsetMs is also forwarded to GameContext so InactivityCountdownRing uses the same
+  // corrected clock as AutoPassTimer (fixes the ⚠️ Clock skew log in InactivityRing).
+  // fallbackServerTimestamp: when no auto-pass timer has fired yet, seed an initial rough
+  // offset from turn_started_at so the very first turn's InactivityRing / TurnTimer don't
+  // log residual clock-skew warnings.
+  const turnStartedAtMs = multiplayerGameState?.turn_started_at
+    ? new Date(multiplayerGameState.turn_started_at).getTime()
+    : null;
+  const { getCorrectedNow: getTurnCorrectedNow, offsetMs: turnClockOffsetMs } = useClockSync(
+    multiplayerGameState?.auto_pass_timer ?? null,
+    turnStartedAtMs
   );
   const { isMyTurn: _isTurnInactivityMyTurn } = useTurnInactivityTimer({
     gameState: multiplayerGameState,
@@ -1491,6 +1505,7 @@ export function MultiplayerGame() {
       isGameFinished,
       displayOrderScoreHistory,
       playHistoryByMatch,
+      turnClockOffsetMs,
       handlePlayCards,
       handlePass,
       handlePlaySuccess,
@@ -1571,6 +1586,7 @@ export function MultiplayerGame() {
       isGameFinished,
       displayOrderScoreHistory,
       playHistoryByMatch,
+      turnClockOffsetMs,
       handlePlayCards,
       handlePass,
       handlePlaySuccess,

@@ -211,9 +211,10 @@ export function useMatchEndHandler({
       );
     }
 
-    // Use whichever source is more complete (longer list wins)
-    const finalScoreHistory =
-      dbScoreHistory.length >= scoreHistory.length ? dbScoreHistory : scoreHistory;
+    // 7.4: Always prefer the DB-authoritative source. Falling back to React
+    // state (scoreHistory / playHistoryByMatch) can produce stale totals when
+    // the last match results haven't propagated to React state yet.
+    const finalScoreHistory = dbScoreHistory.length > 0 ? dbScoreHistory : scoreHistory;
 
     // ─── PLAY HISTORY ───────────────────────────────────────────────────────────
     // Derive directly from DB play_history to avoid the React-state staleness
@@ -242,9 +243,9 @@ export function useMatchEndHandler({
         .sort((a, b) => a.matchNumber - b.matchNumber);
     })();
 
-    // Use whichever play history source is more complete
-    const finalPlayHistory =
-      dbPlayHistory.length >= playHistoryByMatch.length ? dbPlayHistory : playHistoryByMatch;
+    // 7.4: Prefer DB play_history when non-empty; only fall back to React state if DB
+    // has no entries yet (shouldn't happen in normal flow but guards against races).
+    const finalPlayHistory = dbPlayHistory.length > 0 ? dbPlayHistory : playHistoryByMatch;
 
     gameLogger.info('[useMatchEndHandler] 📊 Opening game end modal with data:', {
       winnerName,

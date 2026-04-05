@@ -80,6 +80,9 @@ interface LandscapeOpponentProps {
   isVideoChatConnecting?: boolean;
   /** Video chat: injected live video element */
   videoStreamSlot?: ReactNode;
+  /** Server-to-client clock offset (ms) from useClockSync — passed to InactivityCountdownRing
+   * so elapsed time is computed against the corrected server clock, not raw Date.now(). */
+  clockOffsetMs?: number;
 }
 
 // ============================================================================
@@ -105,6 +108,7 @@ export function LandscapeOpponent({
   onMicToggle,
   isVideoChatConnecting,
   videoStreamSlot,
+  clockOffsetMs = 0,
 }: LandscapeOpponentProps) {
   // Profile photo size preference (mirrors PlayerInfo scaling)
   const profilePhotoSize = useUserPreferencesStore(s => s.profilePhotoSize);
@@ -200,6 +204,7 @@ export function LandscapeOpponent({
               startedAt={ringStartedAt}
               onExpired={ringType === 'connection' ? (onCountdownExpired ?? (() => {})) : () => {}}
               size={avatarScale.size}
+              clockOffsetMs={clockOffsetMs}
             />
           )}
           {/* Disconnect spinner overlay */}
