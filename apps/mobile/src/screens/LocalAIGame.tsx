@@ -6,7 +6,7 @@
  */
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Alert, AppState, BackHandler, Platform } from 'react-native';
-import { useRoute, RouteProp, useNavigation, useIsFocused } from '@react-navigation/native';
+import { useRoute, RouteProp, useNavigation, useIsFocused, useFocusEffect } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { useAuth } from '../contexts/AuthContext';
 import { useGameEnd } from '../contexts/GameEndContext';
@@ -141,22 +141,26 @@ export function LocalAIGame() {
   }, [gameManagerRef]);
 
   // ─── Android hardware back button handler ────────────────────────────────
-  useEffect(() => {
-    if (Platform.OS !== 'android') return;
-    const handler = () => {
-      Alert.alert(i18n.t('game.leaveGameConfirm'), i18n.t('game.leaveGameMessage'), [
-        { text: i18n.t('game.stay'), style: 'cancel' },
-        {
-          text: i18n.t('game.leaveGame'),
-          style: 'destructive',
-          onPress: () => navigation.goBack(),
-        },
-      ]);
-      return true;
-    };
-    const sub = BackHandler.addEventListener('hardwareBackPress', handler);
-    return () => sub.remove();
-  }, [navigation]);
+  // Use useFocusEffect so the handler only intercepts back presses while this
+  // screen is focused (other mounted-but-unfocused screens won't interfere).
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'android') return;
+      const handler = () => {
+        Alert.alert(i18n.t('game.leaveGameConfirm'), i18n.t('game.leaveGameMessage'), [
+          { text: i18n.t('game.stay'), style: 'cancel' },
+          {
+            text: i18n.t('game.leaveGame'),
+            style: 'destructive',
+            onPress: () => navigation.goBack(),
+          },
+        ]);
+        return true;
+      };
+      const sub = BackHandler.addEventListener('hardwareBackPress', handler);
+      return () => sub.remove();
+    }, [navigation])
+  );
 
   // ── Memory warning: release non-essential resources ────────────────────────
   useEffect(() => {

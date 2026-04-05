@@ -146,6 +146,9 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Overwrite user_id with authenticated user to prevent spoofing
+    body.user_id = user.id;
+
     // Enforce GA4 100-char string param limit server-side
     for (const event of body.events) {
       if (event.params && typeof event.params === 'object') {

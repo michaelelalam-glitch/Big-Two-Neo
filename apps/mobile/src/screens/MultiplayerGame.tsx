@@ -7,7 +7,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Alert, BackHandler, InteractionManager, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRoute, RouteProp, useNavigation, useIsFocused } from '@react-navigation/native';
+import { useRoute, RouteProp, useNavigation, useIsFocused, useFocusEffect } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import Constants from 'expo-constants';
 import { InGameAlert } from '../components/game/InGameAlert';
@@ -168,22 +168,26 @@ export function MultiplayerGame() {
   }, []);
 
   // ─── Android hardware back button handler ────────────────────────────────
-  useEffect(() => {
-    if (Platform.OS !== 'android') return;
-    const handler = () => {
-      Alert.alert(i18n.t('game.leaveGameConfirm'), i18n.t('game.leaveGameMessage'), [
-        { text: i18n.t('game.stay'), style: 'cancel' },
-        {
-          text: i18n.t('game.leaveGame'),
-          style: 'destructive',
-          onPress: () => navigation.goBack(),
-        },
-      ]);
-      return true; // Suppress default back behaviour
-    };
-    const sub = BackHandler.addEventListener('hardwareBackPress', handler);
-    return () => sub.remove();
-  }, [navigation]);
+  // Use useFocusEffect so the handler only intercepts back presses while this
+  // screen is focused (other mounted-but-unfocused screens won't interfere).
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'android') return;
+      const handler = () => {
+        Alert.alert(i18n.t('game.leaveGameConfirm'), i18n.t('game.leaveGameMessage'), [
+          { text: i18n.t('game.stay'), style: 'cancel' },
+          {
+            text: i18n.t('game.leaveGame'),
+            style: 'destructive',
+            onPress: () => navigation.goBack(),
+          },
+        ]);
+        return true; // Suppress default back behaviour
+      };
+      const sub = BackHandler.addEventListener('hardwareBackPress', handler);
+      return () => sub.remove();
+    }, [navigation])
+  );
 
   // ─── Register Play Again / Return to Menu callbacks ──────────────────────
   useEffect(() => {
