@@ -425,6 +425,7 @@ export interface Translations {
     autoPassHighestPlay: string;
     autoPassNoOneCanBeat: string;
     autoPassInlineMessage: string;
+    invalidMoveTitle: string;
     cannotPassTitle: string;
     cannotPassMessage: string;
     settings: string;
@@ -1229,6 +1230,7 @@ const en: Translations = {
     autoPassHighestPlay: 'Highest Play:',
     autoPassNoOneCanBeat: 'No one can beat this play - {seconds}s to pass',
     autoPassInlineMessage: 'Highest Play: {{combo}} · auto pass in {{seconds}}s',
+    invalidMoveTitle: 'Invalid Move',
     cannotPassTitle: 'Cannot Pass',
     cannotPassMessage: 'Cannot pass when leading',
     settings: 'Settings',
@@ -1959,6 +1961,7 @@ const ar: Translations = {
     autoPassHighestPlay: 'أعلى لعبة:',
     autoPassNoOneCanBeat: 'لا أحد يستطيع التغلب على هذه اللعبة - {seconds} ثانية للمرور',
     autoPassInlineMessage: 'أعلى لعبة: {{combo}} · تمرير تلقائي في {{seconds}} ثانية',
+    invalidMoveTitle: 'حركة غير صالحة',
     cannotPassTitle: 'لا يمكن المرور',
     cannotPassMessage: 'لا يمكن المرور عند القيادة',
     settings: 'الإعدادات',
@@ -2781,6 +2784,7 @@ const de: Translations = {
     autoPassHighestPlay: 'Höchstes Spiel:',
     autoPassNoOneCanBeat: 'Niemand kann dieses Spiel schlagen - {seconds}s zum Passen',
     autoPassInlineMessage: 'Höchstes Spiel: {{combo}} · auto-pass in {{seconds}}s',
+    invalidMoveTitle: 'Ungültiger Zug',
     cannotPassTitle: 'Kann nicht passen',
     cannotPassMessage: 'Kann beim Führen nicht passen',
     settings: 'Einstellungen',
@@ -3117,7 +3121,8 @@ const de: Translations = {
     signIn: 'Anmelden',
     signUp: 'Registrieren',
     welcomeTitle: 'Willkommen bei Big2',
-    welcomeSubtitle: 'Melde dich an, um mit Freunden zu spielen und deinen Fortschritt zu verfolgen',
+    welcomeSubtitle:
+      'Melde dich an, um mit Freunden zu spielen und deinen Fortschritt zu verfolgen',
     email: 'E-Mail',
     password: 'Passwort',
     confirmPassword: 'Passwort bestätigen',

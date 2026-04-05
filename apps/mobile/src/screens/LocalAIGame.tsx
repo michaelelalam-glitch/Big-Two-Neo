@@ -5,7 +5,7 @@
  * Created as part of Task #570: Split GameScreen component.
  */
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Alert, BackHandler, Platform } from 'react-native';
+import { Alert, AppState, BackHandler, Platform } from 'react-native';
 import { useRoute, RouteProp, useNavigation, useIsFocused } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { useAuth } from '../contexts/AuthContext';
@@ -29,6 +29,7 @@ import { usePlayHistoryTracking } from '../hooks/usePlayHistoryTracking';
 import { useScoreboardMapping } from '../hooks/useScoreboardMapping';
 import { gameLogger } from '../utils/logger';
 import { showError } from '../utils/alerts';
+import { i18n } from '../i18n';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { trackGameEvent } from '../services/analytics';
 import type { Card } from '../game/types';
@@ -143,15 +144,28 @@ export function LocalAIGame() {
   useEffect(() => {
     if (Platform.OS !== 'android') return;
     const handler = () => {
-      Alert.alert('Leave Game?', 'Are you sure you want to leave this game?', [
-        { text: 'Stay', style: 'cancel' },
-        { text: 'Leave', style: 'destructive', onPress: () => navigation.goBack() },
+      Alert.alert(i18n.t('game.leaveGameConfirm'), i18n.t('game.leaveGameMessage'), [
+        { text: i18n.t('game.stay'), style: 'cancel' },
+        {
+          text: i18n.t('game.leaveGame'),
+          style: 'destructive',
+          onPress: () => navigation.goBack(),
+        },
       ]);
       return true;
     };
     const sub = BackHandler.addEventListener('hardwareBackPress', handler);
     return () => sub.remove();
   }, [navigation]);
+
+  // ── Memory warning: release non-essential resources ────────────────────────
+  useEffect(() => {
+    const sub = AppState.addEventListener('memoryWarning', () => {
+      gameLogger.warn('[LocalAIGame] Memory warning — releasing resources');
+      import('../utils/soundManager').then(m => m.soundManager.cleanup()).catch(() => {});
+    });
+    return () => sub.remove();
+  }, []);
 
   // Derived game state (player hand, last play info)
   const { playerHand, lastPlayedCards, lastPlayedBy, lastPlayComboType, lastPlayCombo } =

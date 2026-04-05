@@ -171,14 +171,14 @@ export function MultiplayerGame() {
   useEffect(() => {
     if (Platform.OS !== 'android') return;
     const handler = () => {
-      Alert.alert(
-        'Leave Game?',
-        'Are you sure you want to leave this game? You may lose your progress.',
-        [
-          { text: 'Stay', style: 'cancel' },
-          { text: 'Leave', style: 'destructive', onPress: () => navigation.goBack() },
-        ]
-      );
+      Alert.alert(i18n.t('game.leaveGameConfirm'), i18n.t('game.leaveGameMessage'), [
+        { text: i18n.t('game.stay'), style: 'cancel' },
+        {
+          text: i18n.t('game.leaveGame'),
+          style: 'destructive',
+          onPress: () => navigation.goBack(),
+        },
+      ]);
       return true; // Suppress default back behaviour
     };
     const sub = BackHandler.addEventListener('hardwareBackPress', handler);

@@ -12,6 +12,15 @@
  * - 30-second cooldown with countdown after each throw.
  * - Effects auto-dismiss after 5 seconds. The receiver also gets a full-screen
  *   popup (`incomingThrowable`), dismissible by double-tap.
+ *
+ * Rate Limiting:
+ * - Client-side: 30s cooldown per user (persisted via AsyncStorage).
+ * - Receiver-side: dedup within 30s window prevents replay/duplicate animations.
+ * - Server-side: Throwables use Supabase Realtime broadcast (peer-to-peer via
+ *   server relay). No Edge Function validation layer exists because throwables
+ *   are purely cosmetic — they cannot affect game state, scores, or rank points.
+ *   Accepted risk: a malicious client bypassing the cooldown could spam throwable
+ *   animations. Impact is limited to visual annoyance with no gameplay effect.
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
