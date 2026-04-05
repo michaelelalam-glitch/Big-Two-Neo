@@ -100,12 +100,16 @@ describeWithCredentials('Concurrent Card Play Stress Tests', () => {
         insertedPlayers.map((p: any) => [p.player_index, p.id])
       );
 
-      // Insert only the columns guaranteed to be in any version of game_state.
-      // All other columns (scores, round, passes, etc.) default via migration 20260719000007.
+      // Minimal INSERT — only include columns present in every known version of
+      // game_state. All NOT NULL columns omitted here (current_player, scores,
+      // round, passes, etc.) carry DB-level DEFAULT values so the INSERT succeeds
+      // without them. Including extra columns risks PostgREST schema-cache errors
+      // on CI if the cache does not yet reflect newer columns.
       const { error: gsErr } = await supabase.from('game_state').insert({
         room_id: room.id,
         current_turn: 0,
         game_phase: 'playing',
+        // hands keyed by player_index strings, as the edge functions expect
         hands: {
           '0': ['3H', '4D', '5C'],
           '1': ['6H', '7D', '8C'],
@@ -116,11 +120,12 @@ describeWithCredentials('Concurrent Card Play Stress Tests', () => {
 
       if (gsErr) throw new Error(`game_state insert failed: ${gsErr.message}`);
 
-      // Player at index 1 tries to play (but current_turn = 0)
+      // Player at index 1 tries to play (but current_turn = 0).
+      // play-cards expects: { room_code, player_id (room_players.id), cards[] }
       // Service-role callers must pass room_players.id (not user_id)
       const { error: playErr } = await supabase.functions.invoke('play-cards', {
         body: {
-          room_code: testRoomCode,
+          room_code: room.code,
           player_id: playerRowIds[1],
           cards: ['6H'],
         },
@@ -209,24 +214,25 @@ describeWithCredentials('Concurrent Card Play Stress Tests', () => {
 
       const dtPlayerRowId = insertedDTPlayers[0].id;
 
-      // Insert only guaranteed columns — optional columns default via migration 20260719000007.
+      // Insert only guaranteed columns — optional columns default via DB.
       const { error: gsErr2 } = await supabase.from('game_state').insert({
         room_id: room.id,
         current_turn: 0,
         game_phase: 'playing',
+        // hands keyed by player_index strings, as the edge functions expect
         hands: { '0': ['3H', '4D', '5C'], '1': ['6H', '7D', '8C'], '2': ['9H'], '3': ['QH'] },
       });
 
       if (gsErr2) throw new Error(`game_state insert failed: ${gsErr2.message}`);
 
-      // Two simultaneous play-cards invocations using correct payload shape
-      // Service-role callers must pass room_players.id (not user_id)
+      // Two simultaneous play-cards invocations. Payload shape: { room_code, player_id
+      // (room_players.id), cards[] }. Service-role callers must pass room_players.id.
       const [result1, result2] = await Promise.allSettled([
         supabase.functions.invoke('play-cards', {
-          body: { room_code: testRoomCode, player_id: dtPlayerRowId, cards: ['3H'] },
+          body: { room_code: room.code, player_id: dtPlayerRowId, cards: ['3H'] },
         }),
         supabase.functions.invoke('play-cards', {
-          body: { room_code: testRoomCode, player_id: dtPlayerRowId, cards: ['3H'] },
+          body: { room_code: room.code, player_id: dtPlayerRowId, cards: ['3H'] },
         }),
       ]);
 
