@@ -755,6 +755,8 @@ export interface Translations {
   auth: {
     signIn: string;
     signUp: string;
+    welcomeTitle: string;
+    welcomeSubtitle: string;
     email: string;
     password: string;
     confirmPassword: string;
@@ -1556,6 +1558,8 @@ const en: Translations = {
   auth: {
     signIn: 'Sign In',
     signUp: 'Sign Up',
+    welcomeTitle: 'Welcome to Big2',
+    welcomeSubtitle: 'Sign in to play with friends and track your progress',
     email: 'Email',
     password: 'Password',
     confirmPassword: 'Confirm Password',
@@ -2277,6 +2281,8 @@ const ar: Translations = {
   auth: {
     signIn: 'تسجيل الدخول',
     signUp: 'اشتراك',
+    welcomeTitle: 'مرحبًا بك في Big2',
+    welcomeSubtitle: 'سجّل دخولك للعب مع الأصدقاء وتتبّع تقدمك',
     email: 'البريد الإلكتروني',
     password: 'كلمة المرور',
     confirmPassword: 'تأكيد كلمة المرور',
@@ -3110,6 +3116,8 @@ const de: Translations = {
   auth: {
     signIn: 'Anmelden',
     signUp: 'Registrieren',
+    welcomeTitle: 'Willkommen bei Big2',
+    welcomeSubtitle: 'Melde dich an, um mit Freunden zu spielen und deinen Fortschritt zu verfolgen',
     email: 'E-Mail',
     password: 'Passwort',
     confirmPassword: 'Passwort bestätigen',

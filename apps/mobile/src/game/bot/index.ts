@@ -42,6 +42,8 @@ export interface BotPlayResult {
  */
 export class BotAI {
   private readonly _difficulty: BotDifficulty;
+  /** Memoization cache for findBest5CardCombo keyed by sorted card IDs. */
+  private _5cardCache = new Map<string, string[] | null>();
 
   constructor(difficulty: BotDifficulty = 'medium') {
     this._difficulty = difficulty;
@@ -478,6 +480,10 @@ export class BotAI {
   private findBest5CardCombo(hand: Card[]): string[] | null {
     if (hand.length < 5) return null;
 
+    // Memoize by sorted card IDs — hand contents change rarely between calls.
+    const cacheKey = hand.map(c => c.id).join(',');
+    if (this._5cardCache.has(cacheKey)) return this._5cardCache.get(cacheKey)!;
+
     const n = hand.length;
     for (let a = 0; a < n - 4; a++) {
       for (let b = a + 1; b < n - 3; b++) {
@@ -488,7 +494,9 @@ export class BotAI {
               const combo = classifyCards(fiveCards);
               if (this.is5CardCombo(combo)) {
                 // Return first valid combo found (hand is sorted, so lowest-indexed cards are weakest)
-                return fiveCards.map(c => c.id);
+                const result = fiveCards.map(c => c.id);
+                this._5cardCache.set(cacheKey, result);
+                return result;
               }
             }
           }
@@ -496,6 +504,7 @@ export class BotAI {
       }
     }
 
+    this._5cardCache.set(cacheKey, null);
     return null;
   }
 

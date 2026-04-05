@@ -8,6 +8,36 @@
 import { notificationLogger } from '../utils/logger';
 import { supabase } from './supabase';
 
+// ─── Rate Limiting ────────────────────────────────────────────────────────── //
+// Max 1 notification per user per event type per 30 seconds
+const RATE_LIMIT_MS = 30_000;
+const _rateLimitMap = new Map<string, number>();
+
+function isRateLimited(userId: string, eventType: string): boolean {
+  const key = `${userId}:${eventType}`;
+  const lastSent = _rateLimitMap.get(key);
+  const now = Date.now();
+  if (lastSent && now - lastSent < RATE_LIMIT_MS) {
+    notificationLogger.info(
+      `⏳ [RateLimit] Skipping ${eventType} for ${userId.slice(0, 8)}… (${Math.round((RATE_LIMIT_MS - (now - lastSent)) / 1000)}s cooldown)`
+    );
+    return true;
+  }
+  _rateLimitMap.set(key, now);
+  // Cleanup old entries periodically (keep map from growing unbounded)
+  if (_rateLimitMap.size > 500) {
+    for (const [k, v] of _rateLimitMap) {
+      if (now - v > RATE_LIMIT_MS) _rateLimitMap.delete(k);
+    }
+  }
+  return false;
+}
+
+/** Filter out rate-limited user IDs for a given event type */
+function filterRateLimited(userIds: string[], eventType: string): string[] {
+  return userIds.filter(uid => !isRateLimited(uid, eventType));
+}
+
 interface ExpoPushTicket {
   status: 'ok' | 'error';
   id?: string;
@@ -29,6 +59,15 @@ interface NotificationPayload {
  */
 async function sendPushNotification(payload: NotificationPayload): Promise<boolean> {
   try {
+    // Apply rate limiting: filter out users who received this event type recently
+    const eventType = String(payload.data?.type ?? 'unknown');
+    const filteredUserIds = filterRateLimited(payload.user_ids, eventType);
+    if (filteredUserIds.length === 0) {
+      notificationLogger.info('⏳ [sendPushNotification] All recipients rate-limited, skipping');
+      return true;
+    }
+    payload = { ...payload, user_ids: filteredUserIds };
+
     notificationLogger.info('📤 [sendPushNotification] Invoking Edge Function with payload:', {
       user_count: payload.user_ids.length,
       title: payload.title,

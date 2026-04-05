@@ -13,7 +13,7 @@ const SUIT_NAMES: Record<string, string> = { D: '♦', C: '♣', H: '♥', S: '�
 // Helper functions
 const getRankCounts = (cards: Card[]): Record<string, number> => {
   const rankCounts: Record<string, number> = {};
-  cards.forEach((card) => {
+  cards.forEach(card => {
     rankCounts[card.rank] = (rankCounts[card.rank] || 0) + 1;
   });
   return rankCounts;
@@ -55,16 +55,18 @@ export function useDerivedGameState({
     // If user has manually reordered cards, use that order
     if (customCardOrder.length > 0) {
       const orderedHand: Card[] = [];
+      const handMap = new Map(hand.map(c => [c.id, c]));
 
       // First, add cards in custom order that are still in hand
       for (const cardId of customCardOrder) {
-        const card = hand.find((c) => c.id === cardId);
+        const card = handMap.get(cardId);
         if (card) orderedHand.push(card);
       }
 
       // Then add any new cards that aren't in custom order (at the end)
+      const orderedIds = new Set(orderedHand.map(c => c.id));
       for (const card of hand) {
-        if (!orderedHand.some((c) => c.id === card.id)) {
+        if (!orderedIds.has(card.id)) {
           orderedHand.push(card);
         }
       }
@@ -88,7 +90,7 @@ export function useDerivedGameState({
     // Task #379: Find the last entry where cards were actually played (not a pass)
     const lastPlayEntry = [...gameState.roundHistory]
       .reverse()
-      .find((entry) => !entry.passed && entry.cards.length > 0);
+      .find(entry => !entry.passed && entry.cards.length > 0);
     return lastPlayEntry?.playerName || null;
   }, [gameState]);
 
@@ -115,11 +117,11 @@ export function useDerivedGameState({
     } else if (combo === 'Full House' && cards.length > 0) {
       // Find the triple (3 of a kind) - it's the combo's key rank
       const rankCounts = getRankCounts(cards);
-      const tripleRank = Object.keys(rankCounts).find((rank) => rankCounts[rank] === 3);
+      const tripleRank = Object.keys(rankCounts).find(rank => rankCounts[rank] === 3);
       return tripleRank ? `Full House (${tripleRank}s)` : 'Full House';
     } else if (combo === 'Four of a Kind' && cards.length > 0) {
       const rankCounts = getRankCounts(cards);
-      const quadRank = Object.keys(rankCounts).find((rank) => rankCounts[rank] === 4);
+      const quadRank = Object.keys(rankCounts).find(rank => rankCounts[rank] === 4);
       return quadRank ? `Four ${quadRank}s` : 'Four of a Kind';
     } else if (combo === 'Straight' && cards.length > 0) {
       // Get highest card in straight (sort descending, take first)

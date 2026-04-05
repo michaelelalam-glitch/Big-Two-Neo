@@ -384,6 +384,8 @@ describe('beforeSend translation tagging', () => {
   it('tags events with "Translation not found" as translation category', () => {
     jest.isolateModules(() => {
       process.env.EXPO_PUBLIC_SENTRY_DSN = 'https://test@sentry.io/123456';
+      const origDev = (globalThis as any).__DEV__;
+      (globalThis as any).__DEV__ = false;
       try {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { initSentry: init } =
@@ -406,6 +408,7 @@ describe('beforeSend translation tagging', () => {
         expect(result.level).toBe('warning');
       } finally {
         delete process.env.EXPO_PUBLIC_SENTRY_DSN;
+        (globalThis as any).__DEV__ = origDev;
       }
     });
   });
@@ -413,6 +416,8 @@ describe('beforeSend translation tagging', () => {
   it('does not tag unrelated errors containing "i18n" in path', () => {
     jest.isolateModules(() => {
       process.env.EXPO_PUBLIC_SENTRY_DSN = 'https://test@sentry.io/123456';
+      const origDev = (globalThis as any).__DEV__;
+      (globalThis as any).__DEV__ = false;
       try {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { initSentry: init } =
@@ -435,6 +440,7 @@ describe('beforeSend translation tagging', () => {
         expect(result.level).toBeUndefined();
       } finally {
         delete process.env.EXPO_PUBLIC_SENTRY_DSN;
+        (globalThis as any).__DEV__ = origDev;
       }
     });
   });

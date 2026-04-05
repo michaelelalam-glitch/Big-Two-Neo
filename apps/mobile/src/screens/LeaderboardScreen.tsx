@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -314,6 +314,36 @@ export default function LeaderboardScreen() {
     fetchLeaderboard(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeFilter, leaderboardType]); // Trigger on timeFilter or leaderboardType change
+
+  // ── Realtime subscription: auto-refresh when any player's rank_points change ──
+  // Debounced to avoid rapid re-fetches when multiple games finish in quick succession.
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    const channel = supabase
+      .channel('leaderboard-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'player_stats',
+        },
+        () => {
+          // Debounce: wait 2s after the last change before refreshing
+          if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+          refreshTimerRef.current = setTimeout(() => {
+            statsLogger.info('[Leaderboard] Realtime update detected, refreshing...');
+            fetchLeaderboard(true);
+          }, 2000);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      supabase.removeChannel(channel);
+    };
+  }, [fetchLeaderboard]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);

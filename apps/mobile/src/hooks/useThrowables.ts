@@ -263,6 +263,8 @@ export function useThrowables({
   }, []);
 
   // Subscribe to throwable_sent broadcasts.
+  // Receiver-side rate limit: discard throwables from same thrower within 30s
+  const _throwableReceiveMap = useRef(new Map<string, number>());
   useEffect(() => {
     if (!channel) return;
 
@@ -302,6 +304,14 @@ export function useThrowables({
       ) {
         return;
       }
+
+      // Receiver-side rate limit: ignore if same thrower sent within 30s
+      const now = Date.now();
+      const lastReceived = _throwableReceiveMap.current.get(thrower_id);
+      if (lastReceived && now - lastReceived < COOLDOWN_MS) {
+        return; // Discard — sender bypassed client cooldown
+      }
+      _throwableReceiveMap.current.set(thrower_id, now);
 
       const players = layoutPlayersRef.current;
       const displaySlot = players.findIndex(p => p.player_index === target_player_index);

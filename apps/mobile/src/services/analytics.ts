@@ -26,23 +26,20 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import { supabase } from './supabase';
 
 // ─── Configuration ─────────────────────────────────────────────────────────── //
 
-/** Firebase Measurement Protocol v2 endpoint */
+/** Firebase Measurement Protocol v2 endpoint (fallback for dev validation) */
 const MP_ENDPOINT = 'https://www.google-analytics.com/mp/collect';
 
 const MEASUREMENT_ID = process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID ?? '';
-// NOTE: EXPO_PUBLIC_* vars are bundled into the app binary and are technically
-// extractable. The Measurement Protocol API secret is designed for client-side
-// use and can ONLY push events to YOUR GA4 property. It is NOT a server-side
-// credential. GA4's built-in bot/spam filters provide some protection against
-// abuse; for higher assurance, proxy analytics through a server-side endpoint.
-// TODO(security): move analytics ingestion behind a Supabase Edge Function so
-// the API secret is never shipped in the client bundle. Until that migration,
-// the risk is scoped to a malicious actor spamming YOUR property's event stream;
-// it does not expose end-user data. Tracked in task backlog.
+// API_SECRET is now stored server-side in Supabase secrets.
+// The client routes events through the analytics-proxy Edge Function.
+// Keep the client-side fallback for dev validation only.
 const API_SECRET = process.env.EXPO_PUBLIC_FIREBASE_API_SECRET ?? '';
+/** When true, use the Supabase Edge Function proxy instead of direct GA4. */
+const USE_PROXY = !__DEV__;
 
 /**
  * Tracks whether the user has consented to analytics.
@@ -282,6 +279,12 @@ async function sendEvents(
         engagement_time_msec: 100,
         session_id: getSessionId(),
       };
+      // Enforce GA4 100-char string param limit on all values
+      for (const [key, value] of Object.entries(params)) {
+        if (typeof value === 'string' && value.length > 100) {
+          params[key] = value.substring(0, 100);
+        }
+      }
       return { name: e.name, params };
     }),
   };
@@ -324,11 +327,26 @@ async function sendEvents(
   }
 
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    let response: Response;
+    if (USE_PROXY) {
+      // Production: route through Supabase Edge Function (API_SECRET stays server-side)
+      const { data: _data, error } = await supabase.functions.invoke('analytics-proxy', {
+        body,
+      });
+      if (error) {
+        // Swallow silently — analytics must never crash the app
+        return;
+      }
+      // Edge Function returns { status: number }
+      return;
+    } else {
+      // Development: hit GA4 directly for validation feedback
+      response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    }
     if (__DEV__) {
       if (response.ok) {
         // eslint-disable-next-line no-console
@@ -567,7 +585,7 @@ export function checkHintFollowed(playedCardIds: string[]): void {
       hint_card_ids: _lastHintCardIds.join(',').slice(0, 100),
       played_was: playedCardIds.join(',').slice(0, 100),
     };
-    if (_lastHintPlayerHand) params.player_hand = _lastHintPlayerHand.slice(0, 200);
+    if (_lastHintPlayerHand) params.player_hand = _lastHintPlayerHand.slice(0, 100);
     if (_lastHintLastPlayCards) params.last_play = _lastHintLastPlayCards.slice(0, 100);
     trackEvent('hint_result_played', params);
   } else {
@@ -577,7 +595,7 @@ export function checkHintFollowed(playedCardIds: string[]): void {
       hint_card_ids: _lastHintCardIds.join(',').slice(0, 100),
       played_was: playedCardIds.join(',').slice(0, 100),
     };
-    if (_lastHintPlayerHand) params.player_hand = _lastHintPlayerHand.slice(0, 200);
+    if (_lastHintPlayerHand) params.player_hand = _lastHintPlayerHand.slice(0, 100);
     if (_lastHintLastPlayCards) params.last_play = _lastHintLastPlayCards.slice(0, 100);
     trackEvent('hint_result_ignored', params);
   }

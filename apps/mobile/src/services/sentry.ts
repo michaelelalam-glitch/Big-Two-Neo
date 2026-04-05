@@ -115,11 +115,9 @@ export function initSentry(): void {
         // Drop ALL events from development environment. Dev sessions run on the
         // simulator with your own account — they generate noise (App Hang, network
         // errors, ImagePicker, audio-session hang) that pollutes the issue list.
-        // Using event.environment (set from the `environment` init option) so that
-        // production builds always pass through regardless of __DEV__ flag.
-        // This client-side filter is the primary safeguard; any server-side filters
-        // must be configured separately and are not assumed by this code.
-        if (event.environment === 'development') {
+        // Double-check both event.environment AND __DEV__ global to handle the
+        // edge case where a production build is compiled with __DEV__=true.
+        if (event.environment === 'development' || __DEV__) {
           return null;
         }
 
@@ -448,6 +446,25 @@ function _setupConsoleCapture(): void {
   if (_consolePatchApplied) return;
   _consolePatchApplied = true;
 
+  // Rate limiter: token bucket for breadcrumb/event capture (max 50/sec)
+  let _breadcrumbTokens = 50;
+  const _breadcrumbMaxTokens = 50;
+  let _lastRefillTime = Date.now();
+  const _refillBreadcrumbTokens = (): boolean => {
+    const now = Date.now();
+    const elapsed = now - _lastRefillTime;
+    _breadcrumbTokens = Math.min(
+      _breadcrumbMaxTokens,
+      _breadcrumbTokens + (elapsed / 1000) * _breadcrumbMaxTokens
+    );
+    _lastRefillTime = now;
+    if (_breadcrumbTokens >= 1) {
+      _breadcrumbTokens -= 1;
+      return true;
+    }
+    return false;
+  };
+
   const safeStringify = (a: unknown): string => {
     if (typeof a === 'string') return a;
     if (a instanceof Error) return `${a.message}${a.stack ? `\n${a.stack}` : ''}`;
@@ -485,6 +502,7 @@ function _setupConsoleCapture(): void {
     // already captured directly by GameErrorBoundary via sentryCapture.exception,
     // so these console.error duplicates only pollute the Sentry issue list.
     if (message.includes('[GameErrorBoundary]')) return;
+    if (!_refillBreadcrumbTokens()) return; // Rate limit exceeded
     Sentry.captureMessage(`[console.error] ${message}`, {
       level: 'error',
       tags: { source: 'console' },
@@ -505,6 +523,7 @@ function _setupConsoleCapture(): void {
       message.includes('Sentry Logger')
     )
       return;
+    if (!_refillBreadcrumbTokens()) return; // Rate limit exceeded
     Sentry.addBreadcrumb({
       message: `[console.warn] ${message}`,
       level: 'warning',

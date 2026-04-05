@@ -5,7 +5,7 @@
  * Created as part of Task #570: Split GameScreen component.
  */
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Alert } from 'react-native';
+import { Alert, BackHandler, Platform } from 'react-native';
 import { useRoute, RouteProp, useNavigation, useIsFocused } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { useAuth } from '../contexts/AuthContext';
@@ -138,6 +138,20 @@ export function LocalAIGame() {
       gameManagerRefPlaceholder.current = gameManagerRef.current;
     }
   }, [gameManagerRef]);
+
+  // ─── Android hardware back button handler ────────────────────────────────
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const handler = () => {
+      Alert.alert('Leave Game?', 'Are you sure you want to leave this game?', [
+        { text: 'Stay', style: 'cancel' },
+        { text: 'Leave', style: 'destructive', onPress: () => navigation.goBack() },
+      ]);
+      return true;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', handler);
+    return () => sub.remove();
+  }, [navigation]);
 
   // Derived game state (player hand, last play info)
   const { playerHand, lastPlayedCards, lastPlayedBy, lastPlayComboType, lastPlayCombo } =

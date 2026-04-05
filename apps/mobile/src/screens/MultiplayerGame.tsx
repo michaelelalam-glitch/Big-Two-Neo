@@ -5,7 +5,7 @@
  * Created as part of Task #570: Split GameScreen component.
  */
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Alert, InteractionManager } from 'react-native';
+import { Alert, BackHandler, InteractionManager, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRoute, RouteProp, useNavigation, useIsFocused } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -166,6 +166,24 @@ export function MultiplayerGame() {
   useEffect(() => {
     gameLogger.info('🎮 [MultiplayerGame] Game mode: MULTIPLAYER (server-side)');
   }, []);
+
+  // ─── Android hardware back button handler ────────────────────────────────
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const handler = () => {
+      Alert.alert(
+        'Leave Game?',
+        'Are you sure you want to leave this game? You may lose your progress.',
+        [
+          { text: 'Stay', style: 'cancel' },
+          { text: 'Leave', style: 'destructive', onPress: () => navigation.goBack() },
+        ]
+      );
+      return true; // Suppress default back behaviour
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', handler);
+    return () => sub.remove();
+  }, [navigation]);
 
   // ─── Register Play Again / Return to Menu callbacks ──────────────────────
   useEffect(() => {
