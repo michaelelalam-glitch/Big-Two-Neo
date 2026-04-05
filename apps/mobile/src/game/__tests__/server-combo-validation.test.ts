@@ -129,7 +129,7 @@ describe('Server-side Combo Validation (play-cards edge function parity)', () =>
       expect(canBeatPlay(newCards, last)).toBe(true);
     });
 
-    it('Flush does NOT beat Straight (same strength)', () => {
+    it('Flush beats Straight (higher combo strength in Big Two)', () => {
       // In Big Two, Flush > Straight in combo strength
       const newCards = cards('3H', '5H', '7H', '9H', 'KH');
       const last = lastPlay(['3D', '4C', '5S', '6H', '7D'], 'Straight');

@@ -317,7 +317,11 @@ export default function LeaderboardScreen() {
 
   // ── Realtime subscription: auto-refresh when any player's rank_points change ──
   // Debounced to avoid rapid re-fetches when multiple games finish in quick succession.
+  // Uses a ref for fetchLeaderboard to avoid re-subscribing the channel on every
+  // filter/pagination change (Copilot review feedback).
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fetchLeaderboardRef = useRef(fetchLeaderboard);
+  fetchLeaderboardRef.current = fetchLeaderboard;
   useEffect(() => {
     const channel = supabase
       .channel('leaderboard-realtime')
@@ -333,7 +337,7 @@ export default function LeaderboardScreen() {
           if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
           refreshTimerRef.current = setTimeout(() => {
             statsLogger.info('[Leaderboard] Realtime update detected, refreshing...');
-            fetchLeaderboard(true);
+            fetchLeaderboardRef.current(true);
           }, 2000);
         }
       )
@@ -343,7 +347,9 @@ export default function LeaderboardScreen() {
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
       supabase.removeChannel(channel);
     };
-  }, [fetchLeaderboard]);
+    // Subscribe once — fetchLeaderboardRef keeps the callback fresh without re-subscribing
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);

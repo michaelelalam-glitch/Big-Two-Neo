@@ -112,24 +112,46 @@ describeWithCredentials('Concurrent Card Play Stress Tests', () => {
       });
 
       // Should be rejected — not their turn
-      // The edge function returns an error in the response body
-      expect(playErr || true).toBeTruthy();
+      // The edge function returns an error in the response body or data
+      // If no network-level error, check the response indicates failure
+      if (playErr) {
+        expect(playErr).toBeTruthy();
+      } else {
+        // Edge function responded 200 but with an error payload — acceptable
+        // The key assertion is that the play was not applied
+        const { data: gameAfter } = await supabase
+          .from('game_state')
+          .select('current_turn')
+          .eq('room_id', room.id)
+          .single();
+        // Turn should still be player 0's turn (not advanced)
+        expect(gameAfter?.current_turn).toBe(0);
+      }
     } finally {
       await supabase
         .from('game_state')
         .delete()
         .eq('room_id', room.id)
-        .then(() => {}, () => {});
+        .then(
+          () => {},
+          () => {}
+        );
       await supabase
         .from('room_players')
         .delete()
         .eq('room_id', room.id)
-        .then(() => {}, () => {});
+        .then(
+          () => {},
+          () => {}
+        );
       await supabase
         .from('rooms')
         .delete()
         .eq('id', room.id)
-        .then(() => {}, () => {});
+        .then(
+          () => {},
+          () => {}
+        );
     }
   }, 30_000);
 
@@ -169,7 +191,10 @@ describeWithCredentials('Concurrent Card Play Stress Tests', () => {
         .from('rooms')
         .delete()
         .eq('id', room.id)
-        .then(() => {}, () => {});
+        .then(
+          () => {},
+          () => {}
+        );
     }
   }, 15_000);
 });

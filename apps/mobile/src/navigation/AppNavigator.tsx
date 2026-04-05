@@ -165,7 +165,6 @@ export default function AppNavigator() {
   React.useEffect(() => {
     if (!isLoggedIn || !pendingLinkRef.current) return;
     const url = pendingLinkRef.current;
-    pendingLinkRef.current = null;
     // Retry until the authenticated navigation stack is ready instead of a
     // fixed 300 ms delay.  Polls every 100 ms up to a 2 s ceiling.
     const UNIVERSAL_PREFIX = 'https://big2.app';
@@ -180,9 +179,16 @@ export default function AppNavigator() {
       attempts += 1;
       if (navigationRef.current?.isReady() || attempts >= MAX_ATTEMPTS) {
         clearInterval(timerId);
-        Linking.openURL(replayUrl).catch(err =>
-          authLogger.info('[AppNavigator] Failed to replay pending deep link', err)
-        );
+        Linking.openURL(replayUrl)
+          .then(() => {
+            // Only clear the pending link after successful replay
+            pendingLinkRef.current = null;
+          })
+          .catch(err => {
+            authLogger.info('[AppNavigator] Failed to replay pending deep link', err);
+            // Restore the pending link so it can be retried on next sign-in
+            pendingLinkRef.current = url;
+          });
       }
     }, 100);
     return () => clearInterval(timerId);

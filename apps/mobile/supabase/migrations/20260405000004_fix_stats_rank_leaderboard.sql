@@ -1,17 +1,17 @@
 -- ============================================================================
--- Applied via Supabase MCP on 2026-04-05
--- Fixes:
--- 1. update_player_stats_after_game: private stats now track full stats
---    (completed, abandoned, combos, scores, avg_pos, cards_left)
--- 2. Casual rank formula: score capped at 100 for completed games
---    (prevents negative spiral from cumulative multi-match scores)
--- 3. Voided/private games excluded from rank_points_history
--- 4. Recalculated all casual_rank_points from game_history (post-reset only)
--- 5. Fixed corrupted voided counters (capped at games_played)
--- 6. Added trigger to auto-refresh leaderboard materialized views on RP change
+-- Migration: fix_stats_rank_leaderboard (2026-04-05)
 -- ============================================================================
--- NOTE: This migration was applied directly to production via MCP.
--- The full SQL is in the two apply_migration calls:
---   fix_stats_rank_leaderboard_comprehensive
---   fix_rank_recalculation_use_game_type
--- See those migrations in Supabase dashboard for the complete SQL.
+-- Originally applied live via Supabase MCP on 2026-04-05.
+-- Superseded by the following tracked migrations which contain the full,
+-- reproducible SQL:
+--   • 20260719000001_fix_casual_rank_points.sql
+--       – Rewrites update_player_stats_after_game with private stats tracking,
+--         capped casual rank formula, and corrected voided counters.
+--   • 20260719000005_recalculate_rank_from_reset_date.sql
+--       – Re-derives all casual_rank_points from game_history (post-reset).
+--
+-- This migration is intentionally a no-op to keep the migration timeline
+-- consistent without duplicating logic.  Running it is safe and idempotent.
+-- ============================================================================
+
+SELECT 1; -- no-op: see superseding migrations above

@@ -480,8 +480,12 @@ export class BotAI {
   private findBest5CardCombo(hand: Card[]): string[] | null {
     if (hand.length < 5) return null;
 
-    // Memoize by sorted card IDs — hand contents change rarely between calls.
-    const cacheKey = hand.map(c => c.id).join(',');
+    // Memoize by normalized (sorted) card IDs so cache hits are stable even if
+    // callers pass the same hand in a different order.
+    const cacheKey = hand
+      .map(c => c.id)
+      .sort()
+      .join(',');
     if (this._5cardCache.has(cacheKey)) return this._5cardCache.get(cacheKey)!;
 
     const n = hand.length;
