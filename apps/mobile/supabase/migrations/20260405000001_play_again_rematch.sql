@@ -46,9 +46,31 @@ DECLARE
   v_existing_id     UUID;
   v_new_code        TEXT;
   v_new_id          UUID;
+  v_join_result     JSONB;
   v_collision_tries INTEGER := 0;
   v_max_retries     INTEGER := 5;
 BEGIN
+  -- ── Guard: p_user_id must match the authenticated caller ──────────────
+  IF auth.uid() IS NOT NULL AND p_user_id != auth.uid() THEN
+    RAISE EXCEPTION 'get_or_create_rematch_room: p_user_id does not match authenticated user';
+  END IF;
+
+  -- ── Guard + atomic source-room cleanup ────────────────────────────────
+  IF EXISTS (
+    SELECT 1 FROM room_players
+     WHERE room_id = p_source_room_id AND user_id = p_user_id
+  ) THEN
+    DELETE FROM room_players
+     WHERE room_id = p_source_room_id AND user_id = p_user_id;
+  ELSIF NOT EXISTS (
+    SELECT 1 FROM game_history
+     WHERE room_id = p_source_room_id
+       AND p_user_id IN (player_1_id, player_2_id, player_3_id, player_4_id)
+  ) THEN
+    RAISE EXCEPTION 'get_or_create_rematch_room: user % is not a participant of room %',
+      p_user_id, p_source_room_id;
+  END IF;
+
   -- ── A. Fast-path: a rematch room already exists ──────────────────────────
   SELECT id, code
     INTO v_existing_id, v_existing_code
@@ -58,12 +80,14 @@ BEGIN
 
   IF FOUND THEN
     -- Another player beat us here — join the room they created.
-    PERFORM join_room_atomic(v_existing_code, p_user_id, p_username);
+    -- Propagate is_host from join_room_atomic: in ghost-host edge cases the
+    -- function may legitimately promote this caller to host.
+    v_join_result := join_room_atomic(v_existing_code, p_user_id, p_username);
     RETURN jsonb_build_object(
       'success',    true,
       'room_id',    v_existing_id,
       'room_code',  v_existing_code,
-      'is_host',    false
+      'is_host',    COALESCE((v_join_result->>'is_host')::BOOLEAN, false)
     );
   END IF;
 
@@ -113,12 +137,12 @@ BEGIN
 
         IF FOUND THEN
           -- Race lost: another caller created the rematch room first.
-          PERFORM join_room_atomic(v_existing_code, p_user_id, p_username);
+          v_join_result := join_room_atomic(v_existing_code, p_user_id, p_username);
           RETURN jsonb_build_object(
             'success',   true,
             'room_id',   v_existing_id,
             'room_code', v_existing_code,
-            'is_host',   false
+            'is_host',   COALESCE((v_join_result->>'is_host')::BOOLEAN, false)
           );
         END IF;
 

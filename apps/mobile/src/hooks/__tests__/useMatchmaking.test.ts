@@ -589,7 +589,10 @@ describe('isCancelledRef guard — cancel while find-match is in flight', () => 
     const { result } = renderHook(() => useMatchmaking());
 
     // Start matchmaking in the background (do not await — find-match is held)
-    const startPromise = result.current.startMatchmaking('Player1');
+    let startPromise!: ReturnType<typeof result.current.startMatchmaking>;
+    await act(async () => {
+      startPromise = result.current.startMatchmaking('Player1');
+    });
 
     // Yield enough microtasks for getUser() to resolve and userIdRef to be set
     // so that cancelMatchmaking() is called at the right point in the flow.
