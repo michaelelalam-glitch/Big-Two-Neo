@@ -272,8 +272,20 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
             setRealtimeChannel(null);
             setIsConnected(false);
             await channelRef.current.unsubscribe();
-            await supabase.removeChannel(channelRef.current);
             channelRef.current = null;
+          }
+
+          // Remove any ghost room:* channels left over from crash recovery or rapid reconnect
+          // retries. Without this, the Supabase client accumulates zombie channels in its
+          // internal registry and fires a CLOSED callback for every one when the WebSocket
+          // reconnects — blocking the JS thread for seconds and freezing the UI
+          // ("CLOSED storm"). We filter to realtime:room:* so the matchmaking channel
+          // (realtime:waiting_room_updates) is never disrupted.
+          const roomGhosts = supabase
+            .getChannels()
+            .filter(ch => (ch as { topic?: string }).topic?.startsWith('realtime:room:'));
+          if (roomGhosts.length > 0) {
+            await Promise.allSettled(roomGhosts.map(gh => supabase.removeChannel(gh)));
           }
 
           // Create new channel with presence
@@ -973,10 +985,17 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     return () => {
       if (channelRef.current) {
         channelRef.current.unsubscribe();
-        supabase.removeChannel(channelRef.current);
         channelRef.current = null;
         setRealtimeChannel(null);
         setIsConnected(false);
+      }
+      // Remove all ghost room:* channels so they don't accumulate across game sessions
+      // and trigger a CLOSED storm the next time the WebSocket reconnects.
+      const roomGhosts = supabase
+        .getChannels()
+        .filter(ch => (ch as { topic?: string }).topic?.startsWith('realtime:room:'));
+      if (roomGhosts.length > 0) {
+        void Promise.allSettled(roomGhosts.map(gh => supabase.removeChannel(gh)));
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps -- timerIntervalRef.current is a plain mutable ref (not a DOM ref)
       if (timerIntervalRef.current) {

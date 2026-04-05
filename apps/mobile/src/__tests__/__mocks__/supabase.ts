@@ -39,7 +39,9 @@ const mockSupabaseClient = {
     subscribe: jest.fn(),
     unsubscribe: jest.fn(),
   })),
-  removeChannel: jest.fn(),
+  getChannels: jest.fn(() => []),
+  removeChannel: jest.fn().mockResolvedValue('ok'),
+  removeAllChannels: jest.fn().mockResolvedValue([]),
 };
 
 export const supabase = mockSupabaseClient;

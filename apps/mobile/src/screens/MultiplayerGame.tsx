@@ -1142,8 +1142,15 @@ export function MultiplayerGame() {
   // the auto-play edge function fires at the correct 60s server-relative deadline.
   // offsetMs is also forwarded to GameContext so InactivityCountdownRing uses the same
   // corrected clock as AutoPassTimer (fixes the ⚠️ Clock skew log in InactivityRing).
+  // fallbackServerTimestamp: when no auto-pass timer has fired yet, seed an initial rough
+  // offset from turn_started_at so the very first turn's InactivityRing / TurnTimer don't
+  // log residual clock-skew warnings.
+  const turnStartedAtMs = multiplayerGameState?.turn_started_at
+    ? new Date(multiplayerGameState.turn_started_at).getTime()
+    : null;
   const { getCorrectedNow: getTurnCorrectedNow, offsetMs: turnClockOffsetMs } = useClockSync(
-    multiplayerGameState?.auto_pass_timer ?? null
+    multiplayerGameState?.auto_pass_timer ?? null,
+    turnStartedAtMs
   );
   const { isMyTurn: _isTurnInactivityMyTurn } = useTurnInactivityTimer({
     gameState: multiplayerGameState,
