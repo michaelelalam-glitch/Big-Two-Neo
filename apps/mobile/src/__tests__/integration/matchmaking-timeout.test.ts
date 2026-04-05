@@ -42,17 +42,31 @@ describeWithCredentials('Matchmaking Timeout Edge Cases', () => {
     supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     for (let i = 0; i < 5; i++) {
-      const { data, error } = await supabase.auth.admin.createUser({
-        email: `test-matchmaking-${i}-${Date.now()}-${randomUUID().slice(0, 8)}@integration-test.local`,
-        password: `pwd-${randomUUID()}`,
-        email_confirm: true,
-      });
-      if (error || !data.user) {
-        throw new Error(`Failed to create test user ${i}: ${error?.message}`);
+      // Small delay between user creations to avoid Supabase auth rate limits
+      if (i > 0) await new Promise(r => setTimeout(r, 500));
+
+      let lastError: unknown;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const { data, error } = await supabase.auth.admin.createUser({
+          email: `test-matchmaking-${i}-${Date.now()}-${randomUUID().slice(0, 8)}@integration-test.local`,
+          password: `pwd-${randomUUID()}`,
+          email_confirm: true,
+        });
+        if (!error && data.user) {
+          authUserIds.push(data.user.id);
+          lastError = null;
+          break;
+        }
+        lastError = error;
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
       }
-      authUserIds.push(data.user.id);
+      if (lastError) {
+        throw new Error(
+          `Failed to create test user ${i} after retries: ${JSON.stringify(lastError)}`
+        );
+      }
     }
-  }, 30_000);
+  }, 60_000);
 
   afterAll(async () => {
     for (const roomId of roomIdsToClean) {
@@ -60,12 +74,18 @@ describeWithCredentials('Matchmaking Timeout Edge Cases', () => {
         .from('room_players')
         .delete()
         .eq('room_id', roomId)
-        .then(() => {}, () => {});
+        .then(
+          () => {},
+          () => {}
+        );
       await supabase
         .from('rooms')
         .delete()
         .eq('id', roomId)
-        .then(() => {}, () => {});
+        .then(
+          () => {},
+          () => {}
+        );
     }
     for (const userId of authUserIds) {
       await supabase.auth.admin.deleteUser(userId).catch(() => {});
