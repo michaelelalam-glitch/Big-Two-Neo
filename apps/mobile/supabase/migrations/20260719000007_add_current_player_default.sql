@@ -1,8 +1,24 @@
--- Migration: add_current_player_default (2026-07-19)
+-- Migration: add_defaults_and_reload_cache (2026-07-19)
 --
--- game_state.current_player mirrors current_turn on creation but PostgREST's
--- schema cache occasionally lags behind schema changes, causing "column not found"
--- errors in integration tests. Adding DEFAULT 0 allows the column to be omitted
--- from INSERT statements; the application always sets it explicitly where needed.
+-- PostgREST's schema cache on the CI Supabase project is stale and does not
+-- reflect all game_state columns (current_player, dealer_index). This migration:
+--   1. Ensures BOTH columns exist with DEFAULT 0 regardless of CI schema state
+--   2. Issues NOTIFY pgrst, 'reload schema' so PostgREST reloads immediately
+--
+-- ADD COLUMN IF NOT EXISTS is a no-op when the column already exists.
+-- ALTER COLUMN SET DEFAULT is safe on both existing and newly-added columns.
+
+ALTER TABLE game_state
+  ADD COLUMN IF NOT EXISTS current_player INTEGER NOT NULL DEFAULT 0;
+
 ALTER TABLE game_state
   ALTER COLUMN current_player SET DEFAULT 0;
+
+ALTER TABLE game_state
+  ADD COLUMN IF NOT EXISTS dealer_index INTEGER NOT NULL DEFAULT 0;
+
+ALTER TABLE game_state
+  ALTER COLUMN dealer_index SET DEFAULT 0;
+
+-- Signal PostgREST to reload its schema cache so it sees all columns.
+NOTIFY pgrst, 'reload schema';

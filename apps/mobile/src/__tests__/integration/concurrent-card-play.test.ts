@@ -118,7 +118,7 @@ describeWithCredentials('Concurrent Card Play Stress Tests', () => {
         passes: 0,
         passes_in_row: 0,
         round_number: 1,
-        dealer_index: 0,
+        // dealer_index defaults to 0 via migration 20260719000007
       });
 
       if (gsErr) throw new Error(`game_state insert failed: ${gsErr.message}`);
@@ -228,7 +228,7 @@ describeWithCredentials('Concurrent Card Play Stress Tests', () => {
         passes: 0,
         passes_in_row: 0,
         round_number: 1,
-        dealer_index: 0,
+        // dealer_index defaults to 0 via migration 20260719000007
       });
 
       if (gsErr2) throw new Error(`game_state insert failed: ${gsErr2.message}`);
