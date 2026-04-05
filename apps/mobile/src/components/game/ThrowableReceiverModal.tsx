@@ -21,6 +21,7 @@ import {
 } from 'react-native';
 import type { ThrowableType } from '../../types/multiplayer';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '../../constants';
+import { i18n } from '../../i18n';
 
 interface ThrowableReceiverModalProps {
   visible: boolean;
@@ -43,11 +44,11 @@ const SPLAT_EMOJI: Record<ThrowableType, string> = {
   cake: '🍰',
 };
 
-const LABEL: Record<ThrowableType, string> = {
-  egg: 'Splat!',
-  smoke: 'Poof!',
-  confetti: 'Surprise!',
-  cake: 'Splat!',
+const SPLAT_KEY: Record<ThrowableType, string> = {
+  egg: 'game.throwSplatEgg',
+  smoke: 'game.throwSplatSmoke',
+  confetti: 'game.throwSplatConfetti',
+  cake: 'game.throwSplatCake',
 };
 
 const BG_COLOR: Record<ThrowableType, string> = {
@@ -181,13 +182,13 @@ export function ThrowableReceiverModal({
             </Animated.Text>
 
             {/* Label */}
-            <Text style={styles.label}>{LABEL[throwable]}</Text>
+            <Text style={styles.label}>{i18n.t(SPLAT_KEY[throwable] as any)}</Text>
 
             {/* From-name attribution */}
-            <Text style={styles.from}>{fromName} threw this at you!</Text>
+            <Text style={styles.from}>{i18n.t('game.throwAtYou', { name: fromName })}</Text>
 
             {/* Dismiss hint */}
-            <Text style={styles.hint}>Double-tap to dismiss</Text>
+            <Text style={styles.hint}>{i18n.t('game.throwDismissHint')}</Text>
           </Animated.View>
         </Animated.View>
       </TouchableWithoutFeedback>

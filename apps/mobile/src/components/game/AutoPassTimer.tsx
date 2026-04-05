@@ -44,7 +44,11 @@ function computeRemainingMs(
   const endTimestamp = timerState.end_timestamp;
   if (typeof endTimestamp === 'number') {
     const durationMs = timerState.duration_ms || 10000;
-    if (!isSynced) return durationMs; // hold at full until clock syncs (<300ms)
+    if (!isSynced) {
+      // Clock sync hasn't settled yet — use local Date.now() as a best-effort fallback
+      // rather than returning full durationMs, which causes the ring to flash full on reconnect.
+      return Math.max(0, endTimestamp - Date.now());
+    }
     return Math.max(0, endTimestamp - getCorrectedNow());
   }
   // Fallback path (no end_timestamp): use started_at.
@@ -112,6 +116,9 @@ function AutoPassTimerComponent({
   }));
 
   // ── Schedule the ring animation whenever the timer activates / resets ───────
+  // NOTE: `isSynced` is intentionally excluded from deps so clock-sync status changes
+  // after reconnect do NOT restart the ring animation (which would flash a full ring).
+  // The animation already uses isSyncedRef via getCorrectedNowRef for accurate positioning.
   useEffect(() => {
     if (!timerState?.active) {
       cancelAnimation(progressAnim);
@@ -130,13 +137,12 @@ function AutoPassTimerComponent({
     return () => {
       cancelAnimation(progressAnim);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- isSynced excluded intentionally; animation only restarts when timer identity changes
   }, [
     timerState?.active,
     timerState?.end_timestamp,
     timerState?.started_at,
     timerState?.duration_ms,
-    isSynced,
   ]);
 
   // ── Throttled text/color state — updates once per second max (≤11 re-renders/timer) ──

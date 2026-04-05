@@ -411,8 +411,8 @@ export function LandscapeYourPosition({
         <View style={styles.playDropZone}>
           <Text style={styles.playDropZoneText}>
             {dragState.isDraggingMultiple
-              ? `Release to play ${selectedCardIds.size} cards`
-              : 'Release to play card'}
+              ? i18n.t('game.dropZoneReleaseMultiple', { count: selectedCardIds.size })
+              : i18n.t('game.dropZoneRelease')}
           </Text>
         </View>
       )}

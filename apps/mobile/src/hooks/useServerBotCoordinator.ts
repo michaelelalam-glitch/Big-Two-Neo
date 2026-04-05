@@ -165,29 +165,14 @@ export function useServerBotCoordinator({
     // we want to retry rather than leaving the game stuck on a bot turn.
     const nowForCheck = Date.now();
     const prevTrigger = triggeredForTurnRef.current;
-    if (
-      prevTrigger !== null &&
-      prevTrigger.turn === currentTurn &&
-      nowForCheck - prevTrigger.lastAttemptAt < TRIGGER_COOLDOWN_MS
-    ) {
-      // Cooldown still active — leave the existing retry timer running; do NOT cancel it.
-      return;
-    }
 
-    // A new bot turn (or cooldown expired): cancel any stale timer before scheduling.
-    if (fallbackTimerRef.current) {
-      clearTimeout(fallbackTimerRef.current);
-      fallbackTimerRef.current = null;
-    }
-
-    // Self-rescheduling retry: fires after grace period, then retries every
-    // TRIGGER_COOLDOWN_MS while the turn is still stuck on this bot.
-    // A `cancelled` flag is set in the cleanup function and checked both before
-    // re-scheduling and before invoking, so timers stop reliably on unmount
-    // and when `enabled` becomes false or the turn advances.
+    // Self-rescheduling retry — defined early so the cooldown branch can use it.
     let cancelled = false;
 
     const scheduleAttempt = (delayMs: number): void => {
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+      }
       fallbackTimerRef.current = setTimeout(async () => {
         if (cancelled) return;
         triggeredForTurnRef.current = { turn: currentTurn, lastAttemptAt: Date.now() };
@@ -198,6 +183,33 @@ export function useServerBotCoordinator({
         }
       }, delayMs);
     };
+
+    if (
+      prevTrigger !== null &&
+      prevTrigger.turn === currentTurn &&
+      nowForCheck - prevTrigger.lastAttemptAt < TRIGGER_COOLDOWN_MS
+    ) {
+      // Cooldown still active — reschedule the retry in case the cleanup cleared the timer.
+      // Without this, rapid Realtime updates between attempt and retry would discard the retry.
+      const remainingMs = Math.max(
+        1,
+        TRIGGER_COOLDOWN_MS - (nowForCheck - prevTrigger.lastAttemptAt)
+      );
+      scheduleAttempt(remainingMs);
+      return () => {
+        cancelled = true;
+        if (fallbackTimerRef.current) {
+          clearTimeout(fallbackTimerRef.current);
+          fallbackTimerRef.current = null;
+        }
+      };
+    }
+
+    // A new bot turn (or cooldown expired): cancel any stale timer before scheduling.
+    if (fallbackTimerRef.current) {
+      clearTimeout(fallbackTimerRef.current);
+      fallbackTimerRef.current = null;
+    }
 
     scheduleAttempt(FALLBACK_GRACE_PERIOD_MS);
 
@@ -268,6 +280,8 @@ export function useServerBotCoordinator({
       );
       // Reset any prior "triggered for this turn" record so the main effect fires fresh
       triggeredForTurnRef.current = null;
+      // Reset the per-call cooldown too so the urgent replacement trigger is never dropped
+      lastTriggerTimeRef.current = 0;
       // Fire the coordinator after the replacement Realtime update has propagated
       const t = setTimeout(() => {
         triggerBotCoordinator();

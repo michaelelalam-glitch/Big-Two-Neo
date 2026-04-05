@@ -2,12 +2,13 @@
  * @module useHelperButtons
  * Provides Sort, Smart Sort, and Hint button handlers for the game screen.
  */
-import { Alert, Platform, ToastAndroid } from 'react-native';
+import { Platform, ToastAndroid } from 'react-native';
 import { hapticManager, HapticType } from '../utils';
 import { sortHandLowestToHighest, smartSortHand, findHintPlay } from '../utils/helperButtonUtils';
 import { gameLogger } from '../utils/logger';
 import { trackEvent, setLastHintCards } from '../services/analytics';
 import { sentryCapture } from '../services/sentry';
+import { i18n } from '../i18n';
 import type { Card, LastPlay } from '../game/types';
 
 interface UseHelperButtonsParams {
@@ -89,14 +90,7 @@ export function useHelperButtons({
     const newOrder = smartSorted.map(card => card.id);
     setCustomCardOrder(newOrder);
 
-    // Toast message
-    if (Platform.OS === 'android') {
-      ToastAndroid.show('Hand organized by combos', ToastAndroid.SHORT);
-    } else if (onAlert) {
-      onAlert({ message: 'Hand organized by combos' });
-    } else {
-      Alert.alert('', 'Hand organized by combos');
-    }
+    // No popup for smart sort — silent action
 
     trackEvent('smart_sort_used', {
       hand_size: playerHand.length,
@@ -125,11 +119,11 @@ export function useHelperButtons({
       hapticManager.trigger(HapticType.WARNING);
 
       if (Platform.OS === 'android') {
-        ToastAndroid.show('No valid play - recommend passing', ToastAndroid.LONG);
+        ToastAndroid.show(i18n.t('game.hintNoValidPlay'), ToastAndroid.LONG);
       } else if (onAlert) {
-        onAlert({ message: 'No valid play - recommend passing' });
+        onAlert({ message: i18n.t('game.hintNoValidPlay') });
       } else {
-        Alert.alert('', 'No valid play - recommend passing');
+        // iOS fallback with no onAlert registered (shouldn't happen in practice)
       }
 
       trackEvent('hint_no_valid_play', {
@@ -145,7 +139,7 @@ export function useHelperButtons({
       );
       gameLogger.info('[useHelperButtons] Hint: No valid play, recommend pass');
     } else {
-      // Valid play found - auto-select cards
+      // Valid play found — auto-select cards, no toast/popup
       hapticManager.success();
 
       const recommendedSet = new Set(recommended);
@@ -163,13 +157,7 @@ export function useHelperButtons({
                 ? '5-card combo'
                 : `${cardCount} card${cardCount > 1 ? 's' : ''}`;
 
-      if (Platform.OS === 'android') {
-        ToastAndroid.show(`Recommended: ${comboType}`, ToastAndroid.SHORT);
-      } else if (onAlert) {
-        onAlert({ message: `Recommended: ${comboType}` });
-      } else {
-        Alert.alert('', `Recommended: ${comboType}`);
-      }
+      // No popup — hint silently selects cards; only no-valid-play shows a message
 
       trackEvent('hint_used', {
         hand_size: playerHand.length,

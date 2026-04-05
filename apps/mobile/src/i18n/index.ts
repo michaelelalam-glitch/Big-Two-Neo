@@ -449,7 +449,24 @@ export interface Translations {
     noPlayHistoryYet: string;
     dragToPlayHint: string;
     dropZoneRelease: string;
+    dropZoneReleaseMultiple: string;
     dropZoneDrop: string;
+    // Helper button messages
+    smartOrganized: string;
+    hintNoValidPlay: string;
+    hintRecommended: string;
+    // Throwables
+    throwPickerTitle: string;
+    throwEgg: string;
+    throwSmoke: string;
+    throwConfetti: string;
+    throwCake: string;
+    throwSplatEgg: string;
+    throwSplatSmoke: string;
+    throwSplatConfetti: string;
+    throwSplatCake: string;
+    throwAtYou: string;
+    throwDismissHint: string;
     // RejoinModal
     botReplacedYouTitle: string;
     botReplacedYouBody: string;
@@ -1231,7 +1248,24 @@ const en: Translations = {
     noPlayHistoryYet: 'No play history yet. Start playing to see card history!',
     dragToPlayHint: '↑ Drag up to play',
     dropZoneRelease: 'Release to play',
+    dropZoneReleaseMultiple: 'Release to play {{count}} cards',
     dropZoneDrop: 'Drop to play',
+    // Helper button messages
+    smartOrganized: 'Hand organized by combos',
+    hintNoValidPlay: 'No valid play — recommend passing',
+    hintRecommended: 'Recommended: {{combo}}',
+    // Throwables
+    throwPickerTitle: 'Throw something',
+    throwEgg: 'Egg',
+    throwSmoke: 'Smoke',
+    throwConfetti: 'Confetti',
+    throwCake: 'Cake',
+    throwSplatEgg: 'Splat!',
+    throwSplatSmoke: 'Poof!',
+    throwSplatConfetti: 'Surprise!',
+    throwSplatCake: 'Splat!',
+    throwAtYou: '{{name}} threw this at you!',
+    throwDismissHint: 'Double-tap to dismiss',
     // RejoinModal
     botReplacedYouTitle: 'A bot replaced you!',
     botReplacedYouBody: 'A bot is playing in your seat.',
@@ -1939,7 +1973,24 @@ const ar: Translations = {
     noPlayHistoryYet: 'لا يوجد سجل لعب بعد. ابدأ اللعب لرؤية سجل البطاقات!',
     dragToPlayHint: '↑ اسحب للأعلى للعب',
     dropZoneRelease: 'الإفلات للعب',
+    dropZoneReleaseMultiple: 'الإفلات للعب {{count}} أوراق',
     dropZoneDrop: 'وضع هنا للعب',
+    // Helper button messages
+    smartOrganized: 'تم تنظيم اليد حسب التركيبات',
+    hintNoValidPlay: 'لا توجد لعبة صالحة — يُنصح بالتمرير',
+    hintRecommended: 'مقترح: {{combo}}',
+    // Throwables
+    throwPickerTitle: 'ارمِ شيئاً',
+    throwEgg: 'بيضة',
+    throwSmoke: 'دخان',
+    throwConfetti: 'قصاصات',
+    throwCake: 'كعكة',
+    throwSplatEgg: 'ضربة!',
+    throwSplatSmoke: 'بوف!',
+    throwSplatConfetti: 'مفاجأة!',
+    throwSplatCake: 'ضربة!',
+    throwAtYou: 'رمى {{name}} هذا عليك!',
+    throwDismissHint: 'انقر مرتين للإغلاق',
     // RejoinModal
     botReplacedYouTitle: 'حل بوت محلك!',
     botReplacedYouBody: 'بوت يلعب في مقعدك.',
@@ -2740,7 +2791,24 @@ const de: Translations = {
     noPlayHistoryYet: 'Noch kein Spielverlauf. Spiele um den Kartenverlauf zu sehen!',
     dragToPlayHint: '↑ Nach oben ziehen zum Spielen',
     dropZoneRelease: 'Loslassen zum Spielen',
+    dropZoneReleaseMultiple: '{{count}} Karten loslassen zum Spielen',
     dropZoneDrop: 'Hier ablegen zum Spielen',
+    // Helper button messages
+    smartOrganized: 'Hand nach Kombinationen sortiert',
+    hintNoValidPlay: 'Kein gültiger Zug — Passen empfohlen',
+    hintRecommended: 'Empfohlen: {{combo}}',
+    // Throwables
+    throwPickerTitle: 'Etwas werfen',
+    throwEgg: 'Ei',
+    throwSmoke: 'Rauch',
+    throwConfetti: 'Konfetti',
+    throwCake: 'Kuchen',
+    throwSplatEgg: 'Klatsch!',
+    throwSplatSmoke: 'Puff!',
+    throwSplatConfetti: 'Überraschung!',
+    throwSplatCake: 'Klatsch!',
+    throwAtYou: '{{name}} hat das auf dich geworfen!',
+    throwDismissHint: 'Zweimal tippen zum Schließen',
     // RejoinModal
     botReplacedYouTitle: 'Ein Bot hat dich ersetzt!',
     botReplacedYouBody: 'Ein Bot spielt auf deinem Platz.',
