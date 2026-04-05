@@ -438,6 +438,7 @@ export default function LobbyScreen() {
           // Wrap in async IIFE with try/finally because supabase.rpc() returns
           // a PromiseLike that may not implement .finally(), causing a TypeError.
           (async () => {
+            let claimTimeoutId: ReturnType<typeof setTimeout> | undefined;
             try {
               // 8.4: Race the RPC against a 5-second timeout so that a hung
               // lobby_claim_host call does not keep claimHostInFlightRef=true
@@ -445,9 +446,12 @@ export default function LobbyScreen() {
               const rpcPromise = supabase.rpc('lobby_claim_host', {
                 p_room_id: currentRoomId,
               });
-              const timeoutPromise = new Promise<never>((_, reject) =>
-                setTimeout(() => reject(new Error('lobby_claim_host timed out')), 5000)
-              );
+              const timeoutPromise = new Promise<never>((_, reject) => {
+                claimTimeoutId = setTimeout(
+                  () => reject(new Error('lobby_claim_host timed out')),
+                  5000
+                );
+              });
               const { data: claimData, error: claimErr } = await Promise.race([
                 rpcPromise,
                 timeoutPromise,
@@ -463,6 +467,7 @@ export default function LobbyScreen() {
                 extractErrorMessage(err)
               );
             } finally {
+              clearTimeout(claimTimeoutId);
               claimHostInFlightRef.current = false;
             }
           })();

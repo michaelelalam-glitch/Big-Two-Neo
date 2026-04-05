@@ -1,32 +1,29 @@
--- Migration: 20260405000001_play_again_rematch.sql
+-- Migration: 20260405000002_fix_rematch_room_security.sql
 --
--- Implements truly-atomic "Play Again" coordination so the FIRST human
--- who presses the button becomes the host of the new room, while subsequent
--- callers join that same room — even if two callers hit the server
--- simultaneously.
+-- Corrective migration for 20260405000001_play_again_rematch.sql.
 --
--- Changes
--- -------
--- 1. rooms.rematch_for_room_id  — soft FK + UNIQUE so at most one live
---    rematch room can exist per finished room.  NULL-able so existing rooms
---    are not affected.
--- 2. get_or_create_rematch_room — SECURITY DEFINER RPC invoked by every
---    player who presses "Play Again".  Thanks to the UNIQUE constraint the
---    race is resolved inside the transaction: one caller creates the room
---    (is_host=true) and all others join it (is_host=false).
+-- Fixes
+-- -----
+-- 1. Drop FK on rooms.rematch_for_room_id — a FK to rooms(id) causes the
+--    get_or_create_rematch_room INSERT to fail with a foreign key violation
+--    when the source room has already been deleted by cleanup_empty_rooms
+--    (triggered after the last room_players row is removed by the client).
+--    The column is kept as a plain UUID advisory reference.
+--
+-- 2. REVOKE EXECUTE from PUBLIC — Postgres grants new functions to PUBLIC by
+--    default; restrict to authenticated only to match repository security
+--    posture.
+--
+-- 3. Fix search_path — SECURITY DEFINER functions must set
+--    `search_path = public, pg_catalog` to prevent pg_catalog shadowing.
 
--- ── 1. Add nullable column ────────────────────────────────────────────────
+-- ── 1. Drop foreign key ────────────────────────────────────────────────────
 ALTER TABLE rooms
-  ADD COLUMN IF NOT EXISTS rematch_for_room_id UUID;
+  DROP CONSTRAINT IF EXISTS rooms_rematch_for_room_id_fkey;
 
--- Unique: only one live rematch room per source room.
--- Use a partial unique index instead of a table constraint so we can
--- tolerate NULL (multiple rows with NULL rematch_for_room_id are fine).
-CREATE UNIQUE INDEX IF NOT EXISTS rooms_rematch_for_room_id_unique
-  ON rooms (rematch_for_room_id)
-  WHERE rematch_for_room_id IS NOT NULL;
+-- ── 2. Revoke public access + re-create function with correct search_path ──
+REVOKE EXECUTE ON FUNCTION get_or_create_rematch_room(UUID, UUID, TEXT, BOOLEAN, BOOLEAN, BOOLEAN) FROM PUBLIC;
 
--- ── 2. Atomic RPC ─────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION get_or_create_rematch_room(
   p_source_room_id  UUID,
   p_user_id         UUID,
@@ -131,11 +128,12 @@ BEGIN
 END;
 $$;
 
-REVOKE EXECUTE ON FUNCTION get_or_create_rematch_room(UUID, UUID, TEXT, BOOLEAN, BOOLEAN, BOOLEAN) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION get_or_create_rematch_room TO authenticated;
 
 COMMENT ON FUNCTION get_or_create_rematch_room IS
   'Atomic Play-Again coordinator. '
   'The first caller creates a new room (is_host=true); all subsequent '
   'callers for the same source_room_id join that room (is_host=false). '
-  'Concurrency-safe via a UNIQUE partial index on rematch_for_room_id.';
+  'Concurrency-safe via a UNIQUE partial index on rematch_for_room_id. '
+  'source_room_id is advisory (no FK) so cleanup_empty_rooms cannot '
+  'break Play Again by deleting the finished source room first.';
