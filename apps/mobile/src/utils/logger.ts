@@ -33,6 +33,15 @@ try {
   }
 }
 
+// Define log levels — declared BEFORE sentryTransport so the reference is safe
+// even though JS hoisting would technically allow a forward reference.
+const levels = {
+  debug: 0,
+  info: 1,
+  warn: 2,
+  error: 3,
+} as const;
+
 // Sentry breadcrumb transport — used in production when FileSystem is unavailable.
 // Routes warn/error logs to Sentry breadcrumbs so they appear in crash reports.
 const sentryTransport: typeof consoleTransport = props => {
@@ -52,14 +61,6 @@ const sentryTransport: typeof consoleTransport = props => {
     consoleTransport(props);
   }
 };
-
-// Define log levels
-const levels = {
-  debug: 0,
-  info: 1,
-  warn: 2,
-  error: 3,
-} as const;
 
 // Separate configurations for dev and production
 // Colors are enabled on all platforms. sentry.ts `beforeBreadcrumb` already

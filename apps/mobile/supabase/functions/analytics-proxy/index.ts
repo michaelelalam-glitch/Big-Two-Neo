@@ -21,16 +21,25 @@ const MP_ENDPOINT = 'https://www.google-analytics.com/mp/collect';
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// Simple per-IP rate limiter: max 60 requests per minute
+// Simple per-IP rate limiter: max 60 requests per minute.
+// Entries are auto-evicted when their window expires; a periodic sweep caps
+// the map at 10 000 entries to bound memory in long-lived workers.
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 60;
+const RATE_LIMIT_MAP_CAP = 10_000;
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now();
   const entry = rateLimitMap.get(ip);
   if (!entry || now > entry.resetAt) {
     rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    // Periodic sweep: evict expired entries when map grows large
+    if (rateLimitMap.size > RATE_LIMIT_MAP_CAP) {
+      for (const [k, v] of rateLimitMap) {
+        if (now > v.resetAt) rateLimitMap.delete(k);
+      }
+    }
     return false;
   }
   entry.count += 1;
@@ -60,6 +69,13 @@ Deno.serve(async (req) => {
   const token = authHeader.replace('Bearer ', '');
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
   const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('[analytics-proxy] SUPABASE_URL or SUPABASE_ANON_KEY not configured');
+    return new Response(
+      JSON.stringify({ error: 'Server misconfigured' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
   });

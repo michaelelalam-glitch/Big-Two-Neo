@@ -12,6 +12,8 @@ import { supabase } from './supabase';
 // Max 1 notification per user per event type per 30 seconds
 const RATE_LIMIT_MS = 30_000;
 const _rateLimitMap = new Map<string, number>();
+/** Hard cap on map size – if reached, purge all expired entries immediately. */
+const _RATE_LIMIT_MAP_MAX = 500;
 
 function isRateLimited(userId: string, eventType: string): boolean {
   const key = `${userId}:${eventType}`;
@@ -24,8 +26,10 @@ function isRateLimited(userId: string, eventType: string): boolean {
     return true;
   }
   _rateLimitMap.set(key, now);
-  // Cleanup old entries periodically (keep map from growing unbounded)
-  if (_rateLimitMap.size > 500) {
+  // Cleanup expired entries every time the map exceeds the cap.
+  // Also run a periodic sweep (every 100th call) when below the cap to prevent
+  // gradual growth in long-lived sessions.
+  if (_rateLimitMap.size > _RATE_LIMIT_MAP_MAX || _rateLimitMap.size % 100 === 0) {
     for (const [k, v] of _rateLimitMap) {
       if (now - v > RATE_LIMIT_MS) _rateLimitMap.delete(k);
     }

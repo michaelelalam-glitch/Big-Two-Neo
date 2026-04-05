@@ -171,7 +171,11 @@ export default function AppNavigator() {
     const replayUrl = url.startsWith(UNIVERSAL_PREFIX)
       ? `big2mobile://${url.slice(UNIVERSAL_PREFIX.length + 1)}`
       : url;
-    if (!replayUrl.startsWith('big2mobile://')) return;
+    if (!replayUrl.startsWith('big2mobile://')) {
+      // Not a supported scheme — clear the ref so we don't keep retrying forever
+      pendingLinkRef.current = null;
+      return;
+    }
 
     let attempts = 0;
     const MAX_ATTEMPTS = 20; // 20 × 100 ms = 2 s max
@@ -185,13 +189,16 @@ export default function AppNavigator() {
           })
           .catch(err => {
             authLogger.info('[AppNavigator] Failed to replay pending deep link', err);
-            // Keep pendingLinkRef intact — it will be retried on next sign-in cycle
+            // Leave pendingLinkRef populated — the link will be retried if
+            // the user signs out and back in (isLoggedIn toggles).
           });
       } else if (attempts >= MAX_ATTEMPTS) {
-        // Nav stack never became ready within 2 s — leave pendingLinkRef
-        // intact so the link can be retried on the next sign-in / app resume.
+        // Nav stack never became ready within 2 s — clear the ref because
+        // this effect only fires when isLoggedIn changes, so a stale ref
+        // that never resolves would block future deep links.
         clearInterval(timerId);
-        authLogger.info('[AppNavigator] Nav not ready after 2s, deferring deep link replay');
+        pendingLinkRef.current = null;
+        authLogger.info('[AppNavigator] Nav not ready after 2s, discarding deep link');
       }
     }, 100);
     return () => clearInterval(timerId);

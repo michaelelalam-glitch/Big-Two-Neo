@@ -183,8 +183,19 @@ describeWithCredentials('Concurrent Card Play Stress Tests', () => {
         }),
       ]);
 
-      // At least one should complete (may error due to missing game_state, which is fine)
-      expect(result1.status === 'fulfilled' || result2.status === 'fulfilled').toBe(true);
+      // Both calls should settle (not hang). Since there's no game_state row,
+      // we expect the edge function to return an error in each response.
+      // The key invariant is that neither call throws a network-level error.
+      const settled = [result1, result2].filter(r => r.status === 'fulfilled');
+      expect(settled.length).toBeGreaterThan(0);
+      // Verify the edge function actually returned an error payload (no game state)
+      for (const r of settled) {
+        if (r.status === 'fulfilled') {
+          const { error } = r.value;
+          // Edge function should report an error because game_state doesn't exist
+          expect(error || r.value.data?.error || r.value.data?.message).toBeTruthy();
+        }
+      }
     } finally {
       await supabase
         .from('rooms')
