@@ -333,10 +333,12 @@ export default function LeaderboardScreen() {
           table: 'player_stats',
         },
         payload => {
-          // Only refresh when rank_points actually changed to avoid unnecessary refetches
+          // Only refresh when rank_points actually changed (or when we can't tell).
+          // Note: payload.old may not include rank_points unless the table uses
+          // REPLICA IDENTITY FULL.  If oldRank is undefined we optimistically refresh.
           const oldRank = (payload.old as Record<string, unknown> | undefined)?.rank_points;
           const newRank = (payload.new as Record<string, unknown> | undefined)?.rank_points;
-          if (oldRank === newRank) return;
+          if (oldRank !== undefined && newRank !== undefined && oldRank === newRank) return;
 
           // Debounce: wait 2s after the last change before refreshing
           if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);

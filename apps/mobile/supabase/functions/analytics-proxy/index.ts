@@ -19,7 +19,7 @@ const GA4_API_SECRET = Deno.env.get('GA4_API_SECRET') ?? '';
 const GA4_MEASUREMENT_ID = Deno.env.get('GA4_MEASUREMENT_ID') ?? '';
 const MP_ENDPOINT = 'https://www.google-analytics.com/mp/collect';
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 // Per-user rate limiter: max 60 requests per minute per authenticated user.
 // Uses user.id (from JWT) instead of x-forwarded-for to avoid IP spoofing.
@@ -45,6 +45,16 @@ function isRateLimited(userId: string): boolean {
     _sweepCounter = 0;
     for (const [k, v] of rateLimitMap) {
       if (now > v.resetAt) rateLimitMap.delete(k);
+    }
+    // Hard FIFO eviction: if still over cap after purging expired entries
+    if (rateLimitMap.size > RATE_LIMIT_MAP_CAP) {
+      const excess = rateLimitMap.size - RATE_LIMIT_MAP_CAP;
+      let removed = 0;
+      for (const k of rateLimitMap.keys()) {
+        if (removed >= excess) break;
+        rateLimitMap.delete(k);
+        removed += 1;
+      }
     }
   }
   return false;
@@ -108,9 +118,17 @@ Deno.serve(async (req) => {
     );
   }
 
+  let body: any;
   try {
-    const body = await req.json();
+    body = await req.json();
+  } catch {
+    return new Response(
+      JSON.stringify({ error: 'Invalid JSON body' }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
 
+  try {
     // Basic validation: must have client_id and events array
     if (!body.client_id || !Array.isArray(body.events) || body.events.length === 0) {
       return new Response(

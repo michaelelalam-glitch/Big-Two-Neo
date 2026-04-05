@@ -14,6 +14,7 @@ const RATE_LIMIT_MS = 30_000;
 const _rateLimitMap = new Map<string, number>();
 /** Hard cap on map size – if reached, purge all expired entries immediately. */
 const _RATE_LIMIT_MAP_MAX = 500;
+let _rlSweepCounter = 0;
 
 function isRateLimited(userId: string, eventType: string): boolean {
   const key = `${userId}:${eventType}`;
@@ -26,10 +27,12 @@ function isRateLimited(userId: string, eventType: string): boolean {
     return true;
   }
   _rateLimitMap.set(key, now);
-  // Cleanup: purge expired entries when the map exceeds the cap OR every 100th call.
-  // If purging expired entries alone doesn't bring the map under the cap, evict the
-  // oldest entries (FIFO) to enforce a hard memory bound.
-  if (_rateLimitMap.size > _RATE_LIMIT_MAP_MAX || _rateLimitMap.size % 100 === 0) {
+  // Cleanup: purge expired entries when the map exceeds the cap OR every 100th
+  // invocation. Uses an invocation counter (not map size) so sweeps happen on a
+  // predictable cadence regardless of how many distinct keys exist.
+  _rlSweepCounter += 1;
+  if (_rateLimitMap.size > _RATE_LIMIT_MAP_MAX || _rlSweepCounter >= 100) {
+    _rlSweepCounter = 0;
     for (const [k, v] of _rateLimitMap) {
       if (now - v > RATE_LIMIT_MS) _rateLimitMap.delete(k);
     }

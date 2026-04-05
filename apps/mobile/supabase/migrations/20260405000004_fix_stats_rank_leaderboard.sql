@@ -10,8 +10,11 @@
 --   • 20260719000005_recalculate_rank_from_reset_date.sql
 --       – Re-derives all casual_rank_points from game_history (post-reset).
 --
--- This migration is intentionally a no-op to keep the migration timeline
--- consistent without duplicating logic.  Running it is safe and idempotent.
+-- This migration is intentionally a no-op placeholder.  The actual stats,
+-- rank, and leaderboard fixes are delivered by the superseding migrations
+-- listed above (NOT by this file).  It exists solely to preserve the
+-- migration timeline so that `supabase db reset` applies files in order
+-- without gaps.
 -- ============================================================================
 
-SELECT 1; -- no-op: see superseding migrations above
+SELECT 1; -- no-op placeholder: see superseding migrations above
