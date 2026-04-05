@@ -80,7 +80,7 @@ export function useMatchmakingFlow(
       .eq('rooms.is_matchmaking', true);
     if (scopeError) {
       roomLogger.error('❌ Error loading matchmaking rooms for cleanup scope:', scopeError);
-      throw scopeError;
+      throw new Error(scopeError.message || 'Failed to load matchmaking rooms for cleanup.');
     }
     const idsToClean = (myMatchmakingRows ?? []).map(r => r.room_id as string);
     if (idsToClean.length > 0) {
