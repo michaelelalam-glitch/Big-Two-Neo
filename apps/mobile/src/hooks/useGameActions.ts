@@ -552,13 +552,13 @@ export function useGameActions({
     if (isMountedRef.current) {
       setSelectedCardIds(new Set());
     }
-  }, [setSelectedCardIds]);
+  }, [isMountedRef, setSelectedCardIds]);
 
   const handlePassSuccess = useCallback(() => {
     if (isMountedRef.current) {
       setSelectedCardIds(new Set());
     }
-  }, [setSelectedCardIds]);
+  }, [isMountedRef, setSelectedCardIds]);
 
   const handleCardHandPlayCards = useCallback((cards: Card[]) => {
     trackGameplayAction('play_method_used', { method: 'drag' });

@@ -81,6 +81,18 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
    *  Updated alongside playerLastSeenAtRef in the postgres_changes handler. */
   const playerIdToUserIdRef = useRef<Record<string, string>>({});
 
+  // Track mount status to prevent in-flight async callbacks from calling setState
+  // after the component unmounts. This guards against EXC_BAD_ACCESS crashes in
+  // Fabric's Scheduler::uiManagerDidFinishTransaction when fetchGameState or
+  // fetchPlayers resolve after navigation tears the component tree down.
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   // Computed values
   const currentPlayer = roomPlayers.find(p => p.user_id === userId) || null;
   const isHost = currentPlayer?.is_host === true;
@@ -154,6 +166,9 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         .eq('room_id', roomId)
         .order('player_index');
 
+      // Guard: component unmounted while fetch was in-flight — skip state updates.
+      if (!isMountedRef.current) return;
+
       if (error) {
         networkLogger.error(`❌ [fetchPlayers] Error fetching players:`, error);
         throw error;
@@ -184,6 +199,9 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       .select('*')
       .eq('room_id', roomId)
       .single();
+
+    // Guard: component unmounted while fetch was in-flight — skip state updates.
+    if (!isMountedRef.current) return;
 
     if (error) {
       if (error.code !== 'PGRST116') {
@@ -252,6 +270,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           // SUBSCRIBED (Copilot PR-150 r2950195919).
           if (channelRef.current) {
             setRealtimeChannel(null);
+            setIsConnected(false);
             await channelRef.current.unsubscribe();
             await supabase.removeChannel(channelRef.current);
             channelRef.current = null;
@@ -951,6 +970,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
         setRealtimeChannel(null);
+        setIsConnected(false);
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps -- timerIntervalRef.current is a plain mutable ref (not a DOM ref)
       if (timerIntervalRef.current) {

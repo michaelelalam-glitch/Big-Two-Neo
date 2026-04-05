@@ -12,10 +12,12 @@
 
 import { useEffect, useRef } from 'react';
 import type { StackNavigationProp } from '@react-navigation/stack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { supabase } from '../services/supabase';
 import { gameLogger } from '../utils/logger';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import { DISCONNECT_TIMER_KEY } from './useActiveGameBanner';
 
 interface UseGameCleanupOptions {
   userId: string | undefined;
@@ -106,6 +108,9 @@ export function useGameCleanup({
                 gameLogger.error('❌ [GameScreen] mark-disconnected error:', markResult.error);
               } else {
                 gameLogger.info('✅ [GameScreen] mark-disconnected success — 60s timer started');
+                // Cache the disconnect start time so HomeScreen can show the
+                // countdown immediately without waiting for get-rejoin-status.
+                AsyncStorage.setItem(DISCONNECT_TIMER_KEY, String(Date.now())).catch(() => {});
               }
             } catch (err: unknown) {
               gameLogger.error('❌ [GameScreen] mark-disconnected exception:', err);

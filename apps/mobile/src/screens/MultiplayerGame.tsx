@@ -5,7 +5,7 @@
  * Created as part of Task #570: Split GameScreen component.
  */
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Alert } from 'react-native';
+import { Alert, InteractionManager } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRoute, RouteProp, useNavigation, useIsFocused } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -608,12 +608,17 @@ export function MultiplayerGame() {
       }
     };
 
-    // Fire-and-forget: the async retry chain manages its own lifecycle via the
-    // cancelled flag and retryTimerResolve; we don't need to await it here.
-    void connectWithRetry(0);
+    // Defer until the navigation animation finishes so connectWithRetry doesn't
+    // run during an active Fabric navigation transaction. Concurrent async state
+    // updates during a transaction cause EXC_BAD_ACCESS crashes in
+    // Scheduler::uiManagerDidFinishTransaction / RuntimeScheduler_Modern::updateRendering.
+    const interactionHandle = InteractionManager.runAfterInteractions(() => {
+      if (!cancelled) void connectWithRetry(0);
+    });
 
     return () => {
       cancelled = true;
+      interactionHandle.cancel();
       suppressConnectErrorsRef.current = false;
       if (retryTimer !== null) {
         clearTimeout(retryTimer);

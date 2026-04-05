@@ -166,6 +166,7 @@ export function useDisconnectDetection({
   // at its last known value so the yellow ring persists through loading.
   const localPlayerWasActiveRef = useRef<boolean>(false);
 
+  const localSeatPlayerIndex = layoutPlayers[0]?.player_index;
   useEffect(() => {
     if (multiplayerGameState?.turn_started_at) {
       lastTurnStartedAtRef.current = multiplayerGameState.turn_started_at;
@@ -173,14 +174,14 @@ export function useDisconnectDetection({
     // Only update the was-active flag when gameState is authoritative.
     if (multiplayerGameState !== null) {
       const currentTurn = multiplayerGameState.current_turn;
-      const localIdx = layoutPlayers[0]?.player_index;
-      localPlayerWasActiveRef.current = typeof currentTurn === 'number' && currentTurn === localIdx;
+      localPlayerWasActiveRef.current =
+        typeof currentTurn === 'number' && currentTurn === localSeatPlayerIndex;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     multiplayerGameState?.turn_started_at,
     multiplayerGameState?.current_turn,
-    layoutPlayers[0]?.player_index,
+    localSeatPlayerIndex,
   ]);
 
   // ── 6.2: Hold-timer for local-player "effectively active" state ───────────

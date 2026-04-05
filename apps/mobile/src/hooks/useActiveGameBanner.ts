@@ -28,6 +28,11 @@ type HomeNavProp = StackNavigationProp<RootStackParamList, 'Home'>;
 // Single source of truth for the AsyncStorage key.
 export const VOLUNTARILY_LEFT_ROOMS_KEY = '@big2_voluntarily_left_rooms';
 
+// Cached disconnect timer start time — written by useGameCleanup immediately after
+// mark-disconnected succeeds so the HomeScreen banner can show the countdown
+// without waiting for the get-rejoin-status edge-function round-trip (~5 s).
+export const DISCONNECT_TIMER_KEY = '@big2_disconnect_timer_started_at';
+
 export interface UseActiveGameBannerResult {
   currentRoom: string | null;
   setCurrentRoom: React.Dispatch<React.SetStateAction<string | null>>;
@@ -153,6 +158,23 @@ export function useActiveGameBanner(
         setCurrentRoom(roomData.rooms.code);
         setCurrentRoomStatus(roomData.rooms.status as 'waiting' | 'playing');
         if (roomData.rooms.status === 'playing') {
+          // Optimistically apply the cached disconnect timestamp so the countdown
+          // appears immediately without waiting for the get-rejoin-status round-trip.
+          try {
+            const cachedTs = await AsyncStorage.getItem(DISCONNECT_TIMER_KEY);
+            if (cachedTs) {
+              const ts = Number(cachedTs);
+              const ageMs = Date.now() - ts;
+              if (ageMs >= 0 && ageMs <= 65_000) {
+                setDisconnectTimestamp(ts);
+              } else {
+                // Stale entry — discard so it doesn't flash an expired countdown.
+                AsyncStorage.removeItem(DISCONNECT_TIMER_KEY).catch(() => {});
+              }
+            }
+          } catch {
+            // Ignore storage errors — fall back to server-side timestamp.
+          }
           try {
             const { data: statusData } = await supabase.functions.invoke('get-rejoin-status', {
               body: { room_id: roomData.room_id },
@@ -175,15 +197,18 @@ export function useActiveGameBanner(
                     : null;
                 setDisconnectTimestamp(serverAnchorMs);
               } else if (statusData.status === 'replaced_by_bot') {
+                AsyncStorage.removeItem(DISCONNECT_TIMER_KEY).catch(() => {});
                 setDisconnectTimestamp(null);
                 setCanRejoinAfterExpiry(true);
               } else if (statusData.status === 'room_closed') {
+                AsyncStorage.removeItem(DISCONNECT_TIMER_KEY).catch(() => {});
                 setCurrentRoom(null);
                 setCurrentRoomStatus(undefined);
                 setDisconnectTimestamp(null);
                 setCanRejoinAfterExpiry(null);
               } else {
                 // 'connected' — mark-disconnected may still be in-flight. Poll once.
+                AsyncStorage.removeItem(DISCONNECT_TIMER_KEY).catch(() => {});
                 setDisconnectTimestamp(null);
                 if (!hasScheduledRecheckRef.current) {
                   hasScheduledRecheckRef.current = true;

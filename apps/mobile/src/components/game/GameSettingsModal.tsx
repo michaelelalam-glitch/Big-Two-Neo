@@ -57,7 +57,7 @@ function GameSettingsModalComponent({
   visible,
   onClose,
   onLeaveGame,
-  roomCode,
+  roomCode: _roomCode,
   isInChatSession = false,
   isLocalMicOn = false,
   isLocalCameraOn = false,
