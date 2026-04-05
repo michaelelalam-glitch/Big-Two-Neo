@@ -43,7 +43,6 @@ function computeRemainingMs(
 ): number {
   const endTimestamp = timerState.end_timestamp;
   if (typeof endTimestamp === 'number') {
-    const durationMs = timerState.duration_ms || 10000;
     if (!isSynced) {
       // Clock sync hasn't settled yet — use local Date.now() as a best-effort fallback
       // rather than returning full durationMs, which causes the ring to flash full on reconnect.

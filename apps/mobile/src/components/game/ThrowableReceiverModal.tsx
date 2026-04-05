@@ -182,7 +182,7 @@ export function ThrowableReceiverModal({
             </Animated.Text>
 
             {/* Label */}
-            <Text style={styles.label}>{i18n.t(SPLAT_KEY[throwable] as any)}</Text>
+            <Text style={styles.label}>{i18n.t(SPLAT_KEY[throwable])}</Text>
 
             {/* From-name attribution */}
             <Text style={styles.from}>{i18n.t('game.throwAtYou', { name: fromName })}</Text>
