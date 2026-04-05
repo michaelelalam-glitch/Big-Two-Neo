@@ -45,6 +45,14 @@ DECLARE
   v_collision_tries INTEGER := 0;
   v_max_retries     INTEGER := 5;
 BEGIN
+  -- ── Guard: p_user_id must match the authenticated caller ──────────────
+  -- Prevents spoofing: an authenticated user cannot impersonate a different
+  -- user_id because auth.uid() is derived from the JWT, not the argument.
+  -- service_role connections return NULL for auth.uid(); they bypass this check.
+  IF auth.uid() IS NOT NULL AND p_user_id != auth.uid() THEN
+    RAISE EXCEPTION 'get_or_create_rematch_room: p_user_id does not match authenticated user';
+  END IF;
+
   -- ── Guard: verify caller participated in the source room ───────────────
   -- Prevents abuse of the SECURITY DEFINER function with arbitrary room UUIDs.
   -- game_history persists after cleanup_empty_rooms deletes the source room;
