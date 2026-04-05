@@ -10,6 +10,7 @@
 --
 --   supabase/migrations/20260719000001_fix_casual_rank_points.sql
 --   supabase/migrations/20260719000005_recalculate_rank_from_reset_date.sql
+--   supabase/migrations/20260719000007_add_current_player_default.sql  (game_state column backfill)
 --
 -- This placeholder preserves the migration timeline so that
 -- `supabase db reset` applies files in order without gaps.

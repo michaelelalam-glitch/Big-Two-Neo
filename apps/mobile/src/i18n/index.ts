@@ -838,6 +838,7 @@ export interface Translations {
     friendRequest: string;
     sentYouARequest: string;
     requestAlreadyHandled: string;
+    throttle: string;
     requestReceived: string;
     inviteFriends: string;
     noFriendsToInvite: string;
@@ -1636,6 +1637,7 @@ const en: Translations = {
     friendRequest: 'Friend Request',
     sentYouARequest: 'sent you a friend request.',
     requestAlreadyHandled: 'This request has already been handled or you do not have permission.',
+    throttle: 'Please wait before sending another request.',
     requestReceived: 'Request Received',
     inviteFriends: '👥 Invite Friends',
     noFriendsToInvite: 'All your friends are already in this room.',
@@ -2447,6 +2449,7 @@ const ar: Translations = {
     friendRequest: 'طلب صداقة',
     sentYouARequest: 'أرسل لك طلب صداقة.',
     requestAlreadyHandled: 'تمت معالجة هذا الطلب مسبقاً أو ليس لديك الصلاحية.',
+    throttle: 'يرجى الانتظار قبل إرسال طلب آخر.',
     requestReceived: 'طلب مستلم',
     inviteFriends: '👥 دعوة الأصدقاء',
     noFriendsToInvite: 'جميع أصدقائك موجودون بالفعل في هذه الغرفة.',
@@ -3293,6 +3296,7 @@ const de: Translations = {
     sentYouARequest: 'hat dir eine Freundschaftsanfrage gesendet.',
     requestAlreadyHandled:
       'Diese Anfrage wurde bereits bearbeitet oder du hast keine Berechtigung.',
+    throttle: 'Bitte warte, bevor du eine weitere Anfrage sendest.',
     requestReceived: 'Anfrage erhalten',
     inviteFriends: '👥 Freunde einladen',
     noFriendsToInvite: 'Alle deine Freunde befinden sich bereits in diesem Raum.',

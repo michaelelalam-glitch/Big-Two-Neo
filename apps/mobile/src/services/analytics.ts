@@ -31,9 +31,18 @@ import { supabase } from './supabase';
 // ─── Session cache ─────────────────────────────────────────────────────────── //
 // Avoids calling supabase.auth.getSession() (AsyncStorage read) on every event.
 let _hasSession = false;
-supabase.auth.onAuthStateChange((_event, session) => {
-  _hasSession = !!session?.access_token;
-});
+// Unsubscribe any previous listener before registering a new one.
+// This guards against duplicate registrations under React Fast Refresh:
+// module-level code re-runs on every hot reload, but the Supabase auth
+// singleton persists, so without this guard listeners accumulate.
+const _ag = globalThis as { __analyticsAuthSub?: { unsubscribe(): void } };
+_ag.__analyticsAuthSub?.unsubscribe();
+const { data: { subscription: _authSub } } = supabase.auth.onAuthStateChange(
+  (_event, session) => {
+    _hasSession = !!session?.access_token;
+  },
+);
+_ag.__analyticsAuthSub = _authSub;
 // Seed the initial value asynchronously
 supabase.auth.getSession().then(({ data }) => {
   _hasSession = !!data?.session?.access_token;

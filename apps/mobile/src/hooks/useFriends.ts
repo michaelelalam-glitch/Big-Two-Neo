@@ -231,7 +231,7 @@ export function useFriends(): UseFriendsResult {
       if (!user?.id) return;
       const now = Date.now();
       if (now - lastRequestTimeRef.current < FRIEND_REQUEST_THROTTLE_MS) {
-        throw new Error('Please wait before sending another request');
+        throw new Error(i18n.t('friends.throttle'));
       }
       lastRequestTimeRef.current = now;
       const { error } = await supabase

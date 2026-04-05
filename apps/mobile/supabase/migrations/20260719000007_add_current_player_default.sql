@@ -15,78 +15,78 @@
 --      CONSTRAINT (uses SHARE UPDATE EXCLUSIVE, less disruptive)
 
 -- current_player: NOT NULL, CHECK (0–3), DEFAULT 0
-ALTER TABLE game_state ADD COLUMN IF NOT EXISTS current_player INTEGER;
-UPDATE game_state SET current_player = 0 WHERE current_player IS NULL;
-ALTER TABLE game_state ALTER COLUMN current_player SET NOT NULL;
-ALTER TABLE game_state ALTER COLUMN current_player SET DEFAULT 0;
+ALTER TABLE public.game_state ADD COLUMN IF NOT EXISTS current_player INTEGER;
+UPDATE public.game_state SET current_player = 0 WHERE current_player IS NULL;
+ALTER TABLE public.game_state ALTER COLUMN current_player SET NOT NULL;
+ALTER TABLE public.game_state ALTER COLUMN current_player SET DEFAULT 0;
 -- Add 0-3 range CHECK (matching baseline) only if not already present.
 -- NOT VALID skips existing rows; VALIDATE uses a less-disruptive SHARE UPDATE lock.
 DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
-    WHERE conrelid = 'game_state'::regclass
+    WHERE conrelid = 'public.game_state'::regclass
       AND conname = 'game_state_current_player_range'
   ) THEN
-    ALTER TABLE game_state
+    ALTER TABLE public.game_state
       ADD CONSTRAINT game_state_current_player_range
       CHECK (current_player >= 0 AND current_player < 4) NOT VALID;
   END IF;
 END $$;
-ALTER TABLE game_state VALIDATE CONSTRAINT game_state_current_player_range;
+ALTER TABLE public.game_state VALIDATE CONSTRAINT game_state_current_player_range;
 
 -- scores: JSONB NOT NULL DEFAULT '[0,0,0,0]'
-ALTER TABLE game_state ADD COLUMN IF NOT EXISTS scores JSONB;
-UPDATE game_state SET scores = '[0, 0, 0, 0]'::jsonb WHERE scores IS NULL;
-ALTER TABLE game_state ALTER COLUMN scores SET NOT NULL;
-ALTER TABLE game_state ALTER COLUMN scores SET DEFAULT '[0, 0, 0, 0]'::jsonb;
+ALTER TABLE public.game_state ADD COLUMN IF NOT EXISTS scores JSONB;
+UPDATE public.game_state SET scores = '[0, 0, 0, 0]'::jsonb WHERE scores IS NULL;
+ALTER TABLE public.game_state ALTER COLUMN scores SET NOT NULL;
+ALTER TABLE public.game_state ALTER COLUMN scores SET DEFAULT '[0, 0, 0, 0]'::jsonb;
 
 -- round: INTEGER NOT NULL DEFAULT 1
-ALTER TABLE game_state ADD COLUMN IF NOT EXISTS round INTEGER;
-UPDATE game_state SET round = 1 WHERE round IS NULL;
-ALTER TABLE game_state ALTER COLUMN round SET NOT NULL;
-ALTER TABLE game_state ALTER COLUMN round SET DEFAULT 1;
+ALTER TABLE public.game_state ADD COLUMN IF NOT EXISTS round INTEGER;
+UPDATE public.game_state SET round = 1 WHERE round IS NULL;
+ALTER TABLE public.game_state ALTER COLUMN round SET NOT NULL;
+ALTER TABLE public.game_state ALTER COLUMN round SET DEFAULT 1;
 
 -- passes: INTEGER NOT NULL DEFAULT 0
-ALTER TABLE game_state ADD COLUMN IF NOT EXISTS passes INTEGER;
-UPDATE game_state SET passes = 0 WHERE passes IS NULL;
-ALTER TABLE game_state ALTER COLUMN passes SET NOT NULL;
-ALTER TABLE game_state ALTER COLUMN passes SET DEFAULT 0;
+ALTER TABLE public.game_state ADD COLUMN IF NOT EXISTS passes INTEGER;
+UPDATE public.game_state SET passes = 0 WHERE passes IS NULL;
+ALTER TABLE public.game_state ALTER COLUMN passes SET NOT NULL;
+ALTER TABLE public.game_state ALTER COLUMN passes SET DEFAULT 0;
 
 -- passes_in_row: INTEGER NOT NULL DEFAULT 0
-ALTER TABLE game_state ADD COLUMN IF NOT EXISTS passes_in_row INTEGER;
-UPDATE game_state SET passes_in_row = 0 WHERE passes_in_row IS NULL;
-ALTER TABLE game_state ALTER COLUMN passes_in_row SET NOT NULL;
-ALTER TABLE game_state ALTER COLUMN passes_in_row SET DEFAULT 0;
+ALTER TABLE public.game_state ADD COLUMN IF NOT EXISTS passes_in_row INTEGER;
+UPDATE public.game_state SET passes_in_row = 0 WHERE passes_in_row IS NULL;
+ALTER TABLE public.game_state ALTER COLUMN passes_in_row SET NOT NULL;
+ALTER TABLE public.game_state ALTER COLUMN passes_in_row SET DEFAULT 0;
 
 -- last_play / last_player: nullable (no further constraints)
-ALTER TABLE game_state ADD COLUMN IF NOT EXISTS last_play JSONB;
-ALTER TABLE game_state ADD COLUMN IF NOT EXISTS last_player INTEGER;
+ALTER TABLE public.game_state ADD COLUMN IF NOT EXISTS last_play JSONB;
+ALTER TABLE public.game_state ADD COLUMN IF NOT EXISTS last_player INTEGER;
 
 -- play_history: JSONB NOT NULL DEFAULT '[]'
-ALTER TABLE game_state ADD COLUMN IF NOT EXISTS play_history JSONB;
-UPDATE game_state SET play_history = '[]'::jsonb WHERE play_history IS NULL;
-ALTER TABLE game_state ALTER COLUMN play_history SET NOT NULL;
-ALTER TABLE game_state ALTER COLUMN play_history SET DEFAULT '[]'::jsonb;
+ALTER TABLE public.game_state ADD COLUMN IF NOT EXISTS play_history JSONB;
+UPDATE public.game_state SET play_history = '[]'::jsonb WHERE play_history IS NULL;
+ALTER TABLE public.game_state ALTER COLUMN play_history SET NOT NULL;
+ALTER TABLE public.game_state ALTER COLUMN play_history SET DEFAULT '[]'::jsonb;
 
 -- round_number: INTEGER NOT NULL DEFAULT 1
-ALTER TABLE game_state ADD COLUMN IF NOT EXISTS round_number INTEGER;
-UPDATE game_state SET round_number = 1 WHERE round_number IS NULL;
-ALTER TABLE game_state ALTER COLUMN round_number SET NOT NULL;
-ALTER TABLE game_state ALTER COLUMN round_number SET DEFAULT 1;
+ALTER TABLE public.game_state ADD COLUMN IF NOT EXISTS round_number INTEGER;
+UPDATE public.game_state SET round_number = 1 WHERE round_number IS NULL;
+ALTER TABLE public.game_state ALTER COLUMN round_number SET NOT NULL;
+ALTER TABLE public.game_state ALTER COLUMN round_number SET DEFAULT 1;
 
 -- dealer_index: INTEGER NOT NULL DEFAULT 0
-ALTER TABLE game_state ADD COLUMN IF NOT EXISTS dealer_index INTEGER;
-UPDATE game_state SET dealer_index = 0 WHERE dealer_index IS NULL;
-ALTER TABLE game_state ALTER COLUMN dealer_index SET NOT NULL;
-ALTER TABLE game_state ALTER COLUMN dealer_index SET DEFAULT 0;
+ALTER TABLE public.game_state ADD COLUMN IF NOT EXISTS dealer_index INTEGER;
+UPDATE public.game_state SET dealer_index = 0 WHERE dealer_index IS NULL;
+ALTER TABLE public.game_state ALTER COLUMN dealer_index SET NOT NULL;
+ALTER TABLE public.game_state ALTER COLUMN dealer_index SET DEFAULT 0;
 
 -- game_started_at: TIMESTAMPTZ NOT NULL DEFAULT NOW()
 -- Added nullable first to avoid volatile-default table rewrite lock.
-ALTER TABLE game_state ADD COLUMN IF NOT EXISTS game_started_at TIMESTAMPTZ;
-UPDATE game_state SET game_started_at = NOW() WHERE game_started_at IS NULL;
-ALTER TABLE game_state ALTER COLUMN game_started_at SET NOT NULL;
-ALTER TABLE game_state ALTER COLUMN game_started_at SET DEFAULT NOW();
+ALTER TABLE public.game_state ADD COLUMN IF NOT EXISTS game_started_at TIMESTAMPTZ;
+UPDATE public.game_state SET game_started_at = NOW() WHERE game_started_at IS NULL;
+ALTER TABLE public.game_state ALTER COLUMN game_started_at SET NOT NULL;
+ALTER TABLE public.game_state ALTER COLUMN game_started_at SET DEFAULT NOW();
 
 -- Signal PostgREST to reload its schema cache immediately.
 NOTIFY pgrst, 'reload schema';
