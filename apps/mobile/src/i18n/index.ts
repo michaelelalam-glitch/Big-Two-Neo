@@ -1571,7 +1571,7 @@ const en: Translations = {
     signInWithGoogle: 'Sign in with Google',
     signInWithApple: 'Sign in with Apple',
     orContinueWith: 'Or continue with',
-    agreeToTerms: 'By signing up, you agree to our Terms of Service and Privacy Policy',
+    agreeToTerms: 'By continuing, you agree to our Terms of Service and Privacy Policy',
   },
   matchmaking: {
     title: 'Find Match',
@@ -2295,7 +2295,7 @@ const ar: Translations = {
     signInWithGoogle: 'تسجيل الدخول باستخدام Google',
     signInWithApple: 'تسجيل الدخول باستخدام Apple',
     orContinueWith: 'أو تابع باستخدام',
-    agreeToTerms: 'من خلال التسجيل، فإنك توافق على شروط الخدمة وسياسة الخصوصية الخاصة بنا',
+    agreeToTerms: 'بالمتابعة، فإنك توافق على شروط الخدمة وسياسة الخصوصية الخاصة بنا',
   },
   matchmaking: {
     title: 'البحث عن مباراة',
@@ -3133,7 +3133,7 @@ const de: Translations = {
     signInWithApple: 'Mit Apple anmelden',
     orContinueWith: 'Oder fortfahren mit',
     agreeToTerms:
-      'Mit der Registrierung stimmst du unseren Nutzungsbedingungen und Datenschutzrichtlinien zu',
+      'Durch Fortfahren stimmst du unseren Nutzungsbedingungen und Datenschutzrichtlinien zu',
   },
   matchmaking: {
     title: 'Spiel finden',
