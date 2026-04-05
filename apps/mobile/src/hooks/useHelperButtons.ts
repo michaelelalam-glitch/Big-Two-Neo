@@ -2,7 +2,7 @@
  * @module useHelperButtons
  * Provides Sort, Smart Sort, and Hint button handlers for the game screen.
  */
-import { Platform, ToastAndroid } from 'react-native';
+import { Alert, Platform, ToastAndroid } from 'react-native';
 import { hapticManager, HapticType } from '../utils';
 import { sortHandLowestToHighest, smartSortHand, findHintPlay } from '../utils/helperButtonUtils';
 import { gameLogger } from '../utils/logger';
@@ -123,7 +123,8 @@ export function useHelperButtons({
       } else if (onAlert) {
         onAlert({ message: i18n.t('game.hintNoValidPlay') });
       } else {
-        // iOS fallback with no onAlert registered (shouldn't happen in practice)
+        // Fallback: onAlert not wired up yet — use native Alert so the user always sees feedback.
+        Alert.alert(i18n.t('game.hintNoValidPlay'));
       }
 
       trackEvent('hint_no_valid_play', {

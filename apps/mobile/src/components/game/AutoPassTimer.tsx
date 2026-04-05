@@ -43,11 +43,11 @@ function computeRemainingMs(
 ): number {
   const endTimestamp = timerState.end_timestamp;
   if (typeof endTimestamp === 'number') {
-    if (!isSynced) {
-      // Clock sync hasn't settled yet — use local Date.now() as a best-effort fallback
-      // rather than returning full durationMs, which causes the ring to flash full on reconnect.
-      return Math.max(0, endTimestamp - Date.now());
-    }
+    // end_timestamp is the server-side epoch-ms deadline.
+    // getCorrectedNow() = Date.now() + NTP_drift ≈ server_now — correct for all
+    // players regardless of join time (early, late, or after reconnect).
+    // NTP drift is device-specific and time-independent; it does NOT include
+    // elapsed time since timer creation, so there is no "full ring on rejoin" risk.
     return Math.max(0, endTimestamp - getCorrectedNow());
   }
   // Fallback path (no end_timestamp): use started_at.

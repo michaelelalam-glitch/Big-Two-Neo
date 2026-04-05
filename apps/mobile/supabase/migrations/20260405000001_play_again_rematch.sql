@@ -29,7 +29,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS rooms_rematch_for_room_id_unique
   WHERE rematch_for_room_id IS NOT NULL;
 
 -- ── 2. Atomic RPC ─────────────────────────────────────────────────────────
-CREATE OR REPLACE FUNCTION get_or_create_rematch_room(
+CREATE OR REPLACE FUNCTION public.get_or_create_rematch_room(
   p_source_room_id  UUID,
   p_user_id         UUID,
   p_username        TEXT,

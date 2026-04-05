@@ -24,7 +24,7 @@ ALTER TABLE rooms
 -- ── 2. Revoke public access + re-create function with correct search_path ──
 REVOKE EXECUTE ON FUNCTION public.get_or_create_rematch_room(UUID, UUID, TEXT, BOOLEAN, BOOLEAN, BOOLEAN) FROM PUBLIC;
 
-CREATE OR REPLACE FUNCTION get_or_create_rematch_room(
+CREATE OR REPLACE FUNCTION public.get_or_create_rematch_room(
   p_source_room_id  UUID,
   p_user_id         UUID,
   p_username        TEXT,
