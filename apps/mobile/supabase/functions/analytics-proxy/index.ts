@@ -21,29 +21,33 @@ const MP_ENDPOINT = 'https://www.google-analytics.com/mp/collect';
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// Simple per-IP rate limiter: max 60 requests per minute.
-// Entries are auto-evicted when their window expires; a periodic sweep caps
-// the map at 10 000 entries to bound memory in long-lived workers.
+// Per-user rate limiter: max 60 requests per minute per authenticated user.
+// Uses user.id (from JWT) instead of x-forwarded-for to avoid IP spoofing.
+// Entries are swept periodically to bound memory.
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 60;
 const RATE_LIMIT_MAP_CAP = 10_000;
+let _sweepCounter = 0;
 
-function isRateLimited(ip: string): boolean {
+function isRateLimited(userId: string): boolean {
   const now = Date.now();
-  const entry = rateLimitMap.get(ip);
+  const entry = rateLimitMap.get(userId);
   if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    // Periodic sweep: evict expired entries when map grows large
-    if (rateLimitMap.size > RATE_LIMIT_MAP_CAP) {
-      for (const [k, v] of rateLimitMap) {
-        if (now > v.resetAt) rateLimitMap.delete(k);
-      }
-    }
-    return false;
+    rateLimitMap.set(userId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+  } else {
+    entry.count += 1;
+    if (entry.count > RATE_LIMIT_MAX) return true;
   }
-  entry.count += 1;
-  return entry.count > RATE_LIMIT_MAX;
+  // Periodic sweep: every 100 requests OR when map exceeds cap
+  _sweepCounter += 1;
+  if (_sweepCounter >= 100 || rateLimitMap.size > RATE_LIMIT_MAP_CAP) {
+    _sweepCounter = 0;
+    for (const [k, v] of rateLimitMap) {
+      if (now > v.resetAt) rateLimitMap.delete(k);
+    }
+  }
+  return false;
 }
 
 Deno.serve(async (req) => {
@@ -78,6 +82,7 @@ Deno.serve(async (req) => {
   }
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { autoRefreshToken: false, persistSession: false },
   });
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) {
@@ -87,9 +92,8 @@ Deno.serve(async (req) => {
     );
   }
 
-  // Per-IP rate limiting: max 60 requests/minute
-  const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-  if (isRateLimited(clientIp)) {
+  // Per-user rate limiting (using authenticated user.id, not spoofable IP)
+  if (isRateLimited(user.id)) {
     return new Response(
       JSON.stringify({ error: 'Too many requests' }),
       { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
