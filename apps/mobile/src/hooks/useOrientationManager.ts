@@ -171,7 +171,9 @@ export function useOrientationManager(): OrientationManagerState {
 
   /**
    * Apply orientation lock
+   * Uses a ref-based guard to prevent concurrent lockAsync calls
    */
+  const isApplyingRef = useRef(false);
   const applyOrientation = async (mode: OrientationMode) => {
     // Skip if native module not available
     if (!ScreenOrientation || !ORIENTATION_LOCKS) {
@@ -179,6 +181,13 @@ export function useOrientationManager(): OrientationManagerState {
       return;
     }
 
+    // Prevent concurrent calls to lockAsync
+    if (isApplyingRef.current) {
+      gameLogger.warn('⚠️ [Orientation] applyOrientation already in progress, skipping');
+      return;
+    }
+
+    isApplyingRef.current = true;
     try {
       const lock = ORIENTATION_LOCKS[mode];
       await ScreenOrientation.lockAsync(lock);
@@ -188,6 +197,8 @@ export function useOrientationManager(): OrientationManagerState {
       setIsLocked(false);
       gameLogger.error(`❌ [Orientation] Failed to lock to ${mode}:`, error);
       throw error;
+    } finally {
+      isApplyingRef.current = false;
     }
   };
 

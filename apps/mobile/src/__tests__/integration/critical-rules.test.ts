@@ -43,14 +43,12 @@ jest.mock('../../utils/soundManager', () => ({
   },
 }));
 
-const SUPABASE_URL =
-  process.env.EXPO_PUBLIC_SUPABASE_URL ||
-  'https://dppybucldqufbqhwnkxu.supabase.co';
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 // Skip entire suite when credentials are absent (e.g., CI without service keys).
-const hasCredentials = !!SUPABASE_ANON_KEY && !!SUPABASE_SERVICE_ROLE_KEY;
+const hasCredentials = !!SUPABASE_URL && !!SUPABASE_ANON_KEY && !!SUPABASE_SERVICE_ROLE_KEY;
 const describeWithCredentials = hasCredentials ? describe : describe.skip;
 
 describeWithCredentials('Critical Multiplayer Rules - Server-Side Validation', () => {
@@ -74,9 +72,7 @@ describeWithCredentials('Critical Multiplayer Rules - Server-Side Validation', (
         email_confirm: true,
       });
       if (error || !data.user) {
-        throw new Error(
-          `Failed to create test auth user ${i}: ${error?.message}`
-        );
+        throw new Error(`Failed to create test auth user ${i}: ${error?.message}`);
       }
       authUserIds.push(data.user.id);
     }
@@ -112,10 +108,34 @@ describeWithCredentials('Critical Multiplayer Rules - Server-Side Validation', (
 
     // Create 4 players — use unique usernames to avoid global uniqueness conflicts
     const players = [
-      { room_id: testRoomId, user_id: authUserIds[0], username: `TestPlayer_${randomUUID().slice(0, 6)}`, player_index: 0, is_bot: false },
-      { room_id: testRoomId, user_id: authUserIds[1], username: `Bot1_${randomUUID().slice(0, 6)}`, player_index: 1, is_bot: true },
-      { room_id: testRoomId, user_id: authUserIds[2], username: `Bot2_${randomUUID().slice(0, 6)}`, player_index: 2, is_bot: true },
-      { room_id: testRoomId, user_id: authUserIds[3], username: `Bot3_${randomUUID().slice(0, 6)}`, player_index: 3, is_bot: true },
+      {
+        room_id: testRoomId,
+        user_id: authUserIds[0],
+        username: `TestPlayer_${randomUUID().slice(0, 6)}`,
+        player_index: 0,
+        is_bot: false,
+      },
+      {
+        room_id: testRoomId,
+        user_id: authUserIds[1],
+        username: `Bot1_${randomUUID().slice(0, 6)}`,
+        player_index: 1,
+        is_bot: true,
+      },
+      {
+        room_id: testRoomId,
+        user_id: authUserIds[2],
+        username: `Bot2_${randomUUID().slice(0, 6)}`,
+        player_index: 2,
+        is_bot: true,
+      },
+      {
+        room_id: testRoomId,
+        user_id: authUserIds[3],
+        username: `Bot3_${randomUUID().slice(0, 6)}`,
+        player_index: 3,
+        is_bot: true,
+      },
     ];
 
     const { data: createdPlayers, error: playersError } = await supabase
@@ -124,11 +144,9 @@ describeWithCredentials('Critical Multiplayer Rules - Server-Side Validation', (
       .select();
 
     if (playersError || !createdPlayers) {
-      throw new Error(
-        `Failed to create test players: ${playersError?.message}`
-      );
+      throw new Error(`Failed to create test players: ${playersError?.message}`);
     }
-    testPlayerIds = createdPlayers.map((p) => p.id);
+    testPlayerIds = createdPlayers.map(p => p.id);
 
     // Create initial game state with VALID schema values:
     //   game_phase: 'first_play' (valid CHECK value — 'in_progress' violates constraint!)
@@ -210,9 +228,7 @@ describeWithCredentials('Critical Multiplayer Rules - Server-Side Validation', (
         .eq('room_id', testRoomId);
 
       if (updateError) {
-        throw new Error(
-          `Failed to update game_state for test: ${updateError.message}`
-        );
+        throw new Error(`Failed to update game_state for test: ${updateError.message}`);
       }
 
       const { data, error } = await supabase.rpc('execute_pass_move', {

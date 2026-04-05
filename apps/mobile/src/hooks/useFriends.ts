@@ -12,7 +12,7 @@
  * on the friendships table so the list stays in sync across tabs.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { uiLogger } from '../utils/logger';
@@ -222,9 +222,18 @@ export function useFriends(): UseFriendsResult {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+  // Client-side throttle: max 1 friend request per 5 seconds
+  const lastRequestTimeRef = useRef(0);
+  const FRIEND_REQUEST_THROTTLE_MS = 5_000;
+
   const sendRequest = useCallback(
     async (userId: string) => {
       if (!user?.id) return;
+      const now = Date.now();
+      if (now - lastRequestTimeRef.current < FRIEND_REQUEST_THROTTLE_MS) {
+        throw new Error('Please wait before sending another request');
+      }
+      lastRequestTimeRef.current = now;
       const { error } = await supabase
         .from('friendships')
         .insert({ requester_id: user.id, addressee_id: userId, status: 'pending' });

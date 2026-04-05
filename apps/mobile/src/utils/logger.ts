@@ -33,13 +33,34 @@ try {
   }
 }
 
-// Define log levels
+// Define log levels — declared BEFORE sentryTransport so the reference is safe
+// even though JS hoisting would technically allow a forward reference.
 const levels = {
   debug: 0,
   info: 1,
   warn: 2,
   error: 3,
 } as const;
+
+// Sentry breadcrumb transport — used in production when FileSystem is unavailable.
+// Routes warn/error logs to Sentry breadcrumbs so they appear in crash reports.
+const sentryTransport: typeof consoleTransport = props => {
+  // Lazy import to avoid circular dependency with sentry.ts
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Sentry = require('@sentry/react-native');
+    const severity = props.level?.severity;
+    const message = typeof props.msg === 'string' ? props.msg : String(props.msg);
+    Sentry.addBreadcrumb({
+      message,
+      level: severity === levels.error ? 'error' : 'warning',
+      category: 'logger',
+    });
+  } catch {
+    // Sentry not available — fall back to console
+    consoleTransport(props);
+  }
+};
 
 // Separate configurations for dev and production
 // Colors are enabled on all platforms. sentry.ts `beforeBreadcrumb` already
@@ -67,7 +88,7 @@ const devConfig = {
 const prodConfig = {
   levels,
   severity: 'warn' as const, // Capture warn + error in production (important events)
-  transport: FileSystem ? fileAsyncTransport : consoleTransport,
+  transport: FileSystem ? fileAsyncTransport : sentryTransport,
   transportOptions: FileSystem
     ? {
         FS: FileSystem,

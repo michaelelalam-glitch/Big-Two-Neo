@@ -425,6 +425,7 @@ export interface Translations {
     autoPassHighestPlay: string;
     autoPassNoOneCanBeat: string;
     autoPassInlineMessage: string;
+    invalidMoveTitle: string;
     cannotPassTitle: string;
     cannotPassMessage: string;
     settings: string;
@@ -755,6 +756,8 @@ export interface Translations {
   auth: {
     signIn: string;
     signUp: string;
+    welcomeTitle: string;
+    welcomeSubtitle: string;
     email: string;
     password: string;
     confirmPassword: string;
@@ -1227,6 +1230,7 @@ const en: Translations = {
     autoPassHighestPlay: 'Highest Play:',
     autoPassNoOneCanBeat: 'No one can beat this play - {seconds}s to pass',
     autoPassInlineMessage: 'Highest Play: {{combo}} · auto pass in {{seconds}}s',
+    invalidMoveTitle: 'Invalid Move',
     cannotPassTitle: 'Cannot Pass',
     cannotPassMessage: 'Cannot pass when leading',
     settings: 'Settings',
@@ -1556,6 +1560,8 @@ const en: Translations = {
   auth: {
     signIn: 'Sign In',
     signUp: 'Sign Up',
+    welcomeTitle: 'Welcome to Big2',
+    welcomeSubtitle: 'Sign in to play with friends and track your progress',
     email: 'Email',
     password: 'Password',
     confirmPassword: 'Confirm Password',
@@ -1565,7 +1571,7 @@ const en: Translations = {
     signInWithGoogle: 'Sign in with Google',
     signInWithApple: 'Sign in with Apple',
     orContinueWith: 'Or continue with',
-    agreeToTerms: 'By signing up, you agree to our Terms of Service and Privacy Policy',
+    agreeToTerms: 'By continuing, you agree to our Terms of Service and Privacy Policy',
   },
   matchmaking: {
     title: 'Find Match',
@@ -1955,6 +1961,7 @@ const ar: Translations = {
     autoPassHighestPlay: 'أعلى لعبة:',
     autoPassNoOneCanBeat: 'لا أحد يستطيع التغلب على هذه اللعبة - {seconds} ثانية للمرور',
     autoPassInlineMessage: 'أعلى لعبة: {{combo}} · تمرير تلقائي في {{seconds}} ثانية',
+    invalidMoveTitle: 'حركة غير صالحة',
     cannotPassTitle: 'لا يمكن المرور',
     cannotPassMessage: 'لا يمكن المرور عند القيادة',
     settings: 'الإعدادات',
@@ -2277,6 +2284,8 @@ const ar: Translations = {
   auth: {
     signIn: 'تسجيل الدخول',
     signUp: 'اشتراك',
+    welcomeTitle: 'مرحبًا بك في Big2',
+    welcomeSubtitle: 'سجّل دخولك للعب مع الأصدقاء وتتبّع تقدمك',
     email: 'البريد الإلكتروني',
     password: 'كلمة المرور',
     confirmPassword: 'تأكيد كلمة المرور',
@@ -2286,7 +2295,7 @@ const ar: Translations = {
     signInWithGoogle: 'تسجيل الدخول باستخدام Google',
     signInWithApple: 'تسجيل الدخول باستخدام Apple',
     orContinueWith: 'أو تابع باستخدام',
-    agreeToTerms: 'من خلال التسجيل، فإنك توافق على شروط الخدمة وسياسة الخصوصية الخاصة بنا',
+    agreeToTerms: 'بالمتابعة، فإنك توافق على شروط الخدمة وسياسة الخصوصية الخاصة بنا',
   },
   matchmaking: {
     title: 'البحث عن مباراة',
@@ -2775,6 +2784,7 @@ const de: Translations = {
     autoPassHighestPlay: 'Höchstes Spiel:',
     autoPassNoOneCanBeat: 'Niemand kann dieses Spiel schlagen - {seconds}s zum Passen',
     autoPassInlineMessage: 'Höchstes Spiel: {{combo}} · auto-pass in {{seconds}}s',
+    invalidMoveTitle: 'Ungültiger Zug',
     cannotPassTitle: 'Kann nicht passen',
     cannotPassMessage: 'Kann beim Führen nicht passen',
     settings: 'Einstellungen',
@@ -3110,6 +3120,9 @@ const de: Translations = {
   auth: {
     signIn: 'Anmelden',
     signUp: 'Registrieren',
+    welcomeTitle: 'Willkommen bei Big2',
+    welcomeSubtitle:
+      'Melde dich an, um mit Freunden zu spielen und deinen Fortschritt zu verfolgen',
     email: 'E-Mail',
     password: 'Passwort',
     confirmPassword: 'Passwort bestätigen',
@@ -3120,7 +3133,7 @@ const de: Translations = {
     signInWithApple: 'Mit Apple anmelden',
     orContinueWith: 'Oder fortfahren mit',
     agreeToTerms:
-      'Mit der Registrierung stimmst du unseren Nutzungsbedingungen und Datenschutzrichtlinien zu',
+      'Durch Fortfahren stimmst du unseren Nutzungsbedingungen und Datenschutzrichtlinien zu',
   },
   matchmaking: {
     title: 'Spiel finden',

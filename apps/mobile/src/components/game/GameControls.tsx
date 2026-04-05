@@ -111,7 +111,7 @@ function GameControlsComponent({
 
         // Show user-friendly error
         soundManager.playSound(SoundType.INVALID_MOVE);
-        Alert.alert('Invalid Move', displayMessage);
+        Alert.alert(i18n.t('game.invalidMoveTitle'), displayMessage);
       } finally {
         // Release lock after short delay to prevent rapid double-taps
         setTimeout(() => {
@@ -159,7 +159,7 @@ function GameControlsComponent({
       }
       // Only log error message/code to avoid exposing game state internals
       gameLogger.error('❌ [GameControls] Failed to pass:', errorMessage);
-      Alert.alert('Cannot Pass', errorMessage);
+      Alert.alert(i18n.t('game.cannotPassTitle'), errorMessage);
     } finally {
       setTimeout(() => {
         if (isMounted.current) {

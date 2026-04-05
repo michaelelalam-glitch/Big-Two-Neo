@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, StatusBar, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppleSignInButton from '../components/auth/AppleSignInButton';
 import GoogleSignInButton from '../components/auth/GoogleSignInButton';
+import { i18n } from '../i18n';
 
 const SignInScreen = () => {
   return (
@@ -11,10 +12,10 @@ const SignInScreen = () => {
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={styles.title} testID="sign-in-title">
-            Welcome to Big2
+            {i18n.t('auth.welcomeTitle')}
           </Text>
           <Text style={styles.subtitle} testID="sign-in-subtitle">
-            Sign in to play with friends and track your progress
+            {i18n.t('auth.welcomeSubtitle')}
           </Text>
         </View>
 
@@ -32,7 +33,7 @@ const SignInScreen = () => {
 
         <View style={styles.footer}>
           <Text style={styles.footerText} testID="sign-in-footer">
-            By signing in, you agree to our Terms of Service and Privacy Policy
+            {i18n.t('auth.agreeToTerms')}
           </Text>
         </View>
       </View>

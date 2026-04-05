@@ -1,0 +1,96 @@
+# Flow 12: Full Multiplayer Game Flow (Room Create → Join → Play → Win → Scores → Rematch)
+# Validates: End-to-end multiplayer game lifecycle
+# Tags: multiplayer, critical-path, e2e
+#
+# Prerequisites:
+#   - User is authenticated
+#   - Network connectivity available
+#   - Second device/simulator NOT required — creates room and starts offline bots
+#
+# Note: This flow tests the UI flow of creating a private room, starting with
+# bots (auto-filled), playing through a game, and the post-game flow.
+
+appId: com.big2mobile.app
+tags:
+  - multiplayer
+  - critical-path
+  - e2e
+---
+# Step 1: Launch app and wait for home screen
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+
+# Step 2: Select Chinese Poker
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Step 3: Create a private room
+- tapOn: "Create Room"
+- extendedWaitUntil:
+    visible: "Room Code"
+    timeout: 10000
+
+# Step 4: Verify lobby elements
+- assertVisible: "Start Game"
+- assertVisible: "Room Code"
+
+# Step 5: Start game (with bots auto-filling empty seats)
+- tapOn: "Start Game"
+
+# Step 6: Verify game board loads
+- extendedWaitUntil:
+    visible: "Pass"
+    timeout: 20000
+
+# Step 7: Play a card (tap first card in hand, then play)
+# Cards have testID "card-{index}" — tap first card
+- tapOn:
+    id: "card-0"
+- extendedWaitUntil:
+    visible: "Play"
+    timeout: 5000
+- tapOn: "Play"
+
+# Step 8: Wait for game to progress (bots play automatically)
+# The game will continue with bot turns until completion
+- extendedWaitUntil:
+    visible:
+      anyOf:
+        - "Game Over"
+        - "Pass"
+    timeout: 60000
+
+# Step 9: If game is still going, keep passing to let bots finish
+- runFlow:
+    when:
+      visible: "Pass"
+    commands:
+      - tapOn: "Pass"
+      - wait: 2000
+
+# Step 10: Verify game end screen shows scores
+- extendedWaitUntil:
+    visible: "Game Over"
+    timeout: 120000
+
+# Step 11: Verify score display
+- assertVisible:
+    anyOf:
+      - "Winner"
+      - "Scores"
+      - "Play Again"
+
+# Step 12: Test rematch flow
+- tapOn: "Play Again"
+- extendedWaitUntil:
+    visible: "Pass"
+    timeout: 20000
+
+# Step 13: Verify new game started (cards dealt)
+- assertVisible:
+    id: "card-0"

@@ -513,7 +513,23 @@ export function useVideoChat({
         );
 
         // Connect to the room and re-enable the tracks the player had on.
-        await adapterRef.current.connect(roomId, userId);
+        // Verify the room still exists by attempting to connect — if the token
+        // fetch fails (room deleted / expired), clear stale prefs and bail.
+        try {
+          await adapterRef.current.connect(roomId, userId);
+        } catch (connectErr) {
+          const errMsg = connectErr instanceof Error ? connectErr.message : String(connectErr);
+          gameLogger.warn(
+            '[VideoChat] Auto-restore connect failed (room may no longer exist):',
+            errMsg
+          );
+          // Clear stale prefs so we don't retry on every mount
+          if (chatPrefsKey) {
+            await AsyncStorage.removeItem(chatPrefsKey).catch(() => {});
+          }
+          if (!cancelled) setRestoreFinished(true);
+          return;
+        }
         if (cancelled) return;
 
         if (prefs.camera) {
@@ -681,7 +697,7 @@ export function useVideoChat({
           result.status === 'granted' ? 'granted' : !result.canAskAgain ? 'restricted' : 'denied';
         setCameraPermissionStatus(mapped);
         return mapped;
-      } catch {
+      } catch (expoCameraErr) {
         // expo-camera native module is not linked in this dev-client build
         // (the binary was compiled before expo-camera was added to the project).
         // Fall back to @livekit/react-native-webrtc's Permissions API, which IS
@@ -691,6 +707,10 @@ export function useVideoChat({
         // needed, and the iOS Settings entry for Camera is registered via the
         // Info.plist NSCameraUsageDescription key in app.json rather than by the
         // expo-camera plugin.
+        gameLogger.info(
+          '[VideoChat] expo-camera unavailable, falling back to WebRTC permissions:',
+          expoCameraErr instanceof Error ? expoCameraErr.message : String(expoCameraErr)
+        );
         try {
           /* eslint-disable @typescript-eslint/no-require-imports */
           const { permissions: webRTCPerms, mediaDevices: webRTCDevices } =
@@ -720,7 +740,11 @@ export function useVideoChat({
           stream.getTracks().forEach(t => t.stop()); // release tracks — only needed permission
           setCameraPermissionStatus('granted');
           return 'granted';
-        } catch {
+        } catch (webRTCErr) {
+          gameLogger.warn(
+            '[VideoChat] Camera permission WebRTC fallback failed:',
+            webRTCErr instanceof Error ? webRTCErr.message : String(webRTCErr)
+          );
           setCameraPermissionStatus('denied');
           return 'denied';
         }
@@ -794,7 +818,11 @@ export function useVideoChat({
         stream.getTracks().forEach(t => t.stop()); // release tracks — only needed permission
         setMicPermissionStatus('granted');
         return 'granted';
-      } catch {
+      } catch (micErr) {
+        gameLogger.warn(
+          '[VideoChat] Mic permission WebRTC fallback failed:',
+          micErr instanceof Error ? micErr.message : String(micErr)
+        );
         setMicPermissionStatus('denied');
         return 'denied';
       }
