@@ -28,6 +28,17 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { supabase } from './supabase';
 
+// ─── Session cache ─────────────────────────────────────────────────────────── //
+// Avoids calling supabase.auth.getSession() (AsyncStorage read) on every event.
+let _hasSession = false;
+supabase.auth.onAuthStateChange((_event, session) => {
+  _hasSession = !!session?.access_token;
+});
+// Seed the initial value asynchronously
+supabase.auth.getSession().then(({ data }) => {
+  _hasSession = !!data?.session?.access_token;
+});
+
 // ─── Configuration ─────────────────────────────────────────────────────────── //
 
 /** Firebase Measurement Protocol v2 endpoint (fallback for dev validation) */
@@ -336,10 +347,9 @@ async function sendEvents(
     let response: Response;
     if (USE_PROXY) {
       // Production: route through Supabase Edge Function (API_SECRET stays server-side).
-      // Short-circuit when no Supabase session exists (signed-out / first-launch flows)
-      // to avoid unnecessary 401 network churn.
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData?.session?.access_token) {
+      // Short-circuit when signed out — uses cached auth state to avoid
+      // per-event AsyncStorage reads from supabase.auth.getSession().
+      if (!_hasSession) {
         return;
       }
       const { data: _data, error } = await supabase.functions.invoke('analytics-proxy', {
