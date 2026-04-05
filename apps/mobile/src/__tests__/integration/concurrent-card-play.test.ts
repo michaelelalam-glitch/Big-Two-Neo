@@ -101,10 +101,10 @@ describeWithCredentials('Concurrent Card Play Stress Tests', () => {
       );
 
       // Create game state with current_turn = 0, populating all required NOT NULL columns
+      // (current_player defaults to 0 via migration 20260719000007)
       const { error: gsErr } = await supabase.from('game_state').insert({
         room_id: room.id,
         current_turn: 0,
-        current_player: 0,
         game_phase: 'playing',
         hands: {
           '0': ['3H', '4D', '5C'],
@@ -216,10 +216,10 @@ describeWithCredentials('Concurrent Card Play Stress Tests', () => {
 
       const dtPlayerRowId = insertedDTPlayers[0].id;
 
+      // (current_player defaults to 0 via migration 20260719000007)
       const { error: gsErr2 } = await supabase.from('game_state').insert({
         room_id: room.id,
         current_turn: 0,
-        current_player: 0,
         game_phase: 'playing',
         hands: { '0': ['3H', '4D', '5C'], '1': ['6H', '7D', '8C'], '2': ['9H'], '3': ['QH'] },
         played_cards: [],
