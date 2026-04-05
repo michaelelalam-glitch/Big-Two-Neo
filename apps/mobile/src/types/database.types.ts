@@ -122,6 +122,111 @@ export type Database = {
           },
         ];
       };
+      game_hands_training: {
+        Row: {
+          alternative_plays_available: number | null;
+          bot_difficulty: string | null;
+          cards_played: Json;
+          cards_remaining_after_play: number;
+          combo_key: number | null;
+          combo_type: string;
+          created_at: string;
+          game_ended_at: string | null;
+          game_session_id: string;
+          game_type: string | null;
+          hand_before_play: Json;
+          hand_size_before: number;
+          id: string;
+          is_bot: boolean;
+          is_first_play_of_game: boolean;
+          is_first_play_of_round: boolean;
+          last_play_before: Json | null;
+          last_play_combo_type: string | null;
+          opponent_hand_sizes: Json;
+          passes_before_this_play: number | null;
+          play_sequence: number;
+          player_hash: string | null;
+          player_index: number;
+          risk_score: number | null;
+          room_code: string | null;
+          room_id: string | null;
+          round_number: number;
+          total_cards_remaining: number;
+          was_highest_possible: boolean | null;
+          won_game: boolean | null;
+          won_round: boolean | null;
+          won_trick: boolean | null;
+        };
+        Insert: {
+          alternative_plays_available?: number | null;
+          bot_difficulty?: string | null;
+          cards_played: Json;
+          cards_remaining_after_play: number;
+          combo_key?: number | null;
+          combo_type: string;
+          created_at?: string;
+          game_ended_at?: string | null;
+          game_session_id: string;
+          game_type?: string | null;
+          hand_before_play: Json;
+          hand_size_before: number;
+          id?: string;
+          is_bot?: boolean;
+          is_first_play_of_game?: boolean;
+          is_first_play_of_round?: boolean;
+          last_play_before?: Json | null;
+          last_play_combo_type?: string | null;
+          opponent_hand_sizes: Json;
+          passes_before_this_play?: number | null;
+          play_sequence: number;
+          player_hash?: string | null;
+          player_index: number;
+          risk_score?: number | null;
+          room_code?: string | null;
+          room_id?: string | null;
+          round_number?: number;
+          total_cards_remaining: number;
+          was_highest_possible?: boolean | null;
+          won_game?: boolean | null;
+          won_round?: boolean | null;
+          won_trick?: boolean | null;
+        };
+        Update: {
+          alternative_plays_available?: number | null;
+          bot_difficulty?: string | null;
+          cards_played?: Json;
+          cards_remaining_after_play?: number;
+          combo_key?: number | null;
+          combo_type?: string;
+          created_at?: string;
+          game_ended_at?: string | null;
+          game_session_id?: string;
+          game_type?: string | null;
+          hand_before_play?: Json;
+          hand_size_before?: number;
+          id?: string;
+          is_bot?: boolean;
+          is_first_play_of_game?: boolean;
+          is_first_play_of_round?: boolean;
+          last_play_before?: Json | null;
+          last_play_combo_type?: string | null;
+          opponent_hand_sizes?: Json;
+          passes_before_this_play?: number | null;
+          play_sequence?: number;
+          player_hash?: string | null;
+          player_index?: number;
+          risk_score?: number | null;
+          room_code?: string | null;
+          room_id?: string | null;
+          round_number?: number;
+          total_cards_remaining?: number;
+          was_highest_possible?: boolean | null;
+          won_game?: boolean | null;
+          won_round?: boolean | null;
+          won_trick?: boolean | null;
+        };
+        Relationships: [];
+      };
       game_history: {
         Row: {
           bot_difficulty: string | null;
@@ -163,6 +268,7 @@ export type Database = {
           room_code: string;
           room_id: string | null;
           started_at: string;
+          stats_applied_at: string | null;
           total_rounds: number | null;
           voided_user_id: string | null;
           winner_id: string | null;
@@ -207,6 +313,7 @@ export type Database = {
           room_code: string;
           room_id?: string | null;
           started_at: string;
+          stats_applied_at?: string | null;
           total_rounds?: number | null;
           voided_user_id?: string | null;
           winner_id?: string | null;
@@ -251,6 +358,7 @@ export type Database = {
           room_code?: string;
           room_id?: string | null;
           started_at?: string;
+          stats_applied_at?: string | null;
           total_rounds?: number | null;
           voided_user_id?: string | null;
           winner_id?: string | null;
@@ -289,6 +397,7 @@ export type Database = {
           round_number: number | null;
           scores_history: Json;
           started_at: string | null;
+          total_training_actions: number;
           turn_started_at: string | null;
           updated_at: string | null;
           winner: number | null;
@@ -316,6 +425,7 @@ export type Database = {
           round_number?: number | null;
           scores_history?: Json;
           started_at?: string | null;
+          total_training_actions?: number;
           turn_started_at?: string | null;
           updated_at?: string | null;
           winner?: number | null;
@@ -343,6 +453,7 @@ export type Database = {
           round_number?: number | null;
           scores_history?: Json;
           started_at?: string | null;
+          total_training_actions?: number;
           turn_started_at?: string | null;
           updated_at?: string | null;
           winner?: number | null;
@@ -1224,6 +1335,7 @@ export type Database = {
           is_quick_play: boolean;
           max_players: number | null;
           ranked_mode: boolean | null;
+          rematch_for_room_id: string | null;
           room_code: string | null;
           settings: Json | null;
           started_at: string | null;
@@ -1246,6 +1358,7 @@ export type Database = {
           is_quick_play?: boolean;
           max_players?: number | null;
           ranked_mode?: boolean | null;
+          rematch_for_room_id?: string | null;
           room_code?: string | null;
           settings?: Json | null;
           started_at?: string | null;
@@ -1268,6 +1381,7 @@ export type Database = {
           is_quick_play?: boolean;
           max_players?: number | null;
           ranked_mode?: boolean | null;
+          rematch_for_room_id?: string | null;
           room_code?: string | null;
           settings?: Json | null;
           started_at?: string | null;
@@ -1287,6 +1401,13 @@ export type Database = {
             columns: ['host_player_id'];
             isOneToOne: false;
             referencedRelation: 'players';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'rooms_rematch_for_room_id_fkey';
+            columns: ['rematch_for_room_id'];
+            isOneToOne: false;
+            referencedRelation: 'rooms';
             referencedColumns: ['id'];
           },
         ];
@@ -1485,17 +1606,6 @@ export type Database = {
       generate_room_code: { Args: never; Returns: string };
       generate_room_code_v2: { Args: never; Returns: string };
       get_card_value: { Args: { p_card: Json }; Returns: number };
-      get_mutual_friends_count: {
-        Args: { p_other_user_id: string };
-        Returns: number;
-      };
-      get_mutual_friends_list: {
-        Args: { p_other_user_id: string };
-        Returns: {
-          friend_id: string;
-          username: string;
-        }[];
-      };
       get_leaderboard_casual: {
         Args: { p_limit?: number; p_offset?: number };
         Returns: {
@@ -1571,9 +1681,31 @@ export type Database = {
           win_rate: number;
         }[];
       };
+      get_mutual_friends_count: {
+        Args: { p_other_user_id: string };
+        Returns: number;
+      };
+      get_mutual_friends_list: {
+        Args: { p_other_user_id: string };
+        Returns: {
+          friend_id: string;
+          username: string;
+        }[];
+      };
       get_next_turn_after_three_passes: {
         Args: { p_game_state_id: string; p_last_passing_player_index: number };
         Returns: number;
+      };
+      get_or_create_rematch_room: {
+        Args: {
+          p_is_matchmaking: boolean;
+          p_is_public: boolean;
+          p_ranked_mode: boolean;
+          p_source_room_id: string;
+          p_user_id: string;
+          p_username: string;
+        };
+        Returns: Json;
       };
       get_or_create_room: {
         Args: {
@@ -1640,6 +1772,14 @@ export type Database = {
         Args: { p_room_id: string; p_user_id: string };
         Returns: Json;
       };
+      refresh_bot_coordinator_lease: {
+        Args: {
+          p_coordinator_id: string;
+          p_room_code: string;
+          p_timeout_seconds?: number;
+        };
+        Returns: boolean;
+      };
       refresh_leaderboard: { Args: never; Returns: undefined };
       release_bot_coordinator_lease: {
         Args: { p_coordinator_id: string; p_room_code: string };
@@ -1702,11 +1842,13 @@ export type Database = {
       };
       update_player_stats_after_game: {
         Args: {
+          p_bot_multiplier?: number;
           p_cards_left?: number;
           p_combos_played: Json;
           p_completed?: boolean;
           p_finish_position: number;
           p_game_type?: string;
+          p_ranked_elo_change?: number;
           p_score: number;
           p_user_id: string;
           p_voided?: boolean;

@@ -83,22 +83,48 @@ export function useMatchmakingFlow(
       setShowFindGameModal(false);
       setIsRankedSearching(true);
       try {
-        roomLogger.info('🧹 Cleaning up any zombie room_player entries...');
-        const { error: cleanupError } = await supabase
-          .from('room_players')
-          .delete()
-          .eq('user_id', user.id);
-        if (cleanupError) roomLogger.error('⚠️ Cleanup warning:', cleanupError.message);
+        roomLogger.info('🧹 Cleaning up any zombie matchmaking room_player entries...');
+        // 8.1: Scope cleanup to matchmaking+waiting entries only — avoids
+        // accidentally evicting the user from a mid-game session.
+        const { data: matchmakingRooms } = await supabase
+          .from('rooms')
+          .select('id')
+          .eq('status', 'waiting')
+          .eq('is_matchmaking', true);
+        const matchmakingRoomIds = (matchmakingRooms ?? []).map((r: { id: string }) => r.id);
+        if (matchmakingRoomIds.length > 0) {
+          const { error: cleanupError } = await supabase
+            .from('room_players')
+            .delete()
+            .eq('user_id', user.id)
+            .in('room_id', matchmakingRoomIds);
+          if (cleanupError) roomLogger.error('⚠️ Cleanup warning:', cleanupError.message);
+        }
 
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        const { data: stillInRoom } = await supabase
-          .from('room_players')
-          .select('room_id')
-          .eq('user_id', user.id)
-          .maybeSingle();
+        // Re-fetch matchmaking room IDs after the delete to verify cleanup.
+        const { data: remainingRooms } = await supabase
+          .from('rooms')
+          .select('id')
+          .eq('status', 'waiting')
+          .eq('is_matchmaking', true);
+        const remainingIds = (remainingRooms ?? []).map((r: { id: string }) => r.id);
+        let stillInRoom = null;
+        if (remainingIds.length > 0) {
+          const { data: check } = await supabase
+            .from('room_players')
+            .select('room_id')
+            .eq('user_id', user.id)
+            .in('room_id', remainingIds)
+            .maybeSingle();
+          stillInRoom = check;
+        }
         if (stillInRoom) {
-          roomLogger.error('❌ Cleanup failed - user still in room:', stillInRoom.room_id);
+          roomLogger.error(
+            '❌ Cleanup failed - user still in matchmaking room:',
+            (stillInRoom as { room_id: string }).room_id
+          );
           throw new Error('Failed to leave previous room. Please try again.');
         }
 
@@ -231,22 +257,48 @@ export function useMatchmakingFlow(
           }
         }
 
-        roomLogger.info('🧹 Cleaning up any zombie room_player entries...');
-        const { error: cleanupError } = await supabase
-          .from('room_players')
-          .delete()
-          .eq('user_id', user.id);
-        if (cleanupError) roomLogger.error('⚠️ Cleanup warning:', cleanupError.message);
+        roomLogger.info('🧹 Cleaning up any zombie matchmaking room_player entries...');
+        // 8.1: Scope cleanup to matchmaking+waiting entries only — avoids
+        // accidentally evicting the user from a mid-game session.
+        const { data: matchmakingRooms } = await supabase
+          .from('rooms')
+          .select('id')
+          .eq('status', 'waiting')
+          .eq('is_matchmaking', true);
+        const matchmakingRoomIds = (matchmakingRooms ?? []).map((r: { id: string }) => r.id);
+        if (matchmakingRoomIds.length > 0) {
+          const { error: cleanupError } = await supabase
+            .from('room_players')
+            .delete()
+            .eq('user_id', user.id)
+            .in('room_id', matchmakingRoomIds);
+          if (cleanupError) roomLogger.error('⚠️ Cleanup warning:', cleanupError.message);
+        }
 
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        const { data: stillInRoom } = await supabase
-          .from('room_players')
-          .select('room_id')
-          .eq('user_id', user.id)
-          .maybeSingle();
+        // Re-fetch matchmaking room IDs after the delete to verify cleanup.
+        const { data: remainingRooms } = await supabase
+          .from('rooms')
+          .select('id')
+          .eq('status', 'waiting')
+          .eq('is_matchmaking', true);
+        const remainingIds = (remainingRooms ?? []).map((r: { id: string }) => r.id);
+        let stillInRoom = null;
+        if (remainingIds.length > 0) {
+          const { data: check } = await supabase
+            .from('room_players')
+            .select('room_id')
+            .eq('user_id', user.id)
+            .in('room_id', remainingIds)
+            .maybeSingle();
+          stillInRoom = check;
+        }
         if (stillInRoom) {
-          roomLogger.error('❌ Cleanup failed - user still in room:', stillInRoom.room_id);
+          roomLogger.error(
+            '❌ Cleanup failed - user still in matchmaking room:',
+            (stillInRoom as { room_id: string }).room_id
+          );
           throw new Error('Failed to leave previous room. Please try again.');
         }
 

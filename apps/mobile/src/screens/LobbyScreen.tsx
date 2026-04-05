@@ -439,9 +439,19 @@ export default function LobbyScreen() {
           // a PromiseLike that may not implement .finally(), causing a TypeError.
           (async () => {
             try {
-              const { data: claimData, error: claimErr } = await supabase.rpc('lobby_claim_host', {
+              // 8.4: Race the RPC against a 5-second timeout so that a hung
+              // lobby_claim_host call does not keep claimHostInFlightRef=true
+              // forever and permanently block future host-claim attempts.
+              const rpcPromise = supabase.rpc('lobby_claim_host', {
                 p_room_id: currentRoomId,
               });
+              const timeoutPromise = new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('lobby_claim_host timed out')), 5000)
+              );
+              const { data: claimData, error: claimErr } = await Promise.race([
+                rpcPromise,
+                timeoutPromise,
+              ]);
               if (claimErr) {
                 roomLogger.error('[LobbyScreen] lobby_claim_host failed:', claimErr.message);
               } else {
@@ -581,12 +591,28 @@ export default function LobbyScreen() {
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          // 8.2: Also subscribe to DELETE so a hard room deletion (e.g. from a
+          // cleanup edge function) navigates players home instead of leaving
+          // them stuck on a lobby that no longer exists.
+          event: '*',
           schema: 'public',
           table: 'rooms',
           filter: `code=eq.${roomCode}`,
         },
-        (payload: { old?: { status?: string }; new?: { status?: string; code?: string } }) => {
+        (payload: {
+          eventType?: string;
+          old?: { status?: string };
+          new?: { status?: string; code?: string };
+        }) => {
+          // 8.2: Room was hard-deleted — go home immediately.
+          if (payload.eventType === 'DELETE') {
+            roomLogger.warn('[LobbyScreen] Room hard-deleted — navigating Home');
+            if (!isLeavingRef.current) {
+              isLeavingRef.current = true;
+              navigation.replace('Home');
+            }
+            return;
+          }
           roomLogger.info('[LobbyScreen] Rooms table UPDATE event received:', {
             oldStatus: payload.old?.status,
             newStatus: payload.new?.status,
