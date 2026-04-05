@@ -133,10 +133,10 @@ BEGIN
 END;
 $$;
 
-REVOKE EXECUTE ON FUNCTION get_or_create_rematch_room(UUID, UUID, TEXT, BOOLEAN, BOOLEAN, BOOLEAN) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION get_or_create_rematch_room TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.get_or_create_rematch_room(UUID, UUID, TEXT, BOOLEAN, BOOLEAN, BOOLEAN) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_or_create_rematch_room(UUID, UUID, TEXT, BOOLEAN, BOOLEAN, BOOLEAN) TO authenticated;
 
-COMMENT ON FUNCTION get_or_create_rematch_room IS
+COMMENT ON FUNCTION public.get_or_create_rematch_room(UUID, UUID, TEXT, BOOLEAN, BOOLEAN, BOOLEAN) IS
   'Atomic Play-Again coordinator. '
   'The first caller creates a new room (is_host=true); all subsequent '
   'callers for the same source_room_id join that room (is_host=false). '

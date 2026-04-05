@@ -202,20 +202,9 @@ export function MultiplayerGame() {
           return;
         }
 
-        // 1. Clean up old room membership (scoped to current room) to prevent
-        //    "already in room" conflicts from join_room_atomic. Also clean up
-        //    any bot-replacement rows.
-        const { error: cleanupError } = await supabase
-          .from('room_players')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('room_id', info.id);
-        if (cleanupError) {
-          gameLogger.warn(
-            '⚠️ [MultiplayerGame] Play Again: old room cleanup warning:',
-            cleanupError.message
-          );
-        }
+        // Clean up any bot-replacement rows (the source-room membership row
+        // is now removed atomically inside get_or_create_rematch_room so the
+        // RPC can perform a reliable participation check before deleting it).
         const { error: botCleanupError } = await supabase.rpc(
           'delete_room_players_by_human_user_id',
           { human_user_id: user.id }

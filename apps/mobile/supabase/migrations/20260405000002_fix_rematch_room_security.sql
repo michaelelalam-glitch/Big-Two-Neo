@@ -22,7 +22,7 @@ ALTER TABLE rooms
   DROP CONSTRAINT IF EXISTS rooms_rematch_for_room_id_fkey;
 
 -- ── 2. Revoke public access + re-create function with correct search_path ──
-REVOKE EXECUTE ON FUNCTION get_or_create_rematch_room(UUID, UUID, TEXT, BOOLEAN, BOOLEAN, BOOLEAN) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_or_create_rematch_room(UUID, UUID, TEXT, BOOLEAN, BOOLEAN, BOOLEAN) FROM PUBLIC;
 
 CREATE OR REPLACE FUNCTION get_or_create_rematch_room(
   p_source_room_id  UUID,
@@ -53,22 +53,30 @@ BEGIN
     RAISE EXCEPTION 'get_or_create_rematch_room: p_user_id does not match authenticated user';
   END IF;
 
-  -- ── Guard: verify caller participated in the source room ───────────────
-  -- Prevents abuse of the SECURITY DEFINER function with arbitrary room UUIDs.
-  -- game_history persists after cleanup_empty_rooms deletes the source room;
-  -- room_players is checked as a fallback for the race where game_history
-  -- hasn't been written yet but the source room still exists.
-  IF NOT EXISTS (
+  -- ── Guard + atomic source-room cleanup ─────────────────────────────────
+  -- The caller's room_players row for the source room still exists here
+  -- because the client no longer pre-deletes it; the RPC takes ownership of
+  -- that cleanup so the participation check is reliable and atomic.
+  -- Fallback to game_history for the rare race where a concurrent flow has
+  -- already removed the room_players row (e.g. ghost-eviction or server
+  -- cleanup) but the game record still confirms participation.
+  IF EXISTS (
+    SELECT 1 FROM room_players
+     WHERE room_id = p_source_room_id AND user_id = p_user_id
+  ) THEN
+    -- Atomic cleanup: remove old membership so join_room_atomic won't see
+    -- an "already in another room" conflict for the new rematch room.
+    DELETE FROM room_players
+     WHERE room_id = p_source_room_id AND user_id = p_user_id;
+  ELSIF NOT EXISTS (
     SELECT 1 FROM game_history
      WHERE room_id = p_source_room_id
        AND p_user_id IN (player_1_id, player_2_id, player_3_id, player_4_id)
-  ) AND NOT EXISTS (
-    SELECT 1 FROM room_players
-     WHERE room_id = p_source_room_id AND user_id = p_user_id
   ) THEN
     RAISE EXCEPTION 'get_or_create_rematch_room: user % is not a participant of room %',
       p_user_id, p_source_room_id;
   END IF;
+  -- Source-room membership removed (or game_history confirmed participation).
 
   -- ── A. Fast-path: a rematch room already exists ──────────────────────────
   SELECT id, code
