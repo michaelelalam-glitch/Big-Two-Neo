@@ -335,7 +335,13 @@ async function sendEvents(
   try {
     let response: Response;
     if (USE_PROXY) {
-      // Production: route through Supabase Edge Function (API_SECRET stays server-side)
+      // Production: route through Supabase Edge Function (API_SECRET stays server-side).
+      // Short-circuit when no Supabase session exists (signed-out / first-launch flows)
+      // to avoid unnecessary 401 network churn.
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session?.access_token) {
+        return;
+      }
       const { data: _data, error } = await supabase.functions.invoke('analytics-proxy', {
         body,
       });

@@ -322,6 +322,23 @@ export function useThrowables({
       }
       _throwableReceiveMap.current.set(thrower_id, now);
 
+      // Periodic sweep + FIFO cap to prevent unbounded growth from spoofed IDs
+      if (_throwableReceiveMap.current.size > 200) {
+        // Purge expired entries first
+        for (const [key, ts] of _throwableReceiveMap.current) {
+          if (now - ts >= COOLDOWN_MS) _throwableReceiveMap.current.delete(key);
+        }
+        // If still over cap after purge, FIFO evict oldest
+        if (_throwableReceiveMap.current.size > 200) {
+          const iter = _throwableReceiveMap.current.keys();
+          while (_throwableReceiveMap.current.size > 200) {
+            const oldest = iter.next();
+            if (oldest.done) break;
+            _throwableReceiveMap.current.delete(oldest.value);
+          }
+        }
+      }
+
       const players = layoutPlayersRef.current;
       const displaySlot = players.findIndex(p => p.player_index === target_player_index);
       if (displaySlot === -1) return;
