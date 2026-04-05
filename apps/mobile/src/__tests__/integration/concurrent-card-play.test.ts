@@ -101,7 +101,7 @@ describeWithCredentials('Concurrent Card Play Stress Tests', () => {
       );
 
       // Create game state with current_turn = 0, populating all required NOT NULL columns
-      await supabase.from('game_state').insert({
+      const { error: gsErr } = await supabase.from('game_state').insert({
         room_id: room.id,
         current_turn: 0,
         current_player: 0,
@@ -120,6 +120,8 @@ describeWithCredentials('Concurrent Card Play Stress Tests', () => {
         round_number: 1,
         dealer_index: 0,
       });
+
+      if (gsErr) throw new Error(`game_state insert failed: ${gsErr.message}`);
 
       // Player at index 1 tries to play (but current_turn = 0)
       // Service-role callers must pass room_players.id (not user_id)
@@ -214,7 +216,7 @@ describeWithCredentials('Concurrent Card Play Stress Tests', () => {
 
       const dtPlayerRowId = insertedDTPlayers[0].id;
 
-      await supabase.from('game_state').insert({
+      const { error: gsErr2 } = await supabase.from('game_state').insert({
         room_id: room.id,
         current_turn: 0,
         current_player: 0,
@@ -228,6 +230,8 @@ describeWithCredentials('Concurrent Card Play Stress Tests', () => {
         round_number: 1,
         dealer_index: 0,
       });
+
+      if (gsErr2) throw new Error(`game_state insert failed: ${gsErr2.message}`);
 
       // Two simultaneous play-cards invocations using correct payload shape
       // Service-role callers must pass room_players.id (not user_id)

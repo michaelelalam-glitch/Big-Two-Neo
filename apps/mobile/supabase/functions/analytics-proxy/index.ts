@@ -22,8 +22,11 @@ const MP_ENDPOINT = 'https://www.google-analytics.com/mp/collect';
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
-// Per-user rate limiter: max 60 requests per minute per authenticated user.
+// Best-effort per-user rate limiter: max 60 requests per minute per authenticated user.
 // Uses user.id (from JWT) instead of x-forwarded-for to avoid IP spoofing.
+// NOTE: This is instance-local (each Edge Function isolate has its own Map).
+// It does NOT enforce a global limit across concurrent isolates or cold starts.
+// For strict enforcement, use a shared store (e.g., Redis/Supabase table).
 // Entries are swept periodically to bound memory.
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT_WINDOW_MS = 60_000;
