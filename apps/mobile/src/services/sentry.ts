@@ -480,6 +480,7 @@ function _setupConsoleCapture(): void {
   console.error = (...args: unknown[]) => {
     _originalConsoleError(...args);
     if (!_initialized) return;
+    if (!_refillBreadcrumbTokens()) return; // Rate limit check before stringify
     const message = args.map(safeStringify).join(' ').slice(0, MAX_SENTRY_MSG_LEN);
     // Skip React/RN internal "Warning:" noise — those are not real errors.
     if (message.startsWith('Warning:')) return;
@@ -502,7 +503,6 @@ function _setupConsoleCapture(): void {
     // already captured directly by GameErrorBoundary via sentryCapture.exception,
     // so these console.error duplicates only pollute the Sentry issue list.
     if (message.includes('[GameErrorBoundary]')) return;
-    if (!_refillBreadcrumbTokens()) return; // Rate limit exceeded
     Sentry.captureMessage(`[console.error] ${message}`, {
       level: 'error',
       tags: { source: 'console' },
@@ -512,6 +512,7 @@ function _setupConsoleCapture(): void {
   console.warn = (...args: unknown[]) => {
     _originalConsoleWarn(...args);
     if (!_initialized) return;
+    if (!_refillBreadcrumbTokens()) return; // Rate limit check before stringify
     const message = args.map(safeStringify).join(' ').slice(0, MAX_SENTRY_MSG_LEN);
     // Skip noisy RN / Expo warnings that aren't application bugs.
     if (
@@ -523,7 +524,6 @@ function _setupConsoleCapture(): void {
       message.includes('Sentry Logger')
     )
       return;
-    if (!_refillBreadcrumbTokens()) return; // Rate limit exceeded
     Sentry.addBreadcrumb({
       message: `[console.warn] ${message}`,
       level: 'warning',
