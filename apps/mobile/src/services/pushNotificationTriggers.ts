@@ -26,12 +26,22 @@ function isRateLimited(userId: string, eventType: string): boolean {
     return true;
   }
   _rateLimitMap.set(key, now);
-  // Cleanup expired entries every time the map exceeds the cap.
-  // Also run a periodic sweep (every 100th call) when below the cap to prevent
-  // gradual growth in long-lived sessions.
+  // Cleanup: purge expired entries when the map exceeds the cap OR every 100th call.
+  // If purging expired entries alone doesn't bring the map under the cap, evict the
+  // oldest entries (FIFO) to enforce a hard memory bound.
   if (_rateLimitMap.size > _RATE_LIMIT_MAP_MAX || _rateLimitMap.size % 100 === 0) {
     for (const [k, v] of _rateLimitMap) {
       if (now - v > RATE_LIMIT_MS) _rateLimitMap.delete(k);
+    }
+    // Hard FIFO eviction: if still over cap after purging expired entries
+    if (_rateLimitMap.size > _RATE_LIMIT_MAP_MAX) {
+      const excess = _rateLimitMap.size - _RATE_LIMIT_MAP_MAX;
+      let removed = 0;
+      for (const k of _rateLimitMap.keys()) {
+        if (removed >= excess) break;
+        _rateLimitMap.delete(k);
+        removed += 1;
+      }
     }
   }
   return false;

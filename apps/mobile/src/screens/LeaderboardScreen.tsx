@@ -332,7 +332,12 @@ export default function LeaderboardScreen() {
           schema: 'public',
           table: 'player_stats',
         },
-        () => {
+        payload => {
+          // Only refresh when rank_points actually changed to avoid unnecessary refetches
+          const oldRank = (payload.old as Record<string, unknown> | undefined)?.rank_points;
+          const newRank = (payload.new as Record<string, unknown> | undefined)?.rank_points;
+          if (oldRank === newRank) return;
+
           // Debounce: wait 2s after the last change before refreshing
           if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
           refreshTimerRef.current = setTimeout(() => {
