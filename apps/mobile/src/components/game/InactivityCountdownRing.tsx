@@ -154,21 +154,22 @@ export default function InactivityCountdownRing({
   const typeRef = useRef(type);
   typeRef.current = type;
 
-  // Keep clockOffsetMs in a ref so the scheduling effect always reads the current
-  // value without needing it in the effect's dep array (which would restart the
-  // animation on every minor offset drift). clockOffsetMs changes atomically with
-  // startedAt (new timer → new offset), so the effect's [startTimeMs] dep already
-  // covers the meaningful re-schedule window.
+  // Keep clockOffsetMs in a ref so the scheduling effect always reads the latest
+  // corrected value without it appearing in the effect's dep array.
   const clockOffsetMsRef = useRef(clockOffsetMs);
   clockOffsetMsRef.current = clockOffsetMs;
 
-  // Memoised: resolveStartTimeMs() is called exactly once per `startedAt` / clockOffsetMs
-  // change. All three consumers (useSharedValue init, useState init, scheduling effect)
-  // share the same stable T0 anchor, preventing tiny Date.now() drift between consumers.
-  const startTimeMs = useMemo(
-    () => resolveStartTimeMs(startedAt, clockOffsetMs),
-    [startedAt, clockOffsetMs]
-  );
+  // Resolve the countdown anchor exactly once per `startedAt`. If clock offset is
+  // refined while the same timer is running, retain the original resolved anchor so
+  // downstream effects depending on `startTimeMs` do not restart/jump mid-countdown.
+  const startAnchorRef = useRef<{ startedAt: string; startTimeMs: number } | null>(null);
+  if (startAnchorRef.current == null || startAnchorRef.current.startedAt !== startedAt) {
+    startAnchorRef.current = {
+      startedAt,
+      startTimeMs: resolveStartTimeMs(startedAt, clockOffsetMs),
+    };
+  }
+  const startTimeMs = startAnchorRef.current.startTimeMs;
 
   // Log a one-time debug message whenever the ring is scheduled so callers can verify
   // the corrected anchor is being used. Placed in a useEffect (not inside

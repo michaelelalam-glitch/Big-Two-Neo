@@ -575,9 +575,6 @@ export function useDisconnectDetection({
         stableActiveExpiryTimerRef.current = null;
       }
     };
-    // stableActiveRefreshToken intentionally omitted: the timer-expiry itself
-    // sets the token; including it would create a re-schedule loop.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     layoutPlayersWithScores,
     handleLocalPlayerCountdownExpired,
@@ -587,7 +584,9 @@ export function useDisconnectDetection({
     clientDisconnections,
     showBotReplacedModal,
     isReconnecting,
-  ]);
+    // stableActiveRefreshToken intentionally omitted: the timer-expiry itself
+    // sets the token; including it would create a re-schedule loop.
+  ]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return { enrichedLayoutPlayers };
 }
