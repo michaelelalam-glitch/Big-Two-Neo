@@ -9,7 +9,7 @@ import {
   RefreshControl,
   Image,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import EmptyState from '../components/EmptyState';
@@ -319,50 +319,51 @@ export default function LeaderboardScreen() {
   // Debounced to avoid rapid re-fetches when multiple games finish in quick succession.
   // Uses a ref for fetchLeaderboard to avoid re-subscribing the channel on every
   // filter/pagination change (Copilot review feedback).
+  // Subscribes only while focused to avoid background network usage when navigated away.
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fetchLeaderboardRef = useRef(fetchLeaderboard);
   fetchLeaderboardRef.current = fetchLeaderboard;
-  useEffect(() => {
-    const channel = supabase
-      .channel('leaderboard-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'player_stats',
-        },
-        payload => {
-          // Only skip refresh when all leaderboard-relevant rank point fields are unchanged.
-          // Note: payload.old may omit columns unless the table uses REPLICA IDENTITY FULL.
-          // If we can't compare any relevant field, we optimistically refresh.
-          const oldStats = payload.old as Record<string, unknown> | undefined;
-          const newStats = payload.new as Record<string, unknown> | undefined;
-          const rankFields = ['rank_points', 'casual_rank_points', 'ranked_rank_points'] as const;
-          const hasRelevantChange = rankFields.some(field => {
-            const oldValue = oldStats?.[field];
-            const newValue = newStats?.[field];
-            return oldValue === undefined || newValue === undefined || oldValue !== newValue;
-          });
-          if (!hasRelevantChange) return;
+  useFocusEffect(
+    useCallback(() => {
+      const channel = supabase
+        .channel('leaderboard-realtime')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'player_stats',
+          },
+          payload => {
+            // Only skip refresh when all leaderboard-relevant rank point fields are unchanged.
+            // Note: payload.old may omit columns unless the table uses REPLICA IDENTITY FULL.
+            // If we can't compare any relevant field, we optimistically refresh.
+            const oldStats = payload.old as Record<string, unknown> | undefined;
+            const newStats = payload.new as Record<string, unknown> | undefined;
+            const rankFields = ['rank_points', 'casual_rank_points', 'ranked_rank_points'] as const;
+            const hasRelevantChange = rankFields.some(field => {
+              const oldValue = oldStats?.[field];
+              const newValue = newStats?.[field];
+              return oldValue === undefined || newValue === undefined || oldValue !== newValue;
+            });
+            if (!hasRelevantChange) return;
 
-          // Debounce: wait 2s after the last change before refreshing
-          if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-          refreshTimerRef.current = setTimeout(() => {
-            statsLogger.info('[Leaderboard] Realtime update detected, refreshing...');
-            fetchLeaderboardRef.current(true);
-          }, 2000);
-        }
-      )
-      .subscribe();
+            // Debounce: wait 2s after the last change before refreshing
+            if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+            refreshTimerRef.current = setTimeout(() => {
+              statsLogger.info('[Leaderboard] Realtime update detected, refreshing...');
+              fetchLeaderboardRef.current(true);
+            }, 2000);
+          }
+        )
+        .subscribe();
 
-    return () => {
-      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-      supabase.removeChannel(channel);
-    };
-    // Subscribe once — fetchLeaderboardRef keeps the callback fresh without re-subscribing
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+      return () => {
+        if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+        supabase.removeChannel(channel);
+      };
+    }, [])
+  );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);

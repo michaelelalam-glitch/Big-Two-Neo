@@ -22,7 +22,7 @@ function isRateLimited(userId: string, eventType: string): boolean {
   const now = Date.now();
   if (lastSent && now - lastSent < RATE_LIMIT_MS) {
     notificationLogger.info(
-      `⏳ [RateLimit] Skipping ${eventType} for ${userId.slice(0, 8)}… (${Math.round((RATE_LIMIT_MS - (now - lastSent)) / 1000)}s cooldown)`
+      `⏳ [RateLimit] Skipping ${eventType} (${Math.round((RATE_LIMIT_MS - (now - lastSent)) / 1000)}s cooldown remaining)`
     );
     return true;
   }
