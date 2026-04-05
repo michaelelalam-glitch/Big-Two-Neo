@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
-import { classifyCards, canBeatPlay, sortHand } from '../engine/game-logic';
+import { classifyCards, canBeatPlay } from '../engine/game-logic';
 import type { Card, LastPlay } from '../types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

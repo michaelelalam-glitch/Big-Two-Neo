@@ -181,25 +181,29 @@ export default function AppNavigator() {
     const MAX_ATTEMPTS = 20; // 20 × 100 ms = 2 s max
     const timerId = setInterval(() => {
       attempts += 1;
-      if (navigationRef.current?.isReady()) {
-        Linking.openURL(replayUrl)
-          .then(() => {
+
+      if (!navigationRef.current?.isReady()) {
+        if (attempts >= MAX_ATTEMPTS) {
+          clearInterval(timerId);
+          pendingLinkRef.current = null;
+          authLogger.info('[AppNavigator] Nav not ready after 2s, discarding deep link');
+        }
+        return;
+      }
+
+      Linking.openURL(replayUrl)
+        .then(() => {
+          clearInterval(timerId);
+          pendingLinkRef.current = null;
+        })
+        .catch(err => {
+          authLogger.info('[AppNavigator] Failed to replay pending deep link', err);
+          if (attempts >= MAX_ATTEMPTS) {
             clearInterval(timerId);
             pendingLinkRef.current = null;
-          })
-          .catch(err => {
-            authLogger.info('[AppNavigator] Failed to replay pending deep link', err);
-            // Don't clear — interval will retry on the next tick until
-            // MAX_ATTEMPTS is hit, giving transient conditions time to resolve.
-          });
-      } else if (attempts >= MAX_ATTEMPTS) {
-        // Nav stack never became ready within 2 s — clear the ref because
-        // this effect only fires when isLoggedIn changes, so a stale ref
-        // that never resolves would block future deep links.
-        clearInterval(timerId);
-        pendingLinkRef.current = null;
-        authLogger.info('[AppNavigator] Nav not ready after 2s, discarding deep link');
-      }
+            authLogger.info('[AppNavigator] Max attempts reached, discarding deep link');
+          }
+        });
     }, 100);
     return () => clearInterval(timerId);
   }, [isLoggedIn]);

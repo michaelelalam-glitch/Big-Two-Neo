@@ -37,7 +37,7 @@ supabase.auth.onAuthStateChange((_event, session) => {
 // Seed the initial value asynchronously
 supabase.auth.getSession().then(({ data }) => {
   _hasSession = !!data?.session?.access_token;
-});
+}).catch(() => { /* best-effort — analytics init must never throw */ });
 
 // ─── Configuration ─────────────────────────────────────────────────────────── //
 
