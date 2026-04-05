@@ -36,11 +36,7 @@ interface AutoPassTimerProps {
 }
 
 /** Compute remaining ms from server state + clock sync, without any state read. */
-function computeRemainingMs(
-  timerState: AutoPassTimerState,
-  isSynced: boolean,
-  getCorrectedNow: () => number
-): number {
+function computeRemainingMs(timerState: AutoPassTimerState, getCorrectedNow: () => number): number {
   const endTimestamp = timerState.end_timestamp;
   if (typeof endTimestamp === 'number') {
     // end_timestamp is the server-side epoch-ms deadline.
@@ -51,12 +47,12 @@ function computeRemainingMs(
     return Math.max(0, endTimestamp - getCorrectedNow());
   }
   // Fallback path (no end_timestamp): use started_at.
-  // Use getCorrectedNow() when synced to stay server-time-based across devices.
+  // getCorrectedNow() returns Date.now() + drift (drift=0 before NTP sync), so it
+  // is safe to use unconditionally — no separate isSynced guard needed.
   const startedAt = new Date(timerState.started_at).getTime();
   if (isNaN(startedAt)) return 0;
   const durationMs = timerState.duration_ms || 10000;
-  const now = isSynced ? getCorrectedNow() : Date.now();
-  return Math.max(0, durationMs - (now - startedAt));
+  return Math.max(0, durationMs - (getCorrectedNow() - startedAt));
 }
 
 function AutoPassTimerComponent({
@@ -70,13 +66,10 @@ function AutoPassTimerComponent({
   // ⏱️ CRITICAL: Clock sync with server
   const { isSynced, getCorrectedNow } = useClockSync(timerState);
 
-  // ── Stable clock-sync refs — keep latest values without triggering effects ──
-  // useEffect deps intentionally exclude isSynced/getCorrectedNow to avoid
-  // restarting the interval on every sync tick; refs give the interval access to the
-  // freshest values without re-scheduling.
-  const isSyncedRef = useRef(isSynced);
+  // ── Stable clock-sync ref — keeps latest getCorrectedNow without triggering effects ──
+  // useEffect deps intentionally exclude getCorrectedNow to avoid restarting the interval
+  // on every sync tick; the ref gives the interval access to the freshest value.
   const getCorrectedNowRef = useRef(getCorrectedNow);
-  isSyncedRef.current = isSynced;
   getCorrectedNowRef.current = getCorrectedNow;
 
   // ── Initial snapshot (computed once per timerState activation or when clock sync completes) ──
@@ -86,7 +79,7 @@ function AutoPassTimerComponent({
   // never updated once sync arrived, leaving the ring and tick counter on the wrong remaining-ms.
   const initialSnapshot = useMemo(() => {
     if (!timerState || !timerState.active) return { remainingMs: 0, seconds: 0, progress: 0 };
-    const remaining = computeRemainingMs(timerState, isSynced, getCorrectedNow);
+    const remaining = computeRemainingMs(timerState, getCorrectedNow);
     const durationMs = timerState.duration_ms || 10000;
     return {
       remainingMs: remaining,
@@ -115,20 +108,16 @@ function AutoPassTimerComponent({
   }));
 
   // ── Schedule the ring animation whenever the timer activates / resets ───────
-  // NOTE: `isSynced` is intentionally excluded from deps so clock-sync status changes
-  // after reconnect do NOT restart the ring animation (which would flash a full ring).
-  // The animation already uses isSyncedRef via getCorrectedNowRef for accurate positioning.
+  // NOTE: getCorrectedNow excluded from deps so clock-sync status changes after reconnect
+  // do NOT restart the ring animation (which would flash a full ring).
+  // The animation uses getCorrectedNowRef for accurate positioning without re-scheduling.
   useEffect(() => {
     if (!timerState?.active) {
       cancelAnimation(progressAnim);
       progressAnim.value = 0;
       return;
     }
-    const remaining = computeRemainingMs(
-      timerState,
-      isSyncedRef.current,
-      getCorrectedNowRef.current
-    );
+    const remaining = computeRemainingMs(timerState, getCorrectedNowRef.current);
     const durationMs = timerState.duration_ms || 10000;
     const initial = remaining / durationMs;
     progressAnim.value = initial;
@@ -136,7 +125,7 @@ function AutoPassTimerComponent({
     return () => {
       cancelAnimation(progressAnim);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- isSynced excluded intentionally; animation only restarts when timer identity changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- getCorrectedNow excluded intentionally; animation only restarts when timer identity changes
   }, [
     timerState?.active,
     timerState?.end_timestamp,
@@ -178,11 +167,7 @@ function AutoPassTimerComponent({
     if (!timerState?.active) return;
 
     const tick = () => {
-      const remaining = computeRemainingMs(
-        timerState,
-        isSyncedRef.current,
-        getCorrectedNowRef.current
-      );
+      const remaining = computeRemainingMs(timerState, getCorrectedNowRef.current);
       const secs = Math.ceil(remaining / 1000);
 
       // Log once per whole-second transition
@@ -212,11 +197,9 @@ function AutoPassTimerComponent({
     timerState?.duration_ms,
   ]);
 
-  // Compute directly (cheap) — avoids stale value when isSynced or getCorrectedNow
-  // change after the initial render (useMemo deps were incomplete).
-  const remainingMs = timerState?.active
-    ? computeRemainingMs(timerState, isSynced, getCorrectedNow)
-    : 0;
+  // Compute directly (cheap) — avoids stale value when getCorrectedNow
+  // changes after the initial render (useMemo deps were incomplete).
+  const remainingMs = timerState?.active ? computeRemainingMs(timerState, getCorrectedNow) : 0;
 
   // Keep a ref so the pulse effect can read the latest value without being
   // in its dependency array — avoids stop/start of Animated.loop every 200ms

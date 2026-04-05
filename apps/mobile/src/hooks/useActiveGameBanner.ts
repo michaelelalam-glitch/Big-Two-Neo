@@ -236,12 +236,21 @@ export function useActiveGameBanner(
                 // retries at [1, 2, 4, 8, 16] s. Only clear the timestamp after
                 // ALL retries are exhausted and the server still says 'connected'
                 // (meaning the player is genuinely online, no disconnect happened).
-                hasScheduledRecheckRef.current = false; // allow re-entry per attempt
+                // Clear any existing pending retry before scheduling a new one to
+                // prevent overlapping timeouts when checkCurrentRoom is called
+                // concurrently (focus + Realtime + retry).
+                if (recheckTimeoutRef.current) {
+                  clearTimeout(recheckTimeoutRef.current);
+                  recheckTimeoutRef.current = null;
+                  hasScheduledRecheckRef.current = false;
+                }
                 const attempt = recheckAttemptRef.current;
                 if (attempt < RECHECK_DELAYS_MS.length) {
                   recheckAttemptRef.current = attempt + 1;
+                  hasScheduledRecheckRef.current = true;
                   recheckTimeoutRef.current = setTimeout(() => {
                     recheckTimeoutRef.current = null;
+                    hasScheduledRecheckRef.current = false;
                     if (currentRoomRef.current) {
                       checkCurrentRoomRef.current?.();
                     } else {
@@ -351,7 +360,11 @@ export function useActiveGameBanner(
     checkCurrentRoomRef.current = checkCurrentRoom;
   }, [checkCurrentRoom]);
 
-  // Realtime subscription: listen for this user's own room_players row changes.
+  // Realtime subscriptions: listen for this user's own room_players row changes.
+  // Two filters are needed because a bot-replacement UPDATE changes user_id to the
+  // bot's UUID (or NULL), so user_id=eq.${user.id} would not fire; the original
+  // player is then stored in human_user_id. A second channel covers that case.
+  //
   // Covers two scenarios that polling misses:
   //   1. Android: Phase A marks the player disconnected (30 s stale heartbeat) while
   //      HomeScreen is already focused — useFocusEffect won't fire again.
@@ -360,7 +373,22 @@ export function useActiveGameBanner(
   // banner immediately shows the countdown or bot-replacement UI.
   useEffect(() => {
     if (!user?.id) return;
-    const channel = supabase
+
+    const handleRoomPlayerUpdate = () => {
+      // Any UPDATE to this user's room_players row — clear retry counter
+      // (a server-delivered event supersedes the local retry cycle) and
+      // re-run the full banner check.
+      recheckAttemptRef.current = 0;
+      if (recheckTimeoutRef.current) {
+        clearTimeout(recheckTimeoutRef.current);
+        recheckTimeoutRef.current = null;
+        hasScheduledRecheckRef.current = false;
+      }
+      checkCurrentRoomRef.current?.();
+    };
+
+    // Channel 1: active seat (user_id = this user)
+    const channel1 = supabase
       .channel(`banner_presence_${user.id}`)
       .on(
         'postgres_changes',
@@ -370,22 +398,28 @@ export function useActiveGameBanner(
           table: 'room_players',
           filter: `user_id=eq.${user.id}`,
         },
-        () => {
-          // Any UPDATE to this user's room_players row — clear retry counter
-          // (a server-delivered event supersedes the local retry cycle) and
-          // re-run the full banner check.
-          recheckAttemptRef.current = 0;
-          if (recheckTimeoutRef.current) {
-            clearTimeout(recheckTimeoutRef.current);
-            recheckTimeoutRef.current = null;
-            hasScheduledRecheckRef.current = false;
-          }
-          checkCurrentRoomRef.current?.();
-        }
+        handleRoomPlayerUpdate
       )
       .subscribe();
+
+    // Channel 2: bot-replaced seat (human_user_id = this user, user_id changed to bot)
+    const channel2 = supabase
+      .channel(`banner_human_${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'room_players',
+          filter: `human_user_id=eq.${user.id}`,
+        },
+        handleRoomPlayerUpdate
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(channel1);
+      supabase.removeChannel(channel2);
     };
   }, [user?.id]);
 

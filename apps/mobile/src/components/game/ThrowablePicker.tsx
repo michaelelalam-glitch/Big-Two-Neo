@@ -86,7 +86,7 @@ export function ThrowablePicker({ visible, onSelect, onClose }: ThrowablePickerP
                 onSelect(opt.type);
               }}
               accessibilityRole="button"
-              accessibilityLabel={i18n.t(opt.labelKey)}
+              accessibilityLabel={i18n.t('game.throwItemAction', { item: i18n.t(opt.labelKey) })}
             >
               <Text style={styles.optionEmoji}>{opt.emoji}</Text>
               <Text style={styles.optionLabel}>{i18n.t(opt.labelKey)}</Text>

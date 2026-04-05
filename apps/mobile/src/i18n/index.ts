@@ -455,6 +455,7 @@ export interface Translations {
     hintNoValidPlay: string;
     // Throwables
     throwPickerTitle: string;
+    throwItemAction: string;
     throwEgg: string;
     throwSmoke: string;
     throwConfetti: string;
@@ -1256,6 +1257,7 @@ const en: Translations = {
     hintNoValidPlay: 'No valid play — recommend passing',
     // Throwables
     throwPickerTitle: 'Throw something',
+    throwItemAction: 'Throw {{item}}',
     throwEgg: 'Egg',
     throwSmoke: 'Smoke',
     throwConfetti: 'Confetti',
@@ -1983,6 +1985,7 @@ const ar: Translations = {
     hintNoValidPlay: 'لا توجد لعبة صالحة — يُنصح بالتمرير',
     // Throwables
     throwPickerTitle: 'ارمِ شيئاً',
+    throwItemAction: 'ارمِ {{item}}',
     throwEgg: 'بيضة',
     throwSmoke: 'دخان',
     throwConfetti: 'قصاصات',
@@ -2803,6 +2806,7 @@ const de: Translations = {
     hintNoValidPlay: 'Kein gültiger Zug — Passen empfohlen',
     // Throwables
     throwPickerTitle: 'Etwas werfen',
+    throwItemAction: '{{item}} werfen',
     throwEgg: 'Ei',
     throwSmoke: 'Rauch',
     throwConfetti: 'Konfetti',
