@@ -1403,13 +1403,6 @@ export type Database = {
             referencedRelation: 'players';
             referencedColumns: ['id'];
           },
-          {
-            foreignKeyName: 'rooms_rematch_for_room_id_fkey';
-            columns: ['rematch_for_room_id'];
-            isOneToOne: false;
-            referencedRelation: 'rooms';
-            referencedColumns: ['id'];
-          },
         ];
       };
       waiting_room: {

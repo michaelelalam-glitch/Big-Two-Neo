@@ -222,6 +222,26 @@ export default function LobbyScreen() {
           }
         }
       )
+      // 8.2: Subscribe to rooms DELETE filtered by id (rooms DELETE events only carry
+      // replica-identity/PK columns, so the code-eq filter in subscribeToRoomsTable
+      // can't match them — this subscription uses id=eq.${roomId} which is always
+      // present in DELETE payloads).
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'rooms',
+          filter: `id=eq.${roomId}`,
+        },
+        () => {
+          roomLogger.warn('[LobbyScreen] Room hard-deleted — navigating Home');
+          if (!isLeavingRef.current) {
+            isLeavingRef.current = true;
+            navigation.replace('Home');
+          }
+        }
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -587,7 +607,10 @@ export default function LobbyScreen() {
     }
   };
 
-  // Subscribes only to rooms table changes for this room (status updates, etc.)
+  // Subscribes to rooms table UPDATE events for this room (status updates, etc.).
+  // DELETE is handled separately in the useEffect([roomId]) block using an id-based
+  // filter, because Postgres DELETE events only carry replica-identity (PK) columns
+  // so a code=eq.${roomCode} filter would silently miss hard-deletes.
   // room_players changes are handled by a separate filtered subscription (see useEffect for roomId).
   const subscribeToRoomsTable = () => {
     roomLogger.info(`[LobbyScreen] Setting up rooms subscription for room: ${roomCode}`);
@@ -596,10 +619,7 @@ export default function LobbyScreen() {
       .on(
         'postgres_changes',
         {
-          // 8.2: Also subscribe to DELETE so a hard room deletion (e.g. from a
-          // cleanup edge function) navigates players home instead of leaving
-          // them stuck on a lobby that no longer exists.
-          event: '*',
+          event: 'UPDATE',
           schema: 'public',
           table: 'rooms',
           filter: `code=eq.${roomCode}`,
@@ -609,15 +629,6 @@ export default function LobbyScreen() {
           old?: { status?: string };
           new?: { status?: string; code?: string };
         }) => {
-          // 8.2: Room was hard-deleted — go home immediately.
-          if (payload.eventType === 'DELETE') {
-            roomLogger.warn('[LobbyScreen] Room hard-deleted — navigating Home');
-            if (!isLeavingRef.current) {
-              isLeavingRef.current = true;
-              navigation.replace('Home');
-            }
-            return;
-          }
           roomLogger.info('[LobbyScreen] Rooms table UPDATE event received:', {
             oldStatus: payload.old?.status,
             newStatus: payload.new?.status,

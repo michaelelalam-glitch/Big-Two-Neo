@@ -41,6 +41,7 @@ DECLARE
   v_existing_id     UUID;
   v_new_code        TEXT;
   v_new_id          UUID;
+  v_join_result     JSONB;
   v_collision_tries INTEGER := 0;
   v_max_retries     INTEGER := 5;
 BEGIN
@@ -53,12 +54,15 @@ BEGIN
 
   IF FOUND THEN
     -- Another player beat us here — join the room they created.
-    PERFORM join_room_atomic(v_existing_code, p_user_id, p_username);
+    -- Propagate the actual is_host from join_room_atomic: in an extreme race
+    -- host_id may still be NULL when we call join so the function may
+    -- legitimately promote this caller to host.
+    v_join_result := join_room_atomic(v_existing_code, p_user_id, p_username);
     RETURN jsonb_build_object(
       'success',    true,
       'room_id',    v_existing_id,
       'room_code',  v_existing_code,
-      'is_host',    false
+      'is_host',    COALESCE((v_join_result->>'is_host')::BOOLEAN, false)
     );
   END IF;
 
@@ -108,12 +112,12 @@ BEGIN
 
         IF FOUND THEN
           -- Race lost: another caller created the rematch room first.
-          PERFORM join_room_atomic(v_existing_code, p_user_id, p_username);
+          v_join_result := join_room_atomic(v_existing_code, p_user_id, p_username);
           RETURN jsonb_build_object(
             'success',   true,
             'room_id',   v_existing_id,
             'room_code', v_existing_code,
-            'is_host',   false
+            'is_host',   COALESCE((v_join_result->>'is_host')::BOOLEAN, false)
           );
         END IF;
 
