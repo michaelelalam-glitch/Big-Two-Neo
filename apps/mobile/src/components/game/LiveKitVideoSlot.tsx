@@ -42,6 +42,13 @@ class VideoSlotErrorBoundary extends React.Component<
     return { hasError: true };
   }
 
+  componentDidUpdate(prevProps: Readonly<{ children: React.ReactNode }>): void {
+    if (this.state.hasError && prevProps.children !== this.props.children) {
+      gameLogger.warn('[LiveKitVideoSlot] Resetting video slot error boundary after child change');
+      this.setState({ hasError: false });
+    }
+  }
+
   componentDidCatch(error: Error): void {
     gameLogger.warn('[LiveKitVideoSlot] Render error caught by boundary:', error.message);
   }

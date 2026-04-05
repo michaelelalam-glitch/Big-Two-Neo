@@ -86,7 +86,19 @@ describeWithCredentials('Concurrent Card Play Stress Tests', () => {
         is_bot: i > 0,
       }));
 
-      await supabase.from('room_players').insert(players);
+      const { data: insertedPlayers, error: pErr } = await supabase
+        .from('room_players')
+        .insert(players)
+        .select('id, player_index');
+
+      if (pErr || !insertedPlayers?.length) {
+        throw new Error(`room_players insert failed: ${pErr?.message}`);
+      }
+
+      // Map player_index → room_players.id for service-role invocations
+      const playerRowIds = Object.fromEntries(
+        insertedPlayers.map((p: any) => [p.player_index, p.id])
+      );
 
       // Create game state with current_turn = 0, populating all required NOT NULL columns
       await supabase.from('game_state').insert({
@@ -110,11 +122,11 @@ describeWithCredentials('Concurrent Card Play Stress Tests', () => {
       });
 
       // Player at index 1 tries to play (but current_turn = 0)
-      // Use the correct payload shape: room_code + cards[]
+      // Service-role callers must pass room_players.id (not user_id)
       const { error: playErr } = await supabase.functions.invoke('play-cards', {
         body: {
           room_code: testRoomCode,
-          player_id: authUserIds[1],
+          player_id: playerRowIds[1],
           cards: ['6H'],
         },
       });
@@ -183,7 +195,7 @@ describeWithCredentials('Concurrent Card Play Stress Tests', () => {
 
     try {
       // Set up room_players and game_state so play-cards hits actual game logic
-      await supabase
+      const { data: insertedDTPlayers, error: dtpErr } = await supabase
         .from('room_players')
         .insert([
           {
@@ -193,7 +205,15 @@ describeWithCredentials('Concurrent Card Play Stress Tests', () => {
             player_index: 0,
             is_bot: false,
           },
-        ]);
+        ])
+        .select('id, player_index');
+
+      if (dtpErr || !insertedDTPlayers?.length) {
+        throw new Error(`room_players insert failed: ${dtpErr?.message}`);
+      }
+
+      const dtPlayerRowId = insertedDTPlayers[0].id;
+
       await supabase.from('game_state').insert({
         room_id: room.id,
         current_turn: 0,
@@ -210,12 +230,13 @@ describeWithCredentials('Concurrent Card Play Stress Tests', () => {
       });
 
       // Two simultaneous play-cards invocations using correct payload shape
+      // Service-role callers must pass room_players.id (not user_id)
       const [result1, result2] = await Promise.allSettled([
         supabase.functions.invoke('play-cards', {
-          body: { room_code: testRoomCode, player_id: authUserIds[0], cards: ['3H'] },
+          body: { room_code: testRoomCode, player_id: dtPlayerRowId, cards: ['3H'] },
         }),
         supabase.functions.invoke('play-cards', {
-          body: { room_code: testRoomCode, player_id: authUserIds[0], cards: ['3H'] },
+          body: { room_code: testRoomCode, player_id: dtPlayerRowId, cards: ['3H'] },
         }),
       ]);
 
