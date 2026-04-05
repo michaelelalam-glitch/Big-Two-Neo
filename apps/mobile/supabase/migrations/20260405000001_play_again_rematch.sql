@@ -7,9 +7,11 @@
 --
 -- Changes
 -- -------
--- 1. rooms.rematch_for_room_id  — soft FK + UNIQUE so at most one live
---    rematch room can exist per finished room.  NULL-able so existing rooms
---    are not affected.
+-- 1. rooms.rematch_for_room_id  — plain UUID (no FK) + UNIQUE so at most
+--    one live rematch room can exist per finished room.  No FK constraint:
+--    cleanup_empty_rooms may delete the source room before the last player
+--    calls Play Again, so an FK would cause INSERT failures.  NULL-able so
+--    existing rooms are not affected.
 -- 2. get_or_create_rematch_room — SECURITY DEFINER RPC invoked by every
 --    player who presses "Play Again".  Thanks to the UNIQUE constraint the
 --    race is resolved inside the transaction: one caller creates the room

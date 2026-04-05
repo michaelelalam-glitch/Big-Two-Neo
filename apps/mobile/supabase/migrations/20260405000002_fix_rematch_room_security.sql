@@ -45,6 +45,23 @@ DECLARE
   v_collision_tries INTEGER := 0;
   v_max_retries     INTEGER := 5;
 BEGIN
+  -- ── Guard: verify caller participated in the source room ───────────────
+  -- Prevents abuse of the SECURITY DEFINER function with arbitrary room UUIDs.
+  -- game_history persists after cleanup_empty_rooms deletes the source room;
+  -- room_players is checked as a fallback for the race where game_history
+  -- hasn't been written yet but the source room still exists.
+  IF NOT EXISTS (
+    SELECT 1 FROM game_history
+     WHERE room_id = p_source_room_id
+       AND p_user_id IN (player_1_id, player_2_id, player_3_id, player_4_id)
+  ) AND NOT EXISTS (
+    SELECT 1 FROM room_players
+     WHERE room_id = p_source_room_id AND user_id = p_user_id
+  ) THEN
+    RAISE EXCEPTION 'get_or_create_rematch_room: user % is not a participant of room %',
+      p_user_id, p_source_room_id;
+  END IF;
+
   -- ── A. Fast-path: a rematch room already exists ──────────────────────────
   SELECT id, code
     INTO v_existing_id, v_existing_code
@@ -132,9 +149,9 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION get_or_create_rematch_room TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_or_create_rematch_room(UUID, UUID, TEXT, BOOLEAN, BOOLEAN, BOOLEAN) TO authenticated;
 
-COMMENT ON FUNCTION get_or_create_rematch_room IS
+COMMENT ON FUNCTION public.get_or_create_rematch_room(UUID, UUID, TEXT, BOOLEAN, BOOLEAN, BOOLEAN) IS
   'Atomic Play-Again coordinator. '
   'The first caller creates a new room (is_host=true); all subsequent '
   'callers for the same source_room_id join that room (is_host=false). '
