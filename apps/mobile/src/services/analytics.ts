@@ -436,10 +436,9 @@ export function setAnalyticsConsent(hasConsented: boolean): void {
 
 /** Returns whether analytics is ready to send (credentials configured & consent given). */
 export function isAnalyticsEnabled(): boolean {
-  // In proxy mode (production), API_SECRET is server-side only — not needed on client.
-  const hasCredentials = USE_PROXY
-    ? Boolean(MEASUREMENT_ID)
-    : Boolean(MEASUREMENT_ID && API_SECRET);
+  // In proxy mode (production), MEASUREMENT_ID and API_SECRET are supplied server-side
+  // by the Edge Function — no client-side credential check needed.
+  const hasCredentials = USE_PROXY ? true : Boolean(MEASUREMENT_ID && API_SECRET);
   return hasCredentials && consentGiven;
 }
 
