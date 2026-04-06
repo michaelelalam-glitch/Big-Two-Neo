@@ -282,7 +282,11 @@ function GameLayoutComponent({
                 sits visually between the table content and the helper buttons below. */}
             {autoPassTimerState && (
               <View pointerEvents="none">
-                <AutoPassTimer timerState={autoPassTimerState} currentPlayerIndex={0} />
+                <AutoPassTimer
+                  timerState={autoPassTimerState}
+                  currentPlayerIndex={0}
+                  clockOffsetMs={clockOffsetMs}
+                />
               </View>
             )}
           </View>

@@ -12,6 +12,15 @@
  * - 30-second cooldown with countdown after each throw.
  * - Effects auto-dismiss after 5 seconds. The receiver also gets a full-screen
  *   popup (`incomingThrowable`), dismissible by double-tap.
+ *
+ * Rate Limiting:
+ * - Client-side: 30s cooldown per user (persisted via AsyncStorage).
+ * - Receiver-side: dedup within 30s window prevents replay/duplicate animations.
+ * - Server-side: Throwables use Supabase Realtime broadcast (peer-to-peer via
+ *   server relay). No Edge Function validation layer exists because throwables
+ *   are purely cosmetic — they cannot affect game state, scores, or rank points.
+ *   Accepted risk: a malicious client bypassing the cooldown could spam throwable
+ *   animations. Impact is limited to visual annoyance with no gameplay effect.
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
@@ -263,6 +272,8 @@ export function useThrowables({
   }, []);
 
   // Subscribe to throwable_sent broadcasts.
+  // Receiver-side rate limit: discard throwables from same thrower within 30s
+  const _throwableReceiveMap = useRef(new Map<string, number>());
   useEffect(() => {
     if (!channel) return;
 
@@ -301,6 +312,31 @@ export function useThrowables({
           throwable !== 'cake')
       ) {
         return;
+      }
+
+      // Receiver-side rate limit: ignore if same thrower sent within 30s
+      const now = Date.now();
+      const lastReceived = _throwableReceiveMap.current.get(thrower_id);
+      if (lastReceived && now - lastReceived < COOLDOWN_MS) {
+        return; // Discard — sender bypassed client cooldown
+      }
+      _throwableReceiveMap.current.set(thrower_id, now);
+
+      // Periodic sweep + FIFO cap to prevent unbounded growth from spoofed IDs
+      if (_throwableReceiveMap.current.size > 200) {
+        // Purge expired entries first
+        for (const [key, ts] of _throwableReceiveMap.current) {
+          if (now - ts >= COOLDOWN_MS) _throwableReceiveMap.current.delete(key);
+        }
+        // If still over cap after purge, FIFO evict oldest
+        if (_throwableReceiveMap.current.size > 200) {
+          const iter = _throwableReceiveMap.current.keys();
+          while (_throwableReceiveMap.current.size > 200) {
+            const oldest = iter.next();
+            if (oldest.done) break;
+            _throwableReceiveMap.current.delete(oldest.value);
+          }
+        }
       }
 
       const players = layoutPlayersRef.current;

@@ -153,6 +153,12 @@ export function useConnectionManager({
   // Earliest time the next heartbeat attempt may fire (enforces backoff rate-limit).
   const nextHeartbeatAllowedAtRef = useRef<number>(0);
 
+  // Ref to the latest reconnect function — avoids including it in sendHeartbeat's
+  // dep array (reconnect is defined later in the hook; a direct dep creates a
+  // forward-reference / circular-dep lint warning). The ref is kept current via
+  // a useEffect below once reconnect is in scope.
+  const reconnectRef = useRef<() => Promise<void>>(async () => {});
+
   const sendHeartbeat = useCallback(async () => {
     if (!enabled || !roomId || !playerId) return;
 
@@ -228,7 +234,7 @@ export function useConnectionManager({
       // disconnected status. We must call reconnect() explicitly.
       if (data?.is_disconnected) {
         stopHeartbeat();
-        void reconnect();
+        void reconnectRef.current();
         return;
       }
 
@@ -354,6 +360,11 @@ export function useConnectionManager({
     }
   }, [roomId, playerId, startHeartbeat, onRoomClosed]);
 
+  // Keep reconnectRef current so sendHeartbeat always calls the latest closure.
+  useEffect(() => {
+    reconnectRef.current = reconnect;
+  }, [reconnect]);
+
   // ── Explicit disconnect (intentional leave) ───────────────────────────────
 
   const disconnect = useCallback(async () => {
@@ -436,6 +447,18 @@ export function useConnectionManager({
     return () => subscription.remove();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, roomId, playerId]);
+
+  // ── Memory warning: release non-essential resources ────────────────────────
+  useEffect(() => {
+    // iOS fires 'memoryWarning' via AppState when the OS is under memory pressure.
+    const sub = AppState.addEventListener('memoryWarning', () => {
+      networkLogger.warn('[useConnectionManager] Memory warning — releasing resources');
+      // soundManager is imported lazily to avoid circular deps;
+      // fire-and-forget cleanup is fine here.
+      import('../utils/soundManager').then(m => m.soundManager.cleanup()).catch(() => {});
+    });
+    return () => sub.remove();
+  }, []);
 
   // ── Start heartbeat on mount ──────────────────────────────────────────────
 

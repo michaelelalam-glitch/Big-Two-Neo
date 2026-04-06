@@ -63,7 +63,10 @@ import { UnexpectedDisconnectError } from './useVideoChat';
 //       errors are not).
 // MultiplayerGame checks `isLiveKitAvailable` before constructing this class.
 let _registerGlobals: (() => void) | null = null;
-let _AudioSession: { startAudioSession(): Promise<void>; stopAudioSession(): Promise<void> } | null = null;
+let _AudioSession: {
+  startAudioSession(): Promise<void>;
+  stopAudioSession(): Promise<void>;
+} | null = null;
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const _lk = require('@livekit/react-native') as {
@@ -92,7 +95,7 @@ export const isLiveKitAvailable = _registerGlobals !== null;
 
 function participantToState(p: RemoteParticipant): VideoChatParticipant {
   const cameraPublication = p.getTrackPublication(Track.Source.Camera);
-  const micPublication    = p.getTrackPublication(Track.Source.Microphone);
+  const micPublication = p.getTrackPublication(Track.Source.Microphone);
 
   // Derive camera/mic state from publication *presence* and remote-mute state,
   // not from `isSubscribed`. `isSubscribed` reflects the local subscription
@@ -102,13 +105,13 @@ function participantToState(p: RemoteParticipant): VideoChatParticipant {
   // regardless of whether we are currently subscribed.
   return {
     participantId: p.identity,
-    isCameraOn:    cameraPublication != null && !cameraPublication.isMuted,
-    isMicOn:       micPublication    != null && !micPublication.isMuted,
+    isCameraOn: cameraPublication != null && !cameraPublication.isMuted,
+    isMicOn: micPublication != null && !micPublication.isMuted,
     // isConnecting reflects connection quality only — not track presence.
     // A participant with no camera/mic publication is simply not publishing those
     // tracks (audio-only or camera-off), not "connecting". Using track absence
     // would permanently mark voice-only participants as connecting.
-    isConnecting:  p.connectionQuality === 'unknown',
+    isConnecting: p.connectionQuality === 'unknown',
   };
 }
 
@@ -130,9 +133,9 @@ const ROOM_OPTIONS: RoomOptions = {
   dynacast: false,
   // Audio defaults — let LiveKit handle echo cancellation and noise suppression.
   audioCaptureDefaults: {
-    echoCancellation:    true,
-    noiseSuppression:    true,
-    autoGainControl:     true,
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true,
   },
 };
 
@@ -140,6 +143,10 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
   private room: Room;
   private participantsChangedCbs: ((participants: VideoChatParticipant[]) => void)[] = [];
   private errorCbs: ((error: Error) => void)[] = [];
+  /** Track audio session state to make start/stop idempotent */
+  private _audioSessionActive = false;
+  /** Mutex to prevent concurrent start/stop audio session calls */
+  private _audioSessionMutex: Promise<void> = Promise.resolve();
 
   constructor() {
     // _registerGlobals is set at module-evaluation time (see top of file).
@@ -148,7 +155,7 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
     if (!_registerGlobals) {
       throw new Error(
         '[LiveKit] @livekit/react-native is not linked. ' +
-        'Check isLiveKitAvailable before constructing LiveKitVideoChatAdapter.',
+          'Check isLiveKitAvailable before constructing LiveKitVideoChatAdapter.'
       );
     }
     _registerGlobals();
@@ -176,7 +183,7 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
       throw new Error(
         error instanceof Error
           ? `LiveKit token fetch failed: ${error.message}`
-          : 'LiveKit token fetch failed: unknown error',
+          : 'LiveKit token fetch failed: unknown error'
       );
     }
 
@@ -187,18 +194,34 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
     // `startAudioSession` is also required to *activate* the session — without
     // it, AVAudioSession remains inactive and capture silently fails on iOS.
     if (_AudioSession) {
-      try {
-        await _AudioSession.startAudioSession();
-      } catch (audioErr) {
-        // startAudioSession itself failed — the session was never activated so
-        // there is nothing to clean up.  Rethrow with a user-actionable message
-        // (Copilot PR-149 r2946350450).
-        throw new Error(
-          `LiveKit: AVAudioSession activation failed — audio unavailable: ${
-            audioErr instanceof Error ? audioErr.message : String(audioErr)
-          }`,
-        );
-      }
+      // Serialize audio session operations to prevent race conditions.
+      // We store the error (if any) so it can be re-thrown after awaiting,
+      // but we always resolve the mutex so subsequent operations aren't
+      // permanently blocked by a single failure ("poisoned chain" problem).
+      let audioStartError: Error | undefined;
+      this._audioSessionMutex = this._audioSessionMutex
+        .then(async () => {
+          if (this._audioSessionActive) {
+            gameLogger.info('[LiveKit] Audio session already active, skipping start');
+            return;
+          }
+          try {
+            await _AudioSession!.startAudioSession();
+            this._audioSessionActive = true;
+          } catch (audioErr) {
+            this._audioSessionActive = false;
+            audioStartError = new Error(
+              `LiveKit: AVAudioSession activation failed — audio unavailable: ${
+                audioErr instanceof Error ? audioErr.message : String(audioErr)
+              }`
+            );
+          }
+        })
+        .catch(() => {
+          /* keep chain alive */
+        });
+      await this._audioSessionMutex;
+      if (audioStartError) throw audioStartError;
     }
     gameLogger.info(`[LiveKit] Connecting participant ${participantId} to room ${roomId}`);
     try {
@@ -206,10 +229,20 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
     } catch (connectErr) {
       // connect() failed — stop the audio session we just started so it does
       // not stay active after a failed join attempt.
-      if (_AudioSession) {
-        await _AudioSession.stopAudioSession().catch(stopErr =>
-          gameLogger.warn('[LiveKit] stopAudioSession (connect-failure cleanup) error:', stopErr instanceof Error ? stopErr.message : String(stopErr))
-        );
+      if (_AudioSession && this._audioSessionActive) {
+        this._audioSessionMutex = this._audioSessionMutex.then(async () => {
+          try {
+            await _AudioSession!.stopAudioSession();
+            this._audioSessionActive = false;
+          } catch (stopErr) {
+            gameLogger.warn(
+              '[LiveKit] stopAudioSession (connect-failure cleanup) error:',
+              stopErr instanceof Error ? stopErr.message : String(stopErr)
+            );
+            this._audioSessionActive = false;
+          }
+        });
+        await this._audioSessionMutex;
       }
       throw connectErr;
     }
@@ -225,9 +258,23 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
       // resume audio after the chat session ends. Safe to call on Android.
       // Uses try/finally so teardown happens even if disconnect() rejects.
       if (_AudioSession) {
-        await _AudioSession.stopAudioSession().catch(e =>
-          gameLogger.warn('[LiveKit] stopAudioSession error (ignored):', e instanceof Error ? e.message : String(e))
-        );
+        this._audioSessionMutex = this._audioSessionMutex.then(async () => {
+          if (!this._audioSessionActive) {
+            gameLogger.info('[LiveKit] Audio session already stopped, skipping stop');
+            return;
+          }
+          try {
+            await _AudioSession!.stopAudioSession();
+            this._audioSessionActive = false;
+          } catch (e) {
+            gameLogger.warn(
+              '[LiveKit] stopAudioSession error (ignored):',
+              e instanceof Error ? e.message : String(e)
+            );
+            this._audioSessionActive = false;
+          }
+        });
+        await this._audioSessionMutex;
       }
     }
   }
@@ -256,9 +303,7 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
     return snapshotParticipants(this.room);
   }
 
-  onParticipantsChanged(
-    cb: (participants: VideoChatParticipant[]) => void,
-  ): () => void {
+  onParticipantsChanged(cb: (participants: VideoChatParticipant[]) => void): () => void {
     this.participantsChangedCbs.push(cb);
     return () => {
       this.participantsChangedCbs = this.participantsChangedCbs.filter(fn => fn !== cb);
@@ -305,8 +350,9 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
     }
 
     // Remote participant — look up by identity (= Supabase user_id)
-    const remote = Array.from(this.room.remoteParticipants.values())
-      .find(p => p.identity === participantId);
+    const remote = Array.from(this.room.remoteParticipants.values()).find(
+      p => p.identity === participantId
+    );
     if (!remote) return undefined;
     const pub = remote.getTrackPublication(Track.Source.Camera);
     if (!pub) return undefined;
@@ -322,16 +368,26 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
   private _notifyParticipants(overrideSnapshot?: VideoChatParticipant[]): void {
     const snapshot = overrideSnapshot ?? snapshotParticipants(this.room);
     for (const cb of this.participantsChangedCbs) {
-      try { cb(snapshot); } catch (e) {
-        gameLogger.warn('[LiveKit] participantsChanged callback threw:', e instanceof Error ? e.message : String(e));
+      try {
+        cb(snapshot);
+      } catch (e) {
+        gameLogger.warn(
+          '[LiveKit] participantsChanged callback threw:',
+          e instanceof Error ? e.message : String(e)
+        );
       }
     }
   }
 
   private _notifyError(err: Error): void {
     for (const cb of this.errorCbs) {
-      try { cb(err); } catch (e) {
-        gameLogger.warn('[LiveKit] error callback threw:', e instanceof Error ? e.message : String(e));
+      try {
+        cb(err);
+      } catch (e) {
+        gameLogger.warn(
+          '[LiveKit] error callback threw:',
+          e instanceof Error ? e.message : String(e)
+        );
       }
     }
   }
@@ -339,15 +395,15 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
   private _attachRoomEvents(): void {
     // Participant join / leave
     this.room
-      .on(RoomEvent.ParticipantConnected,    this._handleParticipantChange)
+      .on(RoomEvent.ParticipantConnected, this._handleParticipantChange)
       .on(RoomEvent.ParticipantDisconnected, this._handleParticipantChange)
       // Track publish / subscribe state changes drive isCameraOn / isMicOn
-      .on(RoomEvent.TrackPublished,          this._handleParticipantChange)
-      .on(RoomEvent.TrackUnpublished,        this._handleParticipantChange)
-      .on(RoomEvent.TrackSubscribed,         this._handleParticipantChange)
-      .on(RoomEvent.TrackUnsubscribed,       this._handleParticipantChange)
-      .on(RoomEvent.TrackMuted,              this._handleParticipantChange)
-      .on(RoomEvent.TrackUnmuted,            this._handleParticipantChange)
+      .on(RoomEvent.TrackPublished, this._handleParticipantChange)
+      .on(RoomEvent.TrackUnpublished, this._handleParticipantChange)
+      .on(RoomEvent.TrackSubscribed, this._handleParticipantChange)
+      .on(RoomEvent.TrackUnsubscribed, this._handleParticipantChange)
+      .on(RoomEvent.TrackMuted, this._handleParticipantChange)
+      .on(RoomEvent.TrackUnmuted, this._handleParticipantChange)
       // Connection quality changes can flip `isConnecting`
       .on(RoomEvent.ConnectionQualityChanged, this._handleParticipantChange)
       // Disconnect / reconnect

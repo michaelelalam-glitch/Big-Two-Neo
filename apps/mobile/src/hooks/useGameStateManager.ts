@@ -2,12 +2,12 @@
  * @module useGameStateManager
  * Game state initialization, subscription, and lifecycle management for local AI games.
  */
-import { useEffect, useRef, useState } from 'react';
-import { Alert } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createGameStateManager, type GameState, type GameStateManager } from '../game/state';
 import { i18n } from '../i18n';
-import { soundManager, SoundType, showError, showInfo } from '../utils';
+import { soundManager, SoundType, showError } from '../utils';
 import { gameLogger } from '../utils/logger';
 import { buildFinalPlayHistoryFromState } from '../utils/playHistoryUtils';
 import type { FinalScore } from '../types/gameEnd';
@@ -34,6 +34,7 @@ interface UseGameStateManagerProps {
   scoreHistory: ScoreHistory[];
   playHistoryByMatch: PlayHistoryMatch[];
   checkAndExecuteBotTurn: () => void;
+  onAlert?: (options: { title?: string; message: string }) => void;
 }
 
 interface UseGameStateManagerReturn {
@@ -81,6 +82,7 @@ export function useGameStateManager({
   scoreHistory,
   playHistoryByMatch,
   checkAndExecuteBotTurn,
+  onAlert,
 }: UseGameStateManagerProps): UseGameStateManagerReturn {
   const gameManagerRef = useRef<GameStateManager | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -96,6 +98,18 @@ export function useGameStateManager({
   // Store refs for callbacks
   const scoreHistoryRef = useRef(scoreHistory);
   const playHistoryRef = useRef(playHistoryByMatch);
+  const onAlertRef = useRef(onAlert);
+  useEffect(() => {
+    onAlertRef.current = onAlert;
+  }, [onAlert]);
+
+  const alertError = useCallback((message: string) => {
+    if (Platform.OS === 'ios' && onAlertRef.current) {
+      onAlertRef.current({ title: i18n.t('common.error'), message });
+    } else {
+      showError(message);
+    }
+  }, []);
 
   useEffect(() => {
     scoreHistoryRef.current = scoreHistory;
@@ -361,7 +375,7 @@ export function useGameStateManager({
                 } else {
                   const errorMsg = result.error ?? 'Unknown error';
                   gameLogger.error('❌ [useGameStateManager] Failed to start new match:', errorMsg);
-                  showError(
+                  alertError(
                     'Failed to start next match. Please try leaving and rejoining the game.'
                   );
                 }
@@ -420,7 +434,7 @@ export function useGameStateManager({
                 gameLogger.info('✅ [Game Over] Game End Modal opened successfully');
               } catch (error) {
                 gameLogger.error('❌ [Game Over] Failed to open modal:', error);
-                showInfo(`Game Over! ${finalWinner?.playerName || 'Someone'} wins!`);
+                alertError(`Game Over! ${finalWinner?.playerName || 'Someone'} wins!`);
               }
             });
 
@@ -502,7 +516,7 @@ export function useGameStateManager({
           gameManagerRef.current = null;
         }
         setIsInitializing(false);
-        Alert.alert(i18n.t('common.error'), 'Failed to initialize game. Please try again.');
+        alertError('Failed to initialize game. Please try again.');
       }
     };
 

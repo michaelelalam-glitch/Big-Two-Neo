@@ -42,6 +42,10 @@ export interface BotPlayResult {
  */
 export class BotAI {
   private readonly _difficulty: BotDifficulty;
+  /** Memoization cache for findBest5CardCombo keyed by sorted card IDs.
+   *  Capped at 256 entries (FIFO eviction) to bound memory in long sessions. */
+  private _5cardCache = new Map<string, string[] | null>();
+  private static readonly _CACHE_MAX = 256;
 
   constructor(difficulty: BotDifficulty = 'medium') {
     this._difficulty = difficulty;
@@ -478,6 +482,20 @@ export class BotAI {
   private findBest5CardCombo(hand: Card[]): string[] | null {
     if (hand.length < 5) return null;
 
+    // Memoize by normalized (sorted) card IDs so cache hits are stable even if
+    // callers pass the same hand in a different order.
+    const cacheKey = hand
+      .map(c => c.id)
+      .sort()
+      .join(',');
+    if (this._5cardCache.has(cacheKey)) return this._5cardCache.get(cacheKey)!;
+
+    // FIFO eviction: drop oldest entry when at capacity
+    if (this._5cardCache.size >= BotAI._CACHE_MAX) {
+      const oldest = this._5cardCache.keys().next().value;
+      if (oldest !== undefined) this._5cardCache.delete(oldest);
+    }
+
     const n = hand.length;
     for (let a = 0; a < n - 4; a++) {
       for (let b = a + 1; b < n - 3; b++) {
@@ -488,7 +506,9 @@ export class BotAI {
               const combo = classifyCards(fiveCards);
               if (this.is5CardCombo(combo)) {
                 // Return first valid combo found (hand is sorted, so lowest-indexed cards are weakest)
-                return fiveCards.map(c => c.id);
+                const result = fiveCards.map(c => c.id);
+                this._5cardCache.set(cacheKey, result);
+                return result;
               }
             }
           }
@@ -496,6 +516,7 @@ export class BotAI {
       }
     }
 
+    this._5cardCache.set(cacheKey, null);
     return null;
   }
 

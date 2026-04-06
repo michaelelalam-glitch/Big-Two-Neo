@@ -981,12 +981,13 @@ export class GameStateManager {
       gameLogger.info(
         `🔥 [Auto-Pass Timer] Highest play detected! Starting 10s timer for ${player.name}`
       );
-      const now = new Date().toISOString();
+      const startTimeMs = Date.now();
       this.state!.auto_pass_timer = {
         active: true,
-        started_at: now,
+        started_at: new Date(startTimeMs).toISOString(),
         duration_ms: 10000, // 10 seconds
         remaining_ms: 10000,
+        end_timestamp: startTimeMs + 10000,
         triggering_play: this.state!.lastPlay,
         player_id: player.id, // Track who triggered the timer
       };

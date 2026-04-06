@@ -26,23 +26,49 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import { supabase } from './supabase';
+
+// ─── Session cache ─────────────────────────────────────────────────────────── //
+// Avoids calling supabase.auth.getSession() (AsyncStorage read) on every event.
+// null = unknown (startup window before getSession resolves);
+// true = signed in; false = signed out.
+// Only false short-circuits event sending in proxy mode — null and true both attempt the call
+// so that events from already-signed-in users are not dropped during the brief startup window.
+let _hasSession: boolean | null = null;
+// Unsubscribe any previous listener before registering a new one.
+// This guards against duplicate registrations under React Fast Refresh:
+// module-level code re-runs on every hot reload, but the Supabase auth
+// singleton persists, so without this guard listeners accumulate.
+const _ag = globalThis as { __analyticsAuthSub?: { unsubscribe(): void } };
+_ag.__analyticsAuthSub?.unsubscribe();
+const {
+  data: { subscription: _authSub },
+} = supabase.auth.onAuthStateChange((_event, session) => {
+  _hasSession = !!session?.access_token;
+});
+_ag.__analyticsAuthSub = _authSub;
+// Seed the initial value asynchronously
+supabase.auth
+  .getSession()
+  .then(({ data }) => {
+    _hasSession = !!data?.session?.access_token;
+  })
+  .catch(() => {
+    /* best-effort — analytics init must never throw */
+  });
 
 // ─── Configuration ─────────────────────────────────────────────────────────── //
 
-/** Firebase Measurement Protocol v2 endpoint */
+/** Firebase Measurement Protocol v2 endpoint (fallback for dev validation) */
 const MP_ENDPOINT = 'https://www.google-analytics.com/mp/collect';
 
 const MEASUREMENT_ID = process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID ?? '';
-// NOTE: EXPO_PUBLIC_* vars are bundled into the app binary and are technically
-// extractable. The Measurement Protocol API secret is designed for client-side
-// use and can ONLY push events to YOUR GA4 property. It is NOT a server-side
-// credential. GA4's built-in bot/spam filters provide some protection against
-// abuse; for higher assurance, proxy analytics through a server-side endpoint.
-// TODO(security): move analytics ingestion behind a Supabase Edge Function so
-// the API secret is never shipped in the client bundle. Until that migration,
-// the risk is scoped to a malicious actor spamming YOUR property's event stream;
-// it does not expose end-user data. Tracked in task backlog.
+// API_SECRET is now stored server-side in Supabase secrets.
+// The client routes events through the analytics-proxy Edge Function.
+// Keep the client-side fallback for dev validation only.
 const API_SECRET = process.env.EXPO_PUBLIC_FIREBASE_API_SECRET ?? '';
+/** When true, use the Supabase Edge Function proxy instead of direct GA4. */
+const USE_PROXY = !__DEV__;
 
 /**
  * Tracks whether the user has consented to analytics.
@@ -244,8 +270,15 @@ function getSessionId(): number {
 async function sendEvents(
   events: { name: string; params?: AnalyticsEventParams }[]
 ): Promise<void> {
-  if (!MEASUREMENT_ID || !API_SECRET) {
-    // Credentials not configured — no-op silently
+  if (!USE_PROXY && !MEASUREMENT_ID) {
+    // Direct-to-GA4 (dev) mode requires a client-side MEASUREMENT_ID.
+    // In proxy mode (production) the Edge Function supplies it server-side.
+    return;
+  }
+  // In proxy mode (production), API_SECRET lives server-side in the Edge
+  // Function so it's not required on the client. In dev mode, it's needed
+  // for direct GA4 validation.
+  if (!USE_PROXY && !API_SECRET) {
     return;
   }
 
@@ -282,6 +315,12 @@ async function sendEvents(
         engagement_time_msec: 100,
         session_id: getSessionId(),
       };
+      // Enforce GA4 100-char string param limit on all values
+      for (const [key, value] of Object.entries(params)) {
+        if (typeof value === 'string' && value.length > 100) {
+          params[key] = value.substring(0, 100);
+        }
+      }
       return { name: e.name, params };
     }),
   };
@@ -324,11 +363,33 @@ async function sendEvents(
   }
 
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    let response: Response;
+    if (USE_PROXY) {
+      // Production: route through Supabase Edge Function (API_SECRET stays server-side).
+      // Short-circuit when explicitly signed out — uses cached auth state to avoid
+      // per-event AsyncStorage reads from supabase.auth.getSession().
+      // null (startup unknown window) is treated as potentially signed-in to avoid
+      // dropping early events; once getSession() resolves it becomes true/false.
+      if (_hasSession === false) {
+        return;
+      }
+      const { data: _data, error } = await supabase.functions.invoke('analytics-proxy', {
+        body,
+      });
+      if (error) {
+        // Swallow silently — analytics must never crash the app
+        return;
+      }
+      // Edge Function returns { status: number }
+      return;
+    } else {
+      // Development: hit GA4 directly for validation feedback
+      response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    }
     if (__DEV__) {
       if (response.ok) {
         // eslint-disable-next-line no-console
@@ -375,7 +436,10 @@ export function setAnalyticsConsent(hasConsented: boolean): void {
 
 /** Returns whether analytics is ready to send (credentials configured & consent given). */
 export function isAnalyticsEnabled(): boolean {
-  return Boolean(MEASUREMENT_ID && API_SECRET && consentGiven);
+  // In proxy mode (production), MEASUREMENT_ID and API_SECRET are supplied server-side
+  // by the Edge Function — no client-side credential check needed.
+  const hasCredentials = USE_PROXY ? true : Boolean(MEASUREMENT_ID && API_SECRET);
+  return hasCredentials && consentGiven;
 }
 
 /**
@@ -567,7 +631,7 @@ export function checkHintFollowed(playedCardIds: string[]): void {
       hint_card_ids: _lastHintCardIds.join(',').slice(0, 100),
       played_was: playedCardIds.join(',').slice(0, 100),
     };
-    if (_lastHintPlayerHand) params.player_hand = _lastHintPlayerHand.slice(0, 200);
+    if (_lastHintPlayerHand) params.player_hand = _lastHintPlayerHand.slice(0, 100);
     if (_lastHintLastPlayCards) params.last_play = _lastHintLastPlayCards.slice(0, 100);
     trackEvent('hint_result_played', params);
   } else {
@@ -577,7 +641,7 @@ export function checkHintFollowed(playedCardIds: string[]): void {
       hint_card_ids: _lastHintCardIds.join(',').slice(0, 100),
       played_was: playedCardIds.join(',').slice(0, 100),
     };
-    if (_lastHintPlayerHand) params.player_hand = _lastHintPlayerHand.slice(0, 200);
+    if (_lastHintPlayerHand) params.player_hand = _lastHintPlayerHand.slice(0, 100);
     if (_lastHintLastPlayCards) params.last_play = _lastHintLastPlayCards.slice(0, 100);
     trackEvent('hint_result_ignored', params);
   }

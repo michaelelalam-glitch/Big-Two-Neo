@@ -9,7 +9,10 @@ import { useEffect, useRef } from 'react';
 
 import { soundManager, hapticManager, HapticType, SoundType } from '../utils';
 import { gameLogger } from '../utils/logger';
-import type { Player as MultiplayerPlayer, GameState as MultiplayerGameState } from '../types/multiplayer';
+import type {
+  Player as MultiplayerPlayer,
+  GameState as MultiplayerGameState,
+} from '../types/multiplayer';
 import type { GameState as LocalGameState } from '../game/state';
 
 interface UseOneCardLeftAlertOptions {
@@ -57,14 +60,22 @@ export function useOneCardLeftAlert({
           : multiplayerPlayers.find(p => p.player_index === parseInt(playerIndex));
 
         if (player) {
-          const playerName = 'name' in player ? player.name : ('username' in player ? player.username : 'Unknown');
-          gameLogger.info(`🚨 [One Card Alert] ${playerName} (index ${playerIndex}) has 1 card remaining`);
+          const playerName =
+            ('name' in player ? player.name : 'username' in player ? player.username : undefined) ||
+            'Player';
+          gameLogger.info(
+            `🚨 [One Card Alert] ${playerName} (index ${playerIndex}) has 1 card remaining`
+          );
 
           try {
             soundManager.playSound(SoundType.TURN_NOTIFICATION);
             hapticManager.trigger(HapticType.WARNING);
           } catch (error) {
-            gameLogger.error('Error showing one-card-left notification', { error, playerName, playerIndex });
+            gameLogger.error('Error showing one-card-left notification', {
+              error,
+              playerName,
+              playerIndex,
+            });
           }
 
           oneCardLeftDetectedRef.current.add(key);

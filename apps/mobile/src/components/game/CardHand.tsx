@@ -199,6 +199,8 @@ function CardHandComponent({
   const selectedCardIds = externalSelectedCardIds ?? internalSelectedCardIds;
 
   // Update display cards when prop cards change
+  const displayCardsRef = useRef(displayCards);
+  displayCardsRef.current = displayCards;
   React.useEffect(() => {
     // Prune confirmed removals from the optimistic set: if the parent's cards no
     // longer contain an ID we optimistically removed, the play was accepted.
@@ -216,7 +218,8 @@ function CardHandComponent({
         : cards;
 
     // CRITICAL FIX: Only update if cards actually changed (not just reordered)
-    const currentIds = new Set(displayCards.map(c => c.id));
+    // Use ref to avoid re-triggering this effect when displayCards updates
+    const currentIds = new Set(displayCardsRef.current.map(c => c.id));
     const filteredIds = new Set(filteredCards.map(c => c.id));
 
     const sameCardSet =
@@ -229,14 +232,15 @@ function CardHandComponent({
     } else {
       // Same cards, potentially reordered by parent (via customCardOrder)
       const orderChanged = filteredCards.some((card, index) => {
-        return displayCards[index]?.id !== card.id;
+        return displayCardsRef.current[index]?.id !== card.id;
       });
 
-      if (orderChanged || displayCards.length === 0) {
+      if (orderChanged || displayCardsRef.current.length === 0) {
         setDisplayCards(filteredCards);
       }
     }
-  }, [cards, displayCards]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cards]);
 
   // Use displayCards directly. The parent manages the order via the cards prop (e.g., customCardOrder),
   // but CardHand also manages displayCards locally during drag-and-drop operations.

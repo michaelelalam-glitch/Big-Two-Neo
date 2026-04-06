@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   RefreshControl,
   Image,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import EmptyState from '../components/EmptyState';
@@ -314,6 +314,47 @@ export default function LeaderboardScreen() {
     fetchLeaderboard(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeFilter, leaderboardType]); // Trigger on timeFilter or leaderboardType change
+
+  // ── Realtime subscription: auto-refresh when any player's rank_points change ──
+  // Debounced to avoid rapid re-fetches when multiple games finish in quick succession.
+  // Uses a ref for fetchLeaderboard to avoid re-subscribing the channel on every
+  // filter/pagination change (Copilot review feedback).
+  // Subscribes only while focused to avoid background network usage when navigated away.
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fetchLeaderboardRef = useRef(fetchLeaderboard);
+  fetchLeaderboardRef.current = fetchLeaderboard;
+  useFocusEffect(
+    useCallback(() => {
+      const channel = supabase
+        .channel('leaderboard-realtime')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'player_stats',
+          },
+          _payload => {
+            // Debounce: wait 2s after the last change before refreshing.
+            // NOTE: _payload.old is empty for UPDATE events unless player_stats
+            // is configured with REPLICA IDENTITY FULL. Per-field comparisons
+            // against payload.old would always trigger (oldValue === undefined),
+            // so we accept all updates and let the 2 s debounce batch changes.
+            if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+            refreshTimerRef.current = setTimeout(() => {
+              statsLogger.info('[Leaderboard] Realtime update detected, refreshing...');
+              fetchLeaderboardRef.current(true);
+            }, 2000);
+          }
+        )
+        .subscribe();
+
+      return () => {
+        if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+        supabase.removeChannel(channel);
+      };
+    }, [])
+  );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);

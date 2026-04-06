@@ -100,10 +100,13 @@ async function getServerDriftMs(): Promise<number> {
  * @param timerState - Current auto-pass timer state (used only for diagnostic logging).
  * @param fallbackServerTimestamp - Optional server-side timestamp (ms) used to seed a rough
  *   initial drift before the NTP ping completes when the device clock appears >1 s fast.
+ * @param enabled - When false, the NTP ping is skipped and the hook immediately reports
+ *   isSynced=true. Use when the caller provides its own clock offset (e.g. offline/AI games).
  */
 export function useClockSync(
   timerState: AutoPassTimerState | null,
-  fallbackServerTimestamp?: number | null
+  fallbackServerTimestamp?: number | null,
+  enabled = true
 ): ClockSyncResult {
   // Ref holds the live drift value; getCorrectedNow reads from it so stale
   // closures (e.g. setInterval) always get the latest measurement.
@@ -113,6 +116,11 @@ export function useClockSync(
 
   // ── One-time NTP ping on mount ─────────────────────────────────────────
   useEffect(() => {
+    if (!enabled) {
+      // Caller provides their own clock offset — mark synced immediately and skip the ping.
+      setIsSynced(true);
+      return;
+    }
     let cancelled = false;
     getServerDriftMs().then(drift => {
       if (cancelled) return;
@@ -123,6 +131,7 @@ export function useClockSync(
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `enabled` is stable (determined at creation time)
   }, []); // runs once per component mount; shared cache handles de-duplication
 
   // ── Fallback: seed a rough drift from turn_started_at before ping lands ─

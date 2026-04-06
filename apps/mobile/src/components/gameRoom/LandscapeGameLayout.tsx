@@ -590,7 +590,11 @@ export function LandscapeGameLayout({
           {/* Auto-Pass Timer Display (OVERLAY on table) */}
           {autoPassTimerState && (
             <View style={styles.timerOverlay}>
-              <AutoPassTimer timerState={autoPassTimerState} currentPlayerIndex={0} />
+              <AutoPassTimer
+                timerState={autoPassTimerState}
+                currentPlayerIndex={0}
+                clockOffsetMs={turnClockOffsetMs}
+              />
             </View>
           )}
         </View>

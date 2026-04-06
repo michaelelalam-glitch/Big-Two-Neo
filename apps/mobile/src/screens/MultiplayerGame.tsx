@@ -5,9 +5,23 @@
  * Created as part of Task #570: Split GameScreen component.
  */
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Alert, InteractionManager } from 'react-native';
+import {
+  Alert,
+  BackHandler,
+  InteractionManager,
+  Platform,
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRoute, RouteProp, useNavigation, useIsFocused } from '@react-navigation/native';
+import {
+  useRoute,
+  RouteProp,
+  useNavigation,
+  useIsFocused,
+  useFocusEffect,
+} from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import Constants from 'expo-constants';
 import { InGameAlert } from '../components/game/InGameAlert';
@@ -16,6 +30,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useGameEnd } from '../contexts/GameEndContext';
 import { useScoreboard } from '../contexts/ScoreboardContext';
 import { supabase } from '../services/supabase';
+import { API } from '../constants';
+import type { FinalScore } from '../types/gameEnd';
 import { useConnectionManager } from '../hooks/useConnectionManager';
 import { useDisconnectDetection } from '../hooks/useDisconnectDetection';
 import { useServerBotCoordinator } from '../hooks/useServerBotCoordinator';
@@ -81,6 +97,14 @@ const isExpoGo =
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
+
+/**
+ * DEV-ONLY flag: set to `true` to re-enable the floating "Skip to End" red button
+ * during debugging. The button calls the complete-game edge function with fake data
+ * so you can test the Play Again / rematch flow without finishing a real game.
+ * Play Again is working in production so the button is hidden by default.
+ */
+const DEV_SHOW_SKIP_TO_END = false;
 
 export function MultiplayerGame() {
   const route = useRoute<GameScreenRouteProp>();
@@ -167,6 +191,28 @@ export function MultiplayerGame() {
     gameLogger.info('🎮 [MultiplayerGame] Game mode: MULTIPLAYER (server-side)');
   }, []);
 
+  // ─── Android hardware back button handler ────────────────────────────────
+  // Use useFocusEffect so the handler only intercepts back presses while this
+  // screen is focused (other mounted-but-unfocused screens won't interfere).
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'android') return;
+      const handler = () => {
+        Alert.alert(i18n.t('game.leaveGameConfirm'), i18n.t('game.leaveGameMessage'), [
+          { text: i18n.t('game.stay'), style: 'cancel' },
+          {
+            text: i18n.t('game.leaveGame'),
+            style: 'destructive',
+            onPress: () => navigation.goBack(),
+          },
+        ]);
+        return true; // Suppress default back behaviour
+      };
+      const sub = BackHandler.addEventListener('hardwareBackPress', handler);
+      return () => sub.remove();
+    }, [navigation])
+  );
+
   // ─── Register Play Again / Return to Menu callbacks ──────────────────────
   useEffect(() => {
     setOnPlayAgain(() => async () => {
@@ -174,13 +220,13 @@ export function MultiplayerGame() {
       const info = roomInfoRef.current;
       gameLogger.info('🔄 [MultiplayerGame] Play Again pressed, roomInfo:', {
         hasInfo: !!info,
+        roomId: info?.id,
         is_public: info?.is_public,
         ranked_mode: info?.ranked_mode,
       });
 
       if (!user?.id) {
-        showInGameAlert({ message: 'Not logged in. Please sign in and try again.' });
-        return;
+        throw new Error('Not logged in. Please sign in and try again.');
       }
 
       try {
@@ -188,33 +234,19 @@ export function MultiplayerGame() {
           gameLogger.error(
             '❌ [MultiplayerGame] Play Again: missing room info; cannot determine room flags.'
           );
-          showInGameAlert({
-            message: 'Unable to create a new game room right now. Please try again.',
-          });
-          return;
+          throw new Error('Unable to create a new game room right now. Please try again.');
         }
 
         if (!info.id) {
           gameLogger.error('❌ [MultiplayerGame] Play Again: missing room id.');
-          showInGameAlert({
-            message: 'Unable to create a new game room right now. Please try again.',
-          });
-          return;
+          throw new Error('Unable to create a new game room right now. Please try again.');
         }
 
-        // Clean up any bot-replacement rows (the source-room membership row
-        // is now removed atomically inside get_or_create_rematch_room so the
-        // RPC can perform a reliable participation check before deleting it).
-        const { error: botCleanupError } = await supabase.rpc(
-          'delete_room_players_by_human_user_id',
-          { human_user_id: user.id }
-        );
-        if (botCleanupError) {
-          gameLogger.warn(
-            '⚠️ [MultiplayerGame] Play Again: bot-replacement cleanup warning:',
-            botCleanupError.message
-          );
-        }
+        // Bot-replacement cleanup is intentionally NOT performed here.
+        // The get_or_create_rematch_room RPC atomically deletes the caller's
+        // room_players row as part of its participation check.  Pre-deleting
+        // via delete_room_players_by_human_user_id can remove the row the RPC
+        // needs to find, causing a "not a participant" error.
 
         const username = profile?.username || user?.email?.split('@')[0] || 'Player';
 
@@ -223,16 +255,34 @@ export function MultiplayerGame() {
         //    press Play Again simultaneously, exactly ONE new room is created.
         //    The first caller (by DB transaction ordering) becomes the host;
         //    all subsequent callers join that same room.
-        const { data: rematchResult, error: rematchError } = await supabase.rpc(
-          'get_or_create_rematch_room',
-          {
-            p_source_room_id: info.id,
-            p_user_id: user.id,
-            p_username: username,
-            p_is_public: info.is_public,
-            p_is_matchmaking: info.is_matchmaking,
-            p_ranked_mode: info.ranked_mode,
-          }
+        gameLogger.info(
+          '🔄 [MultiplayerGame] Play Again: creating rematch room for source',
+          info.id
+        );
+        const rematchPromise = supabase.rpc('get_or_create_rematch_room', {
+          p_source_room_id: info.id,
+          p_user_id: user.id,
+          p_username: username,
+          p_is_public: info.is_public,
+          p_is_matchmaking: info.is_matchmaking,
+          p_ranked_mode: info.ranked_mode,
+        });
+        let rematchTimeoutId: ReturnType<typeof setTimeout> | undefined;
+        const rematchTimeout = new Promise<never>((_, reject) => {
+          rematchTimeoutId = setTimeout(() => {
+            gameLogger.warn(
+              '⏰ [MultiplayerGame] Play Again: get_or_create_rematch_room timed out after 15 s'
+            );
+            reject(new Error('Your match request timed out. Please try again.'));
+          }, 15_000);
+        });
+        const { data: rematchResult, error: rematchError } = await Promise.race([
+          rematchPromise,
+          rematchTimeout,
+        ]).finally(() => clearTimeout(rematchTimeoutId));
+        gameLogger.info(
+          '🔄 [MultiplayerGame] Play Again: rematch RPC done, success:',
+          !rematchError
         );
 
         const result = rematchResult as {
@@ -245,10 +295,15 @@ export function MultiplayerGame() {
         if (rematchError || !result?.success || !result.room_code) {
           gameLogger.error(
             '❌ [MultiplayerGame] Play Again: rematch RPC failed:',
-            rematchError?.message
+            rematchError?.message ?? 'no room_code in result',
+            'code:',
+            rematchError?.code,
+            'details:',
+            rematchError?.details,
+            'result:',
+            JSON.stringify(result)
           );
-          showInGameAlert({ message: 'Failed to create new room. Please try again.' });
-          return;
+          throw new Error('Failed to create new room. Please try again.');
         }
 
         gameLogger.info(
@@ -266,7 +321,7 @@ export function MultiplayerGame() {
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         gameLogger.error('❌ [MultiplayerGame] Play Again error:', msg);
-        showInGameAlert({ message: 'Failed to create new room. Please try again.' });
+        throw err;
       }
     });
 
@@ -1511,6 +1566,205 @@ export function MultiplayerGame() {
     ]
   );
 
+  // ── DEV ONLY: Skip to game end (calls complete-game edge function with fake data) ──
+  const handleDevSkipToEnd = useCallback(async () => {
+    if (!__DEV__) return;
+    if (!roomInfo?.id || !user?.id) {
+      Alert.alert('Dev: Skip to End', 'Room info or user not ready yet.');
+      return;
+    }
+
+    const players =
+      effectiveMultiplayerPlayers.length === 4 ? effectiveMultiplayerPlayers : multiplayerPlayers;
+
+    if (players.length < 1) {
+      Alert.alert('Dev: Skip to End', 'No player data yet. Wait for game to start.');
+      return;
+    }
+
+    // Pad to exactly 4 players if needed
+    const paddedPlayers = [...players];
+    while (paddedPlayers.length < 4) {
+      paddedPlayers.push({
+        ...paddedPlayers[0],
+        user_id: `00000000-0000-0000-0000-00000000000${paddedPlayers.length}`,
+        username: `BotPad${paddedPlayers.length}`,
+        is_bot: true,
+        player_index: paddedPlayers.length,
+      });
+    }
+
+    // Current user is winner (pos 1); others get positions 2–4
+    let otherPos = 2;
+    const payload = {
+      room_id: roomInfo.id,
+      room_code: roomCode,
+      game_type: (roomInfo.ranked_mode
+        ? 'ranked'
+        : roomInfo.is_public || roomInfo.is_matchmaking
+          ? 'casual'
+          : 'private') as 'casual' | 'ranked' | 'private',
+      bot_difficulty:
+        (
+          paddedPlayers.find(p => (p as { is_bot?: boolean }).is_bot) as
+            | { bot_difficulty?: string }
+            | undefined
+        )?.bot_difficulty ?? null,
+      players: paddedPlayers.map(p => {
+        const isBot = !!(p as { is_bot?: boolean }).is_bot;
+        // Edge function maps user_ids starting with "bot_" → null before INSERT,
+        // so bots must use this format to avoid FK constraint violations.
+        const userId = isBot ? `bot_${p.player_index}` : p.user_id;
+        return {
+          user_id: userId,
+          username: p.username,
+          score: p.user_id === user.id ? 0 : 25,
+          finish_position: p.user_id === user.id ? 1 : otherPos++,
+          cards_left: p.user_id === user.id ? 0 : 5,
+          was_bot: isBot,
+          disconnected: false,
+          original_username: null,
+          combos_played: {
+            singles: 1,
+            pairs: 0,
+            triples: 0,
+            straights: 0,
+            flushes: 0,
+            full_houses: 0,
+            four_of_a_kinds: 0,
+            straight_flushes: 0,
+            royal_flushes: 0,
+          },
+        };
+      }),
+      winner_id: user.id,
+      game_duration_seconds: 60,
+      started_at: gameStartedAt ?? new Date(Date.now() - 60_000).toISOString(),
+      finished_at: new Date().toISOString(),
+      game_completed: true,
+    };
+
+    gameLogger.info('[DEV] Calling complete-game with fake payload', {
+      room_code: roomCode,
+      players: payload.players.map(p => `${p.username}(pos=${p.finish_position})`).join(', '),
+    });
+
+    // Use direct fetch with Authorization header — same pattern as useGameStatsUploader.
+    // supabase.functions.invoke fails silently in React Native with a network error
+    // because it doesn't propagate the session token reliably in this context.
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+    if (!token) {
+      Alert.alert('Dev: Skip to End', 'No auth session — are you logged in?');
+      return;
+    }
+
+    // Retry up to 3 times with 1.5 s delay — the edge function is idempotent
+    // (deduplicates via unique constraint). "Network request failed" means the
+    // TCP response dropped; the server likely processed the request and already
+    // broadcast game_ended, so retries are safe and necessary.
+    const MAX_DEV_RETRIES = 3;
+    let succeeded = false;
+    let lastError: string | null = null;
+    for (let attempt = 1; attempt <= MAX_DEV_RETRIES; attempt++) {
+      try {
+        const resp = await fetch(`${API.SUPABASE_URL}/functions/v1/complete-game`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+        const text = await resp.text();
+        if (resp.ok) {
+          gameLogger.info(`[DEV] complete-game succeeded (attempt ${attempt}) — opening modal`);
+          succeeded = true;
+          break;
+        }
+        if (resp.status === 409 || resp.status === 422) {
+          // Already processed (dedup hit): room is already finished, treat as success
+          gameLogger.info(
+            `[DEV] complete-game: already processed (HTTP ${resp.status}) — opening modal`
+          );
+          succeeded = true;
+          break;
+        }
+        gameLogger.error(
+          `[DEV] complete-game HTTP ${resp.status} (attempt ${attempt}):`,
+          text.slice(0, 200)
+        );
+        lastError = `HTTP ${resp.status}: ${text.slice(0, 150)}`;
+        // 4xx client errors won't be fixed by retrying
+        if (resp.status < 500) break;
+      } catch (fetchErr) {
+        const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+        gameLogger.warn(
+          `[DEV] complete-game network error (attempt ${attempt}/${MAX_DEV_RETRIES}):`,
+          msg
+        );
+        lastError = msg;
+        // "Network request failed" means the request likely succeeded server-side
+        // (room is now finished). Treat as success after first attempt and
+        // open the modal — the game_ended broadcast confirms the server ran it.
+        if (attempt >= 1) {
+          gameLogger.info(
+            '[DEV] Network error — server likely processed the request. Opening modal.'
+          );
+          succeeded = true;
+          break;
+        }
+        if (attempt < MAX_DEV_RETRIES) {
+          await new Promise(r => setTimeout(r, 1500));
+        }
+      }
+    }
+
+    if (!succeeded && lastError) {
+      Alert.alert('Dev: Skip to End — Error', lastError);
+      return;
+    }
+
+    // ── Open the game end modal directly ──────────────────────────────────────
+    // complete-game sets room.status='finished' and broadcasts game_ended, but does
+    // NOT update game_state.game_phase to 'game_over'. useMatchEndHandler only fires
+    // on that DB change, so the modal never opens via the normal DB-authoritative path.
+    // We bypass that by calling openGameEndModal directly with the synthetic data.
+    const winnerName = profile?.username || user.email?.split('@')[0] || 'You';
+    const winnerIndex = paddedPlayers.findIndex(p => p.user_id === user.id);
+
+    // payload.players was built from paddedPlayers.map, so index i maps directly
+    const devFinalScores: FinalScore[] = payload.players.map((p, i) => ({
+      player_index: i,
+      player_name: p.username ?? 'Unknown',
+      cumulative_score: p.score,
+      points_added: p.score,
+    }));
+
+    const devPlayerNames = paddedPlayers.map(p => p.username ?? 'Unknown');
+
+    gameLogger.info('[DEV] Opening game end modal directly with synthetic data');
+    openGameEndModal(
+      winnerName,
+      winnerIndex >= 0 ? winnerIndex : 0,
+      devFinalScores,
+      devPlayerNames,
+      [],
+      []
+    );
+  }, [
+    roomInfo,
+    user?.id,
+    user?.email,
+    profile?.username,
+    roomCode,
+    effectiveMultiplayerPlayers,
+    multiplayerPlayers,
+    gameStartedAt,
+    openGameEndModal,
+  ]);
+  // ─────────────────────────────────────────────────────────────────────────────
+
   return (
     <>
       <GameContextProvider value={gameContextValue}>
@@ -1542,6 +1796,42 @@ export function MultiplayerGame() {
         onReclaim={handleReclaimSeat}
         onLeaveRoom={handleLeaveRoomFromModal}
       />
+
+      {/* DEV ONLY: "Skip to End" floating button — forces game completion so
+          Play Again / rematch flow can be tested without playing a full game.
+          Calls complete-game edge function with a fake payload (current user wins).
+          Hidden in production builds (tree-shaken by __DEV__ = false).
+          To re-enable for debugging: set DEV_SHOW_SKIP_TO_END = true at the top of this file. */}
+      {__DEV__ && DEV_SHOW_SKIP_TO_END && (
+        <TouchableOpacity
+          style={devStyles.skipButton}
+          onPress={handleDevSkipToEnd}
+          activeOpacity={0.7}
+        >
+          <Text style={devStyles.skipButtonText}>🔧 End</Text>
+        </TouchableOpacity>
+      )}
     </>
   );
 }
+
+// Dev-only styles; production gets empty style objects (zero runtime cost).
+const devStyles = __DEV__
+  ? StyleSheet.create({
+      skipButton: {
+        position: 'absolute',
+        top: 60,
+        right: 12,
+        zIndex: 9999,
+        backgroundColor: 'rgba(255, 60, 60, 0.85)',
+        borderRadius: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+      },
+      skipButtonText: {
+        color: '#fff',
+        fontSize: 12,
+        fontWeight: '700',
+      },
+    })
+  : StyleSheet.create({ skipButton: {}, skipButtonText: {} });

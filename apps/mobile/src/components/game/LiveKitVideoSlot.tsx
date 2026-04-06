@@ -26,6 +26,31 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { LiveKitTrackRef } from '../../hooks/useVideoChat';
+import { gameLogger } from '../../utils/logger';
+
+// ---------------------------------------------------------------------------
+// Error Boundary — catches native render crashes from VideoTrack
+// ---------------------------------------------------------------------------
+
+class VideoSlotErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError(): { hasError: boolean } {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error): void {
+    gameLogger.warn('[LiveKitVideoSlot] Render error caught by boundary:', error.message);
+  }
+
+  render(): React.ReactNode {
+    if (this.state.hasError) return null;
+    return this.props.children;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Lazy load @livekit/react-native — same guard pattern as LiveKitVideoChatAdapter
@@ -45,7 +70,7 @@ let _VideoTrack: React.ComponentType<{
 
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  _VideoTrack = ((require('@livekit/react-native') as {
+  const lkModule = require('@livekit/react-native') as {
     VideoTrack?: React.ComponentType<{
       trackRef: unknown;
       style?: object;
@@ -53,13 +78,14 @@ try {
       mirror?: boolean;
       zOrder?: number;
     }>;
-  }).VideoTrack) ?? null;
+  };
+  _VideoTrack = lkModule.VideoTrack ?? null;
   // Module loaded successfully but VideoTrack was not exported — likely a
   // package version/API mismatch. Warn once in DEV so it is easy to diagnose.
   if (!_VideoTrack && typeof __DEV__ !== 'undefined' && __DEV__) {
     console.warn(
       '[LiveKitVideoSlot] @livekit/react-native loaded but did not export ' +
-      'VideoTrack — video rendering disabled. Check the package version.',
+        'VideoTrack — video rendering disabled. Check the package version.'
     );
   }
 } catch {
@@ -122,20 +148,29 @@ export function LiveKitVideoSlot({
   objectFit = 'cover',
   zOrder = 0,
 }: LiveKitVideoSlotProps): React.ReactElement | null {
-  if (!_VideoTrack) return null;
+  if (!_VideoTrack || !trackRef) return null;
 
   const VideoTrackComponent = _VideoTrack;
 
+  // Key the error boundary by track identity so React remounts it (clearing
+  // hasError) when trackRef changes — avoids permanent null after a transient error.
+  const boundaryKey =
+    (trackRef.publication as { trackSid?: string })?.trackSid ??
+    (trackRef.participant as { identity?: string })?.identity ??
+    'video-slot';
+
   return (
-    <View style={styles.container}>
-      <VideoTrackComponent
-        trackRef={trackRef}
-        style={StyleSheet.absoluteFill}
-        objectFit={objectFit}
-        mirror={mirror}
-        zOrder={zOrder}
-      />
-    </View>
+    <VideoSlotErrorBoundary key={boundaryKey}>
+      <View style={styles.container}>
+        <VideoTrackComponent
+          trackRef={trackRef}
+          style={StyleSheet.absoluteFill}
+          objectFit={objectFit}
+          mirror={mirror}
+          zOrder={zOrder}
+        />
+      </View>
+    </VideoSlotErrorBoundary>
   );
 }
 
