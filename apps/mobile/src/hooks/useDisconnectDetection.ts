@@ -532,7 +532,10 @@ export function useDisconnectDetection({
       return {
         ...player,
         // Turn ring: visible on WHOEVER's active turn it is (all players see it).
-        turnTimerStartedAt: (idx === 0 ? stableActive : isEffectivelyActive) ? turnStartedAt : null,
+        // Use isEffectivelyActive (not stableActive) so the ring clears instantly
+        // when your turn ends — stableActive's 1.5 s hold timer was making the
+        // ring reappear briefly after the local player played/passed.
+        turnTimerStartedAt: isEffectivelyActive ? turnStartedAt : null,
         // Disconnect ring: merge client-side + server-side state.
         isDisconnected: shouldSuppressRing
           ? false

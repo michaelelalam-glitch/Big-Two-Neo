@@ -227,16 +227,22 @@ export function MultiplayerGame() {
         // Clean up any bot-replacement rows (the source-room membership row
         // is now removed atomically inside get_or_create_rematch_room so the
         // RPC can perform a reliable participation check before deleting it).
-        const { error: botCleanupError } = await supabase.rpc(
+        gameLogger.info('🔄 [MultiplayerGame] Play Again step 1: deleting bot rows for user', user.id);
+        const botCleanupPromise = supabase.rpc(
           'delete_room_players_by_human_user_id',
           { human_user_id: user.id }
         );
+        const botCleanupTimeout = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('delete_room_players_by_human_user_id timed out after 15 s')), 15_000)
+        );
+        const { error: botCleanupError } = await Promise.race([botCleanupPromise, botCleanupTimeout]);
         if (botCleanupError) {
           gameLogger.warn(
             '⚠️ [MultiplayerGame] Play Again: bot-replacement cleanup warning:',
             botCleanupError.message
           );
         }
+        gameLogger.info('🔄 [MultiplayerGame] Play Again step 1 done');
 
         const username = profile?.username || user?.email?.split('@')[0] || 'Player';
 
@@ -245,7 +251,8 @@ export function MultiplayerGame() {
         //    press Play Again simultaneously, exactly ONE new room is created.
         //    The first caller (by DB transaction ordering) becomes the host;
         //    all subsequent callers join that same room.
-        const { data: rematchResult, error: rematchError } = await supabase.rpc(
+        gameLogger.info('🔄 [MultiplayerGame] Play Again step 2: creating rematch room for source', info.id);
+        const rematchPromise = supabase.rpc(
           'get_or_create_rematch_room',
           {
             p_source_room_id: info.id,
@@ -256,6 +263,11 @@ export function MultiplayerGame() {
             p_ranked_mode: info.ranked_mode,
           }
         );
+        const rematchTimeout = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('get_or_create_rematch_room timed out after 15 s')), 15_000)
+        );
+        const { data: rematchResult, error: rematchError } = await Promise.race([rematchPromise, rematchTimeout]);
+        gameLogger.info('🔄 [MultiplayerGame] Play Again step 2 done, success:', !rematchError);
 
         const result = rematchResult as {
           success: boolean;

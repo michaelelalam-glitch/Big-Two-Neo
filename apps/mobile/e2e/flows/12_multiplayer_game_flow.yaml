@@ -68,7 +68,7 @@ tags:
       visible: "Pass"
     commands:
       - tapOn: "Pass"
-      - wait: 2000
+      - waitForAnimationToEnd
 
 # Step 10: Verify game end screen shows scores
 - extendedWaitUntil:
