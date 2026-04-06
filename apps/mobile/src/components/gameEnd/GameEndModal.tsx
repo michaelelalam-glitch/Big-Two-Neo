@@ -236,18 +236,23 @@ export const GameEndModal: React.FC = () => {
       console.warn('[GameEndModal] Haptics not supported:', error);
     }
 
-    // NOTE: The intermediate showInGameAlert confirmation was removed because it causes
-    // a Modal-on-Modal stacking issue on iOS (overFullScreen modal cannot present another
-    // modal on top of itself). The button label is already unambiguous — no additional
-    // confirmation is needed.
-    setShowGameEndModal(false);
+    // Keep the modal open until the async operation succeeds.
+    // If we close it first and the network call fails, the user is abandoned
+    // on the game screen showing "Initializing…" with no way to retry.
+    // On success, navigation.reset() unmounts everything anyway so the
+    // setShowGameEndModal(false) below is a safe cleanup no-op.
+    //
+    // NOTE: onPlayAgain MUST throw (not call showInGameAlert) on failure to
+    // avoid a Modal-on-Modal stacking issue on iOS; see MultiplayerGame.tsx.
     if (onPlayAgain) {
-      void Promise.resolve()
-        .then(() => onPlayAgain())
-        .catch(err => {
-          console.warn('[GameEndModal] onPlayAgain error:', err);
-          setToastMsg(i18n.t('common.error'));
-        });
+      try {
+        await onPlayAgain();
+        setShowGameEndModal(false);
+      } catch (err) {
+        console.warn('[GameEndModal] onPlayAgain error:', err);
+        const msg = err instanceof Error ? err.message : i18n.t('common.error');
+        setToastMsg(msg);
+      }
     }
   };
 

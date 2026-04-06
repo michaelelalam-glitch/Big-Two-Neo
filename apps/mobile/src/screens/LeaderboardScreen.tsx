@@ -334,9 +334,9 @@ export default function LeaderboardScreen() {
             schema: 'public',
             table: 'player_stats',
           },
-          payload => {
+          _payload => {
             // Debounce: wait 2s after the last change before refreshing.
-            // NOTE: payload.old is empty for UPDATE events unless player_stats
+            // NOTE: _payload.old is empty for UPDATE events unless player_stats
             // is configured with REPLICA IDENTITY FULL. Per-field comparisons
             // against payload.old would always trigger (oldValue === undefined),
             // so we accept all updates and let the 2 s debounce batch changes.

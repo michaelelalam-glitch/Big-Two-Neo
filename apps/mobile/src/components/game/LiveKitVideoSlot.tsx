@@ -70,8 +70,8 @@ let _VideoTrack: React.ComponentType<{
 
 try {
   _VideoTrack =
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     (
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       require('@livekit/react-native') as {
         VideoTrack?: React.ComponentType<{
           trackRef: unknown;
@@ -156,9 +156,10 @@ export function LiveKitVideoSlot({
 
   // Key the error boundary by track identity so React remounts it (clearing
   // hasError) when trackRef changes — avoids permanent null after a transient error.
-  const boundaryKey = (trackRef.publication as any)?.trackSid
-    ?? (trackRef.participant as any)?.identity
-    ?? 'video-slot';
+  const boundaryKey =
+    (trackRef.publication as { trackSid?: string })?.trackSid ??
+    (trackRef.participant as { identity?: string })?.identity ??
+    'video-slot';
 
   return (
     <VideoSlotErrorBoundary key={boundaryKey}>

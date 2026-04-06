@@ -6,7 +6,13 @@
  */
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Alert, AppState, BackHandler, Platform } from 'react-native';
-import { useRoute, RouteProp, useNavigation, useIsFocused, useFocusEffect } from '@react-navigation/native';
+import {
+  useRoute,
+  RouteProp,
+  useNavigation,
+  useIsFocused,
+  useFocusEffect,
+} from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { useAuth } from '../contexts/AuthContext';
 import { useGameEnd } from '../contexts/GameEndContext';
@@ -131,6 +137,7 @@ export function LocalAIGame() {
     scoreHistory,
     playHistoryByMatch,
     checkAndExecuteBotTurn,
+    onAlert: showInGameAlert,
   });
 
   // Update placeholder ref once gameManagerRef is available

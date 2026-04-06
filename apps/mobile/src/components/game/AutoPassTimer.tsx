@@ -33,6 +33,14 @@ import type { AutoPassTimerState } from '../../types/multiplayer';
 interface AutoPassTimerProps {
   timerState: AutoPassTimerState | null;
   currentPlayerIndex: number; // Index of the current user
+  /**
+   * Optional clock offset (ms) from the parent context (turnClockOffsetMs / clockOffsetMs).
+   * When provided, overrides the internal NTP-based useClockSync so that timers whose
+   * end_timestamp was set with the LOCAL clock (offline/AI games, clockOffsetMs=0) are
+   * not incorrectly shifted by an NTP drift measured against the Supabase server.
+   * Multiplayer callers should pass their real NTP offset here too for consistency.
+   */
+  clockOffsetMs?: number;
 }
 
 /** Compute remaining ms from server state + clock sync, without any state read. */
@@ -61,13 +69,26 @@ function computeRemainingMs(timerState: AutoPassTimerState, getCorrectedNow: () 
 function AutoPassTimerComponent({
   timerState,
   currentPlayerIndex: _currentPlayerIndex,
+  clockOffsetMs,
 }: AutoPassTimerProps) {
   const [pulseAnim] = useState(new Animated.Value(1));
   // Throttle debug logs to once per whole-second transition.
   const lastLoggedSecondRef = useRef(-1);
 
   // ⏱️ CRITICAL: Clock sync with server
-  const { isSynced, getCorrectedNow } = useClockSync(timerState);
+  // When the caller provides clockOffsetMs (e.g. 0 for offline AI games), we use
+  // Date.now() + clockOffsetMs directly and skip the internal NTP ping.  This
+  // prevents the bug where a positive NTP drift (device clock behind server)
+  // incorrectly fast-forwards a LOCAL-clock-based end_timestamp, making the
+  // timer jump from 10s → 3s as soon as the NTP ping resolves.
+  const { isSynced, getCorrectedNow: getCorrectedNowNTP } = useClockSync(
+    clockOffsetMs === undefined ? timerState : null
+  );
+  const getCorrectedNow =
+    clockOffsetMs !== undefined
+      ? ((() => Date.now() + clockOffsetMs) as () => number)
+      : getCorrectedNowNTP;
+  const isSyncedEffective = clockOffsetMs !== undefined ? true : isSynced;
 
   // ── Stable clock-sync ref — keeps latest getCorrectedNow without triggering effects ──
   // useEffect deps intentionally exclude getCorrectedNow to avoid restarting the interval
@@ -95,7 +116,7 @@ function AutoPassTimerComponent({
     timerState?.end_timestamp,
     timerState?.started_at,
     timerState?.duration_ms,
-    isSynced,
+    isSyncedEffective,
     getCorrectedNow,
   ]);
 
