@@ -226,8 +226,7 @@ export function MultiplayerGame() {
       });
 
       if (!user?.id) {
-        showInGameAlert({ message: 'Not logged in. Please sign in and try again.' });
-        return;
+        throw new Error('Not logged in. Please sign in and try again.');
       }
 
       try {
