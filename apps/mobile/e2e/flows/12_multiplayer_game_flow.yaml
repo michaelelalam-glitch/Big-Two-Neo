@@ -59,10 +59,7 @@ tags:
 # Step 8: Wait for game to progress (bots play automatically)
 # The game will continue with bot turns until completion
 - extendedWaitUntil:
-    visible:
-      anyOf:
-        - "Game Over"
-        - "Pass"
+    visible: "Game Over|Pass"
     timeout: 60000
 
 # Step 9: If game is still going, keep passing to let bots finish
@@ -79,11 +76,7 @@ tags:
     timeout: 120000
 
 # Step 11: Verify score display
-- assertVisible:
-    anyOf:
-      - "Winner"
-      - "Scores"
-      - "Play Again"
+- assertVisible: "Winner|Scores|Play Again"
 
 # Step 12: Test rematch flow
 - tapOn: "Play Again"
