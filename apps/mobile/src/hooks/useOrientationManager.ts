@@ -171,9 +171,10 @@ export function useOrientationManager(): OrientationManagerState {
 
   /**
    * Apply orientation lock
-   * Uses a ref-based guard to prevent concurrent lockAsync calls
+   * Serializes concurrent lockAsync calls: if one is in flight, awaits it before
+   * proceeding so the caller's state updates only fire after the lock actually completes.
    */
-  const isApplyingRef = useRef(false);
+  const applyingPromiseRef = useRef<Promise<void> | null>(null);
   const applyOrientation = async (mode: OrientationMode) => {
     // Skip if native module not available
     if (!ScreenOrientation || !ORIENTATION_LOCKS) {
@@ -181,13 +182,16 @@ export function useOrientationManager(): OrientationManagerState {
       return;
     }
 
-    // Prevent concurrent calls to lockAsync
-    if (isApplyingRef.current) {
-      gameLogger.warn('⚠️ [Orientation] applyOrientation already in progress, skipping');
-      return;
+    // Serialize concurrent calls: await any in-flight lockAsync before proceeding
+    if (applyingPromiseRef.current) {
+      gameLogger.warn('⚠️ [Orientation] applyOrientation in progress, serializing request');
+      await applyingPromiseRef.current.catch(() => {});
     }
 
-    isApplyingRef.current = true;
+    let settle!: () => void;
+    applyingPromiseRef.current = new Promise<void>((resolve) => {
+      settle = resolve;
+    });
     try {
       const lock = ORIENTATION_LOCKS[mode];
       await ScreenOrientation.lockAsync(lock);
@@ -198,7 +202,8 @@ export function useOrientationManager(): OrientationManagerState {
       gameLogger.error(`❌ [Orientation] Failed to lock to ${mode}:`, error);
       throw error;
     } finally {
-      isApplyingRef.current = false;
+      applyingPromiseRef.current = null;
+      settle();
     }
   };
 
