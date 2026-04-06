@@ -88,7 +88,9 @@ async function sendPushNotification(payload: NotificationPayload): Promise<boole
     const filteredUserIds = filterRateLimited(payload.user_ids, eventType);
     if (filteredUserIds.length === 0) {
       notificationLogger.info('⏳ [sendPushNotification] All recipients rate-limited, skipping');
-      return false; // nothing was sent — callers should not treat this as success
+      // Return true: this is a deliberate no-op (not a delivery failure).
+      // Callers that treat false as an error would misreport a graceful skip.
+      return true;
     }
     payload = { ...payload, user_ids: filteredUserIds };
 
