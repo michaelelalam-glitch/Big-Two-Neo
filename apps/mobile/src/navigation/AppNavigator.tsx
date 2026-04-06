@@ -192,7 +192,16 @@ export default function AppNavigator() {
         return;
       }
 
-      if (inFlight) return; // previous openURL not yet resolved — skip this tick
+      if (inFlight) {
+        // Watchdog: if openURL() never resolves/rejects, cancel after MAX_ATTEMPTS
+        // so the interval doesn't run indefinitely with inFlight stuck at true.
+        if (attempts >= MAX_ATTEMPTS) {
+          clearInterval(timerId);
+          pendingLinkRef.current = null;
+          authLogger.info('[AppNavigator] Max attempts reached (openURL hung), discarding deep link');
+        }
+        return;
+      }
       inFlight = true;
 
       Linking.openURL(replayUrl)
