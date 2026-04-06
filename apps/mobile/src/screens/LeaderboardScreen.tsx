@@ -335,20 +335,11 @@ export default function LeaderboardScreen() {
             table: 'player_stats',
           },
           payload => {
-            // Only skip refresh when all leaderboard-relevant rank point fields are unchanged.
-            // Note: payload.old may omit columns unless the table uses REPLICA IDENTITY FULL.
-            // If we can't compare any relevant field, we optimistically refresh.
-            const oldStats = payload.old as Record<string, unknown> | undefined;
-            const newStats = payload.new as Record<string, unknown> | undefined;
-            const rankFields = ['rank_points', 'casual_rank_points', 'ranked_rank_points'] as const;
-            const hasRelevantChange = rankFields.some(field => {
-              const oldValue = oldStats?.[field];
-              const newValue = newStats?.[field];
-              return oldValue === undefined || newValue === undefined || oldValue !== newValue;
-            });
-            if (!hasRelevantChange) return;
-
-            // Debounce: wait 2s after the last change before refreshing
+            // Debounce: wait 2s after the last change before refreshing.
+            // NOTE: payload.old is empty for UPDATE events unless player_stats
+            // is configured with REPLICA IDENTITY FULL. Per-field comparisons
+            // against payload.old would always trigger (oldValue === undefined),
+            // so we accept all updates and let the 2 s debounce batch changes.
             if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
             refreshTimerRef.current = setTimeout(() => {
               statsLogger.info('[Leaderboard] Realtime update detected, refreshing...');
