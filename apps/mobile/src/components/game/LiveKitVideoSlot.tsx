@@ -69,19 +69,17 @@ let _VideoTrack: React.ComponentType<{
 }> | null = null;
 
 try {
-  _VideoTrack =
-    (
-      require('@livekit/react-native') as {
-        // eslint-disable-line @typescript-eslint/no-require-imports
-        VideoTrack?: React.ComponentType<{
-          trackRef: unknown;
-          style?: object;
-          objectFit?: 'cover' | 'contain';
-          mirror?: boolean;
-          zOrder?: number;
-        }>;
-      }
-    ).VideoTrack ?? null;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const lkModule = require('@livekit/react-native') as {
+    VideoTrack?: React.ComponentType<{
+      trackRef: unknown;
+      style?: object;
+      objectFit?: 'cover' | 'contain';
+      mirror?: boolean;
+      zOrder?: number;
+    }>;
+  };
+  _VideoTrack = lkModule.VideoTrack ?? null;
   // Module loaded successfully but VideoTrack was not exported — likely a
   // package version/API mismatch. Warn once in DEV so it is easy to diagnose.
   if (!_VideoTrack && typeof __DEV__ !== 'undefined' && __DEV__) {
