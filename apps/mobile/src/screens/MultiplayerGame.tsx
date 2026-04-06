@@ -1813,8 +1813,7 @@ export function MultiplayerGame() {
   );
 }
 
-// Isolated so the StyleSheet.create call is not included in production bundles
-// (Metro tree-shakes the entire module when __DEV__ = false).
+// Dev-only styles; production gets empty style objects (zero runtime cost).
 const devStyles = __DEV__
   ? StyleSheet.create({
       skipButton: {
