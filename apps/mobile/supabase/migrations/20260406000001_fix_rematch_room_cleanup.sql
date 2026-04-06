@@ -218,7 +218,7 @@ CREATE OR REPLACE FUNCTION public.join_room_atomic(p_room_code text, p_user_id u
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public'
+ SET search_path TO 'public', 'pg_catalog'
 AS $function$
 DECLARE
   v_room_id       UUID;
@@ -370,3 +370,12 @@ $function$;
 COMMENT ON FUNCTION join_room_atomic IS
   'Joins a player to a room with ghost eviction, slot assignment, and host promotion. '
   'SET LOCAL row_security = off bypasses RLS (postgres is not superuser on Supabase).';
+
+-- ── Permissions: revoke public access, grant to authenticated only ──────────────
+-- Postgres grants EXECUTE to PUBLIC for new functions by default; revoke it so
+-- anonymous (anon role) clients cannot call these SECURITY DEFINER RPCs directly.
+REVOKE EXECUTE ON FUNCTION public.get_or_create_rematch_room(UUID, UUID, TEXT, BOOLEAN, BOOLEAN, BOOLEAN) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.get_or_create_rematch_room(UUID, UUID, TEXT, BOOLEAN, BOOLEAN, BOOLEAN) TO authenticated;
+
+REVOKE EXECUTE ON FUNCTION public.join_room_atomic(TEXT, UUID, TEXT) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.join_room_atomic(TEXT, UUID, TEXT) TO authenticated;
