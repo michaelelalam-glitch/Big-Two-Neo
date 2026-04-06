@@ -126,6 +126,16 @@ describeWithCredentials('Reconnection Scenarios', () => {
 
     // RPC should succeed without error
     expect(error).toBeNull();
+    // Verify DB state: player should be marked as disconnected
+    const { data: pRow } = await supabase
+      .from('room_players')
+      .select('connection_status')
+      .eq('room_id', testRoomId)
+      .eq('user_id', authUserIds[1])
+      .maybeSingle();
+    if (pRow && 'connection_status' in pRow) {
+      expect(pRow.connection_status).toBe('disconnected');
+    }
   });
 
   it('should mark player as connected after reconnect', async () => {
@@ -150,6 +160,16 @@ describeWithCredentials('Reconnection Scenarios', () => {
 
     // RPC should succeed without error
     expect(error).toBeNull();
+    // Verify DB state: player should be marked as connected
+    const { data: pRow } = await supabase
+      .from('room_players')
+      .select('connection_status')
+      .eq('room_id', testRoomId)
+      .eq('user_id', authUserIds[1])
+      .maybeSingle();
+    if (pRow && 'connection_status' in pRow) {
+      expect(pRow.connection_status).toBe('connected');
+    }
   });
 
   it('should check rejoin status for disconnected player', async () => {
@@ -162,5 +182,7 @@ describeWithCredentials('Reconnection Scenarios', () => {
 
     // Player should be able to rejoin their active room
     expect(data).toBeDefined();
+    // Validate the rejoin status has a defined shape (object returned by RPC)
+    expect(typeof data).toBe('object');
   });
 });

@@ -240,6 +240,11 @@ describeWithCredentials('Concurrent Card Play Stress Tests', () => {
       // since 3H can only be removed from the hand once.
       const settled = [result1, result2].filter(r => r.status === 'fulfilled');
       expect(settled.length).toBeGreaterThan(0);
+      // Assert double-submit rejection: at most 1 call returns without error
+      const successCount = settled.filter(
+        (r) => !(r as PromiseFulfilledResult<{ error: unknown }>).value.error,
+      ).length;
+      expect(successCount).toBeLessThanOrEqual(1);
     } finally {
       await supabase
         .from('game_state')

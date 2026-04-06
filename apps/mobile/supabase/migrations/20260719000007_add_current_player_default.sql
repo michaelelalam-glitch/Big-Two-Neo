@@ -1,5 +1,11 @@
 -- Migration: add_current_player_default (2026-07-19)
 --
+-- ⚠️  Despite the filename (preserved to avoid breaking supabase_migrations tracking),
+-- this migration backfills MULTIPLE game_state columns that may be absent on older
+-- Supabase projects:
+--   current_player, scores, round, passes, passes_in_row, last_play, last_player,
+--   play_history, round_number, dealer_index, game_started_at
+--
 -- Ensures all game_state columns that may be absent on older Supabase projects
 -- (where the table predates the consolidated baseline) exist with the same
 -- constraints the baseline defines. The baseline uses CREATE TABLE IF NOT EXISTS,
