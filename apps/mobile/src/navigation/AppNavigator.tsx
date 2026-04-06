@@ -178,6 +178,7 @@ export default function AppNavigator() {
     }
 
     let attempts = 0;
+    let inFlight = false; // guard against overlapping openURL calls
     const MAX_ATTEMPTS = 20; // 20 × 100 ms = 2 s max
     const timerId = setInterval(() => {
       attempts += 1;
@@ -191,6 +192,9 @@ export default function AppNavigator() {
         return;
       }
 
+      if (inFlight) return; // previous openURL not yet resolved — skip this tick
+      inFlight = true;
+
       Linking.openURL(replayUrl)
         .then(() => {
           clearInterval(timerId);
@@ -198,6 +202,7 @@ export default function AppNavigator() {
         })
         .catch(err => {
           authLogger.info('[AppNavigator] Failed to replay pending deep link', err);
+          inFlight = false; // allow retry on next tick
           if (attempts >= MAX_ATTEMPTS) {
             clearInterval(timerId);
             pendingLinkRef.current = null;
