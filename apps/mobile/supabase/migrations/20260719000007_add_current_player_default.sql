@@ -84,6 +84,15 @@ ALTER TABLE public.game_state ALTER COLUMN dealer_index SET DEFAULT 0;
 -- game_started_at: TIMESTAMPTZ NOT NULL DEFAULT NOW()
 -- Added nullable first to avoid volatile-default table rewrite lock.
 ALTER TABLE public.game_state ADD COLUMN IF NOT EXISTS game_started_at TIMESTAMPTZ;
+-- Backfill from rooms.started_at (actual game-start time) with fallback to
+-- rooms.created_at (room-open time), to preserve real game timing rather than
+-- stamping all historical rows with the migration execution time.
+UPDATE public.game_state gs
+SET game_started_at = COALESCE(r.started_at, r.created_at, NOW())
+FROM public.rooms r
+WHERE r.id = gs.room_id
+  AND gs.game_started_at IS NULL;
+-- Safety net: stamp any orphan game_state rows (no matching room) with NOW().
 UPDATE public.game_state SET game_started_at = NOW() WHERE game_started_at IS NULL;
 ALTER TABLE public.game_state ALTER COLUMN game_started_at SET NOT NULL;
 ALTER TABLE public.game_state ALTER COLUMN game_started_at SET DEFAULT NOW();

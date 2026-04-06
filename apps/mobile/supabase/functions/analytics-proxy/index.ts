@@ -173,6 +173,12 @@ Deno.serve(async (req) => {
       body: JSON.stringify(body),
     });
 
+    if (!ga4Response.ok) {
+      // Log the response body for debugging (invalid payloads, quota errors, etc.).
+      const ga4Body = await ga4Response.text().catch(() => '<unreadable>');
+      console.error('[analytics-proxy] GA4 error:', ga4Response.status, ga4Body.slice(0, 500));
+    }
+
     return new Response(
       JSON.stringify({ status: ga4Response.status }),
       {
