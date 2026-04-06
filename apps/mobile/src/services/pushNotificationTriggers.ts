@@ -12,7 +12,7 @@ import { supabase } from './supabase';
 // Max 1 notification per user per event type per 30 seconds
 const RATE_LIMIT_MS = 30_000;
 const _rateLimitMap = new Map<string, number>();
-/** Hard cap on map size – if reached, purge all expired entries immediately. */
+/** Hard cap on map size – if reached or exceeded, purge all expired entries immediately. */
 const _RATE_LIMIT_MAP_MAX = 500;
 let _rlSweepCounter = 0;
 
@@ -39,13 +39,13 @@ function recordRateLimitSent(userIds: string[], eventType: string): void {
   // invocation. Uses an invocation counter (not map size) so sweeps happen on a
   // predictable cadence regardless of how many distinct keys exist.
   _rlSweepCounter += 1;
-  if (_rateLimitMap.size > _RATE_LIMIT_MAP_MAX || _rlSweepCounter >= 100) {
+  if (_rateLimitMap.size >= _RATE_LIMIT_MAP_MAX || _rlSweepCounter >= 100) {
     _rlSweepCounter = 0;
     for (const [k, v] of _rateLimitMap) {
       if (now - v > RATE_LIMIT_MS) _rateLimitMap.delete(k);
     }
-    // Hard FIFO eviction: if still over cap after purging expired entries
-    if (_rateLimitMap.size > _RATE_LIMIT_MAP_MAX) {
+    // Hard FIFO eviction: if still at or over cap after purging expired entries
+    if (_rateLimitMap.size >= _RATE_LIMIT_MAP_MAX) {
       const excess = _rateLimitMap.size - _RATE_LIMIT_MAP_MAX;
       let removed = 0;
       for (const k of _rateLimitMap.keys()) {
