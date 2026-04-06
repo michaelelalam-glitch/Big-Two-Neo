@@ -83,6 +83,9 @@ module.exports = {
     '^expo-file-system/legacy$': '<rootDir>/src/__tests__/__mocks__/expo-file-system.ts',
     '^../../services/supabase$': '<rootDir>/src/__tests__/__mocks__/supabase.ts',
     '^../services/supabase$': '<rootDir>/src/__tests__/__mocks__/supabase.ts',
+    // Same-directory import used by analytics.ts, notificationService.ts, etc.
+    // in src/services/ — must be escaped (. = any char in regex)
+    '^\\.\/supabase$': '<rootDir>/src/__tests__/__mocks__/supabase.ts',
     '^../../services/pushNotificationTriggers$': '<rootDir>/src/__tests__/__mocks__/pushNotificationTriggers.ts',
     '^../services/pushNotificationTriggers$': '<rootDir>/src/__tests__/__mocks__/pushNotificationTriggers.ts',
   },

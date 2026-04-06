@@ -28,6 +28,9 @@ const mockSupabaseClient = {
     getUser: jest.fn(() => Promise.resolve({ data: { user: null }, error: null })),
     signInWithOAuth: jest.fn(() => Promise.resolve({ data: null, error: null })),
     signOut: jest.fn(() => Promise.resolve({ error: null })),
+    onAuthStateChange: jest.fn(() => ({
+      data: { subscription: { unsubscribe: jest.fn() } },
+    })),
   },
   functions: {
     invoke: jest.fn(() => Promise.resolve({ data: null, error: null })),
