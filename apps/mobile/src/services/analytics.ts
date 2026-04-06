@@ -30,23 +30,32 @@ import { supabase } from './supabase';
 
 // ─── Session cache ─────────────────────────────────────────────────────────── //
 // Avoids calling supabase.auth.getSession() (AsyncStorage read) on every event.
-let _hasSession = false;
+// null = unknown (startup window before getSession resolves);
+// true = signed in; false = signed out.
+// Only false short-circuits event sending in proxy mode — null and true both attempt the call
+// so that events from already-signed-in users are not dropped during the brief startup window.
+let _hasSession: boolean | null = null;
 // Unsubscribe any previous listener before registering a new one.
 // This guards against duplicate registrations under React Fast Refresh:
 // module-level code re-runs on every hot reload, but the Supabase auth
 // singleton persists, so without this guard listeners accumulate.
 const _ag = globalThis as { __analyticsAuthSub?: { unsubscribe(): void } };
 _ag.__analyticsAuthSub?.unsubscribe();
-const { data: { subscription: _authSub } } = supabase.auth.onAuthStateChange(
-  (_event, session) => {
-    _hasSession = !!session?.access_token;
-  },
-);
+const {
+  data: { subscription: _authSub },
+} = supabase.auth.onAuthStateChange((_event, session) => {
+  _hasSession = !!session?.access_token;
+});
 _ag.__analyticsAuthSub = _authSub;
 // Seed the initial value asynchronously
-supabase.auth.getSession().then(({ data }) => {
-  _hasSession = !!data?.session?.access_token;
-}).catch(() => { /* best-effort — analytics init must never throw */ });
+supabase.auth
+  .getSession()
+  .then(({ data }) => {
+    _hasSession = !!data?.session?.access_token;
+  })
+  .catch(() => {
+    /* best-effort — analytics init must never throw */
+  });
 
 // ─── Configuration ─────────────────────────────────────────────────────────── //
 
@@ -356,9 +365,11 @@ async function sendEvents(
     let response: Response;
     if (USE_PROXY) {
       // Production: route through Supabase Edge Function (API_SECRET stays server-side).
-      // Short-circuit when signed out — uses cached auth state to avoid
+      // Short-circuit when explicitly signed out — uses cached auth state to avoid
       // per-event AsyncStorage reads from supabase.auth.getSession().
-      if (!_hasSession) {
+      // null (startup unknown window) is treated as potentially signed-in to avoid
+      // dropping early events; once getSession() resolves it becomes true/false.
+      if (_hasSession === false) {
         return;
       }
       const { data: _data, error } = await supabase.functions.invoke('analytics-proxy', {
