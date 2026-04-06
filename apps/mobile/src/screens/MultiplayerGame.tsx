@@ -267,16 +267,17 @@ export function MultiplayerGame() {
           p_is_matchmaking: info.is_matchmaking,
           p_ranked_mode: info.ranked_mode,
         });
-        const rematchTimeout = new Promise<never>((_, reject) =>
-          setTimeout(
+        let rematchTimeoutId: ReturnType<typeof setTimeout> | undefined;
+        const rematchTimeout = new Promise<never>((_, reject) => {
+          rematchTimeoutId = setTimeout(
             () => reject(new Error('get_or_create_rematch_room timed out after 15 s')),
             15_000
-          )
-        );
+          );
+        });
         const { data: rematchResult, error: rematchError } = await Promise.race([
           rematchPromise,
           rematchTimeout,
-        ]);
+        ]).finally(() => clearTimeout(rematchTimeoutId));
         gameLogger.info(
           '🔄 [MultiplayerGame] Play Again: rematch RPC done, success:',
           !rematchError

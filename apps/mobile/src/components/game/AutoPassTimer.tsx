@@ -82,7 +82,9 @@ function AutoPassTimerComponent({
   // incorrectly fast-forwards a LOCAL-clock-based end_timestamp, making the
   // timer jump from 10s → 3s as soon as the NTP ping resolves.
   const { isSynced, getCorrectedNow: getCorrectedNowNTP } = useClockSync(
-    clockOffsetMs === undefined ? timerState : null
+    clockOffsetMs === undefined ? timerState : null,
+    undefined,
+    clockOffsetMs === undefined // enabled=false when caller provides their own clock offset
   );
   // Stable function reference — only changes when clockOffsetMs changes,
   // so useMemo deps that include getCorrectedNow are not invalidated every render.
@@ -113,7 +115,7 @@ function AutoPassTimerComponent({
       seconds: Math.ceil(remaining / 1000),
       progress: remaining / durationMs,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- timerState is covered granularly; getCorrectedNow is stable (useCallback with empty deps)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- timerState is covered granularly; getCorrectedNow is stable (useCallback([clockOffsetMs]) in offset path, stable NTP hook ref in sync path)
   }, [
     timerState?.active,
     timerState?.end_timestamp,
