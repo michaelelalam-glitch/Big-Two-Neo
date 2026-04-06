@@ -189,7 +189,7 @@ export function useOrientationManager(): OrientationManagerState {
     }
 
     let settle!: () => void;
-    applyingPromiseRef.current = new Promise<void>((resolve) => {
+    applyingPromiseRef.current = new Promise<void>(resolve => {
       settle = resolve;
     });
     try {
@@ -202,8 +202,8 @@ export function useOrientationManager(): OrientationManagerState {
       gameLogger.error(`❌ [Orientation] Failed to lock to ${mode}:`, error);
       throw error;
     } finally {
-      applyingPromiseRef.current = null;
       settle();
+      applyingPromiseRef.current = null;
     }
   };
 
