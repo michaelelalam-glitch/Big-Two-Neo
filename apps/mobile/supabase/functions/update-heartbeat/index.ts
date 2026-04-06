@@ -8,10 +8,9 @@ const corsHeaders = {
 
 // Timing constants — keep these in sync with the SQL BOT_REPLACE_AFTER /
 // HEARTBEAT_SLACK values in process_disconnected_players() so drift is obvious.
-/** Grace window for force_sweep validation: 5 s less than BOT_REPLACE_AFTER (60 s)
- *  so a client-side ring that fires at exactly T+60s still passes the server check
- *  when the server clock is a few seconds behind the client clock. */
-const FORCE_SWEEP_GRACE_MS = 55_000;
+/** Grace window for force_sweep validation: must match BOT_REPLACE_AFTER (60 s)
+ *  to prevent premature bot replacement when client clock drifts ahead. */
+const FORCE_SWEEP_GRACE_MS = 60_000;
 /** Matches Phase A's HEARTBEAT_SLACK (30 s). A player silent for this long is
  *  considered disconnected and eligible for the stale-connected force_sweep path. */
 const HEARTBEAT_SLACK_MS = 30_000;

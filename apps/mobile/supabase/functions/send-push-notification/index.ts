@@ -141,6 +141,29 @@ async function getAccessToken(): Promise<string> {
   return cachedAccessToken;
 }
 
+// ── Per-user per-event-type rate limiting ──────────────────────────────────
+// In-memory throttle: max 1 notification per user per event type per 30 s.
+// Stays warm across invocations while the Deno isolate is alive; a cold start
+// resets the map which is an acceptable loss (over-notify once at most).
+const RATE_LIMIT_WINDOW_MS = 30_000;
+const _lastSent = new Map<string, number>();
+
+/** Returns true if the notification should be throttled (dropped). */
+function isThrottled(userId: string, eventType: string | undefined): boolean {
+  const key = `${userId}:${eventType ?? 'default'}`;
+  const now = Date.now();
+  const last = _lastSent.get(key);
+  if (last && now - last < RATE_LIMIT_WINDOW_MS) return true;
+  _lastSent.set(key, now);
+  // Prevent unbounded map growth: prune entries older than 2× window
+  if (_lastSent.size > 5000) {
+    for (const [k, ts] of _lastSent) {
+      if (now - ts > RATE_LIMIT_WINDOW_MS * 2) _lastSent.delete(k);
+    }
+  }
+  return false;
+}
+
 // Validate FCM token format (alphanumeric, colons, hyphens, underscores, reasonable length)
 // Note: FCM tokens can vary in length/format across API updates, so we use lenient validation
 function isValidFCMToken(token: string): boolean {
@@ -197,11 +220,34 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Rate-limit: drop users who were already notified for this event type within 30 s
+    const eventType = data?.type;
+    const throttledIds: string[] = [];
+    const allowedIds = user_ids.filter((uid: string) => {
+      if (isThrottled(uid, eventType)) {
+        throttledIds.push(uid);
+        return false;
+      }
+      return true;
+    });
+
+    if (allowedIds.length === 0) {
+      console.log(`⏳ All ${user_ids.length} user(s) throttled for event type "${eventType ?? 'default'}"`)
+      return new Response(
+        JSON.stringify({ message: 'Rate limited', throttled: throttledIds.length, sent: 0 }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (throttledIds.length > 0) {
+      console.log(`⏳ Throttled ${throttledIds.length} user(s) for event type "${eventType ?? 'default'}"`)
+    }
+
     // Get push tokens for the specified users
     const { data: tokens, error: tokensError } = await supabaseAdmin
       .from('push_tokens')
       .select('push_token, platform, user_id')
-      .in('user_id', user_ids)
+      .in('user_id', allowedIds)
 
     if (tokensError) {
       console.error('Error fetching push tokens:', tokensError)
