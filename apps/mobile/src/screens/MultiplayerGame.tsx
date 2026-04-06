@@ -5,9 +5,9 @@
  * Created as part of Task #570: Split GameScreen component.
  */
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Alert, InteractionManager } from 'react-native';
+import { Alert, BackHandler, InteractionManager, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRoute, RouteProp, useNavigation, useIsFocused } from '@react-navigation/native';
+import { useRoute, RouteProp, useNavigation, useIsFocused, useFocusEffect } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import Constants from 'expo-constants';
 import { InGameAlert } from '../components/game/InGameAlert';
@@ -167,6 +167,28 @@ export function MultiplayerGame() {
     gameLogger.info('🎮 [MultiplayerGame] Game mode: MULTIPLAYER (server-side)');
   }, []);
 
+  // ─── Android hardware back button handler ────────────────────────────────
+  // Use useFocusEffect so the handler only intercepts back presses while this
+  // screen is focused (other mounted-but-unfocused screens won't interfere).
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'android') return;
+      const handler = () => {
+        Alert.alert(i18n.t('game.leaveGameConfirm'), i18n.t('game.leaveGameMessage'), [
+          { text: i18n.t('game.stay'), style: 'cancel' },
+          {
+            text: i18n.t('game.leaveGame'),
+            style: 'destructive',
+            onPress: () => navigation.goBack(),
+          },
+        ]);
+        return true; // Suppress default back behaviour
+      };
+      const sub = BackHandler.addEventListener('hardwareBackPress', handler);
+      return () => sub.remove();
+    }, [navigation])
+  );
+
   // ─── Register Play Again / Return to Menu callbacks ──────────────────────
   useEffect(() => {
     setOnPlayAgain(() => async () => {
@@ -174,6 +196,7 @@ export function MultiplayerGame() {
       const info = roomInfoRef.current;
       gameLogger.info('🔄 [MultiplayerGame] Play Again pressed, roomInfo:', {
         hasInfo: !!info,
+        roomId: info?.id,
         is_public: info?.is_public,
         ranked_mode: info?.ranked_mode,
       });
@@ -202,19 +225,11 @@ export function MultiplayerGame() {
           return;
         }
 
-        // Clean up any bot-replacement rows (the source-room membership row
-        // is now removed atomically inside get_or_create_rematch_room so the
-        // RPC can perform a reliable participation check before deleting it).
-        const { error: botCleanupError } = await supabase.rpc(
-          'delete_room_players_by_human_user_id',
-          { human_user_id: user.id }
-        );
-        if (botCleanupError) {
-          gameLogger.warn(
-            '⚠️ [MultiplayerGame] Play Again: bot-replacement cleanup warning:',
-            botCleanupError.message
-          );
-        }
+        // Bot-replacement cleanup is intentionally NOT performed here.
+        // The get_or_create_rematch_room RPC atomically deletes the caller's
+        // room_players row as part of its participation check.  Pre-deleting
+        // via delete_room_players_by_human_user_id can remove the row the RPC
+        // needs to find, causing a "not a participant" error.
 
         const username = profile?.username || user?.email?.split('@')[0] || 'Player';
 
@@ -223,7 +238,8 @@ export function MultiplayerGame() {
         //    press Play Again simultaneously, exactly ONE new room is created.
         //    The first caller (by DB transaction ordering) becomes the host;
         //    all subsequent callers join that same room.
-        const { data: rematchResult, error: rematchError } = await supabase.rpc(
+        gameLogger.info('🔄 [MultiplayerGame] Play Again: creating rematch room for source', info.id);
+        const rematchPromise = supabase.rpc(
           'get_or_create_rematch_room',
           {
             p_source_room_id: info.id,
@@ -234,6 +250,11 @@ export function MultiplayerGame() {
             p_ranked_mode: info.ranked_mode,
           }
         );
+        const rematchTimeout = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('get_or_create_rematch_room timed out after 15 s')), 15_000)
+        );
+        const { data: rematchResult, error: rematchError } = await Promise.race([rematchPromise, rematchTimeout]);
+        gameLogger.info('🔄 [MultiplayerGame] Play Again: rematch RPC done, success:', !rematchError);
 
         const result = rematchResult as {
           success: boolean;
@@ -245,7 +266,10 @@ export function MultiplayerGame() {
         if (rematchError || !result?.success || !result.room_code) {
           gameLogger.error(
             '❌ [MultiplayerGame] Play Again: rematch RPC failed:',
-            rematchError?.message
+            rematchError?.message ?? 'no room_code in result',
+            'code:', rematchError?.code,
+            'details:', rematchError?.details,
+            'result:', JSON.stringify(result),
           );
           showInGameAlert({ message: 'Failed to create new room. Please try again.' });
           return;

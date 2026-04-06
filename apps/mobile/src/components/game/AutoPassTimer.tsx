@@ -37,6 +37,7 @@ interface AutoPassTimerProps {
 
 /** Compute remaining ms from server state + clock sync, without any state read. */
 function computeRemainingMs(timerState: AutoPassTimerState, getCorrectedNow: () => number): number {
+  const durationMs = timerState.duration_ms || 10000;
   const endTimestamp = timerState.end_timestamp;
   if (typeof endTimestamp === 'number') {
     // end_timestamp is the server-side epoch-ms deadline.
@@ -44,15 +45,17 @@ function computeRemainingMs(timerState: AutoPassTimerState, getCorrectedNow: () 
     // players regardless of join time (early, late, or after reconnect).
     // NTP drift is device-specific and time-independent; it does NOT include
     // elapsed time since timer creation, so there is no "full ring on rejoin" risk.
-    return Math.max(0, endTimestamp - getCorrectedNow());
+    // CLAMP: Before NTP sync completes (drift=0), a client clock behind the server
+    // would compute remaining > durationMs (e.g. 17s for a 10s timer). Clamping
+    // ensures the displayed countdown never exceeds the configured duration.
+    return Math.min(durationMs, Math.max(0, endTimestamp - getCorrectedNow()));
   }
   // Fallback path (no end_timestamp): use started_at.
   // getCorrectedNow() returns Date.now() + drift (drift=0 before NTP sync), so it
   // is safe to use unconditionally — no separate isSynced guard needed.
   const startedAt = new Date(timerState.started_at).getTime();
   if (isNaN(startedAt)) return 0;
-  const durationMs = timerState.duration_ms || 10000;
-  return Math.max(0, durationMs - (getCorrectedNow() - startedAt));
+  return Math.min(durationMs, Math.max(0, durationMs - (getCorrectedNow() - startedAt)));
 }
 
 function AutoPassTimerComponent({

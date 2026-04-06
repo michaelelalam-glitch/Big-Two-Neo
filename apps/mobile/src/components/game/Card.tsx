@@ -189,6 +189,12 @@ const Card = React.memo(function Card({
           scale.value = withSpring(1, { damping: 10 });
           // Opacity reset handled by useEffect on isSelected change
           runOnJS(onToggleSelect)(card.id);
+        })
+        .onFinalize(() => {
+          'worklet';
+          // Reset scale if gesture was cancelled (e.g. scroll/pan took over)
+          // Prevents scale getting stuck at 0.95
+          scale.value = withSpring(1, { damping: 10 });
         }),
     [disabled, card.id, onToggleSelect, scale]
   );

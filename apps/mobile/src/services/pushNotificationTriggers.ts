@@ -8,6 +8,60 @@
 import { notificationLogger } from '../utils/logger';
 import { supabase } from './supabase';
 
+// ─── Rate Limiting ────────────────────────────────────────────────────────── //
+// Max 1 notification per user per event type per 30 seconds
+const RATE_LIMIT_MS = 30_000;
+const _rateLimitMap = new Map<string, number>();
+/** Hard cap on map size – if reached, purge all expired entries immediately. */
+const _RATE_LIMIT_MAP_MAX = 500;
+let _rlSweepCounter = 0;
+
+function isRateLimited(userId: string, eventType: string): boolean {
+  const key = `${userId}:${eventType}`;
+  const lastSent = _rateLimitMap.get(key);
+  const now = Date.now();
+  if (lastSent && now - lastSent < RATE_LIMIT_MS) {
+    notificationLogger.info(
+      `⏳ [RateLimit] Skipping ${eventType} (${Math.round((RATE_LIMIT_MS - (now - lastSent)) / 1000)}s cooldown remaining)`
+    );
+    return true;
+  }
+  return false;
+}
+
+/** Record that a notification was successfully sent. Call AFTER a successful send. */
+function recordRateLimitSent(userIds: string[], eventType: string): void {
+  const now = Date.now();
+  for (const userId of userIds) {
+    _rateLimitMap.set(`${userId}:${eventType}`, now);
+  }
+  // Cleanup: purge expired entries when the map exceeds the cap OR every 100th
+  // invocation. Uses an invocation counter (not map size) so sweeps happen on a
+  // predictable cadence regardless of how many distinct keys exist.
+  _rlSweepCounter += 1;
+  if (_rateLimitMap.size > _RATE_LIMIT_MAP_MAX || _rlSweepCounter >= 100) {
+    _rlSweepCounter = 0;
+    for (const [k, v] of _rateLimitMap) {
+      if (now - v > RATE_LIMIT_MS) _rateLimitMap.delete(k);
+    }
+    // Hard FIFO eviction: if still over cap after purging expired entries
+    if (_rateLimitMap.size > _RATE_LIMIT_MAP_MAX) {
+      const excess = _rateLimitMap.size - _RATE_LIMIT_MAP_MAX;
+      let removed = 0;
+      for (const k of _rateLimitMap.keys()) {
+        if (removed >= excess) break;
+        _rateLimitMap.delete(k);
+        removed += 1;
+      }
+    }
+  }
+}
+
+/** Filter out rate-limited user IDs for a given event type */
+function filterRateLimited(userIds: string[], eventType: string): string[] {
+  return userIds.filter(uid => !isRateLimited(uid, eventType));
+}
+
 interface ExpoPushTicket {
   status: 'ok' | 'error';
   id?: string;
@@ -29,6 +83,17 @@ interface NotificationPayload {
  */
 async function sendPushNotification(payload: NotificationPayload): Promise<boolean> {
   try {
+    // Apply rate limiting: filter out users who received this event type recently
+    const eventType = String(payload.data?.type ?? 'unknown');
+    const filteredUserIds = filterRateLimited(payload.user_ids, eventType);
+    if (filteredUserIds.length === 0) {
+      notificationLogger.info('⏳ [sendPushNotification] All recipients rate-limited, skipping');
+      // Return true: this is a deliberate no-op (not a delivery failure).
+      // Callers that treat false as an error would misreport a graceful skip.
+      return true;
+    }
+    payload = { ...payload, user_ids: filteredUserIds };
+
     notificationLogger.info('📤 [sendPushNotification] Invoking Edge Function with payload:', {
       user_count: payload.user_ids.length,
       title: payload.title,
@@ -107,6 +172,10 @@ async function sendPushNotification(payload: NotificationPayload): Promise<boole
           }
         });
 
+        // Don't record rate-limit timestamps on partial failure — Expo ticket
+        // results are indexed by push token, not user ID, so we cannot determine
+        // which specific users received their notification. Skipping ensures
+        // failed recipients aren't suppressed on retry.
         return false;
       }
     }
@@ -115,6 +184,10 @@ async function sendPushNotification(payload: NotificationPayload): Promise<boole
       sent: data?.sent || 0,
       successful: data?.results?.filter((r: ExpoPushTicket) => r.status === 'ok').length || 0,
     });
+
+    // Record rate limit timestamps only after successful send
+    recordRateLimitSent(filteredUserIds, eventType);
+
     return true;
   } catch (error: unknown) {
     notificationLogger.error(

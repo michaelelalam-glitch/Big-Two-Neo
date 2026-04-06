@@ -437,6 +437,18 @@ export function useConnectionManager({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, roomId, playerId]);
 
+  // ── Memory warning: release non-essential resources ────────────────────────
+  useEffect(() => {
+    // iOS fires 'memoryWarning' via AppState when the OS is under memory pressure.
+    const sub = AppState.addEventListener('memoryWarning', () => {
+      networkLogger.warn('[useConnectionManager] Memory warning — releasing resources');
+      // soundManager is imported lazily to avoid circular deps;
+      // fire-and-forget cleanup is fine here.
+      import('../utils/soundManager').then(m => m.soundManager.cleanup()).catch(() => {});
+    });
+    return () => sub.remove();
+  }, []);
+
   // ── Start heartbeat on mount ──────────────────────────────────────────────
 
   useEffect(() => {

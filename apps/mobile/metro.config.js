@@ -11,10 +11,11 @@ const config = getDefaultConfig(__dirname);
 // Allow Metro to follow pnpm symlinks into the virtual store.
 config.resolver.unstable_enableSymlinks = true;
 
-// Task #276: Enable package.json "exports" field resolution for better tree-shaking.
-// This lets Metro respect each package's declared entry points (e.g. ESM builds)
-// instead of always falling back to the CJS "main" field, reducing dead-code inclusion.
-config.resolver.unstable_enablePackageExports = true;
+// NOTE: Do NOT enable unstable_enablePackageExports here.
+// @sentry/react-native@8.x is a pnpm symlink that resolves fine via the "main"
+// field but breaks under the exports-field resolver (Metro can't follow symlinks
+// to the pnpm store when exports mode is active). Leaving it at the default
+// (false) keeps Metro on the proven "main"-field resolution path for all packages.
 
 // Expose the pnpm virtual store so Metro can resolve packages that are
 // siblings of a symlinked package (e.g. expo-modules-core next to expo).

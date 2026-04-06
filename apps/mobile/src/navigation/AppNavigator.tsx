@@ -165,25 +165,61 @@ export default function AppNavigator() {
   React.useEffect(() => {
     if (!isLoggedIn || !pendingLinkRef.current) return;
     const url = pendingLinkRef.current;
-    pendingLinkRef.current = null;
-    // Small delay to let the authenticated stack finish mounting.
-    const timerId = setTimeout(() => {
-      // Convert https://big2.app/... universal links to the custom scheme so
-      // Linking.openURL always resolves within the app, never opening a browser
-      // on devices where universal-link association is broken or missing.
-      // React Navigation's linking config handles both prefixes identically once
-      // the authenticated stack is mounted, so the custom-scheme replay is safe.
-      const UNIVERSAL_PREFIX = 'https://big2.app';
-      const replayUrl = url.startsWith(UNIVERSAL_PREFIX)
-        ? `big2mobile://${url.slice(UNIVERSAL_PREFIX.length + 1)}` // skip the leading '/'
-        : url;
-      if (replayUrl.startsWith('big2mobile://')) {
-        Linking.openURL(replayUrl).catch(err =>
-          authLogger.info('[AppNavigator] Failed to replay pending deep link', err)
-        );
+    // Retry until the authenticated navigation stack is ready instead of a
+    // fixed 300 ms delay.  Polls every 100 ms up to a 2 s ceiling.
+    const UNIVERSAL_PREFIX = 'https://big2.app';
+    const replayUrl = url.startsWith(UNIVERSAL_PREFIX)
+      ? `big2mobile://${url.slice(UNIVERSAL_PREFIX.length + 1)}`
+      : url;
+    if (!replayUrl.startsWith('big2mobile://')) {
+      // Not a supported scheme — clear the ref so we don't keep retrying forever
+      pendingLinkRef.current = null;
+      return;
+    }
+
+    let attempts = 0;
+    let inFlight = false; // guard against overlapping openURL calls
+    const MAX_ATTEMPTS = 20; // 20 × 100 ms = 2 s max
+    const timerId = setInterval(() => {
+      attempts += 1;
+
+      if (!navigationRef.current?.isReady()) {
+        if (attempts >= MAX_ATTEMPTS) {
+          clearInterval(timerId);
+          pendingLinkRef.current = null;
+          authLogger.info('[AppNavigator] Nav not ready after 2s, discarding deep link');
+        }
+        return;
       }
-    }, 300);
-    return () => clearTimeout(timerId);
+
+      if (inFlight) {
+        // Watchdog: if openURL() never resolves/rejects, cancel after MAX_ATTEMPTS
+        // so the interval doesn't run indefinitely with inFlight stuck at true.
+        if (attempts >= MAX_ATTEMPTS) {
+          clearInterval(timerId);
+          pendingLinkRef.current = null;
+          authLogger.info('[AppNavigator] Max attempts reached (openURL hung), discarding deep link');
+        }
+        return;
+      }
+      inFlight = true;
+
+      Linking.openURL(replayUrl)
+        .then(() => {
+          clearInterval(timerId);
+          pendingLinkRef.current = null;
+        })
+        .catch(err => {
+          authLogger.info('[AppNavigator] Failed to replay pending deep link', err);
+          inFlight = false; // allow retry on next tick
+          if (attempts >= MAX_ATTEMPTS) {
+            clearInterval(timerId);
+            pendingLinkRef.current = null;
+            authLogger.info('[AppNavigator] Max attempts reached, discarding deep link');
+          }
+        });
+    }, 100);
+    return () => clearInterval(timerId);
   }, [isLoggedIn]);
 
   // Flush screen time when app goes to background; resume on foreground.

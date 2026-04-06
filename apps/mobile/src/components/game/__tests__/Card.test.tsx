@@ -47,6 +47,7 @@ jest.mock('react-native-gesture-handler', () => {
       Tap: jest.fn(() => ({
         onStart: jest.fn().mockReturnThis(),
         onEnd: jest.fn().mockReturnThis(),
+        onFinalize: jest.fn().mockReturnThis(),
         enabled: jest.fn().mockReturnThis(),
         maxDuration: jest.fn().mockReturnThis(),
       })),
