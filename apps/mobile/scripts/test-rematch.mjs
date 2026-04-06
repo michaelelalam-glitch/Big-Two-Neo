@@ -34,7 +34,6 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { randomBytes } from 'crypto';
 import { readFileSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -54,21 +53,25 @@ if (existsSync(envFile)) {
 }
 
 // ── Config ───────────────────────────────────────────────────────────────────
-const SUPABASE_URL =
-  process.env.SUPABASE_URL || 'https://dppybucldqufbqhwnkxu.supabase.co';
-
-const SUPABASE_ANON_KEY =
-  process.env.SUPABASE_ANON_KEY ||
-  // prettier-ignore
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwcHlidWNsZHF1ZmJxaHdua3h1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM5MzEyNjMsImV4cCI6MjA3OTUwNzI2M30.NPr-oBDZrfJisJH5rzosMMYTL3GKbIVQ_nllmaTxyFE';
-
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!SERVICE_ROLE_KEY) {
+const missing = [
+  !SUPABASE_URL && 'SUPABASE_URL',
+  !SUPABASE_ANON_KEY && 'SUPABASE_ANON_KEY',
+  !SERVICE_ROLE_KEY && 'SUPABASE_SERVICE_ROLE_KEY',
+].filter(Boolean);
+
+if (missing.length > 0) {
   console.error(
-    '\n❌  SUPABASE_SERVICE_ROLE_KEY is required.\n' +
-      '   Get it from: Supabase dashboard → Project Settings → API → service_role key\n' +
-      '   Then: export SUPABASE_SERVICE_ROLE_KEY=eyJ...\n'
+    '\n❌  Missing required environment variable(s): ' +
+      `${missing.join(', ')}.\n` +
+      '   Set them in your shell or in apps/mobile/.env.test.local before running this script.\n' +
+      '   Required:\n' +
+      '     SUPABASE_URL=https://your-project.supabase.co\n' +
+      '     SUPABASE_ANON_KEY=eyJ...\n' +
+      '     SUPABASE_SERVICE_ROLE_KEY=eyJ...\n'
   );
   process.exit(1);
 }

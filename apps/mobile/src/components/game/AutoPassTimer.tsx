@@ -15,7 +15,7 @@
  * - All 4 devices show IDENTICAL countdown (within 100ms) regardless of latency/drift
  */
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import ReanimatedLib, {
   useSharedValue,
@@ -84,10 +84,13 @@ function AutoPassTimerComponent({
   const { isSynced, getCorrectedNow: getCorrectedNowNTP } = useClockSync(
     clockOffsetMs === undefined ? timerState : null
   );
-  const getCorrectedNow =
-    clockOffsetMs !== undefined
-      ? ((() => Date.now() + clockOffsetMs) as () => number)
-      : getCorrectedNowNTP;
+  // Stable function reference — only changes when clockOffsetMs changes,
+  // so useMemo deps that include getCorrectedNow are not invalidated every render.
+  const getCorrectedNowLocal = useCallback(
+    () => Date.now() + (clockOffsetMs ?? 0),
+    [clockOffsetMs]
+  );
+  const getCorrectedNow = clockOffsetMs !== undefined ? getCorrectedNowLocal : getCorrectedNowNTP;
   const isSyncedEffective = clockOffsetMs !== undefined ? true : isSynced;
 
   // ── Stable clock-sync ref — keeps latest getCorrectedNow without triggering effects ──
