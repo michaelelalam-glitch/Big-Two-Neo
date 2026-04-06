@@ -70,9 +70,9 @@ let _VideoTrack: React.ComponentType<{
 
 try {
   _VideoTrack =
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     (
       require('@livekit/react-native') as {
+        // eslint-disable-line @typescript-eslint/no-require-imports
         VideoTrack?: React.ComponentType<{
           trackRef: unknown;
           style?: object;
