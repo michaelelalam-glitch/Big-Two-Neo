@@ -269,10 +269,12 @@ export function MultiplayerGame() {
         });
         let rematchTimeoutId: ReturnType<typeof setTimeout> | undefined;
         const rematchTimeout = new Promise<never>((_, reject) => {
-          rematchTimeoutId = setTimeout(
-            () => reject(new Error('get_or_create_rematch_room timed out after 15 s')),
-            15_000
-          );
+          rematchTimeoutId = setTimeout(() => {
+            gameLogger.warn(
+              '⏰ [MultiplayerGame] Play Again: get_or_create_rematch_room timed out after 15 s'
+            );
+            reject(new Error('Your match request timed out. Please try again.'));
+          }, 15_000);
         });
         const { data: rematchResult, error: rematchError } = await Promise.race([
           rematchPromise,

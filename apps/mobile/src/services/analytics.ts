@@ -270,8 +270,9 @@ function getSessionId(): number {
 async function sendEvents(
   events: { name: string; params?: AnalyticsEventParams }[]
 ): Promise<void> {
-  if (!MEASUREMENT_ID) {
-    // Measurement ID not configured — no-op silently
+  if (!USE_PROXY && !MEASUREMENT_ID) {
+    // Direct-to-GA4 (dev) mode requires a client-side MEASUREMENT_ID.
+    // In proxy mode (production) the Edge Function supplies it server-side.
     return;
   }
   // In proxy mode (production), API_SECRET lives server-side in the Edge
