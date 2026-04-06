@@ -196,6 +196,7 @@ export function MultiplayerGame() {
       const info = roomInfoRef.current;
       gameLogger.info('🔄 [MultiplayerGame] Play Again pressed, roomInfo:', {
         hasInfo: !!info,
+        roomId: info?.id,
         is_public: info?.is_public,
         ranked_mode: info?.ranked_mode,
       });
@@ -224,25 +225,11 @@ export function MultiplayerGame() {
           return;
         }
 
-        // Clean up any bot-replacement rows (the source-room membership row
-        // is now removed atomically inside get_or_create_rematch_room so the
-        // RPC can perform a reliable participation check before deleting it).
-        gameLogger.info('🔄 [MultiplayerGame] Play Again step 1: deleting bot rows for user', user.id);
-        const botCleanupPromise = supabase.rpc(
-          'delete_room_players_by_human_user_id',
-          { human_user_id: user.id }
-        );
-        const botCleanupTimeout = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('delete_room_players_by_human_user_id timed out after 15 s')), 15_000)
-        );
-        const { error: botCleanupError } = await Promise.race([botCleanupPromise, botCleanupTimeout]);
-        if (botCleanupError) {
-          gameLogger.warn(
-            '⚠️ [MultiplayerGame] Play Again: bot-replacement cleanup warning:',
-            botCleanupError.message
-          );
-        }
-        gameLogger.info('🔄 [MultiplayerGame] Play Again step 1 done');
+        // Bot-replacement cleanup is intentionally NOT performed here.
+        // The get_or_create_rematch_room RPC atomically deletes the caller's
+        // room_players row as part of its participation check.  Pre-deleting
+        // via delete_room_players_by_human_user_id can remove the row the RPC
+        // needs to find, causing a "not a participant" error.
 
         const username = profile?.username || user?.email?.split('@')[0] || 'Player';
 
@@ -251,7 +238,7 @@ export function MultiplayerGame() {
         //    press Play Again simultaneously, exactly ONE new room is created.
         //    The first caller (by DB transaction ordering) becomes the host;
         //    all subsequent callers join that same room.
-        gameLogger.info('🔄 [MultiplayerGame] Play Again step 2: creating rematch room for source', info.id);
+        gameLogger.info('🔄 [MultiplayerGame] Play Again: creating rematch room for source', info.id);
         const rematchPromise = supabase.rpc(
           'get_or_create_rematch_room',
           {
@@ -267,7 +254,7 @@ export function MultiplayerGame() {
           setTimeout(() => reject(new Error('get_or_create_rematch_room timed out after 15 s')), 15_000)
         );
         const { data: rematchResult, error: rematchError } = await Promise.race([rematchPromise, rematchTimeout]);
-        gameLogger.info('🔄 [MultiplayerGame] Play Again step 2 done, success:', !rematchError);
+        gameLogger.info('🔄 [MultiplayerGame] Play Again: rematch RPC done, success:', !rematchError);
 
         const result = rematchResult as {
           success: boolean;
@@ -279,7 +266,10 @@ export function MultiplayerGame() {
         if (rematchError || !result?.success || !result.room_code) {
           gameLogger.error(
             '❌ [MultiplayerGame] Play Again: rematch RPC failed:',
-            rematchError?.message
+            rematchError?.message ?? 'no room_code in result',
+            'code:', rematchError?.code,
+            'details:', rematchError?.details,
+            'result:', JSON.stringify(result),
           );
           showInGameAlert({ message: 'Failed to create new room. Please try again.' });
           return;
