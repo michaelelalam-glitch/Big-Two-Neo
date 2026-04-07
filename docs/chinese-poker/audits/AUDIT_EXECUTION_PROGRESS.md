@@ -36,7 +36,7 @@
 
 ### Phase 0 — Dead Code & Repo Hygiene ✅ COMPLETE
 - [x] **0.1** Remove .bak/.backup files — ✅ Previously completed
-- [x] **0.2** Add .gitignore entries for *.bak, *.backup, google-services.json — ✅ Added this session
+- [x] **0.2** Add .gitignore entries for *.bak, *.backup, google-services.json, GoogleService-Info.plist — ✅ Added this session
 - [x] **0.3** Create .env.example — ✅ Previously completed
 
 ### Phase 1 — Secret Rotation & Security ✅ COMPLETE

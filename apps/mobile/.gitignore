@@ -81,10 +81,6 @@ credentials.json
 credentials/
 *.apk
 
-# Backup files (use source control instead)
-*.bak
-*.backup
-
 # Build artifacts
 *.tar.gz
 *.zip

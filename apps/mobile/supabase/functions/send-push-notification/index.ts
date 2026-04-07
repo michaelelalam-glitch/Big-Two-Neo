@@ -156,12 +156,17 @@ const RATE_LIMIT_PRUNE_INTERVAL_MS = 30_000;
 const _lastSent = new Map<string, number>();
 let _lastPruneAt = 0;
 
-function getRateLimitKey(userId: string, eventType: string | undefined): string {
-  return `${userId}:${eventType ?? 'default'}`;
+function getRateLimitKey(userId: string, eventType: string): string {
+  return `${userId}:${eventType}`;
 }
 
 function pruneRateLimitEntries(now: number): void {
-  if (_lastSent.size <= 5000) return;
+  // Reset window start if clock moved backwards (e.g. NTP correction) so
+  // pruning is not skipped indefinitely.
+  if (now < _lastPruneAt) {
+    _lastPruneAt = now;
+    return;
+  }
   if (now - _lastPruneAt < RATE_LIMIT_PRUNE_INTERVAL_MS) return;
 
   _lastPruneAt = now;
@@ -170,16 +175,21 @@ function pruneRateLimitEntries(now: number): void {
   }
 }
 
-/** Returns true if the notification should be throttled (dropped). Read-only — does not record. */
+/** Returns true if the notification should be throttled (dropped). Read-only — does not record.
+ *  Returns false (never throttles) when eventType is absent so typeless notifications
+ *  never block unrelated typed notifications for the same user. */
 function isThrottled(userId: string, eventType: string | undefined): boolean {
+  if (!eventType) return false; // no event type → skip rate limiting
   const now = Date.now();
   const last = _lastSent.get(getRateLimitKey(userId, eventType));
   pruneRateLimitEntries(now);
   return !!last && now - last < RATE_LIMIT_WINDOW_MS;
 }
 
-/** Records that a notification was successfully delivered. Call only after a confirmed send. */
+/** Records that a notification was successfully delivered. Call only after a confirmed send.
+ *  No-op when eventType is absent (matching the isThrottled skip-logic above). */
 function recordSentNotification(userId: string, eventType: string | undefined): void {
+  if (!eventType) return; // no event type → nothing to record
   const now = Date.now();
   _lastSent.set(getRateLimitKey(userId, eventType), now);
   pruneRateLimitEntries(now);
