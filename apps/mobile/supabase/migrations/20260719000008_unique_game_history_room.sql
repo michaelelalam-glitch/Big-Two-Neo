@@ -22,6 +22,7 @@ BEGIN
       AND tn.nspname = 'public'
       AND i.indisunique = true
       AND pg_get_expr(i.indpred, i.indrelid) ILIKE '%room_id%IS NOT NULL%'
+      AND pg_get_indexdef(i.indexrelid) ILIKE '%game_history%room_id%'
   ) THEN
     RAISE EXCEPTION 'Required unique partial index on game_history(room_id) WHERE room_id IS NOT NULL not found — cannot proceed';
   END IF;

@@ -3,6 +3,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 // Use shared parseCards utility to reduce duplication
 import { parseCards } from '../_shared/parseCards.ts';
 import { checkRateLimit, rateLimitResponse } from '../_shared/rateLimiter.ts';
+import { concurrentModificationResponse } from '../_shared/responses.ts';
 
 // Rate-limit config for player-pass: same budget as play-cards.
 // A player physically cannot pass more than once per turn, so 10/10s is very generous.
@@ -236,19 +237,8 @@ async function triggerBotCoordinatorIfNeeded(
 }
 
 // ==================== CONCURRENT MODIFICATION RESPONSE ====================
-/** Standardised 409 response for CAS / optimistic-lock failures. */
-function concurrentModificationResponse(context: string): Response {
-  console.warn(`[player-pass] ⚠️ ${context} concurrent modification detected — state already advanced`);
-  return new Response(
-    JSON.stringify({
-      success: false,
-      error: 'Concurrent modification — state already advanced',
-      code: 'CONCURRENT_MODIFICATION',
-      retryable: true,
-    }),
-    { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-  );
-}
+// Uses shared helper from _shared/responses.ts
+const concurrentMod = (context: string) => concurrentModificationResponse(context, corsHeaders, 'player-pass');
 
 // ==================== MAIN HANDLER ====================
 
@@ -743,7 +733,7 @@ Deno.serve(async (req) => {
       }
 
       if (!updatedRows1 || updatedRows1.length === 0) {
-        return concurrentModificationResponse('Trick-clear');
+        return concurrentMod('Trick-clear');
       }
 
       console.log('✅ [player-pass] Trick cleared successfully, turn returned to player', finalNextTurn);
@@ -846,7 +836,7 @@ Deno.serve(async (req) => {
       }
 
       if (!cascadeRows || cascadeRows.length === 0) {
-        return concurrentModificationResponse('CASCADE');
+        return concurrentMod('CASCADE');
       }
 
       console.log('✅ [player-pass] CASCADE complete: trick cleared, turn →', cascadeNextTurn);
@@ -895,7 +885,7 @@ Deno.serve(async (req) => {
     }
 
     if (!updatedRows3 || updatedRows3.length === 0) {
-      return concurrentModificationResponse('Normal pass');
+      return concurrentMod('Normal pass');
     }
 
     console.log('✅ [player-pass] Pass processed successfully');

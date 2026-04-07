@@ -161,9 +161,9 @@ const RATE_LIMIT_PRUNE_INTERVAL_MS = 30_000;
 const _lastSent = new Map<string, number>();
 let _lastPruneAt = 0;
 
-/** Known event types. Anything else is mapped to 'default' to bound Map key growth. */
+/** Known event types used as distinct rate-limit buckets. Keep in sync with accepted `data.type` values. Anything else is mapped to 'default' to bound Map key growth. */
 const KNOWN_EVENT_TYPES = new Set([
-  'game_invite', 'friend_request', 'friend_accepted', 'game_started', 'your_turn', 'default',
+  'game_invite', 'friend_request', 'friend_accepted', 'game_started', 'game_ended', 'your_turn', 'default',
 ]);
 const MAX_EVENT_TYPE_LEN = 32;
 
