@@ -54,14 +54,18 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
         // Remove any stale AsyncStorage copy from before migration
         await AsyncStorage.removeItem(key).catch(() => {});
       } else {
-        // Value too large for SecureStore — use AsyncStorage
+        // Value too large for SecureStore — use AsyncStorage.
+        // TODO (Sprint 2): Consider chunking across multiple SecureStore keys
+        // to avoid any plaintext fallback for oversized sessions/JWTs.
         await AsyncStorage.setItem(key, value);
         // Remove any stale SecureStore copy
         await SecureStore.deleteItemAsync(key).catch(() => {});
       }
     } catch {
-      // SecureStore write failed — fall back to AsyncStorage
+      // SecureStore write failed — fall back to AsyncStorage.
+      // Clear any stale SecureStore copy so getItem cannot return an older value.
       await AsyncStorage.setItem(key, value);
+      await SecureStore.deleteItemAsync(key).catch(() => {});
     }
   },
   removeItem: async (key: string): Promise<void> => {

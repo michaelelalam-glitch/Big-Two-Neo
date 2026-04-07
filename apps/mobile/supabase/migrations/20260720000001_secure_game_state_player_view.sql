@@ -15,16 +15,18 @@
 -- but the client must NOT use the raw payload — it must re-fetch via this RPC.
 -- ==========================================================================
 
-CREATE OR REPLACE FUNCTION get_player_game_state(p_room_id UUID)
-RETURNS SETOF game_state
+CREATE OR REPLACE FUNCTION public.get_player_game_state(p_room_id UUID)
+RETURNS SETOF public.game_state
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+-- Hardened search_path: empty default prevents object-hijacking via
+-- user-controlled schemas. All references below are schema-qualified.
+SET search_path = ''
 AS $$
 DECLARE
   v_user_id UUID;
   v_player_index INT;
-  v_row game_state%ROWTYPE;
+  v_row public.game_state%ROWTYPE;
   v_filtered_hands JSONB;
 BEGIN
   -- 1. Authenticate
@@ -35,7 +37,7 @@ BEGIN
 
   -- 2. Verify room membership and get player_index
   SELECT rp.player_index INTO v_player_index
-  FROM room_players rp
+  FROM public.room_players rp
   WHERE rp.room_id = p_room_id AND rp.user_id = v_user_id
   LIMIT 1;
 
@@ -45,7 +47,7 @@ BEGIN
 
   -- 3. Fetch raw game state
   SELECT * INTO v_row
-  FROM game_state gs
+  FROM public.game_state gs
   WHERE gs.room_id = p_room_id;
 
   IF v_row.id IS NULL THEN
@@ -57,21 +59,21 @@ BEGIN
   --    Placeholder cards preserve array length (so card counts remain accurate)
   --    but hide the actual card identity (suit, rank).
   SELECT COALESCE(
-    jsonb_object_agg(
+    pg_catalog.jsonb_object_agg(
       key,
       CASE
         WHEN key = v_player_index::text THEN value
-        WHEN jsonb_array_length(value) > 0 THEN
+        WHEN pg_catalog.jsonb_array_length(value) > 0 THEN
           -- Generate placeholder array of same length
-          (SELECT jsonb_agg(
-            jsonb_build_object('id', 'hidden_' || i, 'rank', '?', 'suit', '?')
-          ) FROM generate_series(0, jsonb_array_length(value) - 1) AS i)
+          (SELECT pg_catalog.jsonb_agg(
+            pg_catalog.jsonb_build_object('id', 'hidden_' || i, 'rank', '?', 'suit', '?')
+          ) FROM pg_catalog.generate_series(0, pg_catalog.jsonb_array_length(value) - 1) AS i)
         ELSE '[]'::jsonb
       END
     ),
     '{}'::jsonb
   ) INTO v_filtered_hands
-  FROM jsonb_each(v_row.hands) AS kv(key, value);
+  FROM pg_catalog.jsonb_each(v_row.hands) AS kv(key, value);
 
   -- 5. Replace hands with filtered version
   v_row.hands := v_filtered_hands;
@@ -80,10 +82,15 @@ BEGIN
 END;
 $$;
 
--- Grant execute to authenticated users (RPC is callable by any logged-in user;
--- the function body verifies room membership).
-GRANT EXECUTE ON FUNCTION get_player_game_state(UUID) TO authenticated;
+-- Restrict RPC execution to authenticated users only.
+-- REVOKE is required because functions are executable by PUBLIC by default.
+REVOKE EXECUTE ON FUNCTION public.get_player_game_state(UUID) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_player_game_state(UUID) FROM anon;
+GRANT EXECUTE ON FUNCTION public.get_player_game_state(UUID) TO authenticated;
 
-COMMENT ON FUNCTION get_player_game_state(UUID) IS
+COMMENT ON FUNCTION public.get_player_game_state(UUID) IS
   'C1 Fix: Returns game_state with only the requesting player''s hand visible. '
-  'Other players'' hands are replaced with placeholder arrays preserving card counts.';
+  'Other players'' hands are replaced with placeholder arrays preserving card counts. '
+  'NOTE: The game_state SELECT RLS policy still exists for Realtime change notifications; '
+  'Sprint 2 should migrate to broadcast or a separate notification table to fully close '
+  'the raw-payload cheating vector.';

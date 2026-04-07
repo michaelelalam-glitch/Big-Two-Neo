@@ -517,6 +517,9 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 // payload contains ALL players' hands (RLS cannot filter columns).
                 // Instead, re-fetch via the secure get_player_game_state RPC which
                 // returns only the requesting player's hand.
+                // NOTE: The game_state SELECT RLS policy is intentionally kept so that
+                // postgres_changes fires change events. Sprint 2 should migrate to
+                // broadcast or a notification table to fully close this vector.
                 if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
                   void fetchGameState(roomId).catch(warnFetch('game_state_change'));
                 }

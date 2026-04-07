@@ -85,7 +85,12 @@
         }
       ],
       "expo-web-browser",
-      ["expo-audio", { "microphonePermission": false }],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false
+        }
+      ],
       "expo-camera",
       [
         "expo-image-picker",
@@ -98,7 +103,8 @@
       "./plugins/withBarcodeCompatStubs",
       "./plugins/withIOSBarcodeCompatStubs",
       "./plugins/withExpoCameraSwiftFix",
-      "./plugins/withSuppressDeprecatedWarnings"
+      "./plugins/withSuppressDeprecatedWarnings",
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {
