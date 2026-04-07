@@ -730,7 +730,12 @@ Deno.serve(async (req) => {
       if (!updatedRows1 || updatedRows1.length === 0) {
         console.warn('[player-pass] ⚠️ Concurrent modification detected — state already advanced');
         return new Response(
-          JSON.stringify({ success: false, error: 'Concurrent modification — state already advanced' }),
+          JSON.stringify({
+            success: false,
+            error: 'Concurrent modification — state already advanced',
+            code: 'CONCURRENT_MODIFICATION',
+            retryable: true,
+          }),
           { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }

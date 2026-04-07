@@ -12,6 +12,7 @@ import { gameLogger } from '../utils/logger';
 import { buildFinalPlayHistoryFromState } from '../utils/playHistoryUtils';
 import type { FinalScore } from '../types/gameEnd';
 import type { ScoreHistory, PlayHistoryMatch } from '../types/scoreboard';
+import { parsePersistedScoreHistory } from '../utils/parsePersistedScoreHistory';
 
 const SCORE_HISTORY_KEY = '@big2_score_history';
 
@@ -201,39 +202,23 @@ export function useGameStateManager({
           let scoreRestored = false;
           try {
             const persistedHistory = await AsyncStorage.getItem(SCORE_HISTORY_KEY);
-            if (persistedHistory) {
-              const parsed = JSON.parse(persistedHistory);
-              if (Array.isArray(parsed)) {
-                if (parsed.length === 0) {
-                  // Empty array is valid but nothing to restore
-                  gameLogger.info(
-                    '[useGameStateManager] Persisted scoreHistory is an empty array, skipping restore'
-                  );
-                } else {
-                  // Validate each entry has the expected ScoreHistory shape
-                  const valid = parsed.every(
-                    (entry: unknown) =>
-                      entry != null &&
-                      typeof entry === 'object' &&
-                      typeof (entry as Record<string, unknown>).matchNumber === 'number' &&
-                      Array.isArray((entry as Record<string, unknown>).pointsAdded) &&
-                      Array.isArray((entry as Record<string, unknown>).scores)
-                  );
-                  if (valid) {
-                    gameLogger.info(
-                      `📊 [useGameStateManager] Restored ${parsed.length} score history entries from AsyncStorage`
-                    );
-                    restoreScoreHistory(parsed as ScoreHistory[]);
-                    scoreRestored = true;
-                  } else {
-                    gameLogger.warn(
-                      '[useGameStateManager] Persisted scoreHistory failed shape validation, discarding'
-                    );
-                    await AsyncStorage.removeItem(SCORE_HISTORY_KEY);
-                  }
+            const validated = parsePersistedScoreHistory(persistedHistory);
+            if (validated) {
+              gameLogger.info(
+                `📊 [useGameStateManager] Restored ${validated.length} score history entries from AsyncStorage`
+              );
+              restoreScoreHistory(validated);
+              scoreRestored = true;
+            } else if (persistedHistory != null) {
+              // Stored value existed but failed parsing/validation — clean up non-array values
+              const parsed = (() => {
+                try {
+                  return JSON.parse(persistedHistory);
+                } catch {
+                  return undefined;
                 }
-              } else if (parsed != null) {
-                // Parsed into a non-array value — remove corrupted entry
+              })();
+              if (parsed !== undefined && !Array.isArray(parsed)) {
                 gameLogger.warn(
                   '[useGameStateManager] Persisted scoreHistory is not an array, removing'
                 );

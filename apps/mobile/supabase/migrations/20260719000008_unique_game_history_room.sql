@@ -1,15 +1,23 @@
--- Documentation-only no-op for schema history continuity.
+-- Lightweight verification for schema history continuity.
 --
--- Despite the filename/intent ("unique_game_history_room"), this migration does
--- not create, alter, or verify any index. The partial unique index on
--- game_history(room_id) WHERE room_id IS NOT NULL was already created/verified by:
+-- Despite the filename/intent ("unique_game_history_room"), the partial unique
+-- index on game_history(room_id) WHERE room_id IS NOT NULL was already
+-- created/verified by:
 --   • 20260313000001_dedup_game_history_and_fix_stats.sql
 --   • 20260403000001_phase2_db_migration_integrity.sql
 --
--- This file exists only to document that prior work for auditors/reviewers.
--- CREATE UNIQUE INDEX IF NOT EXISTS only checks the index *name*, not whether an
--- equivalent index already exists under a different name. Re-creating it here
--- would risk an unnecessary full-table index build and a brief write-lock.
---
--- Intentionally left blank; no schema changes are performed by this migration.
+-- Rather than re-creating the index (which would risk an unnecessary full-table
+-- build and brief write-lock), we assert it exists so the migration chain stays
+-- auditable.
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes
+    WHERE tablename = 'game_history'
+      AND indexdef ILIKE '%room_id%'
+      AND indexdef ILIKE '%unique%'
+  ) THEN
+    RAISE WARNING 'Expected unique index on game_history(room_id) not found — verify manually';
+  END IF;
+END $$;

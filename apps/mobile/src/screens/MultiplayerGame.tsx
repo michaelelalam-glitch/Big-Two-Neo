@@ -68,6 +68,7 @@ import type {
   Player as MultiplayerPlayer,
 } from '../types/multiplayer';
 import type { ScoreHistory } from '../types/scoreboard';
+import { parsePersistedScoreHistory } from '../utils/parsePersistedScoreHistory';
 import { RejoinModal } from '../components/game/RejoinModal';
 import { GameContextProvider } from '../contexts/GameContext';
 import type { GameContextType } from '../contexts/GameContext';
@@ -660,37 +661,22 @@ export function MultiplayerGame() {
     (async () => {
       try {
         const stored = await AsyncStorage.getItem(ROOM_SCORE_KEY);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) {
-            if (parsed.length === 0) {
-              // Empty array is valid but nothing to restore
-              gameLogger.info(
-                '[MultiplayerGame] Persisted score history is an empty array, skipping restore'
-              );
-            } else {
-              const valid = parsed.every(
-                (entry: unknown) =>
-                  entry != null &&
-                  typeof entry === 'object' &&
-                  typeof (entry as Record<string, unknown>).matchNumber === 'number' &&
-                  Array.isArray((entry as Record<string, unknown>).pointsAdded) &&
-                  Array.isArray((entry as Record<string, unknown>).scores)
-              );
-              if (valid) {
-                gameLogger.info(
-                  `[MultiplayerGame] 🔄 Restoring ${parsed.length} score history entries for room ${roomCode}`
-                );
-                restoreScoreHistory(parsed as ScoreHistory[]);
-              } else {
-                gameLogger.warn(
-                  '[MultiplayerGame] Persisted score history failed validation, discarding'
-                );
-                await AsyncStorage.removeItem(ROOM_SCORE_KEY);
-              }
+        const validated = parsePersistedScoreHistory(stored);
+        if (validated) {
+          gameLogger.info(
+            `[MultiplayerGame] 🔄 Restoring ${validated.length} score history entries for room ${roomCode}`
+          );
+          restoreScoreHistory(validated);
+        } else if (stored != null) {
+          // stored existed but failed parsing/validation — clean up
+          const parsed = (() => {
+            try {
+              return JSON.parse(stored);
+            } catch {
+              return undefined;
             }
-          } else if (parsed != null) {
-            // Parsed into a non-array value — remove corrupted entry
+          })();
+          if (parsed !== undefined && !Array.isArray(parsed)) {
             gameLogger.warn('[MultiplayerGame] Persisted score history is not an array, removing');
             await AsyncStorage.removeItem(ROOM_SCORE_KEY);
           }
