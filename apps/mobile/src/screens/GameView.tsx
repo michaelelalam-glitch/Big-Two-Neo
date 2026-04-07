@@ -336,7 +336,7 @@ function GameViewComponent() {
           />
         )}
 
-        {isInitializing ? (
+        {isInitializing || layoutPlayersWithScores.length === 0 ? (
           // Loading state
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#fff" style={{ marginBottom: 12 }} />
