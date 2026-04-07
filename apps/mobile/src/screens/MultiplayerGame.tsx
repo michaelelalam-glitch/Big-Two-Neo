@@ -1237,27 +1237,27 @@ export function MultiplayerGame() {
 
   // ── C2 Audit: Sync game-session state to Zustand (single source of truth) ──
   // GameView reads these from useGameSessionStore instead of GameContext.
+  // Single atomic setState so all subscribers observe a consistent snapshot
+  // and only one re-render is triggered per update cycle.
   useEffect(() => {
-    useGameSessionStore.getState().setLayoutPlayers(layoutPlayers);
-  }, [layoutPlayers]);
-  useEffect(() => {
-    useGameSessionStore.getState().setLayoutPlayersWithScores(enrichedLayoutPlayers);
-  }, [enrichedLayoutPlayers]);
-  useEffect(() => {
-    useGameSessionStore.getState().setPlayerTotalScores(playerTotalScores);
-  }, [playerTotalScores]);
-  useEffect(() => {
-    useGameSessionStore.getState().setCurrentPlayerName(currentPlayerName);
-  }, [currentPlayerName]);
-  useEffect(() => {
-    useGameSessionStore.getState().setIsPlayerReady(isPlayerReady);
-  }, [isPlayerReady]);
-  useEffect(() => {
-    useGameSessionStore.getState().setIsGameFinished(isGameFinished);
-  }, [isGameFinished]);
-  useEffect(() => {
-    useGameSessionStore.getState().setMatchNumber(matchNumber);
-  }, [matchNumber]);
+    useGameSessionStore.setState({
+      layoutPlayers,
+      layoutPlayersWithScores: enrichedLayoutPlayers,
+      playerTotalScores,
+      currentPlayerName,
+      isPlayerReady,
+      isGameFinished,
+      matchNumber,
+    });
+  }, [
+    layoutPlayers,
+    enrichedLayoutPlayers,
+    playerTotalScores,
+    currentPlayerName,
+    isPlayerReady,
+    isGameFinished,
+    matchNumber,
+  ]);
 
   // ── Task #651 / #649: in-game video + voice chat ─────────────────────────────
   // LiveKitVideoChatAdapter is used in native (EAS) builds where

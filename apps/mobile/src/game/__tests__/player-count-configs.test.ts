@@ -115,22 +115,23 @@ describe('2-Player Game (botCount: 1)', () => {
     expect(state.matchScores.every(s => s.score === 0)).toBe(true);
   });
 
-  it('gameplay crashes within first turn cycle due to hardcoded TURN_ORDER', async () => {
-    // DOCUMENTS BUG: TURN_ORDER = [3, 2, 0, 1] is hardcoded for 4 players.
-    // For 2 players, TURN_ORDER[0]=3 and TURN_ORDER[1]=2 are both out of bounds.
-    // The crash happens in advanceToNextPlayer() when players[nextIdx] is undefined.
+  // TODO(engine): Replace with deterministic no-crash regression for TURN_ORDER in 2-player games.
+  // Historical note: this previously asserted a crash caused by the known hardcoded TURN_ORDER bug
+  // ([3,2,0,1]) in non-4-player games. It has been skipped because:
+  //   1) it encoded broken behavior as the expected outcome, and
+  //   2) it was non-deterministic (only exercised the path when 3D was dealt).
+  // Once the engine bug is fixed, replace with a deterministic test that controls setup
+  // (or retries initialization until 3D is dealt) and asserts gameplay advances without crashing.
+  it.skip('TODO(engine): replace with deterministic no-crash regression for TURN_ORDER in 2-player games', async () => {
     const state = await manager.initializeGame(config);
     const allDealtCards = state.players.flatMap(p => p.hand);
     const threeOfDiamondsDealt = allDealtCards.some(c => c.id === '3D');
 
     if (!threeOfDiamondsDealt) {
-      // 3D in undealt deck half — first play is blocked by validation.
-      // Bug still exists but can't be triggered without 3D on the table.
       expect(state.players.length).toBe(2);
       return;
     }
 
-    // 3D is dealt — attempt gameplay; crash occurs on first successful turn advance
     let crashed = false;
     try {
       for (let turn = 0; turn < 10; turn++) {
@@ -144,7 +145,7 @@ describe('2-Player Game (botCount: 1)', () => {
           if (d3) {
             await manager.playCards([d3.id]);
           } else {
-            break; // Human can't play first without 3D
+            break;
           }
         } else if (s.lastPlay) {
           await manager.pass();

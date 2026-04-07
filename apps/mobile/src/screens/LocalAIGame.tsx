@@ -429,27 +429,27 @@ export function LocalAIGame() {
 
   // ── C2 Audit: Sync game-session state to Zustand (single source of truth) ──
   // GameView reads these from useGameSessionStore instead of GameContext.
+  // Single atomic setState so all subscribers observe a consistent snapshot
+  // and only one re-render is triggered per update cycle.
   useEffect(() => {
-    useGameSessionStore.getState().setLayoutPlayers(layoutPlayers);
-  }, [layoutPlayers]);
-  useEffect(() => {
-    useGameSessionStore.getState().setLayoutPlayersWithScores(layoutPlayersWithScores);
-  }, [layoutPlayersWithScores]);
-  useEffect(() => {
-    useGameSessionStore.getState().setPlayerTotalScores(playerTotalScores);
-  }, [playerTotalScores]);
-  useEffect(() => {
-    useGameSessionStore.getState().setCurrentPlayerName(currentPlayerName);
-  }, [currentPlayerName]);
-  useEffect(() => {
-    useGameSessionStore.getState().setIsPlayerReady(isPlayerReady);
-  }, [isPlayerReady]);
-  useEffect(() => {
-    useGameSessionStore.getState().setIsGameFinished(isGameFinished);
-  }, [isGameFinished]);
-  useEffect(() => {
-    useGameSessionStore.getState().setMatchNumber(matchNumber);
-  }, [matchNumber]);
+    useGameSessionStore.setState({
+      layoutPlayers,
+      layoutPlayersWithScores,
+      playerTotalScores,
+      currentPlayerName,
+      isPlayerReady,
+      isGameFinished,
+      matchNumber,
+    });
+  }, [
+    layoutPlayers,
+    layoutPlayersWithScores,
+    playerTotalScores,
+    currentPlayerName,
+    isPlayerReady,
+    isGameFinished,
+    matchNumber,
+  ]);
 
   // Build the context value; useMemo keeps the object reference stable so that
   // GameView (wrapped in React.memo) only re-renders when game-visible state

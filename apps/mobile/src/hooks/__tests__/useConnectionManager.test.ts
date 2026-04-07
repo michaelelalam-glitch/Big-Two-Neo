@@ -61,13 +61,10 @@ import { trackConnection, trackEvent } from '../../services/analytics';
 type AppStateCallback = (state: AppStateStatus) => void;
 let appStateCallback: AppStateCallback | null = null;
 const mockRemoveListener = jest.fn();
-
-jest
-  .spyOn(AppState, 'addEventListener')
-  .mockImplementation((type: string, listener: AppStateCallback) => {
-    if (type === 'change') appStateCallback = listener;
-    return { remove: mockRemoveListener } as ReturnType<typeof AppState.addEventListener>;
-  });
+let addEventListenerSpy: jest.SpyInstance<
+  ReturnType<typeof AppState.addEventListener>,
+  Parameters<typeof AppState.addEventListener>
+>;
 
 // ── Realtime channel mock ────────────────────────────────────────────────────
 
@@ -103,6 +100,13 @@ describe('useConnectionManager', () => {
     jest.useFakeTimers();
     jest.clearAllMocks();
     appStateCallback = null;
+    mockRemoveListener.mockClear();
+    addEventListenerSpy = jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation((type: string, listener: AppStateCallback) => {
+        if (type === 'change') appStateCallback = listener;
+        return { remove: mockRemoveListener } as ReturnType<typeof AppState.addEventListener>;
+      });
 
     // Default: heartbeat succeeds
     mockInvoke.mockResolvedValue({ data: { success: true }, error: null });
@@ -113,6 +117,7 @@ describe('useConnectionManager', () => {
   });
 
   afterEach(() => {
+    addEventListenerSpy.mockRestore();
     jest.useRealTimers();
   });
 
