@@ -190,9 +190,11 @@ function isThrottled(userId: string, eventType: string | undefined): boolean {
   return !!last && now - last < RATE_LIMIT_WINDOW_MS;
 }
 
-/** Records that a notification was successfully delivered. Call only after a confirmed send.
+/** Eagerly reserves a throttle slot so concurrent requests for the same user+event
+ *  are suppressed while the send is in flight. Called BEFORE the actual FCM send.
+ *  If all sends for this user later fail, the reservation is released via clearThrottleRecord.
  *  No-op when eventType is absent (matching the isThrottled skip-logic above). */
-function recordSentNotification(userId: string, eventType: string | undefined): void {
+function reserveThrottleSlot(userId: string, eventType: string | undefined): void {
   if (!eventType) return; // no event type → nothing to record
   const now = Date.now();
   _lastSent.set(getRateLimitKey(userId, eventType), now);
@@ -270,9 +272,9 @@ Deno.serve(async (req) => {
         throttledIds.push(uid);
         return false;
       }
-      // Record immediately to prevent concurrent requests from passing the
-      // throttle check before the send completes ("reserve" the slot).
-      recordSentNotification(uid, eventType);
+      // Reserve immediately to prevent concurrent requests from passing the
+      // throttle check before the send completes.
+      reserveThrottleSlot(uid, eventType);
       return true;
     });
 
@@ -296,6 +298,8 @@ Deno.serve(async (req) => {
 
     if (tokensError) {
       console.error('Error fetching push tokens:', tokensError)
+      // Release eager reservations — nothing was sent
+      for (const uid of allowedIds) clearThrottleRecord(uid, eventType);
       return new Response(
         JSON.stringify({ error: 'Failed to fetch push tokens', details: tokensError }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -304,6 +308,8 @@ Deno.serve(async (req) => {
 
     if (!tokens || tokens.length === 0) {
       console.log('No push tokens found for specified users')
+      // Release eager reservations — nothing was sent
+      for (const uid of allowedIds) clearThrottleRecord(uid, eventType);
       return new Response(
         JSON.stringify({ message: 'No push tokens found', sent: 0 }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -351,7 +357,18 @@ Deno.serve(async (req) => {
     })
 
     // Get OAuth2 token for FCM v1 API
-    const accessToken = await getAccessToken()
+    let accessToken: string;
+    try {
+      accessToken = await getAccessToken();
+    } catch (tokenErr) {
+      console.error('❌ Failed to obtain FCM access token:', tokenErr);
+      // Release eager reservations — nothing was sent
+      for (const uid of allowedIds) clearThrottleRecord(uid, eventType);
+      return new Response(
+        JSON.stringify({ error: 'Failed to obtain FCM access token' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
     // Send notifications via FCM v1 API
     // Track per-user success: only keep throttle reservation for users with ≥1 successful send

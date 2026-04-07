@@ -51,9 +51,9 @@ Generate:
 1. **High-level architecture diagram** (textual): Client ↔ Supabase Realtime ↔ Edge Functions ↔ Database
 2. **Data flow map**: UI interaction → Zustand/Context → Supabase RPC/Realtime → Edge Function → DB mutation → Realtime broadcast → all clients update
 3. **Dependency graph**: Which hooks depend on which contexts, which contexts depend on which stores
-4. **Edge function call map**: Which client files call which of the 17 edge-function entries (16 functions plus the `_shared/` library)
+4. **Edge function call map**: Which client files call which of the 18 edge-function entries (plus the `_shared/` library, reviewed but not counted as a standalone function)
 
-### 0.4 Known Edge Functions (all 17 must be audited)
+### 0.4 Known Edge Functions (all 18 must be audited)
 | Edge Function | Critical Path? | Description |
 |---|---|---|
 | `play-cards` | **YES** | Core gameplay — validate and execute a card play |
@@ -264,7 +264,7 @@ For every hook in `src/hooks/`:
 
 ## PHASE 5 — SUPABASE BACKEND
 
-### 5.1 Edge Functions (All 17)
+### 5.1 Edge Functions (All 18)
 For each edge function:
 - **Input validation:** Are all parameters validated? Types checked?
 - **Authorization:** Does it verify `auth.uid()` matches the acting player?
