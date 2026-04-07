@@ -161,7 +161,7 @@ Deno.serve(async (req) => {
       cleanupErrors.push('profiles');
     }
 
-    console.log('✅ [delete-account] Successfully deleted account');
+    console.log('✅ [delete-account] Data cleanup succeeded, proceeding to auth deletion');
 
     const responseBody: Record<string, any> = { success: true };
     if (cleanupErrors.length > 0) {

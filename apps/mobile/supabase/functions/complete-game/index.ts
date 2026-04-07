@@ -52,6 +52,8 @@ const corsHeaders = {
 };
 
 // ─── H7 Fix: LiveKit room cleanup helpers ───────────────────────────────────
+// TODO: Extract toBase64Url + JWT signing helpers into _shared/livekit.ts to
+// deduplicate with get-livekit-token/index.ts.
 
 /** Base64url-encode a Uint8Array (RFC 4648 §5, no padding). */
 function toBase64Url(buf: Uint8Array): string {

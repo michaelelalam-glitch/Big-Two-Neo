@@ -12,8 +12,11 @@
  *   if (versionError) return versionError;
  */
 
-/** Env-configurable minimum version. Falls back to '1.0.0' (no enforcement). */
+/** Env-configurable minimum version. Falls back to '1.0.0', enforcing that minimum when the env var is unset. */
 const MINIMUM_APP_VERSION = Deno.env.get('MINIMUM_APP_VERSION') ?? '1.0.0';
+
+// TODO (Sprint 3+): Wire checkMinimumVersion into each edge function's request
+// handler (after CORS/OPTIONS handling) to enforce the gate across all endpoints.
 
 /**
  * Compare two semver strings (major.minor.patch). Returns:
@@ -35,27 +38,34 @@ function compareSemver(a: string, b: string): -1 | 0 | 1 {
 
 /**
  * Returns a 426 Response if the client's `x-app-version` header is below
- * the minimum, or `null` if the version is acceptable (or no header present,
- * which is treated as "internal / service-role caller — allow").
+ * the minimum, or `null` if the version is acceptable.
+ *
+ * Missing version headers are treated as an outdated client (`0.0.0`) by
+ * default so callers cannot bypass version enforcement by omitting the header.
+ * Internal/service-role callers (e.g. bot-coordinator) should pass
+ * `allowMissingHeader = true` to skip enforcement when no header is present.
  */
 export function checkMinimumVersion(
   req: Request,
   corsHeaders: Record<string, string>,
+  allowMissingHeader = false,
 ): Response | null {
   const clientVersion = req.headers.get('x-app-version');
-  if (!clientVersion) {
-    // No version header — likely a service-role call (bot-coordinator, etc.)
+  if (!clientVersion && allowMissingHeader) {
+    // No version header — trusted internal/service-role caller
     return null;
   }
 
-  if (compareSemver(clientVersion, MINIMUM_APP_VERSION) < 0) {
+  const effectiveVersion = clientVersion ?? '0.0.0';
+
+  if (compareSemver(effectiveVersion, MINIMUM_APP_VERSION) < 0) {
     return new Response(
       JSON.stringify({
         success: false,
         error: 'App update required',
         code: 'UPDATE_REQUIRED',
         minimum_version: MINIMUM_APP_VERSION,
-        current_version: clientVersion,
+        current_version: effectiveVersion,
       }),
       {
         status: 426,

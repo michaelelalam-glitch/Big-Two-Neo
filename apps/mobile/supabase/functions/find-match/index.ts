@@ -197,6 +197,10 @@ Deno.serve(async (req) => {
 
     if (existingEntryError) {
       console.error('❌ [find-match] Error checking existing waiting_room entry:', existingEntryError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to check existing waiting room state' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     if (existingEntry) {
