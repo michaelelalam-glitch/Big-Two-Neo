@@ -8,7 +8,7 @@ import type { Database } from '../types/database.types';
 
 // C3 Fix: Send app version with every Supabase request so edge functions can
 // enforce a minimum version and reject outdated clients.
-const APP_VERSION =
+export const APP_VERSION =
   process.env.EXPO_PUBLIC_APP_VERSION ??
   Constants.expoConfig?.version ??
   Constants.manifest2?.extra?.expoClient?.version ??
