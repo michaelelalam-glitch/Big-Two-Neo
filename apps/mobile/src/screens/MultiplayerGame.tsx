@@ -661,12 +661,27 @@ export function MultiplayerGame() {
       try {
         const stored = await AsyncStorage.getItem(ROOM_SCORE_KEY);
         if (stored) {
-          const parsed: ScoreHistory[] = JSON.parse(stored);
+          const parsed = JSON.parse(stored);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            gameLogger.info(
-              `[MultiplayerGame] 🔄 Restoring ${parsed.length} score history entries for room ${roomCode}`
+            const valid = parsed.every(
+              (entry: unknown) =>
+                entry != null &&
+                typeof entry === 'object' &&
+                typeof (entry as Record<string, unknown>).matchNumber === 'number' &&
+                Array.isArray((entry as Record<string, unknown>).pointsAdded) &&
+                Array.isArray((entry as Record<string, unknown>).scores)
             );
-            restoreScoreHistory(parsed);
+            if (valid) {
+              gameLogger.info(
+                `[MultiplayerGame] 🔄 Restoring ${parsed.length} score history entries for room ${roomCode}`
+              );
+              restoreScoreHistory(parsed as ScoreHistory[]);
+            } else {
+              gameLogger.warn(
+                '[MultiplayerGame] Persisted score history failed validation, discarding'
+              );
+              await AsyncStorage.removeItem(ROOM_SCORE_KEY);
+            }
           }
         }
       } catch (err: unknown) {

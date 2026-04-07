@@ -703,7 +703,8 @@ Deno.serve(async (req) => {
 
       // Clear trick: remove last_play, reset pass count (stored in 'passes' field), set correct turn
       // 🔥 CRITICAL: Clear auto_pass_timer since all players have passed (trick complete)
-      const { error: updateError } = await supabaseClient
+      // Optimistic concurrency: only update if total_training_actions is still what we read
+      const { data: updatedRows1, error: updateError } = await supabaseClient
         .from('game_state')
         .update({
           current_turn: finalNextTurn,
@@ -713,13 +714,23 @@ Deno.serve(async (req) => {
           total_training_actions: totalTrainingActions + 1,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', gameState.id);
+        .eq('id', gameState.id)
+        .eq('total_training_actions', totalTrainingActions)
+        .select('id');
 
       if (updateError) {
         console.log('❌ [player-pass] Failed to update game state:', updateError);
         return new Response(
           JSON.stringify({ success: false, error: 'Failed to update game state' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (!updatedRows1 || updatedRows1.length === 0) {
+        console.warn('[player-pass] ⚠️ Concurrent modification detected — state already advanced');
+        return new Response(
+          JSON.stringify({ success: false, error: 'Concurrent modification — state already advanced' }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -799,8 +810,8 @@ Deno.serve(async (req) => {
         cascadeNextTurn = (typeof correctNextTurn === 'number') ? correctNextTurn : nextTurn;
       }
 
-      // Atomic update: skip to trick-cleared state
-      const { error: cascadeError } = await supabaseClient
+      // Atomic update with optimistic concurrency: skip to trick-cleared state
+      const { data: cascadeRows, error: cascadeError } = await supabaseClient
         .from('game_state')
         .update({
           current_turn: cascadeNextTurn,
@@ -810,13 +821,23 @@ Deno.serve(async (req) => {
           total_training_actions: totalTrainingActions + 1,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', gameState.id);
+        .eq('id', gameState.id)
+        .eq('total_training_actions', totalTrainingActions)
+        .select('id');
 
       if (cascadeError) {
         console.log('❌ [player-pass] CASCADE failed:', cascadeError);
         return new Response(
           JSON.stringify({ success: false, error: 'Failed to update game state (cascade)' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (!cascadeRows || cascadeRows.length === 0) {
+        console.warn('[player-pass] ⚠️ CASCADE concurrent modification — state already advanced');
+        return new Response(
+          JSON.stringify({ success: false, error: 'Concurrent modification — state already advanced' }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -843,7 +864,8 @@ Deno.serve(async (req) => {
 
     // 8b. Normal pass (timer NOT expired, or no timer) - advance turn and increment pass count
     // 🔥 CRITICAL: Preserve auto_pass_timer - DO NOT set to NULL!
-    const { error: updateError } = await supabaseClient
+    // Optimistic concurrency: only update if total_training_actions is still what we read
+    const { data: updatedRows3, error: updateError } = await supabaseClient
       .from('game_state')
       .update({
         current_turn: nextTurn,
@@ -852,13 +874,23 @@ Deno.serve(async (req) => {
         total_training_actions: totalTrainingActions + 1,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', gameState.id);
+      .eq('id', gameState.id)
+      .eq('total_training_actions', totalTrainingActions)
+      .select('id');
 
     if (updateError) {
       console.log('❌ [player-pass] Failed to update game state:', updateError);
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to update game state' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!updatedRows3 || updatedRows3.length === 0) {
+      console.warn('[player-pass] ⚠️ Concurrent modification detected — state already advanced');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Concurrent modification — state already advanced' }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

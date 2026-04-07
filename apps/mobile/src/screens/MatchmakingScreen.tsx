@@ -59,7 +59,7 @@ export default function MatchmakingScreen() {
   // Start matchmaking on mount
   useEffect(() => {
     if (!user || !profile) {
-      showError('You must be signed in to use matchmaking');
+      showError(i18n.t('matchmaking.signInRequired'));
       navigation.goBack();
       return;
     }

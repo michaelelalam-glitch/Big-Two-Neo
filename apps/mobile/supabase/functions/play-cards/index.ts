@@ -1442,16 +1442,31 @@ Deno.serve(async (req) => {
     // by database trigger 'trigger_transition_game_phase' (see migration 20260106222754)
     // No manual transition needed here to avoid race conditions
 
-    const { error: updateError } = await supabaseClient
+    // Optimistic concurrency control: only update if total_training_actions hasn't
+    // changed since we read the game state.  This prevents play-cards and
+    // auto-play-turn (via player-pass) from both succeeding on the same turn.
+    const expectedActions = (typeof gameState.total_training_actions === 'number' && Number.isFinite(gameState.total_training_actions)
+      ? gameState.total_training_actions : 0);
+    const { data: updatedRows, error: updateError } = await supabaseClient
       .from('game_state')
       .update(updateData)
-      .eq('room_id', room.id);
+      .eq('room_id', room.id)
+      .eq('total_training_actions', expectedActions)
+      .select('id');
 
     if (updateError) {
       console.error('Failed to update game state:', updateError);
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to update game state' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!updatedRows || updatedRows.length === 0) {
+      console.warn('[play-cards] ⚠️ Concurrent modification detected — game state was already advanced');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Concurrent modification — state already advanced' }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

@@ -202,13 +202,29 @@ export function useGameStateManager({
           try {
             const persistedHistory = await AsyncStorage.getItem(SCORE_HISTORY_KEY);
             if (persistedHistory) {
-              const parsed: ScoreHistory[] = JSON.parse(persistedHistory);
+              const parsed = JSON.parse(persistedHistory);
               if (Array.isArray(parsed) && parsed.length > 0) {
-                gameLogger.info(
-                  `📊 [useGameStateManager] Restored ${parsed.length} score history entries from AsyncStorage`
+                // Validate each entry has the expected ScoreHistory shape
+                const valid = parsed.every(
+                  (entry: unknown) =>
+                    entry != null &&
+                    typeof entry === 'object' &&
+                    typeof (entry as Record<string, unknown>).matchNumber === 'number' &&
+                    Array.isArray((entry as Record<string, unknown>).pointsAdded) &&
+                    Array.isArray((entry as Record<string, unknown>).scores)
                 );
-                restoreScoreHistory(parsed);
-                scoreRestored = true;
+                if (valid) {
+                  gameLogger.info(
+                    `📊 [useGameStateManager] Restored ${parsed.length} score history entries from AsyncStorage`
+                  );
+                  restoreScoreHistory(parsed as ScoreHistory[]);
+                  scoreRestored = true;
+                } else {
+                  gameLogger.warn(
+                    '[useGameStateManager] Persisted scoreHistory failed shape validation, discarding'
+                  );
+                  await AsyncStorage.removeItem(SCORE_HISTORY_KEY);
+                }
               }
             }
           } catch (err) {
