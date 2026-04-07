@@ -512,6 +512,7 @@ export interface Translations {
     botTurnErrorMessage: string;
     scoreboardError: string;
     scoreboardErrorMessage: string;
+    scoreboardRetryHint: string;
   };
 
   // Game End Modal
@@ -1351,6 +1352,7 @@ const en: Translations = {
     botTurnErrorMessage: '{{botName}} encountered an error during their turn.',
     scoreboardError: 'Scoreboard Error',
     scoreboardErrorMessage: 'Unable to display scoreboard data',
+    scoreboardRetryHint: 'Attempts to reload the scoreboard',
   },
   gameEnd: {
     gameWinner: 'Game Winner',
@@ -2107,6 +2109,7 @@ const ar: Translations = {
     botTurnErrorMessage: 'واجه {{botName}} خطأ أثناء دوره.',
     scoreboardError: 'خطأ في لوحة النتائج',
     scoreboardErrorMessage: 'تعذر عرض بيانات لوحة النتائج',
+    scoreboardRetryHint: 'يحاول إعادة تحميل لوحة النتائج',
   },
   gameEnd: {
     gameWinner: 'فائز اللعبة',
@@ -2965,6 +2968,7 @@ const de: Translations = {
     botTurnErrorMessage: '{{botName}} hat während seines Zuges einen Fehler erhalten.',
     scoreboardError: 'Anzeigetafel-Fehler',
     scoreboardErrorMessage: 'Anzeigetafel-Daten können nicht angezeigt werden',
+    scoreboardRetryHint: 'Versucht die Anzeigetafel neu zu laden',
   },
   gameEnd: {
     gameWinner: 'Spielgewinner',

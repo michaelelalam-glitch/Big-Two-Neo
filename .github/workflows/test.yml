@@ -542,11 +542,11 @@ jobs:
           ./gradlew assembleRelease \
             -x lint \
             --no-daemon \
-            --parallel \
-            -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError"
+            --parallel
         timeout-minutes: 45
         env:
           JAVA_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=512m"
+          ORG_GRADLE_JVMARGS: "-Xmx4g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError"
           GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.configureondemand=true"
           # Prevent Sentry native-symbol upload tasks from failing without SENTRY_AUTH_TOKEN.
           # Source maps / native symbols are not needed for E2E test builds.

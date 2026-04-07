@@ -225,6 +225,12 @@ export function useGameStateManager({
                   );
                   await AsyncStorage.removeItem(SCORE_HISTORY_KEY);
                 }
+              } else if (parsed != null) {
+                // Parsed into a non-array value — remove corrupted entry
+                gameLogger.warn(
+                  '[useGameStateManager] Persisted scoreHistory is not an array, removing'
+                );
+                await AsyncStorage.removeItem(SCORE_HISTORY_KEY);
               }
             }
           } catch (err) {

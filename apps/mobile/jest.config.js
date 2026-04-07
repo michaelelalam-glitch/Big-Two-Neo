@@ -51,6 +51,12 @@ module.exports = {
   // Coverage thresholds ratcheted to actuals (Feb 2026 CI audit).
   // Per-path thresholds: game/scoreboard at established levels, new paths collecting data.
   coverageThreshold: {
+    global: {
+      statements: 40,
+      branches: 50,
+      functions: 50,
+      lines: 40,
+    },
     'src/game/': {
       branches: 80,
       functions: 78,

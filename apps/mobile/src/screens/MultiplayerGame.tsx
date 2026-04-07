@@ -682,6 +682,10 @@ export function MultiplayerGame() {
               );
               await AsyncStorage.removeItem(ROOM_SCORE_KEY);
             }
+          } else if (parsed != null) {
+            // Parsed into a non-array value — remove corrupted entry
+            gameLogger.warn('[MultiplayerGame] Persisted score history is not an array, removing');
+            await AsyncStorage.removeItem(ROOM_SCORE_KEY);
           }
         }
       } catch (err: unknown) {

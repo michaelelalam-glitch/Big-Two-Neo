@@ -263,6 +263,9 @@ Deno.serve(async (req) => {
         throttledIds.push(uid);
         return false;
       }
+      // Record immediately to prevent concurrent requests from passing the
+      // throttle check before the send completes ("reserve" the slot).
+      recordSentNotification(uid, eventType);
       return true;
     });
 
@@ -401,7 +404,6 @@ Deno.serve(async (req) => {
         } else {
           console.log(`✅ Sent to ${message.to}`)
           results.push({ status: 'ok', id: result.name })
-          if (message.userId) recordSentNotification(message.userId, eventType);
         }
       } catch (error) {
         console.error(`❌ Error sending to ${message.to}:`, error)

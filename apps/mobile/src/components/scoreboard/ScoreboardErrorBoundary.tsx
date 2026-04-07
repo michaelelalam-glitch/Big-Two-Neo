@@ -104,7 +104,7 @@ export class ScoreboardErrorBoundary extends Component<Props, State> {
               onPress={this.handleReset}
               activeOpacity={0.7}
               accessibilityLabel={i18n.t('common.tryAgain')}
-              accessibilityHint="Attempts to reload the scoreboard"
+              accessibilityHint={i18n.t('game.scoreboardRetryHint')}
               accessibilityRole="button"
             >
               <Text style={styles.retryButtonText}>{i18n.t('common.tryAgain')}</Text>
