@@ -27,7 +27,9 @@ interface NotificationRequest {
   title: string;
   body: string;
   data?: {
-    type: 'game_invite' | 'your_turn' | 'game_started' | 'friend_request';
+    // Known types: 'game_invite' | 'your_turn' | 'game_started' | 'friend_request' | 'game_ended'
+    // Typed as string so callers can add new event types without updating this union.
+    type?: string;
     roomCode?: string;
     [key: string]: any;
   };
