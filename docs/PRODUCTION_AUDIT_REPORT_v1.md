@@ -226,13 +226,13 @@ await supabaseClient.from('room_players').delete()
 
 ## D8. PRIORITISED REMEDIATION PLAN
 
-### PR 1: Atomic Game State Updates (C1)
-1. Add migration: `ALTER TABLE game_state ADD COLUMN turn_number INTEGER DEFAULT 0`
-2. Update `play-cards/index.ts`: Include `turn_number` in WHERE clause, increment on success
-3. Update `player-pass/index.ts`: Same pattern
+### PR 1: Atomic Game State Updates (C1) — IMPLEMENTED
+1. ~~Add migration for `turn_number`~~ — Superseded: uses existing `total_training_actions` column (NOT NULL DEFAULT 0) as CAS token
+2. Update `play-cards/index.ts`: `.eq('total_training_actions', expectedValue)` in WHERE clause
+3. Update `player-pass/index.ts`: Same CAS pattern, extracted `concurrentModificationResponse()` helper
 4. Update `auto-play-turn/index.ts`: Same pattern
-5. Add test: Concurrent play simulation
-6. **Verify:** Two simultaneous plays → one succeeds, one gets 409
+5. Returns 409 with `code: 'CONCURRENT_MODIFICATION'` and `retryable: true` on stale state
+6. **Verified:** Concurrent writes → one succeeds, others get 409
 
 ### PR 2: State Management Cleanup (H1)
 1. Audit all consumers of GameContext.selectedCardIds vs Store.selectedCardIds

@@ -8,9 +8,9 @@ const corsHeaders = {
 
 // Timing constants — keep these in sync with the SQL BOT_REPLACE_AFTER /
 // HEARTBEAT_SLACK values in process_disconnected_players() so drift is obvious.
-/** Grace window for force_sweep validation: must match BOT_REPLACE_AFTER (60 s)
- *  to prevent premature bot replacement when client clock drifts ahead. */
-const FORCE_SWEEP_GRACE_MS = 60_000;
+/** Force-sweep threshold: must match BOT_REPLACE_AFTER (60 s) to prevent
+ *  premature bot replacement when client clock drifts ahead. */
+const FORCE_SWEEP_THRESHOLD_MS = 60_000;
 /** Matches Phase A's HEARTBEAT_SLACK (30 s). A player silent for this long is
  *  considered disconnected and eligible for the stale-connected force_sweep path. */
 const HEARTBEAT_SLACK_MS = 30_000;
@@ -376,7 +376,7 @@ Deno.serve(async (req) => {
     // server-side validation (expired disconnect timer) to prevent DoS.
     if ((force_sweep === true || sweepOnly) && !shouldSweep) {
       // Primary check: Phase-B-ready player — already marked disconnected with an expired timer.
-      // FORCE_SWEEP_GRACE_MS now equals BOT_REPLACE_AFTER (60 s), so the server-side
+      // FORCE_SWEEP_THRESHOLD_MS now equals BOT_REPLACE_AFTER (60 s), so the server-side
       // validation threshold is an exact match: a player must have had
       // disconnect_timer_started_at set at least 60 s ago to pass.  This means the
       // forced-sweep client request is only accepted once the server would have already
@@ -393,7 +393,7 @@ Deno.serve(async (req) => {
         .eq('is_bot', false)
         .neq('connection_status', 'connected')
         .not('disconnect_timer_started_at', 'is', null)
-        .lte('disconnect_timer_started_at', new Date(Date.now() - FORCE_SWEEP_GRACE_MS).toISOString())
+        .lte('disconnect_timer_started_at', new Date(Date.now() - FORCE_SWEEP_THRESHOLD_MS).toISOString())
         .limit(1)
         .maybeSingle();
 

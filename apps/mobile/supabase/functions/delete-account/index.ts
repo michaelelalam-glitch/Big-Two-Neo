@@ -144,20 +144,7 @@ Deno.serve(async (req) => {
       cleanupErrors.push('match_participants');
     }
 
-    // 7. Delete from profiles (cascades to player_stats via FK)
-    const { error: profilesError } = await supabaseClient
-      .from('profiles')
-      .delete()
-      .eq('id', userId);
-    if (profilesError) {
-      console.error('⚠️ [delete-account] Failed to delete from profiles:', {
-        user_id: userId.substring(0, 8),
-        error: profilesError,
-      });
-      cleanupErrors.push('profiles');
-    }
-
-    // 8. Delete from player_stats (in case profiles cascade didn't cover it)
+    // 7. Delete from player_stats first (before profiles) to avoid FK RESTRICT failures
     const { error: playerStatsError } = await supabaseClient
       .from('player_stats')
       .delete()
@@ -168,6 +155,19 @@ Deno.serve(async (req) => {
         error: playerStatsError,
       });
       cleanupErrors.push('player_stats');
+    }
+
+    // 8. Delete from profiles (cascade may also cover player_stats as defense-in-depth)
+    const { error: profilesError } = await supabaseClient
+      .from('profiles')
+      .delete()
+      .eq('id', userId);
+    if (profilesError) {
+      console.error('⚠️ [delete-account] Failed to delete from profiles:', {
+        user_id: userId.substring(0, 8),
+        error: profilesError,
+      });
+      cleanupErrors.push('profiles');
     }
 
     console.log('✅ [delete-account] Successfully deleted account');

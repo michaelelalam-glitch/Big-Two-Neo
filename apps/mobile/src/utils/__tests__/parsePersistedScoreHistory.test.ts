@@ -67,21 +67,23 @@ describe('parsePersistedScoreHistory', () => {
     expect(result).toEqual({ entries: null, shouldRemove: true });
   });
 
-  it('returns shouldRemove=true when scores contains NaN', () => {
-    const entry = { matchNumber: 1, pointsAdded: [0, 0, 0, 0], scores: [NaN, 0, 0, 0] };
-    const result = parsePersistedScoreHistory(JSON.stringify([entry]));
+  it('returns shouldRemove=true when scores contains null (JSON-serialised NaN)', () => {
+    // JSON.stringify(NaN) → null, so persisted NaN arrives as null after round-trip
+    const raw = '[{"matchNumber":1,"pointsAdded":[0,0,0,0],"scores":[null,0,0,0]}]';
+    const result = parsePersistedScoreHistory(raw);
     expect(result).toEqual({ entries: null, shouldRemove: true });
   });
 
-  it('returns shouldRemove=true when scores contains Infinity', () => {
-    const entry = { matchNumber: 1, pointsAdded: [0, 0, 0, 0], scores: [Infinity, 0, 0, 0] };
-    const result = parsePersistedScoreHistory(JSON.stringify([entry]));
+  it('returns shouldRemove=true when scores contains Infinity (via 1e309)', () => {
+    // JSON.parse('1e309') produces Infinity in JS — a realistic corruption vector
+    const raw = '[{"matchNumber":1,"pointsAdded":[0,0,0,0],"scores":[1e309,0,0,0]}]';
+    const result = parsePersistedScoreHistory(raw);
     expect(result).toEqual({ entries: null, shouldRemove: true });
   });
 
-  it('returns shouldRemove=true when matchNumber is NaN', () => {
-    const entry = { matchNumber: NaN, pointsAdded: [0], scores: [0] };
-    const result = parsePersistedScoreHistory(JSON.stringify([entry]));
+  it('returns shouldRemove=true when matchNumber is null (JSON-serialised NaN)', () => {
+    const raw = '[{"matchNumber":null,"pointsAdded":[0],"scores":[0]}]';
+    const result = parsePersistedScoreHistory(raw);
     expect(result).toEqual({ entries: null, shouldRemove: true });
   });
 
