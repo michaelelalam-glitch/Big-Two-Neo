@@ -120,6 +120,7 @@ Deno.serve(async (req) => {
       const { error: staleDeleteError } = await supabaseClient
         .from('room_players')
         .delete()
+        .eq('user_id', userId)
         .in('id', staleEntries.map((e: { id: string }) => e.id));
 
       if (staleDeleteError) {

@@ -529,7 +529,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name:  Create Firebase config for build
+      - name: Create Firebase config for build
         run: cp apps/mobile/google-services.json.example apps/mobile/google-services.json
 
       - name: 🏗️ Build Android release APK

@@ -1445,17 +1445,15 @@ Deno.serve(async (req) => {
     // Optimistic concurrency control: only update if total_training_actions hasn't
     // changed since we read the game state.  This prevents play-cards and
     // auto-play-turn (via player-pass) from both succeeding on the same turn.
-    const hasValidActions = typeof gameState.total_training_actions === 'number' && Number.isFinite(gameState.total_training_actions);
-    let updateQuery = supabaseClient
+    // Column is NOT NULL DEFAULT 0, so coerce missing/invalid values to 0 (matching
+    // the derivation used for the incremented value in updateData above).
+    const totalTrainingActions = typeof gameState.total_training_actions === 'number' && Number.isFinite(gameState.total_training_actions)
+      ? gameState.total_training_actions : 0;
+    const updateQuery = supabaseClient
       .from('game_state')
       .update(updateData)
-      .eq('id', gameState.id);
-    // Match the exact value we read — NULL needs `.is()`, numbers need `.eq()`
-    if (hasValidActions) {
-      updateQuery = updateQuery.eq('total_training_actions', gameState.total_training_actions);
-    } else {
-      updateQuery = updateQuery.is('total_training_actions', null);
-    }
+      .eq('id', gameState.id)
+      .eq('total_training_actions', totalTrainingActions);
     const { data: updatedRows, error: updateError } = await updateQuery.select('id');
 
     if (updateError) {

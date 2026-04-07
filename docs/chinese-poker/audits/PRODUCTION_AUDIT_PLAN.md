@@ -1,9 +1,10 @@
 # Big Two Neo — Production Readiness Audit Plan
 
-**Version:** 1.0  
-**Date:** April 2, 2026  
+**Version:** 1.1  
+**Date:** April 7, 2026  
 **Scope:** Full codebase, infrastructure, and operational readiness  
-**App:** React Native (Expo SDK 54) multiplayer card game with Supabase backend, LiveKit video chat, Sentry monitoring, GA4 analytics
+**App:** React Native (Expo SDK 54) multiplayer card game with Supabase backend, LiveKit video chat, Sentry monitoring, GA4 analytics  
+**Canonical source:** `docs/PRODUCTION_AUDIT_PLAN.md` (this copy is aligned to the canonical plan to avoid version drift)
 
 ---
 

@@ -92,28 +92,17 @@ Deno.serve(async (req) => {
       cleanupErrors.push('room_players');
     }
 
-    // 3. Delete from friendships (both directions)
-    const { error: friendshipsReqError } = await supabaseClient
+    // 3. Delete from friendships (both directions in a single atomic operation)
+    const { error: friendshipsError } = await supabaseClient
       .from('friendships')
       .delete()
-      .eq('requester_id', userId);
-    if (friendshipsReqError) {
-      console.error('⚠️ [delete-account] Failed to delete friendships (requester):', {
+      .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`);
+    if (friendshipsError) {
+      console.error('⚠️ [delete-account] Failed to delete friendships:', {
         user_id: userId.substring(0, 8),
-        error: friendshipsReqError,
+        error: friendshipsError,
       });
-      cleanupErrors.push('friendships_requester');
-    }
-    const { error: friendshipsAddrError } = await supabaseClient
-      .from('friendships')
-      .delete()
-      .eq('addressee_id', userId);
-    if (friendshipsAddrError) {
-      console.error('⚠️ [delete-account] Failed to delete friendships (addressee):', {
-        user_id: userId.substring(0, 8),
-        error: friendshipsAddrError,
-      });
-      cleanupErrors.push('friendships_addressee');
+      cleanupErrors.push('friendships');
     }
 
     // 4. Delete from push_tokens
