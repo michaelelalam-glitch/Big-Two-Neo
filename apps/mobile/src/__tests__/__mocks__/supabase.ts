@@ -23,6 +23,9 @@ const mockSupabaseClient = {
     })),
     rpc: jest.fn(() => Promise.resolve({ data: null, error: null })),
   })),
+  rpc: jest.fn(() => ({
+    single: jest.fn(() => Promise.resolve({ data: null, error: null })),
+  })),
   auth: {
     getSession: jest.fn(() => Promise.resolve({ data: { session: null }, error: null })),
     getUser: jest.fn(() => Promise.resolve({ data: { user: null }, error: null })),

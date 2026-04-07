@@ -191,13 +191,15 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   }, []);
 
   /**
-   * Fetch current game state
+   * Fetch current game state via secure RPC.
+   * Uses get_player_game_state() which returns only the requesting player's
+   * hand — other players' hands are replaced with placeholder arrays.
+   * This prevents the C1 vulnerability where select('*') on game_state
+   * exposed all players' cards via RLS.
    */
   const fetchGameState = useCallback(async (roomId: string) => {
     const { data, error } = await supabase
-      .from('game_state')
-      .select('*')
-      .eq('room_id', roomId)
+      .rpc('get_player_game_state', { p_room_id: roomId })
       .single();
 
     // Guard: component unmounted while fetch was in-flight — skip state updates.
@@ -511,8 +513,12 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 filter: `room_id=eq.${roomId}`,
               },
               payload => {
+                // C1 Security Fix: Do NOT use payload.new directly — the raw Realtime
+                // payload contains ALL players' hands (RLS cannot filter columns).
+                // Instead, re-fetch via the secure get_player_game_state RPC which
+                // returns only the requesting player's hand.
                 if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-                  setGameState(payload.new as GameState);
+                  void fetchGameState(roomId).catch(warnFetch('game_state_change'));
                 }
               }
             )
