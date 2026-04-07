@@ -286,13 +286,29 @@ function captureMessage(
 /**
  * Add a breadcrumb to the current Sentry event trail.
  * Breadcrumbs appear in the "Breadcrumbs" section of Sentry events.
+ *
+ * Rate-limited to {@link BREADCRUMB_RATE_LIMIT} per second to prevent
+ * excessive breadcrumb volume from high-frequency console patches.
  */
+const BREADCRUMB_RATE_LIMIT = 50; // max breadcrumbs per second
+let _breadcrumbCount = 0;
+let _breadcrumbWindowStart = 0;
+
 function captureBreadcrumb(
   message: string,
   data?: Record<string, unknown>,
   category = 'app'
 ): void {
   if (!_initialized) return;
+
+  const now = Date.now();
+  if (now - _breadcrumbWindowStart >= 1000 || now < _breadcrumbWindowStart) {
+    // Reset window (also handles clock going backwards, e.g. NTP correction)
+    _breadcrumbCount = 0;
+    _breadcrumbWindowStart = now;
+  }
+  if (++_breadcrumbCount > BREADCRUMB_RATE_LIMIT) return; // drop excess
+
   Sentry.addBreadcrumb({
     message,
     data,

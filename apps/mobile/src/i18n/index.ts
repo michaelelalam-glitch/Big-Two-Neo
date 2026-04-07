@@ -491,6 +491,8 @@ export interface Translations {
     autoPlayedLabel: string;
     cardSingular: string;
     cardPlural: string;
+    botTurnErrorTitle: string;
+    botTurnErrorMessage: string;
   };
 
   // Game End Modal
@@ -627,6 +629,7 @@ export interface Translations {
     alreadyInRoomMessage: string;
     goToRoom: string;
     leaveAndCreate: string;
+    leaveAndJoin: string;
     leaveRoomError: string;
     leaveTimeout: string;
     createRoomError: string;
@@ -794,6 +797,8 @@ export interface Translations {
     ranked: string;
     casualDesc: string;
     rankedDesc: string;
+    shareWithFriends: string;
+    friendsCanJoin: string;
   };
 
   // Match History Screen
@@ -1301,6 +1306,8 @@ const en: Translations = {
     autoPlayedLabel: 'Auto-played:',
     cardSingular: 'card',
     cardPlural: 'cards',
+    botTurnErrorTitle: 'Bot Error',
+    botTurnErrorMessage: '{{botName}} encountered an error during their turn.',
   },
   gameEnd: {
     gameWinner: 'Game Winner',
@@ -1435,6 +1442,7 @@ const en: Translations = {
       "You're already in room {{code}} ({{status}}). Leave and create new room?",
     goToRoom: 'Go to Room',
     leaveAndCreate: 'Leave & Create',
+    leaveAndJoin: 'Leave & Join',
     leaveRoomError: 'Failed to leave existing room',
     leaveTimeout: 'Taking longer than expected to leave room. Please try again or wait a moment.',
     createRoomError: 'Failed to create room',
@@ -1598,6 +1606,8 @@ const en: Translations = {
     ranked: 'Ranked',
     casualDesc: 'Play for fun, no ELO changes',
     rankedDesc: 'Competitive play with ELO rating changes',
+    shareWithFriends: 'Share with Friends',
+    friendsCanJoin: 'Friends can join your match using this code',
   },
   matchHistory: {
     title: 'Match History',
@@ -2029,6 +2039,8 @@ const ar: Translations = {
     autoPlayedLabel: 'لُعب تلقائياً:',
     cardSingular: 'بطاقة',
     cardPlural: 'بطاقات',
+    botTurnErrorTitle: 'خطأ في الروبوت',
+    botTurnErrorMessage: 'واجه {{botName}} خطأ أثناء دوره.',
   },
   gameEnd: {
     gameWinner: 'فائز اللعبة',
@@ -2162,6 +2174,7 @@ const ar: Translations = {
     alreadyInRoomMessage: 'أنت بالفعل في الغرفة {{code}} ({{status}}). المغادرة وإنشاء غرفة جديدة؟',
     goToRoom: 'اذهب إلى الغرفة',
     leaveAndCreate: 'غادر وأنشئ',
+    leaveAndJoin: 'غادر وانضم',
     leaveRoomError: 'فشل مغادرة الغرفة الحالية',
     leaveTimeout: 'يستغرق الأمر وقتًا أطول من المتوقع لمغادرة الغرفة. حاول مرة أخرى أو انتظر لحظة.',
     createRoomError: 'فشل إنشاء الغرفة',
@@ -2323,6 +2336,8 @@ const ar: Translations = {
     ranked: 'تصنيفي',
     casualDesc: 'العب من أجل المتعة، لا تغييرات في تصنيف ELO',
     rankedDesc: 'لعب تنافسي مع تغييرات تصنيف ELO',
+    shareWithFriends: 'شارك مع الأصدقاء',
+    friendsCanJoin: 'يمكن للأصدقاء الانضمام إلى مباراتك باستخدام هذا الرمز',
   },
   matchHistory: {
     title: 'سجل المباريات',
@@ -2858,6 +2873,8 @@ const de: Translations = {
     autoPlayedLabel: 'Automatisch gespielt:',
     cardSingular: 'Karte',
     cardPlural: 'Karten',
+    botTurnErrorTitle: 'Bot-Fehler',
+    botTurnErrorMessage: '{{botName}} hat während seines Zuges einen Fehler erhalten.',
   },
   gameEnd: {
     gameWinner: 'Spielgewinner',
@@ -2995,6 +3012,7 @@ const de: Translations = {
       'Du bist bereits in Raum {{code}} ({{status}}). Verlassen und neuen Raum erstellen?',
     goToRoom: 'Zum Raum gehen',
     leaveAndCreate: 'Verlassen & Erstellen',
+    leaveAndJoin: 'Verlassen & Beitreten',
     leaveRoomError: 'Fehler beim Verlassen des Raums',
     leaveTimeout:
       'Das Verlassen des Raums dauert länger als erwartet. Bitte versuche es erneut oder warte einen Moment.',
@@ -3162,6 +3180,8 @@ const de: Translations = {
     ranked: 'Rangliste',
     casualDesc: 'Zum Spaß spielen, keine ELO-Änderungen',
     rankedDesc: 'Wettbewerbsspiel mit ELO-Bewertungsänderungen',
+    shareWithFriends: 'Mit Freunden teilen',
+    friendsCanJoin: 'Freunde können deinem Spiel mit diesem Code beitreten',
   },
   matchHistory: {
     title: 'Spielverlauf',

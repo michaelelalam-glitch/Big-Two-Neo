@@ -12,6 +12,7 @@ const FCM_SCOPES = ['https://www.googleapis.com/auth/firebase.messaging']
 
 interface PushMessage {
   to: string;
+  userId?: string;
   sound: string;
   title: string;
   body: string;
@@ -26,7 +27,10 @@ interface NotificationRequest {
   title: string;
   body: string;
   data?: {
-    type: 'game_invite' | 'your_turn' | 'game_started' | 'friend_request';
+    // Enumerate known types for IDE autocomplete while still accepting any string
+    // via the `(string & {})` extension (keeps the union open without widening to plain string).
+    // Rate limiting is a no-op when type is absent — see isThrottled / recordSentNotification.
+    type?: 'game_invite' | 'your_turn' | 'game_started' | 'friend_request' | 'game_ended' | (string & {});
     roomCode?: string;
     [key: string]: any;
   };
@@ -141,6 +145,60 @@ async function getAccessToken(): Promise<string> {
   return cachedAccessToken;
 }
 
+// ── Per-user per-event-type rate limiting ──────────────────────────────────
+// In-memory throttle: max 1 notification *batch* per user per event type per
+// 30 s.  A "batch" may deliver to multiple device tokens for the same user
+// (one push per registered device), but the 30 s window prevents repeated
+// bursts to the same user+event combination.
+// Stays warm across invocations while the Deno isolate is alive; a cold start
+// resets the map which is an acceptable loss (over-notify once at most).
+// NOTE: This limit is per-Deno-isolate only — concurrent isolates/regions each
+// maintain their own map (true cross-instance enforcement would require a shared
+// store such as a DB table with atomic upsert; that is out of scope for this PR).
+const RATE_LIMIT_WINDOW_MS = 30_000;
+const RATE_LIMIT_PRUNE_INTERVAL_MS = 30_000;
+const _lastSent = new Map<string, number>();
+let _lastPruneAt = 0;
+
+function getRateLimitKey(userId: string, eventType: string): string {
+  return `${userId}:${eventType}`;
+}
+
+function pruneRateLimitEntries(now: number): void {
+  // Reset window start if clock moved backwards (e.g. NTP correction) so
+  // pruning is not skipped indefinitely.
+  if (now < _lastPruneAt) {
+    _lastPruneAt = now;
+    return;
+  }
+  if (now - _lastPruneAt < RATE_LIMIT_PRUNE_INTERVAL_MS) return;
+
+  _lastPruneAt = now;
+  for (const [k, ts] of _lastSent) {
+    if (now - ts > RATE_LIMIT_WINDOW_MS * 2) _lastSent.delete(k);
+  }
+}
+
+/** Returns true if the notification should be throttled (dropped). Read-only — does not record.
+ *  Returns false (never throttles) when eventType is absent so typeless notifications
+ *  never block unrelated typed notifications for the same user. */
+function isThrottled(userId: string, eventType: string | undefined): boolean {
+  if (!eventType) return false; // no event type → skip rate limiting
+  const now = Date.now();
+  const last = _lastSent.get(getRateLimitKey(userId, eventType));
+  pruneRateLimitEntries(now);
+  return !!last && now - last < RATE_LIMIT_WINDOW_MS;
+}
+
+/** Records that a notification was successfully delivered. Call only after a confirmed send.
+ *  No-op when eventType is absent (matching the isThrottled skip-logic above). */
+function recordSentNotification(userId: string, eventType: string | undefined): void {
+  if (!eventType) return; // no event type → nothing to record
+  const now = Date.now();
+  _lastSent.set(getRateLimitKey(userId, eventType), now);
+  pruneRateLimitEntries(now);
+}
+
 // Validate FCM token format (alphanumeric, colons, hyphens, underscores, reasonable length)
 // Note: FCM tokens can vary in length/format across API updates, so we use lenient validation
 function isValidFCMToken(token: string): boolean {
@@ -197,11 +255,34 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Rate-limit: drop users who were already notified for this event type within 30 s
+    const eventType = data?.type;
+    const throttledIds: string[] = [];
+    const allowedIds = user_ids.filter((uid: string) => {
+      if (isThrottled(uid, eventType)) {
+        throttledIds.push(uid);
+        return false;
+      }
+      return true;
+    });
+
+    if (allowedIds.length === 0) {
+      console.log(`⏳ All ${user_ids.length} user(s) throttled for event type "${eventType ?? 'default'}"`)
+      return new Response(
+        JSON.stringify({ message: 'Rate limited', throttled: throttledIds.length, sent: 0 }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (throttledIds.length > 0) {
+      console.log(`⏳ Throttled ${throttledIds.length} user(s) for event type "${eventType ?? 'default'}"`)
+    }
+
     // Get push tokens for the specified users
     const { data: tokens, error: tokensError } = await supabaseAdmin
       .from('push_tokens')
       .select('push_token, platform, user_id')
-      .in('user_id', user_ids)
+      .in('user_id', allowedIds)
 
     if (tokensError) {
       console.error('Error fetching push tokens:', tokensError)
@@ -225,6 +306,7 @@ Deno.serve(async (req) => {
     const messages: PushMessage[] = tokens.map((token) => {
       const message: PushMessage = {
         to: token.push_token,
+        userId: token.user_id,
         sound: 'default',
         title,
         body,
@@ -319,6 +401,7 @@ Deno.serve(async (req) => {
         } else {
           console.log(`✅ Sent to ${message.to}`)
           results.push({ status: 'ok', id: result.name })
+          if (message.userId) recordSentNotification(message.userId, eventType);
         }
       } catch (error) {
         console.error(`❌ Error sending to ${message.to}:`, error)
