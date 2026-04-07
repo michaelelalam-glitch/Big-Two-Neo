@@ -996,6 +996,31 @@ Deno.serve(async (req) => {
         );
       }
 
+      // C11 Fix: Non-winner idempotency guard — if a non-winner retries play-cards
+      // after the match ended (e.g. lost HTTP response), return a graceful success
+      // instead of a hard 400 so the client can transition to the results screen.
+      if (isRecentEnd) {
+        console.log(
+          `[play-cards] ✅ Idempotency: non-winner retry — player ${player.player_index} ` +
+          `retried after match ${gameState.match_number} ended. Returning already_finished=true.`
+        );
+        return new Response(
+          JSON.stringify({
+            success: true,
+            match_ended: true,
+            already_finished: true,
+            game_over: gameState.game_phase === 'game_over',
+            cards_remaining: player.cards_in_hand ?? 0,
+            next_turn: gameState.current_turn,
+            combo_type: (gameState.last_play as any)?.combo_type ?? 'Single',
+            match_scores: null,
+            highest_play_detected: false,
+            auto_pass_timer: null,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       console.log('❌ [play-cards] Game already ended:', { game_phase: gameState.game_phase });
       return new Response(
         JSON.stringify({

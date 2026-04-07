@@ -184,6 +184,42 @@ Deno.serve(async (req) => {
       );
     }
 
+    // H9 Fix: Check if user already has a waiting_room entry in 'processing' or
+    // 'matched' state. A concurrent find-match may have already claimed this user
+    // for a match. The ignoreDuplicates upsert in step 4 would silently skip the
+    // insert, leaving the user stuck without feedback.
+    const { data: existingEntry, error: existingEntryError } = await supabaseClient
+      .from('waiting_room')
+      .select('status, matched_room_id')
+      .eq('user_id', userId)
+      .in('status', ['processing', 'matched'])
+      .maybeSingle();
+
+    if (existingEntryError) {
+      console.error('❌ [find-match] Error checking existing waiting_room entry:', existingEntryError);
+    }
+
+    if (existingEntry) {
+      if (existingEntry.status === 'matched' && existingEntry.matched_room_id) {
+        // Already matched — return the match result directly
+        console.log('ℹ️ [find-match] User already matched, returning existing match');
+        return new Response(
+          JSON.stringify({
+            matched: true,
+            room_id: existingEntry.matched_room_id,
+            waiting_count: 4,
+          } as FindMatchResponse),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      // Status is 'processing' — another invocation is assembling a match
+      console.log('ℹ️ [find-match] User is in processing state, returning waiting');
+      return new Response(
+        JSON.stringify({ matched: false, waiting_count: 0 } as FindMatchResponse),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // 4. Insert or update user in waiting room.
     // Two-step upsert that protects rows already in 'processing' state:
     //   Step A — INSERT the new row; if a row already exists, do nothing (ignoreDuplicates)
@@ -402,7 +438,9 @@ Deno.serve(async (req) => {
       }
 
       // Update waiting room status for matched players
-      const matchedUserIds = waitingPlayers.slice(0, 4).map(p => p.user_id);
+      // H10 Fix: Use lockedIds (the rows THIS invocation actually locked) instead
+      // of matchedUserIds (derived from the original query snapshot which may include
+      // players that were grabbed by a concurrent invocation).
       const { error: matchedUpdateError } = await supabaseClient
         .from('waiting_room')
         .update({
@@ -410,7 +448,7 @@ Deno.serve(async (req) => {
           matched_room_id: roomId,
           matched_at: new Date().toISOString(),
         })
-        .in('user_id', matchedUserIds);
+        .in('user_id', lockedIds);
 
       if (matchedUpdateError) {
         console.error('❌ [find-match] Failed to mark players as matched:', matchedUpdateError);

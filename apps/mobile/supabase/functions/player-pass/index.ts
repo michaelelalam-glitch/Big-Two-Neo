@@ -476,7 +476,32 @@ Deno.serve(async (req) => {
     }
 
     // 4a. Reject passes when game is already finished/game_over
+    // H3 Fix: Idempotency guard — if the game recently ended (within 60s), return
+    // a graceful success instead of a hard 400 so retried pass requests (e.g. lost
+    // HTTP response) don't block the client from transitioning to results.
     if (gameState.game_phase === 'finished' || gameState.game_phase === 'game_over') {
+      const matchEndedAt = gameState.match_ended_at ? new Date(gameState.match_ended_at as string).getTime() : 0;
+      const isRecentEnd  = (Date.now() - matchEndedAt) < 60_000;
+
+      if (isRecentEnd) {
+        console.log(
+          `[player-pass] ✅ Idempotency: pass retry after match ended — player ${player.player_index}. ` +
+          `Returning already_passed=true.`
+        );
+        return new Response(
+          JSON.stringify({
+            success: true,
+            already_passed: true,
+            next_turn: gameState.current_turn,
+            passes: gameState.passes ?? 0,
+            trick_cleared: false,
+            timer_preserved: false,
+            auto_pass_timer: gameState.auto_pass_timer,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       console.log('❌ [player-pass] Game already ended:', { game_phase: gameState.game_phase });
       return new Response(
         JSON.stringify({
