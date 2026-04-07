@@ -382,8 +382,10 @@ Deno.serve(async (req) => {
       // forced-sweep client request is only accepted once the server would have already
       // replaced the bot on its own periodic schedule — no early replacement is possible.
       // Using 60s here allows the forced-sweep validation to proceed; Phase B on the
-      // server now requires disconnect_timer_started_at <= NOW() - 60s, so this does
-      // not relax the actual replacement threshold — it only validates force_sweep.
+      // Defense-in-depth: this Edge-runtime Date.now() check is a pre-filter only.
+      // The authoritative replacement is performed by process_disconnected_players()
+      // which uses the DB clock (NOW()). Minor Edge↔DB clock skew is acceptable
+      // because the DB function independently verifies the 60 s threshold.
       // Use lte (not lt) so the boundary case (disconnect_timer_started_at = now-60s
       // exactly) also passes validation rather than being deferred to the 5s retry.
       const { data: expiredTimer, error: expiredTimerError } = await supabaseClient

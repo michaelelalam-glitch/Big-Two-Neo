@@ -161,6 +161,19 @@ const RATE_LIMIT_PRUNE_INTERVAL_MS = 30_000;
 const _lastSent = new Map<string, number>();
 let _lastPruneAt = 0;
 
+/** Known event types. Anything else is mapped to 'default' to bound Map key growth. */
+const KNOWN_EVENT_TYPES = new Set([
+  'game_invite', 'friend_request', 'friend_accepted', 'game_started', 'your_turn', 'default',
+]);
+const MAX_EVENT_TYPE_LEN = 32;
+
+/** Normalise an event type: map unknown/oversized values to 'default'. */
+function normalizeEventType(raw: string | undefined): string {
+  if (!raw) return 'default';
+  const trimmed = raw.slice(0, MAX_EVENT_TYPE_LEN);
+  return KNOWN_EVENT_TYPES.has(trimmed) ? trimmed : 'default';
+}
+
 function getRateLimitKey(userId: string, eventType: string): string {
   return `${userId}:${eventType}`;
 }
@@ -183,7 +196,7 @@ function pruneRateLimitEntries(now: number): void {
 /** Returns true if the notification should be throttled (dropped). Read-only — does not record.
  *  Typeless notifications are throttled under a 'default' bucket so they can't bypass rate limiting. */
 function isThrottled(userId: string, eventType: string | undefined): boolean {
-  const resolvedType = eventType || 'default';
+  const resolvedType = normalizeEventType(eventType);
   const now = Date.now();
   const last = _lastSent.get(getRateLimitKey(userId, resolvedType));
   pruneRateLimitEntries(now);
@@ -201,7 +214,7 @@ function isThrottled(userId: string, eventType: string | undefined): boolean {
  *  If all sends for this user later fail, the reservation is released via clearThrottleRecord.
  *  Typeless notifications are throttled under a 'default' bucket. */
 function reserveThrottleSlot(userId: string, eventType: string | undefined): void {
-  const resolvedType = eventType || 'default';
+  const resolvedType = normalizeEventType(eventType);
   const now = Date.now();
   _lastSent.set(getRateLimitKey(userId, resolvedType), now);
   pruneRateLimitEntries(now);
@@ -210,7 +223,7 @@ function reserveThrottleSlot(userId: string, eventType: string | undefined): voi
 /** Removes the throttle reservation for a user+event, called when a send fails
  *  so the user isn't falsely throttled despite receiving nothing. */
 function clearThrottleRecord(userId: string, eventType: string | undefined): void {
-  const resolvedType = eventType || 'default';
+  const resolvedType = normalizeEventType(eventType);
   _lastSent.delete(getRateLimitKey(userId, resolvedType));
 }
 
