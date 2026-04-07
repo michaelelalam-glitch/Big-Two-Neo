@@ -654,8 +654,9 @@ Deno.serve(async (req) => {
     const nextTurn = turnOrder[player.player_index];
     
     // Monotonic action counter for training data play_sequence (never resets between tricks).
-    const totalTrainingActions = typeof gameState.total_training_actions === 'number' && Number.isFinite(gameState.total_training_actions)
-      ? gameState.total_training_actions : 0;
+    // Column is NOT NULL DEFAULT 0 (migration 20260718000003), so null shouldn't occur.
+    const hasValidActions = typeof gameState.total_training_actions === 'number' && Number.isFinite(gameState.total_training_actions);
+    const totalTrainingActions = hasValidActions ? gameState.total_training_actions : 0;
 
     // Validate passes with type checking
     const rawPasses = gameState?.passes;

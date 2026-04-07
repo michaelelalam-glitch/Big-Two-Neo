@@ -199,6 +199,13 @@ function recordSentNotification(userId: string, eventType: string | undefined): 
   pruneRateLimitEntries(now);
 }
 
+/** Removes the throttle reservation for a user+event, called when a send fails
+ *  so the user isn't falsely throttled despite receiving nothing. */
+function clearThrottleRecord(userId: string, eventType: string | undefined): void {
+  if (!eventType) return;
+  _lastSent.delete(getRateLimitKey(userId, eventType));
+}
+
 // Validate FCM token format (alphanumeric, colons, hyphens, underscores, reasonable length)
 // Note: FCM tokens can vary in length/format across API updates, so we use lenient validation
 function isValidFCMToken(token: string): boolean {
@@ -401,6 +408,7 @@ Deno.serve(async (req) => {
         if (!response.ok) {
           console.error(`❌ FCM error for ${message.to}:`, result)
           results.push({ status: 'error', message: result })
+          if (message.userId) clearThrottleRecord(message.userId, eventType);
         } else {
           console.log(`✅ Sent to ${message.to}`)
           results.push({ status: 'ok', id: result.name })
@@ -408,6 +416,7 @@ Deno.serve(async (req) => {
       } catch (error) {
         console.error(`❌ Error sending to ${message.to}:`, error)
         results.push({ status: 'error', message: error.message })
+        if (message.userId) clearThrottleRecord(message.userId, eventType);
       }
     }
 
