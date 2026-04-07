@@ -1,9 +1,10 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { checkMinimumVersion } from '../_shared/versionCheck.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-app-version',
 };
 
 // ==================== TYPES ====================
@@ -28,6 +29,10 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+    // C3: Enforce minimum app version
+    const versionError = checkMinimumVersion(req, corsHeaders);
+    if (versionError) return versionError;
 
   try {
     const supabaseClient = createClient(
@@ -181,6 +186,52 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to recover from stale matched state' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // H9 Fix: Check if user already has a waiting_room entry in 'processing' or
+    // 'matched' state. A concurrent find-match may have already claimed this user
+    // for a match. The ignoreDuplicates upsert in step 4 would silently skip the
+    // insert, leaving the user stuck without feedback.
+    const { data: existingEntry, error: existingEntryError } = await supabaseClient
+      .from('waiting_room')
+      .select('status, matched_room_id')
+      .eq('user_id', userId)
+      .in('status', ['processing', 'matched'])
+      .maybeSingle();
+
+    if (existingEntryError) {
+      console.error('❌ [find-match] Error checking existing waiting_room entry:', existingEntryError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to check existing waiting room state' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (existingEntry) {
+      if (existingEntry.status === 'matched' && existingEntry.matched_room_id) {
+        // Already matched — fetch room code from rooms table and return the match result
+        console.log('ℹ️ [find-match] User already matched, returning existing match');
+        const { data: roomData } = await supabaseClient
+          .from('rooms')
+          .select('code')
+          .eq('id', existingEntry.matched_room_id)
+          .maybeSingle();
+        return new Response(
+          JSON.stringify({
+            matched: true,
+            room_id: existingEntry.matched_room_id,
+            room_code: roomData?.code ?? undefined,
+            waiting_count: 4,
+          } as FindMatchResponse),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      // Status is 'processing' — another invocation is assembling a match
+      console.log('ℹ️ [find-match] User is in processing state, returning waiting');
+      return new Response(
+        JSON.stringify({ matched: false, waiting_count: 0 } as FindMatchResponse),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -402,7 +453,9 @@ Deno.serve(async (req) => {
       }
 
       // Update waiting room status for matched players
-      const matchedUserIds = waitingPlayers.slice(0, 4).map(p => p.user_id);
+      // H10 Fix: Use lockedIds (the rows THIS invocation actually locked) instead
+      // of matchedUserIds (derived from the original query snapshot which may include
+      // players that were grabbed by a concurrent invocation).
       const { error: matchedUpdateError } = await supabaseClient
         .from('waiting_room')
         .update({
@@ -410,7 +463,7 @@ Deno.serve(async (req) => {
           matched_room_id: roomId,
           matched_at: new Date().toISOString(),
         })
-        .in('user_id', matchedUserIds);
+        .in('user_id', lockedIds);
 
       if (matchedUpdateError) {
         console.error('❌ [find-match] Failed to mark players as matched:', matchedUpdateError);

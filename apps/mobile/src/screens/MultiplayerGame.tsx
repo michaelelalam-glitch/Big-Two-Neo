@@ -29,7 +29,7 @@ import type { InGameAlertHandle, InGameAlertOptions } from '../components/game/I
 import { useAuth } from '../contexts/AuthContext';
 import { useGameEnd } from '../contexts/GameEndContext';
 import { useScoreboard } from '../contexts/ScoreboardContext';
-import { supabase } from '../services/supabase';
+import { supabase, APP_VERSION } from '../services/supabase';
 import { API } from '../constants';
 import type { FinalScore } from '../types/gameEnd';
 import { useConnectionManager } from '../hooks/useConnectionManager';
@@ -1675,6 +1675,7 @@ export function MultiplayerGame() {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
+            'x-app-version': APP_VERSION,
           },
           body: JSON.stringify(payload),
         });

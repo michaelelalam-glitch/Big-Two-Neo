@@ -19,6 +19,7 @@ import { BotAI } from '../_shared/botAI.ts';
 import { parseCards } from '../_shared/parseCards.ts';
 import { checkRateLimit, rateLimitResponse } from '../_shared/rateLimiter.ts';
 import type { Card } from '../_shared/gameEngine.ts';
+import { checkMinimumVersion } from '../_shared/versionCheck.ts';
 
 const TURN_TIMEOUT_MS = 60_000; // 60 seconds
 const AUTO_PLAY_RATE_LIMIT_MAX = 5;
@@ -26,7 +27,7 @@ const AUTO_PLAY_RATE_LIMIT_WINDOW = 60; // seconds
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-app-version',
 };
 
 /**
@@ -92,6 +93,10 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+    // C3: Enforce minimum app version
+    const versionError = checkMinimumVersion(req, corsHeaders);
+    if (versionError) return versionError;
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';

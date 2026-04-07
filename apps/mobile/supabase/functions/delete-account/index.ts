@@ -1,9 +1,10 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { checkMinimumVersion } from '../_shared/versionCheck.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-app-version',
 };
 
 // ==================== MAIN HANDLER ====================
@@ -12,6 +13,10 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+    // C3: Enforce minimum app version
+    const versionError = checkMinimumVersion(req, corsHeaders);
+    if (versionError) return versionError;
 
   try {
     const supabaseClient = createClient(
@@ -46,21 +51,12 @@ Deno.serve(async (req) => {
       user_id: userId.substring(0, 8),
     });
 
-    // Delete auth user FIRST to prevent inconsistent state
-    // If this fails, user data remains intact
-    const { error: deleteError } = await supabaseClient.auth.admin.deleteUser(userId);
+    // H5 Fix: Delete user data FIRST so that if any cleanup step fails, the auth
+    // user still exists and the user can retry account deletion. Previously the
+    // auth user was deleted first, making partial cleanup failures unrecoverable
+    // (orphaned data with no owning auth user to retry).
 
-    if (deleteError) {
-      console.error('❌ [delete-account] Failed to delete auth user:', deleteError);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to delete account' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Now delete user data in order (respecting foreign key constraints)
-    // These operations are safe even if they fail since auth user is already deleted,
-    // but we still log and report any cleanup issues to avoid silent data inconsistencies.
+    // Delete user data in order (respecting foreign key constraints)
     // Note: auth.users CASCADE handles most of these, but we delete explicitly for
     // defense-in-depth and tables without FK to auth.users.
 
@@ -170,25 +166,38 @@ Deno.serve(async (req) => {
       cleanupErrors.push('profiles');
     }
 
-    console.log('✅ [delete-account] Successfully deleted account');
-
     const responseBody: Record<string, any> = { success: true };
     if (cleanupErrors.length > 0) {
+      // H5: If any cleanup step failed, do NOT delete the auth user — the user
+      // can retry and the data will be cleaned up on the next attempt.
+      responseBody.success = false;
+      responseBody.error = 'Some data could not be cleaned up. Please retry account deletion.';
       responseBody.cleanup_warnings = {
-        message: 'Account deleted, but some related data could not be fully cleaned up.',
+        message: 'Cleanup partially failed. Auth account preserved for retry.',
         failed_tables: cleanupErrors,
       };
-      console.warn('⚠️ [delete-account] Cleanup warnings:', cleanupErrors);
-      // TODO: Consider implementing a background cleanup job to retry failed deletions
-      // These failures are tracked and can be retried manually or via scheduled task
+      console.warn('⚠️ [delete-account] Cleanup warnings (auth preserved):', cleanupErrors);
+      return new Response(
+        JSON.stringify(responseBody),
+        { status: 207, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Use 207 Multi-Status when there are cleanup warnings to indicate partial success
-    const status = cleanupErrors.length > 0 ? 207 : 200;
+    // H5: All cleanup succeeded — now safe to delete the auth user as the final step.
+    console.log('✅ [delete-account] Data cleanup succeeded, proceeding to auth deletion');
+    const { error: deleteError } = await supabaseClient.auth.admin.deleteUser(userId);
+
+    if (deleteError) {
+      console.error('❌ [delete-account] Failed to delete auth user (data already cleaned):', deleteError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Data cleaned but failed to delete auth account. Please retry.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     return new Response(
       JSON.stringify(responseBody),
-      { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error: any) {
     console.error('💥 [delete-account] Error:', error);

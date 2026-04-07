@@ -4,6 +4,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { parseCards } from '../_shared/parseCards.ts';
 import { checkRateLimit, rateLimitResponse } from '../_shared/rateLimiter.ts';
 import { concurrentModificationResponse } from '../_shared/responses.ts';
+import { checkMinimumVersion } from '../_shared/versionCheck.ts';
 
 // Rate-limit config for play-cards: max 10 plays per 10-second window per user.
 // Normal gameplay is ~1 play every several seconds; 10/10s is generous for legitimate use.
@@ -12,7 +13,7 @@ const PLAY_CARDS_RATE_LIMIT_WINDOW = 10; // seconds
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-app-version',
 };
 
 // ==================== TYPES ====================
@@ -712,6 +713,10 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+    // C3: Enforce minimum app version (service-role callers auto-detected)
+    const versionError = checkMinimumVersion(req, corsHeaders);
+    if (versionError) return versionError;
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
@@ -989,6 +994,31 @@ Deno.serve(async (req) => {
             next_turn: gameState.current_turn,
             combo_type: (gameState.last_play as any)?.combo_type ?? 'Single',
             match_scores: null,      // Scores were already committed; client reads from Realtime
+            highest_play_detected: false,
+            auto_pass_timer: null,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // C11 Fix: Non-winner idempotency guard — if a non-winner retries play-cards
+      // after the match ended (e.g. lost HTTP response), return a graceful success
+      // instead of a hard 400 so the client can transition to the results screen.
+      if (isRecentEnd) {
+        console.log(
+          `[play-cards] ✅ Idempotency: non-winner retry — player ${player.player_index} ` +
+          `retried after match ${gameState.match_number} ended. Returning already_finished=true.`
+        );
+        return new Response(
+          JSON.stringify({
+            success: true,
+            match_ended: true,
+            already_finished: true,
+            game_over: gameState.game_phase === 'game_over',
+            cards_remaining: player.cards_in_hand ?? 0,
+            next_turn: gameState.current_turn,
+            combo_type: (gameState.last_play as any)?.combo_type ?? 'Single',
+            match_scores: null,
             highest_play_detected: false,
             auto_pass_timer: null,
           }),

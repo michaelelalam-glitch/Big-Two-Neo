@@ -1,9 +1,10 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { checkMinimumVersion } from '../_shared/versionCheck.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-app-version',
 };
 
 // ==================== MAIN HANDLER ====================
@@ -12,6 +13,10 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+    // C3: Enforce minimum app version
+    const versionError = checkMinimumVersion(req, corsHeaders);
+    if (versionError) return versionError;
 
   try {
     const supabaseClient = createClient(
@@ -46,36 +51,29 @@ Deno.serve(async (req) => {
       user_id: userId.substring(0, 8),
     });
 
-    // Update waiting room entry to cancelled
-    const { error: updateError } = await supabaseClient
+    // H8 Fix: Single atomic DELETE instead of UPDATE+DELETE to prevent race
+    // condition where a concurrent find-match could see the intermediate
+    // 'cancelled' state. Only deletes rows still in 'waiting' status.
+    const { data: deleted, error: deleteError } = await supabaseClient
       .from('waiting_room')
-      .update({ status: 'cancelled' })
+      .delete()
       .eq('user_id', userId)
-      .eq('status', 'waiting');
+      .eq('status', 'waiting')
+      .select('user_id');
 
-    if (updateError) {
-      console.error('❌ [cancel-matchmaking] Failed to update status:', updateError);
+    if (deleteError) {
+      console.error('❌ [cancel-matchmaking] Failed to delete waiting room entry:', deleteError);
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to cancel matchmaking' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Delete cancelled entries
-    const { error: deleteError } = await supabaseClient
-      .from('waiting_room')
-      .delete()
-      .eq('user_id', userId)
-      .eq('status', 'cancelled');
-
-    if (deleteError) {
-      console.warn('⚠️ [cancel-matchmaking] Waiting room entry remains marked as cancelled and may require cleanup.', {
-        user_id: userId.substring(0, 8),
-        error: deleteError,
-      });
-      // Don't fail - the entry is already marked as cancelled.
-      // TODO: Implement scheduled Edge Function or pg_cron job to clean up stale waiting_room entries
-      // (status='cancelled' or 'waiting' older than 10 minutes) to prevent accumulation.
+    const wasWaiting = (deleted?.length ?? 0) > 0;
+    if (!wasWaiting) {
+      // Row was already claimed by find-match (status='processing'/'matched') or
+      // already deleted — not an error, just a no-op.
+      console.log('ℹ️ [cancel-matchmaking] No waiting entry found (may have been matched already)');
     }
 
     console.log('✅ [cancel-matchmaking] Successfully cancelled matchmaking');

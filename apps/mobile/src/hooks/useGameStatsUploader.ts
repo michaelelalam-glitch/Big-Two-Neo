@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { supabase } from '../services/supabase';
+import { supabase, APP_VERSION } from '../services/supabase';
 import { API } from '../constants';
 import { statsLogger } from '../utils/logger';
 import { sentryCapture } from '../services/sentry';
@@ -553,6 +553,7 @@ export function useGameStatsUploader({
               headers: {
                 Authorization: `Bearer ${session.access_token}`,
                 'Content-Type': 'application/json',
+                'x-app-version': APP_VERSION,
               },
               body: JSON.stringify(payload),
               signal: controller.signal,
