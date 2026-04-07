@@ -33,7 +33,6 @@ jest.mock('../../utils/logger', () => ({
 
 // Controllable Date.now mock
 let _now = 100_000;
-const originalDateNow = Date.now;
 const dateNowSpy = jest.spyOn(Date, 'now');
 
 beforeEach(() => {
