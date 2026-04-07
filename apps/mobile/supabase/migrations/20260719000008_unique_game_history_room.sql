@@ -13,11 +13,16 @@
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_indexes
-    WHERE tablename = 'game_history'
-      AND indexdef ILIKE '%room_id%'
-      AND indexdef ILIKE '%unique%'
+    SELECT 1
+    FROM pg_class t
+    JOIN pg_namespace tn ON tn.oid = t.relnamespace
+    JOIN pg_index i ON i.indrelid = t.oid
+    JOIN pg_class idx ON idx.oid = i.indexrelid
+    WHERE t.relname = 'game_history'
+      AND tn.nspname = 'public'
+      AND i.indisunique = true
+      AND pg_get_expr(i.indpred, i.indrelid) ILIKE '%room_id%IS NOT NULL%'
   ) THEN
-    RAISE WARNING 'Expected unique index on game_history(room_id) not found — verify manually';
+    RAISE WARNING 'Expected unique partial index on game_history(room_id) WHERE room_id IS NOT NULL not found — verify manually';
   END IF;
 END $$;

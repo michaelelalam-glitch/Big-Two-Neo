@@ -42,13 +42,14 @@ The Big Two Neo codebase is **well-architected** with clean separation of concer
 
 **Fix:**
 ```sql
--- Add to all game_state UPDATE queries:
-UPDATE game_state 
-SET ... 
-WHERE room_id = $1 
-  AND current_turn = $expected_turn 
-  AND turn_number = $expected_turn_number;
+-- Use OCC with a CAS token on total_training_actions:
+UPDATE game_state
+SET ...,
+    total_training_actions = total_training_actions + 1
+WHERE id = $game_state_id
+  AND total_training_actions = $expected_total_training_actions;
 -- If 0 rows affected → stale state, return 409 Conflict
+-- with code: 'CONCURRENT_MODIFICATION' and retryable: true
 ```
 
 **Estimated Complexity:** Medium (affects 3 edge functions)
