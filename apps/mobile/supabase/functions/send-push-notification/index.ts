@@ -377,6 +377,13 @@ Deno.serve(async (req) => {
     }
     
     // Send notifications via FCM v1 API
+    /** Redact a device token for safe logging (first 4 … last 4 chars). */
+    const redactToken = (t: string | null | undefined): string => {
+      if (!t) return '<empty>';
+      if (t.length <= 10) return '***';
+      return `${t.slice(0, 4)}…${t.slice(-4)}`;
+    };
+
     // Track per-user success: only keep throttle reservation for users with ≥1 successful send
     const userHadSuccess = new Set<string>();
     const results = []
@@ -390,13 +397,13 @@ Deno.serve(async (req) => {
         
         // Validate token: must be non-empty, well-formed, and match FCM token format
         if (!token || typeof token !== 'string' || token.trim() === '') {
-          console.error(`❌ Invalid push token (empty/null) for message:`, message.to);
+          console.error(`❌ Invalid push token (empty/null) for message:`, redactToken(message.to));
           results.push({ status: 'error', message: 'Invalid push token (empty)', to: message.to });
           continue;
         }
         
         if (!isValidFCMToken(token)) {
-          console.error(`❌ Invalid FCM token format for message:`, message.to, '(length:', token.length, ')');
+          console.error(`❌ Invalid FCM token format for message:`, redactToken(message.to), '(length:', token.length, ')');
           results.push({ status: 'error', message: 'Invalid FCM token format', to: message.to });
           continue;
         }
@@ -431,15 +438,15 @@ Deno.serve(async (req) => {
         const result = await response.json()
         
         if (!response.ok) {
-          console.error(`❌ FCM error for ${message.to}:`, result)
+          console.error(`❌ FCM error for ${redactToken(message.to)}:`, result)
           results.push({ status: 'error', message: result })
         } else {
-          console.log(`✅ Sent to ${message.to}`)
+          console.log(`✅ Sent to ${redactToken(message.to)}`)
           results.push({ status: 'ok', id: result.name })
           if (message.userId) userHadSuccess.add(message.userId);
         }
       } catch (error) {
-        console.error(`❌ Error sending to ${message.to}:`, error)
+        console.error(`❌ Error sending to ${redactToken(message.to)}:`, error)
         results.push({ status: 'error', message: error.message })
       }
     }

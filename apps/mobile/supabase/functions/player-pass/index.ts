@@ -235,6 +235,21 @@ async function triggerBotCoordinatorIfNeeded(
   }
 }
 
+// ==================== CONCURRENT MODIFICATION RESPONSE ====================
+/** Standardised 409 response for CAS / optimistic-lock failures. */
+function concurrentModificationResponse(context: string): Response {
+  console.warn(`[player-pass] ⚠️ ${context} concurrent modification detected — state already advanced`);
+  return new Response(
+    JSON.stringify({
+      success: false,
+      error: 'Concurrent modification — state already advanced',
+      code: 'CONCURRENT_MODIFICATION',
+      retryable: true,
+    }),
+    { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
+
 // ==================== MAIN HANDLER ====================
 
 Deno.serve(async (req) => {
@@ -728,16 +743,7 @@ Deno.serve(async (req) => {
       }
 
       if (!updatedRows1 || updatedRows1.length === 0) {
-        console.warn('[player-pass] ⚠️ Concurrent modification detected — state already advanced');
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'Concurrent modification — state already advanced',
-            code: 'CONCURRENT_MODIFICATION',
-            retryable: true,
-          }),
-          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        return concurrentModificationResponse('Trick-clear');
       }
 
       console.log('✅ [player-pass] Trick cleared successfully, turn returned to player', finalNextTurn);
@@ -840,16 +846,7 @@ Deno.serve(async (req) => {
       }
 
       if (!cascadeRows || cascadeRows.length === 0) {
-        console.warn('[player-pass] ⚠️ CASCADE concurrent modification — state already advanced');
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'Concurrent modification — state already advanced',
-            code: 'CONCURRENT_MODIFICATION',
-            retryable: true,
-          }),
-          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        return concurrentModificationResponse('CASCADE');
       }
 
       console.log('✅ [player-pass] CASCADE complete: trick cleared, turn →', cascadeNextTurn);
@@ -898,16 +895,7 @@ Deno.serve(async (req) => {
     }
 
     if (!updatedRows3 || updatedRows3.length === 0) {
-      console.warn('[player-pass] ⚠️ Concurrent modification detected — state already advanced');
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Concurrent modification — state already advanced',
-          code: 'CONCURRENT_MODIFICATION',
-          retryable: true,
-        }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return concurrentModificationResponse('Normal pass');
     }
 
     console.log('✅ [player-pass] Pass processed successfully');

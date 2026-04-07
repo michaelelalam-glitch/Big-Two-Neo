@@ -32,13 +32,19 @@ export function parsePersistedScoreHistory(value: string | null | undefined): Pa
   if (!Array.isArray(parsed)) return { entries: null, shouldRemove: true }; // non-array
   if (parsed.length === 0) return { entries: null, shouldRemove: false }; // valid empty
 
+  const isFiniteNumberArray = (arr: unknown[]): boolean =>
+    arr.every(v => typeof v === 'number' && Number.isFinite(v));
+
   const valid = parsed.every(
     (entry: unknown) =>
       entry != null &&
       typeof entry === 'object' &&
       typeof (entry as Record<string, unknown>).matchNumber === 'number' &&
+      Number.isFinite((entry as Record<string, unknown>).matchNumber) &&
       Array.isArray((entry as Record<string, unknown>).pointsAdded) &&
-      Array.isArray((entry as Record<string, unknown>).scores)
+      isFiniteNumberArray((entry as Record<string, unknown>).pointsAdded as unknown[]) &&
+      Array.isArray((entry as Record<string, unknown>).scores) &&
+      isFiniteNumberArray((entry as Record<string, unknown>).scores as unknown[])
   );
 
   if (!valid) return { entries: null, shouldRemove: true }; // bad shape

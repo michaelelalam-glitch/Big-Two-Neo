@@ -61,6 +61,30 @@ describe('parsePersistedScoreHistory', () => {
     expect(result).toEqual({ entries: null, shouldRemove: true });
   });
 
+  it('returns shouldRemove=true when pointsAdded contains non-numbers', () => {
+    const entry = { matchNumber: 1, pointsAdded: ['x', 0, 0, 0], scores: [0, 0, 0, 0] };
+    const result = parsePersistedScoreHistory(JSON.stringify([entry]));
+    expect(result).toEqual({ entries: null, shouldRemove: true });
+  });
+
+  it('returns shouldRemove=true when scores contains NaN', () => {
+    const entry = { matchNumber: 1, pointsAdded: [0, 0, 0, 0], scores: [NaN, 0, 0, 0] };
+    const result = parsePersistedScoreHistory(JSON.stringify([entry]));
+    expect(result).toEqual({ entries: null, shouldRemove: true });
+  });
+
+  it('returns shouldRemove=true when scores contains Infinity', () => {
+    const entry = { matchNumber: 1, pointsAdded: [0, 0, 0, 0], scores: [Infinity, 0, 0, 0] };
+    const result = parsePersistedScoreHistory(JSON.stringify([entry]));
+    expect(result).toEqual({ entries: null, shouldRemove: true });
+  });
+
+  it('returns shouldRemove=true when matchNumber is NaN', () => {
+    const entry = { matchNumber: NaN, pointsAdded: [0], scores: [0] };
+    const result = parsePersistedScoreHistory(JSON.stringify([entry]));
+    expect(result).toEqual({ entries: null, shouldRemove: true });
+  });
+
   it('returns valid entries for a single valid entry', () => {
     const result = parsePersistedScoreHistory(JSON.stringify([validEntry]));
     expect(result).toEqual({ entries: [validEntry], shouldRemove: false });
