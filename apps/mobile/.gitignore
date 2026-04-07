@@ -84,3 +84,11 @@ credentials/
 # Backup files (use source control instead)
 *.bak
 *.backup
+
+# Build artifacts
+*.tar.gz
+*.zip
+
+# Test outputs
+test-output.log
+test-results.json
