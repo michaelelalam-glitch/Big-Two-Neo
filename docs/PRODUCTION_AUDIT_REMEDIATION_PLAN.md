@@ -20,18 +20,16 @@
 
 ---
 
-## Sprint 2 — Security & Reliability (8 Critical + 6 High)
+## Sprint 2 — Security & Reliability (3 Critical + 7 High)
 
 ### PR-2A: Minimum App Version Gate (C3)
 **Severity:** 🔴 CRITICAL | **Effort:** Medium | **Domain:** backend + frontend
 
 - Add `X-App-Version` header to Supabase client config (all edge function calls)
 - Create a shared `checkMinimumVersion()` middleware for edge functions
-- Store `minimum_app_version` in a `config` table (or environment variable)
-- Add `ForceUpdateScreen` component shown when version check fails
-- Add migration for `app_config` table with `minimum_version` row
+- Source `minimum_app_version` from an environment variable for edge-function enforcement
 
-**Files:** `src/services/supabase.ts`, new `supabase/functions/_shared/versionCheck.ts`, new `src/screens/ForceUpdateScreen.tsx`, new migration
+**Files:** `src/services/supabase.ts`, new `supabase/functions/_shared/versionCheck.ts`
 
 ---
 

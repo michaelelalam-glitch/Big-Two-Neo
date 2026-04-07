@@ -3,7 +3,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-app-version',
 };
 
 // ==================== TYPES ====================
@@ -205,12 +205,18 @@ Deno.serve(async (req) => {
 
     if (existingEntry) {
       if (existingEntry.status === 'matched' && existingEntry.matched_room_id) {
-        // Already matched — return the match result directly
+        // Already matched — fetch room_code from rooms table and return the match result
         console.log('ℹ️ [find-match] User already matched, returning existing match');
+        const { data: roomData } = await supabaseClient
+          .from('rooms')
+          .select('room_code')
+          .eq('id', existingEntry.matched_room_id)
+          .maybeSingle();
         return new Response(
           JSON.stringify({
             matched: true,
             room_id: existingEntry.matched_room_id,
+            room_code: roomData?.room_code ?? undefined,
             waiting_count: 4,
           } as FindMatchResponse),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

@@ -3,7 +3,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-app-version',
 };
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -188,7 +188,7 @@ Deno.serve(async (req) => {
         );
       }
 
-      if (roomCheck.status === 'finished' || roomCheck.status === 'abandoned') {
+      if (roomCheck.status === 'finished' || roomCheck.status === 'abandoned' || roomCheck.status === 'game_over') {
         console.log(`[start_new_match] ✅ Room already ${roomCheck.status}, no-op`);
         return new Response(
           JSON.stringify({ success: true, already_advanced: true, message: `Room already ${roomCheck.status}` }),

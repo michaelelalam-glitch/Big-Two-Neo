@@ -26,7 +26,7 @@ const LIVEKIT_URL        = Deno.env.get('LIVEKIT_URL')        ?? '';
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-app-version',
 } as const;
 
 // ---------------------------------------------------------------------------
