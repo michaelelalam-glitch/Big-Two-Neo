@@ -6,6 +6,12 @@
  * Upgrade Required response when the client is too old, enabling the client to
  * show a ForceUpdateScreen.
  *
+ * When the header is absent and `allowMissingHeader` is false (default), the
+ * function auto-detects service-role callers by checking the Authorization
+ * header against `SUPABASE_SERVICE_ROLE_KEY` and the `x-bot-auth` header
+ * against `INTERNAL_BOT_AUTH_KEY`.  Detected service-role requests are allowed
+ * through without a version header; all other requests are treated as `0.0.0`.
+ *
  * Usage in an edge function:
  *   import { checkMinimumVersion } from '../_shared/versionCheck.ts';
  *   const versionError = checkMinimumVersion(req, corsHeaders);
@@ -20,10 +26,12 @@ const MINIMUM_APP_VERSION = Deno.env.get('MINIMUM_APP_VERSION') ?? '1.0.0';
 /**
  * Compare two semver strings (major.minor.patch). Returns:
  *  -1 if a < b,  0 if a == b,  1 if a > b.
+ * Leading 'v' prefixes (e.g. "v1.2.3") are stripped before comparison.
  * Non-numeric or missing segments default to 0.
  */
 function compareSemver(a: string, b: string): -1 | 0 | 1 {
-  const parse = (v: string) => v.split('.').map(n => Number(n) || 0);
+  const strip = (v: string) => v.startsWith('v') || v.startsWith('V') ? v.slice(1) : v;
+  const parse = (v: string) => strip(v).split('.').map(n => Number(n) || 0);
   const pa = parse(a);
   const pb = parse(b);
   for (let i = 0; i < 3; i++) {
@@ -36,23 +44,44 @@ function compareSemver(a: string, b: string): -1 | 0 | 1 {
 }
 
 /**
+ * Returns true when the request carries service-role or internal-bot
+ * credentials in its headers (Authorization bearer matching the service-role
+ * key, or x-bot-auth matching the internal bot key).
+ */
+function isServiceRoleRequest(req: Request): boolean {
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  const internalKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
+  const authHeader = req.headers.get('authorization') ?? '';
+  const botAuthHdr = req.headers.get('x-bot-auth') ?? '';
+  return (
+    (serviceKey !== '' && authHeader === `Bearer ${serviceKey}`) ||
+    (internalKey !== '' && botAuthHdr === internalKey)
+  );
+}
+
+/**
  * Returns a 426 Response if the client's `x-app-version` header is below
  * the minimum, or `null` if the version is acceptable.
  *
- * Missing version headers are treated as an outdated client (`0.0.0`) by
- * default so callers cannot bypass version enforcement by omitting the header.
- * Internal/service-role callers (e.g. bot-coordinator) should pass
- * `allowMissingHeader = true` to skip enforcement when no header is present.
+ * When the header is missing:
+ *  - `allowMissingHeader = true` → skip enforcement unconditionally (for
+ *    cron/internal callers that never carry the header, e.g. cleanup-rooms).
+ *  - `allowMissingHeader = false` (default) → auto-detect service-role callers
+ *    via `isServiceRoleRequest`; only those are allowed through without the
+ *    header.  All other callers are treated as version `0.0.0`.
  */
 export function checkMinimumVersion(
   req: Request,
-  corsHeaders: Record<string, string>,
+  corsHeaders: Readonly<Record<string, string>>,
   allowMissingHeader = false,
 ): Response | null {
   const clientVersion = req.headers.get('x-app-version');
-  if (!clientVersion && allowMissingHeader) {
-    // No version header — trusted internal/service-role caller
-    return null;
+
+  if (!clientVersion) {
+    // Unconditional bypass for purely internal callers (cron, triggers)
+    if (allowMissingHeader) return null;
+    // Auto-detect service-role/bot callers — they don't carry the header
+    if (isServiceRoleRequest(req)) return null;
   }
 
   const effectiveVersion = clientVersion ?? '0.0.0';

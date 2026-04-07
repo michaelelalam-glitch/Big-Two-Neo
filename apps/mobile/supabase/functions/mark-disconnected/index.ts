@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
   }
 
     // C3: Enforce minimum app version
-    const versionError = checkMinimumVersion(req, corsHeaders, true);
+    const versionError = checkMinimumVersion(req, corsHeaders);
     if (versionError) return versionError;
 
   try {

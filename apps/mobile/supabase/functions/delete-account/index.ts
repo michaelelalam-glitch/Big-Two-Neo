@@ -166,8 +166,6 @@ Deno.serve(async (req) => {
       cleanupErrors.push('profiles');
     }
 
-    console.log('✅ [delete-account] Data cleanup succeeded, proceeding to auth deletion');
-
     const responseBody: Record<string, any> = { success: true };
     if (cleanupErrors.length > 0) {
       // H5: If any cleanup step failed, do NOT delete the auth user — the user
@@ -186,6 +184,7 @@ Deno.serve(async (req) => {
     }
 
     // H5: All cleanup succeeded — now safe to delete the auth user as the final step.
+    console.log('✅ [delete-account] Data cleanup succeeded, proceeding to auth deletion');
     const { error: deleteError } = await supabaseClient.auth.admin.deleteUser(userId);
 
     if (deleteError) {
