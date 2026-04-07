@@ -9,6 +9,7 @@
  */
 import React, { Profiler, useMemo, useCallback, useState, useRef, useEffect } from 'react';
 import { View, Text, Pressable, TouchableOpacity, ActivityIndicator, Animated } from 'react-native';
+import { useShallow } from 'zustand/react/shallow';
 import {
   CardHand,
   PlayerInfo,
@@ -44,16 +45,31 @@ import { useUserPreferencesStore, useGameSessionStore } from '../store';
 import { LAYOUT } from '../constants';
 
 function GameViewComponent() {
-  // C2 Audit: read migrated state from Zustand (single source of truth)
-  const customCardOrder = useGameSessionStore(s => s.customCardOrder);
-  const setCustomCardOrder = useGameSessionStore(s => s.setCustomCardOrder);
-  const layoutPlayers = useGameSessionStore(s => s.layoutPlayers);
-  const layoutPlayersWithScores = useGameSessionStore(s => s.layoutPlayersWithScores);
-  const playerTotalScores = useGameSessionStore(s => s.playerTotalScores);
-  const currentPlayerName = useGameSessionStore(s => s.currentPlayerName);
-  const isPlayerReady = useGameSessionStore(s => s.isPlayerReady);
-  const isGameFinished = useGameSessionStore(s => s.isGameFinished);
-  const matchNumber = useGameSessionStore(s => s.matchNumber);
+  // C2 Audit: read migrated state from Zustand (single source of truth).
+  // Single subscription with shallow equality avoids 9 separate re-render triggers.
+  const {
+    customCardOrder,
+    setCustomCardOrder,
+    layoutPlayers,
+    layoutPlayersWithScores,
+    playerTotalScores,
+    currentPlayerName,
+    isPlayerReady,
+    isGameFinished,
+    matchNumber,
+  } = useGameSessionStore(
+    useShallow(s => ({
+      customCardOrder: s.customCardOrder,
+      setCustomCardOrder: s.setCustomCardOrder,
+      layoutPlayers: s.layoutPlayers,
+      layoutPlayersWithScores: s.layoutPlayersWithScores,
+      playerTotalScores: s.playerTotalScores,
+      currentPlayerName: s.currentPlayerName,
+      isPlayerReady: s.isPlayerReady,
+      isGameFinished: s.isGameFinished,
+      matchNumber: s.matchNumber,
+    }))
+  );
 
   const profilePhotoSize = useUserPreferencesStore(s => s.profilePhotoSize);
   const throwableClipSize = useMemo(() => {

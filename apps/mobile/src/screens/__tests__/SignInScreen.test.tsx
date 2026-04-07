@@ -2,7 +2,7 @@
  * Screen Smoke Tests — H16 Audit Fix
  *
  * Verifies priority screens render without crashing.
- * These are shallow render tests that mock heavy dependencies
+ * These are smoke render tests that mock heavy dependencies
  * and only assert that the screen component mounts successfully
  * with expected testIDs present.
  */

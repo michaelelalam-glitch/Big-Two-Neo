@@ -50,7 +50,7 @@ export interface GameSessionState {
   setIsPlayerReady: (ready: boolean) => void;
   setIsGameFinished: (finished: boolean) => void;
   setMatchNumber: (match: number) => void;
-  /** Atomically sync all game-view session fields in a single named store action */
+  /** Atomically sync layout, score, and game-status session fields in a single named store action */
   syncSessionSnapshot: (snapshot: {
     layoutPlayers: LayoutPlayer[];
     layoutPlayersWithScores: LayoutPlayerWithTimer[];
