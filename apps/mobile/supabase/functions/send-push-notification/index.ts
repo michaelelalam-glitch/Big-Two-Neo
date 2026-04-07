@@ -27,9 +27,10 @@ interface NotificationRequest {
   title: string;
   body: string;
   data?: {
-    // Known types: 'game_invite' | 'your_turn' | 'game_started' | 'friend_request' | 'game_ended'
-    // Typed as string so callers can add new event types without updating this union.
-    type?: string;
+    // Enumerate known types for IDE autocomplete while still accepting any string
+    // via the `(string & {})` extension (keeps the union open without widening to plain string).
+    // Rate limiting is a no-op when type is absent — see isThrottled / recordSentNotification.
+    type?: 'game_invite' | 'your_turn' | 'game_started' | 'friend_request' | 'game_ended' | (string & {});
     roomCode?: string;
     [key: string]: any;
   };
@@ -151,6 +152,9 @@ async function getAccessToken(): Promise<string> {
 // bursts to the same user+event combination.
 // Stays warm across invocations while the Deno isolate is alive; a cold start
 // resets the map which is an acceptable loss (over-notify once at most).
+// NOTE: This limit is per-Deno-isolate only — concurrent isolates/regions each
+// maintain their own map (true cross-instance enforcement would require a shared
+// store such as a DB table with atomic upsert; that is out of scope for this PR).
 const RATE_LIMIT_WINDOW_MS = 30_000;
 const RATE_LIMIT_PRUNE_INTERVAL_MS = 30_000;
 const _lastSent = new Map<string, number>();

@@ -519,8 +519,9 @@ jobs:
 
       - name: 🗑️ Free disk space before Android build
         run: |
-          # Remove large pre-installed tools not needed for Android builds
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/ndk /opt/ghc \
+          # Remove large pre-installed tools not needed for Android builds.
+          # Keep the Android NDK installed: some RN modules require it for native/CMake builds.
+          sudo rm -rf /usr/share/dotnet /opt/ghc \
             /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup \
             /usr/lib/jvm/temurin-8-jdk-amd64 /usr/lib/jvm/temurin-11-jdk-amd64 \
             /usr/lib/jvm/temurin-21-jdk-amd64 2>/dev/null || true
