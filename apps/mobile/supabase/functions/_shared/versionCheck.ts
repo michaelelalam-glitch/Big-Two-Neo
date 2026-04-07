@@ -15,8 +15,7 @@
 /** Env-configurable minimum version. Falls back to '1.0.0', enforcing that minimum when the env var is unset. */
 const MINIMUM_APP_VERSION = Deno.env.get('MINIMUM_APP_VERSION') ?? '1.0.0';
 
-// TODO (Sprint 3+): Wire checkMinimumVersion into each edge function's request
-// handler (after CORS/OPTIONS handling) to enforce the gate across all endpoints.
+// Wired into all edge function entrypoints (after CORS/OPTIONS handling).
 
 /**
  * Compare two semver strings (major.minor.patch). Returns:

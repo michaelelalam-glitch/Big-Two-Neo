@@ -21,6 +21,7 @@ const GA4_MEASUREMENT_ID = Deno.env.get('GA4_MEASUREMENT_ID') ?? '';
 const MP_ENDPOINT = 'https://www.google-analytics.com/mp/collect';
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { checkMinimumVersion } from '../_shared/versionCheck.ts';
 
 // Best-effort per-user rate limiter: max 60 requests per minute per authenticated user.
 // Rate-limit key is the authenticated user.id from the verified JWT — cannot be spoofed
@@ -70,6 +71,10 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+    // C3: Enforce minimum app version
+    const versionError = checkMinimumVersion(req, corsHeaders, true);
+    if (versionError) return versionError;
 
   if (req.method !== 'POST') {
     return new Response(

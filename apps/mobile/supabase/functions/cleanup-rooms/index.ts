@@ -22,6 +22,7 @@
  *   - Set the CRON_SECRET env variable in the Supabase project secrets.
  */
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { checkMinimumVersion } from '../_shared/versionCheck.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -59,6 +60,10 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+    // C3: Enforce minimum app version
+    const versionError = checkMinimumVersion(req, corsHeaders, true);
+    if (versionError) return versionError;
 
   // Restrict to POST only — this endpoint triggers destructive DB work
   if (req.method !== 'POST') {

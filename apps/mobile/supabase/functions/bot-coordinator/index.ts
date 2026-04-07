@@ -21,6 +21,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { BotAI, type BotDifficulty } from '../_shared/botAI.ts';
 import { parseCards } from '../_shared/parseCards.ts';
 import type { Card } from '../_shared/gameEngine.ts';
+import { checkMinimumVersion } from '../_shared/versionCheck.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -259,6 +260,10 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+    // C3: Enforce minimum app version
+    const versionError = checkMinimumVersion(req, corsHeaders, true);
+    if (versionError) return versionError;
 
   const startTime = Date.now();
 

@@ -18,6 +18,7 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { checkMinimumVersion } from '../_shared/versionCheck.ts';
 
 const LIVEKIT_API_KEY    = Deno.env.get('LIVEKIT_API_KEY')    ?? '';
 const LIVEKIT_API_SECRET = Deno.env.get('LIVEKIT_API_SECRET') ?? '';
@@ -102,6 +103,10 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS });
   }
+
+    // C3: Enforce minimum app version
+    const versionError = checkMinimumVersion(req, CORS_HEADERS);
+    if (versionError) return versionError;
 
   // ── Config validation (fail fast) ──────────────────────────────────────────
   // Read Supabase vars first (they are auto-injected but could be missing in CI
