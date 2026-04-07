@@ -256,6 +256,27 @@ Deno.serve(async (req) => {
 
     console.log(`🔍 [find-match] Found ${waitingCount} waiting players`);
 
+    // C5 Fix: Write waiting_count to all waiting players' rows so Realtime
+    // UPDATE events carry the current queue size to connected clients.
+    if (waitingPlayers && waitingPlayers.length > 0) {
+      const waitingUserIds = waitingPlayers.map((p: any) => p.user_id);
+      const { error: waitingCountUpdateError } = await supabaseClient
+        .from('waiting_room')
+        .update({ waiting_count: waitingCount })
+        .in('user_id', waitingUserIds)
+        .eq('status', 'waiting');
+
+      if (waitingCountUpdateError) {
+        console.error('⚠️ [find-match] Failed to update waiting_count for Realtime queue sync:', {
+          error: waitingCountUpdateError,
+          region,
+          match_type,
+          waitingCount,
+          waitingUserIds,
+        });
+      }
+    }
+
     // 6. If we have 4+ players, create a match
     if (waitingCount >= 4) {
       console.log('✅ [find-match] Creating match with 4 players');

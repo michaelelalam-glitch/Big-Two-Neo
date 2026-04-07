@@ -106,11 +106,13 @@ describe('useRealtime - Timer Cancellation', () => {
   /**
    * Sets up all Supabase mocks to support the full connectToRoom -> pass/playCards flow.
    */
-  function setupTestMocks(opts: {
-    gameState?: any;
-    mockUpdateFn?: jest.Mock;
-    mockBroadcastFn?: jest.Mock;
-  } = {}) {
+  function setupTestMocks(
+    opts: {
+      gameState?: any;
+      mockUpdateFn?: jest.Mock;
+      mockBroadcastFn?: jest.Mock;
+    } = {}
+  ) {
     const {
       gameState = mockGameState,
       mockUpdateFn = jest.fn().mockReturnValue({
@@ -224,6 +226,11 @@ describe('useRealtime - Timer Cancellation', () => {
         single: jest.fn().mockResolvedValue({ data: null, error: null }),
         update: mockUpdateFn,
       };
+    });
+
+    // C1 Fix: fetchGameState now uses supabase.rpc('get_player_game_state')
+    (supabase.rpc as jest.Mock).mockReturnValue({
+      single: jest.fn().mockResolvedValue({ data: gameState, error: null }),
     });
 
     (supabase.channel as jest.Mock).mockReturnValue({
