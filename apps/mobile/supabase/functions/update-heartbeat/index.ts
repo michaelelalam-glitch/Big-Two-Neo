@@ -376,8 +376,11 @@ Deno.serve(async (req) => {
     // server-side validation (expired disconnect timer) to prevent DoS.
     if ((force_sweep === true || sweepOnly) && !shouldSweep) {
       // Primary check: Phase-B-ready player — already marked disconnected with an expired timer.
-      // 5-second grace window: if the server clock is slightly behind the client
-      // clock, the ring fires at clientT0+60s but the server evaluates at ~T0+58s.
+      // FORCE_SWEEP_GRACE_MS now equals BOT_REPLACE_AFTER (60 s), so the server-side
+      // validation threshold is an exact match: a player must have had
+      // disconnect_timer_started_at set at least 60 s ago to pass.  This means the
+      // forced-sweep client request is only accepted once the server would have already
+      // replaced the bot on its own periodic schedule — no early replacement is possible.
       // Using 60s here allows the forced-sweep validation to proceed; Phase B on the
       // server now requires disconnect_timer_started_at <= NOW() - 60s, so this does
       // not relax the actual replacement threshold — it only validates force_sweep.
