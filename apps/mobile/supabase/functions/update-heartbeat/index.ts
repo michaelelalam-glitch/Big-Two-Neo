@@ -378,10 +378,10 @@ Deno.serve(async (req) => {
       // Primary check: Phase-B-ready player — already marked disconnected with an expired timer.
       // 5-second grace window: if the server clock is slightly behind the client
       // clock, the ring fires at clientT0+60s but the server evaluates at ~T0+58s.
-      // Using 55s here allows the forced-sweep validation to proceed; Phase B on the
+      // Using 60s here allows the forced-sweep validation to proceed; Phase B on the
       // server now requires disconnect_timer_started_at <= NOW() - 60s, so this does
       // not relax the actual replacement threshold — it only validates force_sweep.
-      // Use lte (not lt) so the boundary case (disconnect_timer_started_at = now-55s
+      // Use lte (not lt) so the boundary case (disconnect_timer_started_at = now-60s
       // exactly) also passes validation rather than being deferred to the 5s retry.
       const { data: expiredTimer, error: expiredTimerError } = await supabaseClient
         .from('room_players')

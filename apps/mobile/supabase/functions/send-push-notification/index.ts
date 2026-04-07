@@ -12,6 +12,7 @@ const FCM_SCOPES = ['https://www.googleapis.com/auth/firebase.messaging']
 
 interface PushMessage {
   to: string;
+  userId?: string;
   sound: string;
   title: string;
   body: string;
@@ -148,20 +149,31 @@ async function getAccessToken(): Promise<string> {
 const RATE_LIMIT_WINDOW_MS = 30_000;
 const _lastSent = new Map<string, number>();
 
-/** Returns true if the notification should be throttled (dropped). */
-function isThrottled(userId: string, eventType: string | undefined): boolean {
-  const key = `${userId}:${eventType ?? 'default'}`;
-  const now = Date.now();
-  const last = _lastSent.get(key);
-  if (last && now - last < RATE_LIMIT_WINDOW_MS) return true;
-  _lastSent.set(key, now);
-  // Prevent unbounded map growth: prune entries older than 2× window
+function getRateLimitKey(userId: string, eventType: string | undefined): string {
+  return `${userId}:${eventType ?? 'default'}`;
+}
+
+function pruneRateLimitEntries(now: number): void {
   if (_lastSent.size > 5000) {
     for (const [k, ts] of _lastSent) {
       if (now - ts > RATE_LIMIT_WINDOW_MS * 2) _lastSent.delete(k);
     }
   }
-  return false;
+}
+
+/** Returns true if the notification should be throttled (dropped). Read-only — does not record. */
+function isThrottled(userId: string, eventType: string | undefined): boolean {
+  const now = Date.now();
+  const last = _lastSent.get(getRateLimitKey(userId, eventType));
+  pruneRateLimitEntries(now);
+  return !!last && now - last < RATE_LIMIT_WINDOW_MS;
+}
+
+/** Records that a notification was successfully delivered. Call only after a confirmed send. */
+function recordSentNotification(userId: string, eventType: string | undefined): void {
+  const now = Date.now();
+  _lastSent.set(getRateLimitKey(userId, eventType), now);
+  pruneRateLimitEntries(now);
 }
 
 // Validate FCM token format (alphanumeric, colons, hyphens, underscores, reasonable length)
@@ -271,6 +283,7 @@ Deno.serve(async (req) => {
     const messages: PushMessage[] = tokens.map((token) => {
       const message: PushMessage = {
         to: token.push_token,
+        userId: token.user_id,
         sound: 'default',
         title,
         body,
@@ -365,6 +378,7 @@ Deno.serve(async (req) => {
         } else {
           console.log(`✅ Sent to ${message.to}`)
           results.push({ status: 'ok', id: result.name })
+          if (message.userId) recordSentNotification(message.userId, eventType);
         }
       } catch (error) {
         console.error(`❌ Error sending to ${message.to}:`, error)

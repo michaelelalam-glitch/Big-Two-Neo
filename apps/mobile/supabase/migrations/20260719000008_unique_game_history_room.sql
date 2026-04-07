@@ -1,6 +1,12 @@
--- Prevent duplicate game completions from concurrent complete-game edge function calls.
--- The SELECT/INSERT race in complete-game can cause two clients to insert duplicate
--- game_history records for the same room_id.
-CREATE UNIQUE INDEX IF NOT EXISTS idx_game_history_unique_room_id
-  ON game_history(room_id)
-  WHERE room_id IS NOT NULL;
+--
+-- No-op: earlier migrations already create/verify the partial unique index on
+-- game_history(room_id) WHERE room_id IS NOT NULL.
+--   • 20260313000001_dedup_game_history_and_fix_stats.sql
+--   • 20260403000001_phase2_db_migration_integrity.sql
+--
+-- CREATE UNIQUE INDEX IF NOT EXISTS only checks the index *name*, not whether an
+-- equivalent index already exists under a different name.  Re-creating it here
+-- would risk an unnecessary full-table index build and a brief write-lock.
+--
+-- Intentionally left blank.
+

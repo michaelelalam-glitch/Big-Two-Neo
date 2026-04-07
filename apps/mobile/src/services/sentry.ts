@@ -302,8 +302,8 @@ function captureBreadcrumb(
   if (!_initialized) return;
 
   const now = Date.now();
-  if (now - _breadcrumbWindowStart >= 1000) {
-    // Reset window
+  if (now - _breadcrumbWindowStart >= 1000 || now < _breadcrumbWindowStart) {
+    // Reset window (also handles clock going backwards, e.g. NTP correction)
     _breadcrumbCount = 0;
     _breadcrumbWindowStart = now;
   }
