@@ -47,6 +47,13 @@ function compareSemver(a: string, b: string): -1 | 0 | 1 {
  * Returns true when the request carries service-role or internal-bot
  * credentials in its headers (Authorization bearer matching the service-role
  * key, or x-bot-auth matching the internal bot key).
+ *
+ * Note: some edge functions (play-cards, player-pass) also accept a `_bot_auth`
+ * field in the JSON body as a tertiary fallback when headers are stripped by
+ * internal routing.  The version gate intentionally does NOT inspect the body
+ * (it runs before body parsing).  In practice, bot-coordinator always sends
+ * both the Authorization and x-bot-auth headers, so the header-based check is
+ * sufficient.
  */
 function isServiceRoleRequest(req: Request): boolean {
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';

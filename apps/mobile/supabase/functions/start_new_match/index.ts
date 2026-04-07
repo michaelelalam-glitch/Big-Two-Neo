@@ -193,7 +193,7 @@ Deno.serve(async (req) => {
         );
       }
 
-      if (roomCheck.status === 'finished' || roomCheck.status === 'abandoned' || roomCheck.status === 'game_over') {
+      if (roomCheck.status === 'finished' || roomCheck.status === 'abandoned') {
         console.log(`[start_new_match] ✅ Room already ${roomCheck.status}, no-op`);
         return new Response(
           JSON.stringify({ success: true, already_advanced: true, message: `Room already ${roomCheck.status}` }),
