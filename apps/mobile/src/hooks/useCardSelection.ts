@@ -27,7 +27,7 @@ export function useCardSelection() {
   // Handle card rearrangement
   // useCallback ensures stable reference across re-renders so gameContextValue
   // useMemo (which lists handleCardsReorder as a dep) isn't invalidated on every
-  // render (perf/task-628).  setCustomCardOrder is a React setter — always stable.
+  // render (perf/task-628).  setCustomCardOrder is a Zustand action — always stable.
   const handleCardsReorder = useCallback(
     (reorderedCards: Card[]) => {
       setCustomCardOrder(reorderedCards.map(card => card.id));

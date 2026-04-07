@@ -235,21 +235,23 @@ describe('3-Player Game (botCount: 2)', () => {
     expect(state.players.length - 1).toBe(2);
   });
 
-  it('gameplay crashes when player 0 turn advances (TURN_ORDER[0]=3 bug)', async () => {
-    // DOCUMENTS BUG: TURN_ORDER[0] = 3 is out of bounds for 3-player games.
-    // TURN_ORDER[1]=2 and TURN_ORDER[2]=0 are valid, so crash only happens
-    // when player at index 0 completes a play and advanceToNextPlayer is called.
+  // TODO(engine): Replace with deterministic no-crash regression for TURN_ORDER in 3-player games.
+  // Historical note: this previously asserted a crash caused by the known hardcoded TURN_ORDER bug
+  // ([3,2,0,1]) in non-4-player games. Skipped because:
+  //   1) it encoded broken behavior as the expected outcome, and
+  //   2) it was non-deterministic (only exercised when 3D was dealt).
+  // Once the engine bug is fixed, replace with a deterministic test that controls setup
+  // and asserts gameplay advances without crashing.
+  it.skip('TODO(engine): replace with deterministic no-crash regression for TURN_ORDER in 3-player games', async () => {
     const state = await manager.initializeGame(config);
     const allDealtCards = state.players.flatMap(p => p.hand);
     const threeOfDiamondsDealt = allDealtCards.some(c => c.id === '3D');
 
     if (!threeOfDiamondsDealt) {
-      // 3D in undealt 13 cards — first play is blocked by validation.
       expect(state.players.length).toBe(3);
       return;
     }
 
-    // 3D is dealt — play through turns until player 0's turn advance triggers crash
     let crashed = false;
     try {
       for (let turn = 0; turn < 20; turn++) {
@@ -273,7 +275,6 @@ describe('3-Player Game (botCount: 2)', () => {
       crashed = true;
     }
 
-    // For 3 players, crash is expected when player 0 tries to advance
     expect(crashed).toBe(true);
   });
 });

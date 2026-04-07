@@ -167,9 +167,6 @@ export function useGameCleanup({
     return () => {
       unsubscribe();
 
-      // M5 Audit fix: reset Zustand game-session state on navigation away
-      useGameSessionStore.getState().resetSession();
-
       if (isDeliberateLeave && userId && roomCode) {
         if (isOnlineRoom) {
           // Online room: mark-disconnected was already called in beforeRemove
@@ -203,6 +200,11 @@ export function useGameCleanup({
       }
     };
   }, [userId, roomCode, navigation, orientationAvailable]);
+
+  // M5 Audit fix: reset Zustand game-session state on unmount only.
+  // Placed in a separate unmount-only effect (empty dep array) so it never
+  // fires mid-session when userId/roomCode/navigation deps change.
+  useEffect(() => () => useGameSessionStore.getState().resetSession(), []);
 
   return { isMountedRef };
 }
