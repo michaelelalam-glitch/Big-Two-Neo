@@ -133,7 +133,7 @@
 |------|--------|
 | `apps/mobile/.gitignore` | Added `*.bak`, `*.backup`, `google-services.json`, `GoogleService-Info.plist` entries |
 | `apps/mobile/supabase/functions/update-heartbeat/index.ts` | `FORCE_SWEEP_GRACE_MS`: 55000 → 60000 |
-| `apps/mobile/supabase/migrations/20260719000008_unique_game_history_room.sql` | Documentation-only placeholder migration; intentionally left blank (no schema change) |
+| `apps/mobile/supabase/migrations/20260719000008_unique_game_history_room.sql` | Verification-only migration with `RAISE EXCEPTION` if required unique partial index on `game_history(room_id)` is missing; CI fails fast |
 | `apps/mobile/src/services/sentry.ts` | Added breadcrumb rate limiting (50/s cap) in `captureBreadcrumb()` |
 | `apps/mobile/supabase/functions/send-push-notification/index.ts` | Added per-user per-event-type push notification rate limiting (30s window) |
 | `apps/mobile/src/i18n/index.ts` | Added 5 missing translation keys (botTurnErrorTitle/Message, leaveAndJoin, shareWithFriends, friendsCanJoin) in EN/AR/DE |

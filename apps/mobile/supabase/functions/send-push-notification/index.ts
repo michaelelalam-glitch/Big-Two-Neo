@@ -398,13 +398,13 @@ Deno.serve(async (req) => {
         // Validate token: must be non-empty, well-formed, and match FCM token format
         if (!token || typeof token !== 'string' || token.trim() === '') {
           console.error(`❌ Invalid push token (empty/null) for message:`, redactToken(message.to));
-          results.push({ status: 'error', message: 'Invalid push token (empty)', to: message.to });
+          results.push({ status: 'error', message: 'Invalid push token (empty)' });
           continue;
         }
         
         if (!isValidFCMToken(token)) {
           console.error(`❌ Invalid FCM token format for message:`, redactToken(message.to), '(length:', token.length, ')');
-          results.push({ status: 'error', message: 'Invalid FCM token format', to: message.to });
+          results.push({ status: 'error', message: 'Invalid FCM token format' });
           continue;
         }
         

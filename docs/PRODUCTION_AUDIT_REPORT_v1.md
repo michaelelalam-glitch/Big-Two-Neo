@@ -127,13 +127,12 @@ WHERE id = $game_state_id
 
 ### Immediate (Before Launch)
 
-**C1 — Atomic game_state updates:**
-- Add `turn_number` column to `game_state` (auto-incrementing on each turn)
-- Include `WHERE turn_number = $expected` in all UPDATE queries
-- If 0 rows updated → return 409 Conflict, client retries from fresh state
+**C1 — Atomic game_state updates (implemented via CAS on `total_training_actions`):**
+- Use optimistic concurrency control: each UPDATE includes `.eq('total_training_actions', expectedValue)`
+- If 0 rows updated → return 409 Conflict with `code: 'CONCURRENT_MODIFICATION'` and `retryable: true`
 - **Files:** `play-cards/index.ts`, `player-pass/index.ts`, `auto-play-turn/index.ts`
 - **Complexity:** Medium
-- **Dependencies:** New migration for `turn_number` column
+- **Note:** The original plan called for a new `turn_number` column, but the existing `total_training_actions` column (NOT NULL DEFAULT 0) was used instead as it is already atomically incremented per action and avoids a new migration.
 
 ### Week 1
 
