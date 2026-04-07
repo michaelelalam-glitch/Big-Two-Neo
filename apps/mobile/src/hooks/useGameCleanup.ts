@@ -17,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../services/supabase';
 import { gameLogger } from '../utils/logger';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import { useGameSessionStore } from '../store';
 import { DISCONNECT_TIMER_KEY } from './useActiveGameBanner';
 
 interface UseGameCleanupOptions {
@@ -165,6 +166,9 @@ export function useGameCleanup({
 
     return () => {
       unsubscribe();
+
+      // M5 Audit fix: reset Zustand game-session state on navigation away
+      useGameSessionStore.getState().resetSession();
 
       if (isDeliberateLeave && userId && roomCode) {
         if (isOnlineRoom) {

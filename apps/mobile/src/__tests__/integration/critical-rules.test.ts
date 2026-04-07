@@ -49,9 +49,12 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 // Skip entire suite when credentials are absent (e.g., CI without service keys).
 const hasCredentials = !!SUPABASE_URL && !!SUPABASE_ANON_KEY && !!SUPABASE_SERVICE_ROLE_KEY;
-const describeWithCredentials = hasCredentials ? describe : describe.skip;
+if (!hasCredentials) {
+  console.warn('[SKIP] critical-rules: Supabase credentials not set — integration tests skipped');
+}
+const describeIntegration = hasCredentials ? describe : describe.skip;
 
-describeWithCredentials('Critical Multiplayer Rules - Server-Side Validation', () => {
+describeIntegration('Critical Multiplayer Rules - Server-Side Validation', () => {
   let supabase: SupabaseClient;
   let testRoomCode: string;
   let testRoomId: string;

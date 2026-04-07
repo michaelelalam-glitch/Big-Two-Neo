@@ -54,6 +54,12 @@ const NTP_CACHE_TTL_MS = 30_000;
 let _cachedDrift: { drift: number; measuredAt: number } | null = null;
 let _pendingPing: Promise<number> | null = null;
 
+/** @internal Reset module-level NTP cache — for unit tests only. */
+export function __resetCacheForTesting(): void {
+  _cachedDrift = null;
+  _pendingPing = null;
+}
+
 async function getServerDriftMs(): Promise<number> {
   const now = Date.now();
   // Return cached result if fresh.

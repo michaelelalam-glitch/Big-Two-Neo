@@ -40,10 +40,21 @@ import type { DragZoneState } from '../components/game';
 import { useGameContext } from '../contexts/GameContext';
 import { useFriendsContext } from '../contexts/FriendsContext';
 import { AddFriendButton } from '../components/friends';
-import { useUserPreferencesStore } from '../store';
+import { useUserPreferencesStore, useGameSessionStore } from '../store';
 import { LAYOUT } from '../constants';
 
 function GameViewComponent() {
+  // C2 Audit: read migrated state from Zustand (single source of truth)
+  const customCardOrder = useGameSessionStore(s => s.customCardOrder);
+  const setCustomCardOrder = useGameSessionStore(s => s.setCustomCardOrder);
+  const layoutPlayers = useGameSessionStore(s => s.layoutPlayers);
+  const layoutPlayersWithScores = useGameSessionStore(s => s.layoutPlayersWithScores);
+  const playerTotalScores = useGameSessionStore(s => s.playerTotalScores);
+  const currentPlayerName = useGameSessionStore(s => s.currentPlayerName);
+  const isPlayerReady = useGameSessionStore(s => s.isPlayerReady);
+  const isGameFinished = useGameSessionStore(s => s.isGameFinished);
+  const matchNumber = useGameSessionStore(s => s.matchNumber);
+
   const profilePhotoSize = useUserPreferencesStore(s => s.profilePhotoSize);
   const throwableClipSize = useMemo(() => {
     const scaleMap = { small: 0.85, medium: 1.0, large: 1.25 } as const;
@@ -66,16 +77,10 @@ function GameViewComponent() {
     setSelectedCardIds,
     handleCardsReorder,
     selectedCards,
-    customCardOrder,
-    setCustomCardOrder,
     effectiveLastPlayedCards,
     effectiveLastPlayedBy,
     effectiveLastPlayComboType,
     effectiveLastPlayCombo,
-    layoutPlayers,
-    layoutPlayersWithScores,
-    playerTotalScores,
-    currentPlayerName,
     togglePlayHistory,
     toggleScoreboardExpanded,
     memoizedPlayerNames,
@@ -84,8 +89,6 @@ function GameViewComponent() {
     memoizedOriginalPlayerNames,
     effectiveAutoPassTimerState,
     effectiveScoreboardCurrentPlayerIndex,
-    matchNumber,
-    isGameFinished,
     displayOrderScoreHistory,
     playHistoryByMatch,
     handlePlayCards,
@@ -98,7 +101,6 @@ function GameViewComponent() {
     handleSort,
     handleSmartSort,
     handleHint,
-    isPlayerReady,
     gameManagerRef,
     isMountedRef,
     // Task #651 / #649 video + voice chat

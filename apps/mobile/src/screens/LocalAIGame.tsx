@@ -44,6 +44,7 @@ import type { FinalScore } from '../types/gameEnd';
 import type { ScoreHistory, PlayHistoryMatch } from '../types/scoreboard';
 import { GameContextProvider } from '../contexts/GameContext';
 import type { GameContextType } from '../contexts/GameContext';
+import { useGameSessionStore } from '../store';
 import { InGameAlert } from '../components/game/InGameAlert';
 import type { InGameAlertHandle, InGameAlertOptions } from '../components/game/InGameAlert';
 import { GameView } from './GameView';
@@ -426,6 +427,30 @@ export function LocalAIGame() {
   const isPlayerReady =
     (layoutPlayers[0]?.isActive ?? false) && !!gameState && !!gameManagerRef.current;
 
+  // ── C2 Audit: Sync game-session state to Zustand (single source of truth) ──
+  // GameView reads these from useGameSessionStore instead of GameContext.
+  useEffect(() => {
+    useGameSessionStore.getState().setLayoutPlayers(layoutPlayers);
+  }, [layoutPlayers]);
+  useEffect(() => {
+    useGameSessionStore.getState().setLayoutPlayersWithScores(layoutPlayersWithScores);
+  }, [layoutPlayersWithScores]);
+  useEffect(() => {
+    useGameSessionStore.getState().setPlayerTotalScores(playerTotalScores);
+  }, [playerTotalScores]);
+  useEffect(() => {
+    useGameSessionStore.getState().setCurrentPlayerName(currentPlayerName);
+  }, [currentPlayerName]);
+  useEffect(() => {
+    useGameSessionStore.getState().setIsPlayerReady(isPlayerReady);
+  }, [isPlayerReady]);
+  useEffect(() => {
+    useGameSessionStore.getState().setIsGameFinished(isGameFinished);
+  }, [isGameFinished]);
+  useEffect(() => {
+    useGameSessionStore.getState().setMatchNumber(matchNumber);
+  }, [matchNumber]);
+
   // Build the context value; useMemo keeps the object reference stable so that
   // GameView (wrapped in React.memo) only re-renders when game-visible state
   // actually changes (H2 + H4 audit fix).
@@ -443,16 +468,10 @@ export function LocalAIGame() {
       setSelectedCardIds,
       handleCardsReorder,
       selectedCards,
-      customCardOrder,
-      setCustomCardOrder,
       effectiveLastPlayedCards: lastPlayedCards,
       effectiveLastPlayedBy: lastPlayedBy,
       effectiveLastPlayComboType: lastPlayComboType,
       effectiveLastPlayCombo: lastPlayCombo,
-      layoutPlayers,
-      layoutPlayersWithScores,
-      playerTotalScores,
-      currentPlayerName,
       togglePlayHistory,
       toggleScoreboardExpanded,
       memoizedPlayerNames,
@@ -461,8 +480,6 @@ export function LocalAIGame() {
       memoizedOriginalPlayerNames,
       effectiveAutoPassTimerState,
       effectiveScoreboardCurrentPlayerIndex,
-      matchNumber,
-      isGameFinished,
       displayOrderScoreHistory,
       playHistoryByMatch,
       // Local AI games have no server clock sync; offset is always 0
@@ -477,7 +494,6 @@ export function LocalAIGame() {
       handleSort,
       handleSmartSort,
       handleHint,
-      isPlayerReady,
       gameManagerRef,
       isMountedRef,
       // Task #651 / #649: video + voice chat is multiplayer-only; no-op stubs here
@@ -523,16 +539,10 @@ export function LocalAIGame() {
       setSelectedCardIds,
       handleCardsReorder,
       selectedCards,
-      customCardOrder,
-      setCustomCardOrder,
       lastPlayedCards,
       lastPlayedBy,
       lastPlayComboType,
       lastPlayCombo,
-      layoutPlayers,
-      layoutPlayersWithScores,
-      playerTotalScores,
-      currentPlayerName,
       togglePlayHistory,
       toggleScoreboardExpanded,
       memoizedPlayerNames,
@@ -541,8 +551,6 @@ export function LocalAIGame() {
       memoizedOriginalPlayerNames,
       effectiveAutoPassTimerState,
       effectiveScoreboardCurrentPlayerIndex,
-      matchNumber,
-      isGameFinished,
       displayOrderScoreHistory,
       playHistoryByMatch,
       handlePlayCards,
@@ -555,7 +563,6 @@ export function LocalAIGame() {
       handleSort,
       handleSmartSort,
       handleHint,
-      isPlayerReady,
       gameManagerRef,
       isMountedRef,
       showInGameAlert,
