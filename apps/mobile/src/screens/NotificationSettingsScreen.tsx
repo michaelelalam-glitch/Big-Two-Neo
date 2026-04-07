@@ -53,22 +53,21 @@ export default function NotificationSettingsScreen() {
       if (status === 'granted') {
         await registerPushNotifications();
         setNotificationsEnabled(true);
-        showSuccess('Push notifications have been enabled!');
+        showSuccess(i18n.t('settings.notificationsEnabledSuccess'));
       } else {
         showConfirm({
-          title: 'Permissions Required',
-          message: 'Please enable notifications in your device settings to receive game updates.',
-          confirmText: 'Open Settings',
+          title: i18n.t('settings.permissionsRequired'),
+          message: i18n.t('settings.permissionsMessage'),
+          confirmText: i18n.t('settings.openSettingsButton'),
           onConfirm: () => Linking.openSettings(),
         });
       }
     } else {
       // Unregister
       showConfirm({
-        title: 'Disable Notifications',
-        message:
-          'Are you sure you want to disable push notifications? You will not receive game invites or turn notifications.',
-        confirmText: 'Disable',
+        title: i18n.t('settings.disableNotificationsTitle'),
+        message: i18n.t('settings.disableNotificationsMessage'),
+        confirmText: i18n.t('common.disable'),
         destructive: true,
         onConfirm: async () => {
           await unregisterPushNotifications();
@@ -80,7 +79,10 @@ export default function NotificationSettingsScreen() {
 
   const testNotification = async () => {
     if (!notificationsEnabled) {
-      showError('Please enable notifications first.', 'Notifications Disabled');
+      showError(
+        i18n.t('settings.enableNotificationsFirst'),
+        i18n.t('settings.notificationsDisabledTitle')
+      );
       return;
     }
 
@@ -97,14 +99,17 @@ export default function NotificationSettingsScreen() {
         },
       });
 
-      showInfo('You should receive a notification in 2 seconds!', 'Test Notification Sent');
+      showInfo(
+        i18n.t('settings.testNotificationSentMessage'),
+        i18n.t('settings.testNotificationSentTitle')
+      );
     } catch (error: unknown) {
       // Only log error message/code to avoid exposing notification service internals
       notificationLogger.error(
         'Error sending test notification:',
         error instanceof Error ? error.message : String(error)
       );
-      showError('Failed to send test notification.');
+      showError(i18n.t('settings.testNotificationFailed'));
     }
   };
 

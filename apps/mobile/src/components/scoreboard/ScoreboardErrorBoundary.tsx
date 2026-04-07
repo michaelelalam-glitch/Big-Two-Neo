@@ -16,6 +16,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { sentryCapture } from '../../services/sentry';
+import { i18n } from '../../i18n';
 
 // Theme colors for error UI
 const ERROR_COLOR = '#ff6b6b';
@@ -93,8 +94,8 @@ export class ScoreboardErrorBoundary extends Component<Props, State> {
         >
           <View style={styles.errorCard}>
             <Text style={styles.errorIcon}>⚠️</Text>
-            <Text style={styles.errorTitle}>Scoreboard Error</Text>
-            <Text style={styles.errorMessage}>Unable to display scoreboard data</Text>
+            <Text style={styles.errorTitle}>{i18n.t('game.scoreboardError')}</Text>
+            <Text style={styles.errorMessage}>{i18n.t('game.scoreboardErrorMessage')}</Text>
             {__DEV__ && this.state.error && (
               <Text style={styles.errorDetails}>{this.state.error.message}</Text>
             )}
@@ -102,11 +103,11 @@ export class ScoreboardErrorBoundary extends Component<Props, State> {
               style={styles.retryButton}
               onPress={this.handleReset}
               activeOpacity={0.7}
-              accessibilityLabel="Try Again"
-              accessibilityHint="Attempts to reload the scoreboard"
+              accessibilityLabel={i18n.t('common.tryAgain')}
+              accessibilityHint={i18n.t('game.scoreboardRetryHint')}
               accessibilityRole="button"
             >
-              <Text style={styles.retryButtonText}>Try Again</Text>
+              <Text style={styles.retryButtonText}>{i18n.t('common.tryAgain')}</Text>
             </TouchableOpacity>
           </View>
         </View>

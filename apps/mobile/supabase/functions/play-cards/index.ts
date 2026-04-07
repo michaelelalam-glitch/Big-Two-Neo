@@ -3,6 +3,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 // parseCards IS used at lines 718, 777, 800 for parsing card arrays
 import { parseCards } from '../_shared/parseCards.ts';
 import { checkRateLimit, rateLimitResponse } from '../_shared/rateLimiter.ts';
+import { concurrentModificationResponse } from '../_shared/responses.ts';
 
 // Rate-limit config for play-cards: max 10 plays per 10-second window per user.
 // Normal gameplay is ~1 play every several seconds; 10/10s is generous for legitimate use.
@@ -1442,10 +1443,19 @@ Deno.serve(async (req) => {
     // by database trigger 'trigger_transition_game_phase' (see migration 20260106222754)
     // No manual transition needed here to avoid race conditions
 
-    const { error: updateError } = await supabaseClient
+    // Optimistic concurrency control: only update if total_training_actions hasn't
+    // changed since we read the game state.  This prevents play-cards and
+    // auto-play-turn (via player-pass) from both succeeding on the same turn.
+    // Column is NOT NULL DEFAULT 0, so coerce missing/invalid values to 0 (matching
+    // the derivation used for the incremented value in updateData above).
+    const totalTrainingActions = typeof gameState.total_training_actions === 'number' && Number.isFinite(gameState.total_training_actions)
+      ? gameState.total_training_actions : 0;
+    const updateQuery = supabaseClient
       .from('game_state')
       .update(updateData)
-      .eq('room_id', room.id);
+      .eq('id', gameState.id)
+      .eq('total_training_actions', totalTrainingActions);
+    const { data: updatedRows, error: updateError } = await updateQuery.select('id');
 
     if (updateError) {
       console.error('Failed to update game state:', updateError);
@@ -1453,6 +1463,10 @@ Deno.serve(async (req) => {
         JSON.stringify({ success: false, error: 'Failed to update game state' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    if (!updatedRows || updatedRows.length === 0) {
+      return concurrentModificationResponse('play-cards CAS', corsHeaders, 'play-cards');
     }
 
     // 14b. Fire-and-forget: insert training row into game_hands_training.

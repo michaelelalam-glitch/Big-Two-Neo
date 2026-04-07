@@ -244,7 +244,7 @@ export default function SettingsScreen() {
           }
         } catch (error) {
           console.error('[Settings] Failed to clear cache:', error);
-          showError('Failed to clear cache');
+          showError(t('settings.clearCacheFailed'));
         }
       },
     });
@@ -294,7 +294,7 @@ export default function SettingsScreen() {
   const handleOpenLink = (url: string) => {
     Linking.openURL(url).catch(error => {
       console.error('[Settings] Failed to open link:', error);
-      showError('Failed to open link');
+      showError(t('settings.openLinkFailed'));
     });
   };
 

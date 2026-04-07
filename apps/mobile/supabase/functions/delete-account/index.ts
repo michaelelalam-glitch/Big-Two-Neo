@@ -61,6 +61,8 @@ Deno.serve(async (req) => {
     // Now delete user data in order (respecting foreign key constraints)
     // These operations are safe even if they fail since auth user is already deleted,
     // but we still log and report any cleanup issues to avoid silent data inconsistencies.
+    // Note: auth.users CASCADE handles most of these, but we delete explicitly for
+    // defense-in-depth and tables without FK to auth.users.
 
     const cleanupErrors: string[] = [];
     
@@ -90,30 +92,82 @@ Deno.serve(async (req) => {
       cleanupErrors.push('room_players');
     }
 
-    // 3. Delete from user_profiles
-    const { error: userProfilesError } = await supabaseClient
-      .from('user_profiles')
+    // 3. Delete from friendships (both directions in a single atomic operation)
+    const { error: friendshipsError } = await supabaseClient
+      .from('friendships')
       .delete()
-      .eq('id', userId);
-    if (userProfilesError) {
-      console.error('⚠️ [delete-account] Failed to delete from user_profiles:', {
+      .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`);
+    if (friendshipsError) {
+      console.error('⚠️ [delete-account] Failed to delete friendships:', {
         user_id: userId.substring(0, 8),
-        error: userProfilesError,
+        error: friendshipsError,
       });
-      cleanupErrors.push('user_profiles');
+      cleanupErrors.push('friendships');
     }
 
-    // 4. Delete from user_stats
-    const { error: userStatsError } = await supabaseClient
-      .from('user_stats')
+    // 4. Delete from push_tokens
+    const { error: pushTokensError } = await supabaseClient
+      .from('push_tokens')
       .delete()
       .eq('user_id', userId);
-    if (userStatsError) {
-      console.error('⚠️ [delete-account] Failed to delete from user_stats:', {
+    if (pushTokensError) {
+      console.error('⚠️ [delete-account] Failed to delete from push_tokens:', {
         user_id: userId.substring(0, 8),
-        error: userStatsError,
+        error: pushTokensError,
       });
-      cleanupErrors.push('user_stats');
+      cleanupErrors.push('push_tokens');
+    }
+
+    // 5. Delete from rate_limit_tracking (no FK — must be explicit)
+    const { error: rateLimitError } = await supabaseClient
+      .from('rate_limit_tracking')
+      .delete()
+      .eq('user_id', userId);
+    if (rateLimitError) {
+      console.error('⚠️ [delete-account] Failed to delete from rate_limit_tracking:', {
+        user_id: userId.substring(0, 8),
+        error: rateLimitError,
+      });
+      cleanupErrors.push('rate_limit_tracking');
+    }
+
+    // 6. Nullify match_participants references (SET NULL for GDPR)
+    const { error: matchPartError } = await supabaseClient
+      .from('match_participants')
+      .update({ user_id: null })
+      .eq('user_id', userId);
+    if (matchPartError) {
+      console.error('⚠️ [delete-account] Failed to nullify match_participants:', {
+        user_id: userId.substring(0, 8),
+        error: matchPartError,
+      });
+      cleanupErrors.push('match_participants');
+    }
+
+    // 7. Delete from player_stats first (before profiles) to avoid FK RESTRICT failures
+    const { error: playerStatsError } = await supabaseClient
+      .from('player_stats')
+      .delete()
+      .eq('user_id', userId);
+    if (playerStatsError) {
+      console.error('⚠️ [delete-account] Failed to delete from player_stats:', {
+        user_id: userId.substring(0, 8),
+        error: playerStatsError,
+      });
+      cleanupErrors.push('player_stats');
+    }
+
+    // 8. Delete from profiles (cascade may also cover player_stats as defense-in-depth)
+    const { error: profilesError } = await supabaseClient
+      .from('profiles')
+      .delete()
+      .eq('id', userId);
+    if (profilesError) {
+      console.error('⚠️ [delete-account] Failed to delete from profiles:', {
+        user_id: userId.substring(0, 8),
+        error: profilesError,
+      });
+      cleanupErrors.push('profiles');
     }
 
     console.log('✅ [delete-account] Successfully deleted account');

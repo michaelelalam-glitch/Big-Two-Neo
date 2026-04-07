@@ -872,14 +872,14 @@ export default function LobbyScreen() {
       );
 
       if (totalCount > 4) {
-        showError('Too many players! Maximum 4 players allowed.');
+        showError(i18n.t('lobby.tooManyPlayers'));
         setIsStarting(false);
         isStartingRef.current = false;
         return;
       }
 
       if (humanCount === 0) {
-        showError('Cannot start game without any players!');
+        showError(i18n.t('lobby.noPlayersError'));
         setIsStarting(false);
         isStartingRef.current = false;
         return;

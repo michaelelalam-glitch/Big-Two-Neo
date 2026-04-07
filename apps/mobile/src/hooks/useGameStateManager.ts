@@ -12,6 +12,7 @@ import { gameLogger } from '../utils/logger';
 import { buildFinalPlayHistoryFromState } from '../utils/playHistoryUtils';
 import type { FinalScore } from '../types/gameEnd';
 import type { ScoreHistory, PlayHistoryMatch } from '../types/scoreboard';
+import { parsePersistedScoreHistory } from '../utils/parsePersistedScoreHistory';
 
 const SCORE_HISTORY_KEY = '@big2_score_history';
 
@@ -201,15 +202,16 @@ export function useGameStateManager({
           let scoreRestored = false;
           try {
             const persistedHistory = await AsyncStorage.getItem(SCORE_HISTORY_KEY);
-            if (persistedHistory) {
-              const parsed: ScoreHistory[] = JSON.parse(persistedHistory);
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                gameLogger.info(
-                  `📊 [useGameStateManager] Restored ${parsed.length} score history entries from AsyncStorage`
-                );
-                restoreScoreHistory(parsed);
-                scoreRestored = true;
-              }
+            const { entries, shouldRemove } = parsePersistedScoreHistory(persistedHistory);
+            if (entries) {
+              gameLogger.info(
+                `📊 [useGameStateManager] Restored ${entries.length} score history entries from AsyncStorage`
+              );
+              restoreScoreHistory(entries);
+              scoreRestored = true;
+            } else if (shouldRemove) {
+              gameLogger.warn('[useGameStateManager] Persisted scoreHistory is invalid, removing');
+              await AsyncStorage.removeItem(SCORE_HISTORY_KEY);
             }
           } catch (err) {
             gameLogger.error(

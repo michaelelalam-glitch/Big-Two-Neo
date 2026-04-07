@@ -39,7 +39,7 @@ const BOT_MOVE_DELAY_MS = 0;
 const MAX_BOT_MOVES = 20;
 
 /** Lock timeout — abandon if we can't acquire lock within this duration (ms) */
-const LOCK_TIMEOUT_MS = 30_000;
+const LOCK_TIMEOUT_MS = 15_000;
 
 // ==================== HELPERS ====================
 
@@ -118,7 +118,7 @@ async function broadcastToRoom(
  * Call the play-cards Edge Function to execute a bot's card play.
  * Uses HTTP fetch to reuse all existing validation logic.
  */
-/** Fetch timeout — well within LOCK_TIMEOUT_MS (30 s) so the lease is always released. */
+/** Fetch timeout — well within LOCK_TIMEOUT_MS (15 s) so the lease is always released. */
 const FETCH_TIMEOUT_MS = 10_000;
 
 async function callPlayCards(

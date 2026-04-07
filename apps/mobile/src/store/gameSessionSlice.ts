@@ -4,12 +4,8 @@
  * Holds transient game-session state that is shared across multiple components
  * but previously required prop-drilling through GameView / CardHand / GameControls.
  *
- * Migration plan:
- * - Phase 1 (this PR): Create the slice scaffold. No GameContext writes are
- *   wired yet — this establishes the store shape and devtools integration for
- *   future migration.
- * - Phase 2 (future): Wire GameContext to write into this slice; consumers may
- *   read from either.
+ * Card selection (selectedCardIds) lives exclusively in GameContext via the
+ * useCardSelection hook — it was never migrated to this store.
  *
  * Note: action callbacks (handlePlayCards, handlePass, etc.) remain in
  * GameContext because they close over async game state managers and LiveKit
@@ -18,17 +14,12 @@
 
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import type { Card } from '../game/types';
 import type { LayoutPlayer, LayoutPlayerWithTimer } from '../contexts/GameContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface GameSessionState {
   // ── Card selection ────────────────────────────────────────────────────────
-  /** Selected card IDs stored as a serializable string array (convert to a Set at usage sites if O(1) lookup is needed) */
-  selectedCardIds: string[];
-  /** Derived array of selected Card objects (kept in sync with selectedCardIds) */
-  selectedCards: Card[];
   /** User-defined card ordering (drag-to-reorder) */
   customCardOrder: string[];
 
@@ -51,7 +42,6 @@ export interface GameSessionState {
   matchNumber: number;
 
   // ── Actions ───────────────────────────────────────────────────────────────
-  setSelectedCardIds: (ids: string[], allCards: Card[]) => void;
   setCustomCardOrder: (order: string[]) => void;
   setLayoutPlayers: (players: LayoutPlayer[]) => void;
   setLayoutPlayersWithScores: (players: LayoutPlayerWithTimer[]) => void;
@@ -68,7 +58,6 @@ export interface GameSessionState {
 
 const INITIAL_STATE: Omit<
   GameSessionState,
-  | 'setSelectedCardIds'
   | 'setCustomCardOrder'
   | 'setLayoutPlayers'
   | 'setLayoutPlayersWithScores'
@@ -79,8 +68,6 @@ const INITIAL_STATE: Omit<
   | 'setMatchNumber'
   | 'resetSession'
 > = {
-  selectedCardIds: [],
-  selectedCards: [],
   customCardOrder: [],
   layoutPlayers: [],
   layoutPlayersWithScores: [],
@@ -97,18 +84,6 @@ export const useGameSessionStore = create<GameSessionState>()(
   devtools(
     set => ({
       ...INITIAL_STATE,
-
-      setSelectedCardIds: (ids, allCards) => {
-        const nextIds = [...ids];
-        return set(
-          {
-            selectedCardIds: nextIds,
-            selectedCards: allCards.filter(c => nextIds.includes(c.id)),
-          },
-          false,
-          'gameSession/setSelectedCardIds'
-        );
-      },
 
       setCustomCardOrder: order =>
         set({ customCardOrder: order }, false, 'gameSession/setCustomCardOrder'),
@@ -133,8 +108,7 @@ export const useGameSessionStore = create<GameSessionState>()(
 
       setMatchNumber: match => set({ matchNumber: match }, false, 'gameSession/setMatchNumber'),
 
-      resetSession: () =>
-        set({ ...INITIAL_STATE, selectedCardIds: [] }, false, 'gameSession/resetSession'),
+      resetSession: () => set({ ...INITIAL_STATE }, false, 'gameSession/resetSession'),
     }),
     { name: 'Big2/GameSession' }
   )

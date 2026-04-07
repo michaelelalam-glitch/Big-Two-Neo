@@ -12,6 +12,7 @@ const FCM_SCOPES = ['https://www.googleapis.com/auth/firebase.messaging']
 
 interface PushMessage {
   to: string;
+  userId?: string;
   sound: string;
   title: string;
   body: string;
@@ -26,7 +27,11 @@ interface NotificationRequest {
   title: string;
   body: string;
   data?: {
-    type: 'game_invite' | 'your_turn' | 'game_started' | 'friend_request';
+    // Enumerate known types for IDE autocomplete while still accepting any string
+    // via the `(string & {})` extension (keeps the union open without widening to plain string).
+    // When type is absent, isThrottled / reserveThrottleSlot use a 'default' bucket
+    // so typeless notifications are still rate-limited.
+    type?: 'game_invite' | 'your_turn' | 'game_started' | 'friend_request' | 'friend_accepted' | 'game_ended' | (string & {});
     roomCode?: string;
     [key: string]: any;
   };
@@ -141,6 +146,87 @@ async function getAccessToken(): Promise<string> {
   return cachedAccessToken;
 }
 
+// ── Per-user per-event-type rate limiting ──────────────────────────────────
+// In-memory throttle: max 1 notification *batch* per user per event type per
+// 30 s.  A "batch" may deliver to multiple device tokens for the same user
+// (one push per registered device), but the 30 s window prevents repeated
+// bursts to the same user+event combination.
+// Stays warm across invocations while the Deno isolate is alive; a cold start
+// resets the map which is an acceptable loss (over-notify once at most).
+// NOTE: This limit is per-Deno-isolate only — concurrent isolates/regions each
+// maintain their own map (true cross-instance enforcement would require a shared
+// store such as a DB table with atomic upsert; that is out of scope for this PR).
+const RATE_LIMIT_WINDOW_MS = 30_000;
+const RATE_LIMIT_PRUNE_INTERVAL_MS = 30_000;
+const _lastSent = new Map<string, number>();
+let _lastPruneAt = 0;
+
+/** Known event types used as distinct rate-limit buckets. Keep in sync with accepted `data.type` values. Anything else is mapped to 'default' to bound Map key growth. */
+const KNOWN_EVENT_TYPES = new Set([
+  'game_invite', 'friend_request', 'friend_accepted', 'game_started', 'game_ended', 'your_turn', 'default',
+]);
+const MAX_EVENT_TYPE_LEN = 32;
+
+/** Normalise an event type: map unknown/oversized values to 'default'. */
+function normalizeEventType(raw: string | undefined): string {
+  if (!raw) return 'default';
+  const trimmed = raw.slice(0, MAX_EVENT_TYPE_LEN);
+  return KNOWN_EVENT_TYPES.has(trimmed) ? trimmed : 'default';
+}
+
+function getRateLimitKey(userId: string, eventType: string): string {
+  return `${userId}:${eventType}`;
+}
+
+function pruneRateLimitEntries(now: number): void {
+  // Reset window start if clock moved backwards (e.g. NTP correction) so
+  // pruning is not skipped indefinitely.
+  if (now < _lastPruneAt) {
+    _lastPruneAt = now;
+    return;
+  }
+  if (now - _lastPruneAt < RATE_LIMIT_PRUNE_INTERVAL_MS) return;
+
+  _lastPruneAt = now;
+  for (const [k, ts] of _lastSent) {
+    if (now - ts > RATE_LIMIT_WINDOW_MS * 2) _lastSent.delete(k);
+  }
+}
+
+/** Returns true if the notification should be throttled (dropped). Read-only — does not record.
+ *  Typeless notifications are throttled under a 'default' bucket so they can't bypass rate limiting. */
+function isThrottled(userId: string, eventType: string | undefined): boolean {
+  const resolvedType = normalizeEventType(eventType);
+  const now = Date.now();
+  const last = _lastSent.get(getRateLimitKey(userId, resolvedType));
+  pruneRateLimitEntries(now);
+  // Guard against clock skew: if last > now the timestamp was recorded with a
+  // future clock.  Treat as expired so the user isn't locked out indefinitely.
+  if (last !== undefined && last > now) {
+    _lastSent.delete(getRateLimitKey(userId, resolvedType));
+    return false;
+  }
+  return last !== undefined && now - last < RATE_LIMIT_WINDOW_MS;
+}
+
+/** Eagerly reserves a throttle slot so concurrent requests for the same user+event
+ *  are suppressed while the send is in flight. Called BEFORE the actual FCM send.
+ *  If all sends for this user later fail, the reservation is released via clearThrottleRecord.
+ *  Typeless notifications are throttled under a 'default' bucket. */
+function reserveThrottleSlot(userId: string, eventType: string | undefined): void {
+  const resolvedType = normalizeEventType(eventType);
+  const now = Date.now();
+  _lastSent.set(getRateLimitKey(userId, resolvedType), now);
+  pruneRateLimitEntries(now);
+}
+
+/** Removes the throttle reservation for a user+event, called when a send fails
+ *  so the user isn't falsely throttled despite receiving nothing. */
+function clearThrottleRecord(userId: string, eventType: string | undefined): void {
+  const resolvedType = normalizeEventType(eventType);
+  _lastSent.delete(getRateLimitKey(userId, resolvedType));
+}
+
 // Validate FCM token format (alphanumeric, colons, hyphens, underscores, reasonable length)
 // Note: FCM tokens can vary in length/format across API updates, so we use lenient validation
 function isValidFCMToken(token: string): boolean {
@@ -197,14 +283,42 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Rate-limit: drop users who were already notified for this event type within 30 s
+    const eventType = data?.type;
+    const throttledIds: string[] = [];
+    const allowedIds = user_ids.filter((uid: string) => {
+      if (isThrottled(uid, eventType)) {
+        throttledIds.push(uid);
+        return false;
+      }
+      // Reserve immediately to prevent concurrent requests from passing the
+      // throttle check before the send completes.
+      reserveThrottleSlot(uid, eventType);
+      return true;
+    });
+
+    if (allowedIds.length === 0) {
+      console.log(`⏳ All ${user_ids.length} user(s) throttled for event type "${eventType ?? 'default'}"`)
+      return new Response(
+        JSON.stringify({ error: 'rate_limited', message: 'Rate limited', throttled: throttledIds.length, sent: 0 }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (throttledIds.length > 0) {
+      console.log(`⏳ Throttled ${throttledIds.length} user(s) for event type "${eventType ?? 'default'}"`)
+    }
+
     // Get push tokens for the specified users
     const { data: tokens, error: tokensError } = await supabaseAdmin
       .from('push_tokens')
       .select('push_token, platform, user_id')
-      .in('user_id', user_ids)
+      .in('user_id', allowedIds)
 
     if (tokensError) {
       console.error('Error fetching push tokens:', tokensError)
+      // Release eager reservations — nothing was sent
+      for (const uid of allowedIds) clearThrottleRecord(uid, eventType);
       return new Response(
         JSON.stringify({ error: 'Failed to fetch push tokens', details: tokensError }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -213,6 +327,8 @@ Deno.serve(async (req) => {
 
     if (!tokens || tokens.length === 0) {
       console.log('No push tokens found for specified users')
+      // Release eager reservations — nothing was sent
+      for (const uid of allowedIds) clearThrottleRecord(uid, eventType);
       return new Response(
         JSON.stringify({ message: 'No push tokens found', sent: 0 }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -225,6 +341,7 @@ Deno.serve(async (req) => {
     const messages: PushMessage[] = tokens.map((token) => {
       const message: PushMessage = {
         to: token.push_token,
+        userId: token.user_id,
         sound: 'default',
         title,
         body,
@@ -259,9 +376,29 @@ Deno.serve(async (req) => {
     })
 
     // Get OAuth2 token for FCM v1 API
-    const accessToken = await getAccessToken()
+    let accessToken: string;
+    try {
+      accessToken = await getAccessToken();
+    } catch (tokenErr) {
+      console.error('❌ Failed to obtain FCM access token:', tokenErr);
+      // Release eager reservations — nothing was sent
+      for (const uid of allowedIds) clearThrottleRecord(uid, eventType);
+      return new Response(
+        JSON.stringify({ error: 'Failed to obtain FCM access token' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
     // Send notifications via FCM v1 API
+    /** Redact a device token for safe logging (first 4 … last 4 chars). */
+    const redactToken = (t: string | null | undefined): string => {
+      if (!t) return '<empty>';
+      if (t.length <= 10) return '***';
+      return `${t.slice(0, 4)}…${t.slice(-4)}`;
+    };
+
+    // Track per-user success: only keep throttle reservation for users with ≥1 successful send
+    const userHadSuccess = new Set<string>();
     const results = []
     for (const message of messages) {
       try {
@@ -273,14 +410,14 @@ Deno.serve(async (req) => {
         
         // Validate token: must be non-empty, well-formed, and match FCM token format
         if (!token || typeof token !== 'string' || token.trim() === '') {
-          console.error(`❌ Invalid push token (empty/null) for message:`, message.to);
-          results.push({ status: 'error', message: 'Invalid push token (empty)', to: message.to });
+          console.error(`❌ Invalid push token (empty/null) for message:`, redactToken(message.to));
+          results.push({ status: 'error', message: 'Invalid push token (empty)' });
           continue;
         }
         
         if (!isValidFCMToken(token)) {
-          console.error(`❌ Invalid FCM token format for message:`, message.to, '(length:', token.length, ')');
-          results.push({ status: 'error', message: 'Invalid FCM token format', to: message.to });
+          console.error(`❌ Invalid FCM token format for message:`, redactToken(message.to), '(length:', token.length, ')');
+          results.push({ status: 'error', message: 'Invalid FCM token format' });
           continue;
         }
         
@@ -314,19 +451,28 @@ Deno.serve(async (req) => {
         const result = await response.json()
         
         if (!response.ok) {
-          console.error(`❌ FCM error for ${message.to}:`, result)
+          console.error(`❌ FCM error for ${redactToken(message.to)}:`, result)
           results.push({ status: 'error', message: result })
         } else {
-          console.log(`✅ Sent to ${message.to}`)
+          console.log(`✅ Sent to ${redactToken(message.to)}`)
           results.push({ status: 'ok', id: result.name })
+          if (message.userId) userHadSuccess.add(message.userId);
         }
       } catch (error) {
-        console.error(`❌ Error sending to ${message.to}:`, error)
+        console.error(`❌ Error sending to ${redactToken(message.to)}:`, error)
         results.push({ status: 'error', message: error.message })
       }
     }
 
     console.log('✅ Notifications sent via FCM v1 API:', results)
+
+    // Release throttle reservations for users where ALL sends failed
+    // (so they aren't falsely suppressed). Users with ≥1 success keep their reservation.
+    for (const uid of allowedIds) {
+      if (!userHadSuccess.has(uid)) {
+        clearThrottleRecord(uid, eventType);
+      }
+    }
 
     // Return success response
     return new Response(

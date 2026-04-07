@@ -26,3 +26,7 @@ parse_review.py
 parse_r4.py
 parse_comments.py
 check_reviews.py
+
+# Log files
+nohup.out
+*.log

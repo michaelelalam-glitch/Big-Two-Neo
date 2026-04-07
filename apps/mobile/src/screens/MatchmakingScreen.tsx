@@ -59,7 +59,7 @@ export default function MatchmakingScreen() {
   // Start matchmaking on mount
   useEffect(() => {
     if (!user || !profile) {
-      showError('You must be signed in to use matchmaking');
+      showError(i18n.t('matchmaking.signInRequired'));
       navigation.goBack();
       return;
     }
@@ -129,11 +129,11 @@ export default function MatchmakingScreen() {
     if (waitingCount === 0) {
       return i18n.t('matchmaking.beFirst');
     } else if (waitingCount === 1) {
-      return i18n.t('matchmaking.1playerWaiting');
+      return i18n.t('matchmaking.onePlayerWaiting');
     } else if (waitingCount === 2) {
-      return i18n.t('matchmaking.2playersWaiting');
+      return i18n.t('matchmaking.twoPlayersWaiting');
     } else if (waitingCount === 3) {
-      return i18n.t('matchmaking.3playersWaiting');
+      return i18n.t('matchmaking.threePlayersWaiting');
     } else {
       return i18n.t('matchmaking.startingGame');
     }

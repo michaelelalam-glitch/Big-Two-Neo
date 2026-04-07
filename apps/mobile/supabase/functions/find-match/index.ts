@@ -104,12 +104,29 @@ Deno.serve(async (req) => {
     }
 
     // 2. Clean up only completed/abandoned room_players for this user
-    // Note: This uses a subquery which may not work in all Supabase versions
-    // Alternative: Clean up all room_players since we've verified no active games above
-    await supabaseClient
+    // Scoped to avoid race condition: another request could create a room_player
+    // between step 1 and step 2, so we only delete from finished games.
+    const { data: staleEntries, error: staleSelectError } = await supabaseClient
       .from('room_players')
-      .delete()
-      .eq('user_id', userId);
+      .select('id, rooms!inner(status)')
+      .eq('user_id', userId)
+      .in('rooms.status', ['completed', 'abandoned']);
+
+    if (staleSelectError) {
+      console.error('⚠️ Failed to query stale room_players:', staleSelectError.message);
+    }
+
+    if (staleEntries && staleEntries.length > 0) {
+      const { error: staleDeleteError } = await supabaseClient
+        .from('room_players')
+        .delete()
+        .eq('user_id', userId)
+        .in('id', staleEntries.map((e: { id: string }) => e.id));
+
+      if (staleDeleteError) {
+        console.error('⚠️ Failed to delete stale room_players:', staleDeleteError.message);
+      }
+    }
 
     // 3. Clean up only this user's stale waiting room entries (older than 5 minutes)
     // Note: This runs on every find-match call. For high-traffic scenarios,

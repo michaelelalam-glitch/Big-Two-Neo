@@ -30,6 +30,7 @@ export interface Translations {
     save: string;
     delete: string;
     confirm: string;
+    disable: string;
     submit: string;
     back: string;
     close: string;
@@ -50,6 +51,10 @@ export interface Translations {
     daily: string;
     comingSoon: string;
     continue: string;
+    tryAgain: string;
+    connected: string;
+    reconnecting: string;
+    disconnected: string;
   };
 
   // In-game chat controls
@@ -208,6 +213,19 @@ export interface Translations {
     accountDeletedSuccess: string;
     profileComingSoonDescription: string;
     autoPassTimerBanner: string;
+    clearCacheFailed: string;
+    openLinkFailed: string;
+    notificationsEnabledSuccess: string;
+    permissionsRequired: string;
+    permissionsMessage: string;
+    openSettingsButton: string;
+    disableNotificationsTitle: string;
+    disableNotificationsMessage: string;
+    enableNotificationsFirst: string;
+    notificationsDisabledTitle: string;
+    testNotificationSentMessage: string;
+    testNotificationSentTitle: string;
+    testNotificationFailed: string;
 
     // About
     version: string;
@@ -491,6 +509,11 @@ export interface Translations {
     autoPlayedLabel: string;
     cardSingular: string;
     cardPlural: string;
+    botTurnErrorTitle: string;
+    botTurnErrorMessage: string;
+    scoreboardError: string;
+    scoreboardErrorMessage: string;
+    scoreboardRetryHint: string;
   };
 
   // Game End Modal
@@ -606,6 +629,8 @@ export interface Translations {
     kickPlayerConfirm: string;
     kickPlayerError: string;
     kickPlayer: string;
+    tooManyPlayers: string;
+    noPlayersError: string;
   };
   room: {
     createTitle: string;
@@ -627,6 +652,7 @@ export interface Translations {
     alreadyInRoomMessage: string;
     goToRoom: string;
     leaveAndCreate: string;
+    leaveAndJoin: string;
     leaveRoomError: string;
     leaveTimeout: string;
     createRoomError: string;
@@ -794,6 +820,9 @@ export interface Translations {
     ranked: string;
     casualDesc: string;
     rankedDesc: string;
+    shareWithFriends: string;
+    friendsCanJoin: string;
+    signInRequired: string;
   };
 
   // Match History Screen
@@ -868,6 +897,7 @@ const en: Translations = {
     save: 'Save',
     delete: 'Delete',
     confirm: 'Confirm',
+    disable: 'Disable',
     submit: 'Submit',
     back: 'Back',
     close: 'Close',
@@ -888,6 +918,10 @@ const en: Translations = {
     daily: 'Daily',
     comingSoon: 'Coming Soon',
     continue: 'Continue',
+    tryAgain: 'Try Again',
+    connected: 'Connected',
+    reconnecting: 'Reconnecting...',
+    disconnected: 'Disconnected',
   },
   chat: {
     joinVoice: 'Join Voice Chat',
@@ -1042,6 +1076,21 @@ const en: Translations = {
       'Profile visibility and online status will be available with online multiplayer!',
     autoPassTimerBanner:
       'ℹ️ Note: Game currently uses a fixed 10-second timer. Custom durations coming soon!',
+    clearCacheFailed: 'Failed to clear cache',
+    openLinkFailed: 'Failed to open link',
+    notificationsEnabledSuccess: 'Push notifications have been enabled!',
+    permissionsRequired: 'Permissions Required',
+    permissionsMessage:
+      'Please enable notifications in your device settings to receive game updates.',
+    openSettingsButton: 'Open Settings',
+    disableNotificationsTitle: 'Disable Notifications',
+    disableNotificationsMessage:
+      'Are you sure you want to disable push notifications? You will not receive game invites or turn notifications.',
+    enableNotificationsFirst: 'Please enable notifications first.',
+    notificationsDisabledTitle: 'Notifications Disabled',
+    testNotificationSentMessage: 'You should receive a notification in 2 seconds!',
+    testNotificationSentTitle: 'Test Notification Sent',
+    testNotificationFailed: 'Failed to send test notification.',
 
     version: 'Version',
     termsOfService: 'Terms of Service',
@@ -1301,6 +1350,11 @@ const en: Translations = {
     autoPlayedLabel: 'Auto-played:',
     cardSingular: 'card',
     cardPlural: 'cards',
+    botTurnErrorTitle: 'Bot Error',
+    botTurnErrorMessage: '{{botName}} encountered an error during their turn.',
+    scoreboardError: 'Scoreboard Error',
+    scoreboardErrorMessage: 'Unable to display scoreboard data',
+    scoreboardRetryHint: 'Attempts to reload the scoreboard',
   },
   gameEnd: {
     gameWinner: 'Game Winner',
@@ -1413,6 +1467,8 @@ const en: Translations = {
     kickPlayerConfirm: 'Kick',
     kickPlayerError: 'Failed to kick player',
     kickPlayer: 'Kick',
+    tooManyPlayers: 'Too many players! Maximum 4 players allowed.',
+    noPlayersError: 'Cannot start game without any players!',
   },
   room: {
     createTitle: 'Create Room',
@@ -1435,6 +1491,7 @@ const en: Translations = {
       "You're already in room {{code}} ({{status}}). Leave and create new room?",
     goToRoom: 'Go to Room',
     leaveAndCreate: 'Leave & Create',
+    leaveAndJoin: 'Leave & Join',
     leaveRoomError: 'Failed to leave existing room',
     leaveTimeout: 'Taking longer than expected to leave room. Please try again or wait a moment.',
     createRoomError: 'Failed to create room',
@@ -1598,6 +1655,9 @@ const en: Translations = {
     ranked: 'Ranked',
     casualDesc: 'Play for fun, no ELO changes',
     rankedDesc: 'Competitive play with ELO rating changes',
+    shareWithFriends: 'Share with Friends',
+    friendsCanJoin: 'Friends can join your match using this code',
+    signInRequired: 'You must be signed in to use matchmaking',
   },
   matchHistory: {
     title: 'Match History',
@@ -1664,6 +1724,7 @@ const ar: Translations = {
     save: 'حفظ',
     delete: 'حذف',
     confirm: 'تأكيد',
+    disable: 'تعطيل',
     submit: 'إرسال',
     back: 'رجوع',
     close: 'إغلاق',
@@ -1684,6 +1745,10 @@ const ar: Translations = {
     daily: 'يومي',
     comingSoon: 'قريبًا',
     continue: 'متابعة',
+    tryAgain: 'حاول مرة أخرى',
+    connected: 'متصل',
+    reconnecting: 'جارٍ إعادة الاتصال...',
+    disconnected: 'غير متصل',
   },
   chat: {
     joinVoice: 'انضم إلى الدردشة الصوتية',
@@ -1835,6 +1900,20 @@ const ar: Translations = {
       'ستكون رؤية الملف الشخصي وحالة الاتصال متاحة مع اللعب الجماعي عبر الإنترنت!',
     autoPassTimerBanner:
       'ℹ️ ملاحظة: تستخدم اللعبة حاليًا مؤقتًا ثابتًا مدته 10 ثوانٍ. ستكون المدد المخصصة متاحة قريبًا!',
+    clearCacheFailed: 'فشل مسح ذاكرة التخزين المؤقت',
+    openLinkFailed: 'فشل فتح الرابط',
+    notificationsEnabledSuccess: 'تم تفعيل إشعارات الدفع!',
+    permissionsRequired: 'الأذونات مطلوبة',
+    permissionsMessage: 'يرجى تفعيل الإشعارات في إعدادات جهازك لتلقي تحديثات اللعبة.',
+    openSettingsButton: 'فتح الإعدادات',
+    disableNotificationsTitle: 'تعطيل الإشعارات',
+    disableNotificationsMessage:
+      'هل أنت متأكد أنك تريد تعطيل الإشعارات؟ لن تتلقى دعوات اللعبة أو إشعارات الدور.',
+    enableNotificationsFirst: 'يرجى تفعيل الإشعارات أولاً.',
+    notificationsDisabledTitle: 'الإشعارات معطلة',
+    testNotificationSentMessage: 'يجب أن تتلقى إشعارًا خلال ثانيتين!',
+    testNotificationSentTitle: 'تم إرسال إشعار تجريبي',
+    testNotificationFailed: 'فشل إرسال إشعار تجريبي.',
 
     version: 'الإصدار',
     termsOfService: 'شروط الخدمة',
@@ -2029,6 +2108,11 @@ const ar: Translations = {
     autoPlayedLabel: 'لُعب تلقائياً:',
     cardSingular: 'بطاقة',
     cardPlural: 'بطاقات',
+    botTurnErrorTitle: 'خطأ في الروبوت',
+    botTurnErrorMessage: 'واجه {{botName}} خطأ أثناء دوره.',
+    scoreboardError: 'خطأ في لوحة النتائج',
+    scoreboardErrorMessage: 'تعذر عرض بيانات لوحة النتائج',
+    scoreboardRetryHint: 'يحاول إعادة تحميل لوحة النتائج',
   },
   gameEnd: {
     gameWinner: 'فائز اللعبة',
@@ -2141,6 +2225,8 @@ const ar: Translations = {
     kickPlayerConfirm: 'طرد',
     kickPlayerError: 'فشل في طرد اللاعب',
     kickPlayer: 'طرد',
+    tooManyPlayers: 'عدد اللاعبين كبير جداً! الحد الأقصى 4 لاعبين.',
+    noPlayersError: 'لا يمكن بدء اللعبة بدون أي لاعبين!',
   },
   room: {
     createTitle: 'إنشاء غرفة',
@@ -2162,6 +2248,7 @@ const ar: Translations = {
     alreadyInRoomMessage: 'أنت بالفعل في الغرفة {{code}} ({{status}}). المغادرة وإنشاء غرفة جديدة؟',
     goToRoom: 'اذهب إلى الغرفة',
     leaveAndCreate: 'غادر وأنشئ',
+    leaveAndJoin: 'غادر وانضم',
     leaveRoomError: 'فشل مغادرة الغرفة الحالية',
     leaveTimeout: 'يستغرق الأمر وقتًا أطول من المتوقع لمغادرة الغرفة. حاول مرة أخرى أو انتظر لحظة.',
     createRoomError: 'فشل إنشاء الغرفة',
@@ -2323,6 +2410,9 @@ const ar: Translations = {
     ranked: 'تصنيفي',
     casualDesc: 'العب من أجل المتعة، لا تغييرات في تصنيف ELO',
     rankedDesc: 'لعب تنافسي مع تغييرات تصنيف ELO',
+    shareWithFriends: 'شارك مع الأصدقاء',
+    friendsCanJoin: 'يمكن للأصدقاء الانضمام إلى مباراتك باستخدام هذا الرمز',
+    signInRequired: 'يجب أن تكون مسجلاً للدخول لاستخدام البحث عن مباراة',
   },
   matchHistory: {
     title: 'سجل المباريات',
@@ -2476,6 +2566,7 @@ const de: Translations = {
     save: 'Speichern',
     delete: 'Löschen',
     confirm: 'Bestätigen',
+    disable: 'Deaktivieren',
     submit: 'Absenden',
     back: 'Zurück',
     close: 'Schließen',
@@ -2496,6 +2587,10 @@ const de: Translations = {
     daily: 'Täglich',
     comingSoon: 'Bald verfügbar',
     continue: 'Weiter',
+    tryAgain: 'Erneut versuchen',
+    connected: 'Verbunden',
+    reconnecting: 'Verbindung wird wiederhergestellt...',
+    disconnected: 'Getrennt',
   },
   chat: {
     joinVoice: 'Sprach-Chat beitreten',
@@ -2656,6 +2751,21 @@ const de: Translations = {
       'Profilsichtbarkeit und Online-Status werden mit Online-Multiplayer verfügbar sein!',
     autoPassTimerBanner:
       'ℹ️ Hinweis: Das Spiel verwendet derzeit einen festen 10-Sekunden-Timer. Benutzerdefinierte Dauern sind bald verfügbar!',
+    clearCacheFailed: 'Cache konnte nicht geleert werden',
+    openLinkFailed: 'Link konnte nicht geöffnet werden',
+    notificationsEnabledSuccess: 'Push-Benachrichtigungen wurden aktiviert!',
+    permissionsRequired: 'Berechtigungen erforderlich',
+    permissionsMessage:
+      'Bitte aktivieren Sie Benachrichtigungen in Ihren Geräteeinstellungen, um Spielupdates zu erhalten.',
+    openSettingsButton: 'Einstellungen öffnen',
+    disableNotificationsTitle: 'Benachrichtigungen deaktivieren',
+    disableNotificationsMessage:
+      'Möchten Sie Push-Benachrichtigungen wirklich deaktivieren? Sie erhalten keine Spieleinladungen oder Zugbenachrichtigungen mehr.',
+    enableNotificationsFirst: 'Bitte aktivieren Sie zuerst die Benachrichtigungen.',
+    notificationsDisabledTitle: 'Benachrichtigungen deaktiviert',
+    testNotificationSentMessage: 'Sie sollten in 2 Sekunden eine Benachrichtigung erhalten!',
+    testNotificationSentTitle: 'Testbenachrichtigung gesendet',
+    testNotificationFailed: 'Testbenachrichtigung konnte nicht gesendet werden.',
 
     version: 'Version',
     termsOfService: 'Nutzungsbedingungen',
@@ -2858,6 +2968,11 @@ const de: Translations = {
     autoPlayedLabel: 'Automatisch gespielt:',
     cardSingular: 'Karte',
     cardPlural: 'Karten',
+    botTurnErrorTitle: 'Bot-Fehler',
+    botTurnErrorMessage: '{{botName}} hat während seines Zuges einen Fehler erhalten.',
+    scoreboardError: 'Anzeigetafel-Fehler',
+    scoreboardErrorMessage: 'Anzeigetafel-Daten können nicht angezeigt werden',
+    scoreboardRetryHint: 'Versucht die Anzeigetafel neu zu laden',
   },
   gameEnd: {
     gameWinner: 'Spielgewinner',
@@ -2973,6 +3088,8 @@ const de: Translations = {
     kickPlayerConfirm: 'Rauswerfen',
     kickPlayerError: 'Spieler konnte nicht rausgeworfen werden',
     kickPlayer: 'Rauswerfen',
+    tooManyPlayers: 'Zu viele Spieler! Maximal 4 Spieler erlaubt.',
+    noPlayersError: 'Spiel kann nicht ohne Spieler gestartet werden!',
   },
   room: {
     createTitle: 'Raum erstellen',
@@ -2995,6 +3112,7 @@ const de: Translations = {
       'Du bist bereits in Raum {{code}} ({{status}}). Verlassen und neuen Raum erstellen?',
     goToRoom: 'Zum Raum gehen',
     leaveAndCreate: 'Verlassen & Erstellen',
+    leaveAndJoin: 'Verlassen & Beitreten',
     leaveRoomError: 'Fehler beim Verlassen des Raums',
     leaveTimeout:
       'Das Verlassen des Raums dauert länger als erwartet. Bitte versuche es erneut oder warte einen Moment.',
@@ -3162,6 +3280,9 @@ const de: Translations = {
     ranked: 'Rangliste',
     casualDesc: 'Zum Spaß spielen, keine ELO-Änderungen',
     rankedDesc: 'Wettbewerbsspiel mit ELO-Bewertungsänderungen',
+    shareWithFriends: 'Mit Freunden teilen',
+    friendsCanJoin: 'Freunde können deinem Spiel mit diesem Code beitreten',
+    signInRequired: 'Sie müssen angemeldet sein, um die Spielsuche zu nutzen',
   },
   matchHistory: {
     title: 'Spielverlauf',

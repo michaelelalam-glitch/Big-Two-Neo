@@ -1,7 +1,7 @@
 # Big Two Neo — Production Readiness Audit Plan
 
-**Version:** 1.0  
-**Date:** April 2, 2026  
+**Version:** 1.1  
+**Date:** April 7, 2026  
 **Scope:** Full codebase, infrastructure, and operational readiness  
 **App:** React Native (Expo SDK 54) multiplayer card game with Supabase backend, LiveKit video chat, Sentry monitoring, GA4 analytics
 
@@ -40,20 +40,20 @@ List every file in the repository with:
 
 ### 0.2 Dead Code & Orphan Detection
 Flag ALL of the following for removal review:
-- `.bak` / `.backup` files (known: `useConnectionManager.ts.bak`, `usePlayHistoryTracking.ts.bak`, `useRealtime.ts.bak`, `GameScreen.tsx.bak`, `CardHand.tsx.bak`, `GameControls.tsx.bak`, `useMatchmaking.ts.bak`, `GameEndModal.tsx.bak`, `LandscapeYourPosition.tsx.backup`)
+- `.bak` / `.backup` files — **all 9 previously known .bak/.backup files have been removed** ✅
 - Unused imports and exports
 - Functions/hooks that are defined but never called
 - Supabase migrations that are placeholder-only
-- Files that import from `.bak` files
+- Unreferenced files or orphaned modules
 
 ### 0.3 Architecture Map
 Generate:
 1. **High-level architecture diagram** (textual): Client ↔ Supabase Realtime ↔ Edge Functions ↔ Database
 2. **Data flow map**: UI interaction → Zustand/Context → Supabase RPC/Realtime → Edge Function → DB mutation → Realtime broadcast → all clients update
 3. **Dependency graph**: Which hooks depend on which contexts, which contexts depend on which stores
-4. **Edge function call map**: Which client files call which of the 17 edge-function entries (16 functions plus the `_shared/` library)
+4. **Edge function call map**: Which client files call which of the 18 edge-function entries (plus the `_shared/` library)
 
-### 0.4 Known Edge Functions (all 17 must be audited)
+### 0.4 Known Edge Functions (all 18 must be audited)
 | Edge Function | Critical Path? | Description |
 |---|---|---|
 | `play-cards` | **YES** | Core gameplay — validate and execute a card play |
@@ -68,6 +68,7 @@ Generate:
 | `mark-disconnected` | HIGH | Server marks player as disconnected |
 | `get-rejoin-status` | HIGH | Check if player can rejoin a game |
 | `update-heartbeat` | HIGH | Keep-alive signal from client |
+| `analytics-proxy` | MEDIUM | Server-side analytics event proxy |
 | `cleanup-rooms` | MEDIUM | Garbage collect stale game rooms |
 | `get-livekit-token` | MEDIUM | Generate LiveKit room token for video chat |
 | `send-push-notification` | MEDIUM | Deliver push notifications |
@@ -249,7 +250,7 @@ Audit files: all 6 context files in `src/contexts/`
 - `NotificationContext.tsx` — memory leak risk from listeners?
 - `AuthContext.tsx` — token refresh behavior (see Phase 10)
 
-### 4.4 Custom Hooks (All 47)
+### 4.4 Custom Hooks (All 44)
 For every hook in `src/hooks/`:
 - Check dependency arrays for completeness and correctness
 - Check for stale closures
@@ -264,7 +265,9 @@ For every hook in `src/hooks/`:
 
 ## PHASE 5 — SUPABASE BACKEND
 
-### 5.1 Edge Functions (All 17)
+### 5.1 Edge Functions (All 18)
+> **Note:** `_shared/` is reviewed as supporting code but is not counted as an edge function.
+
 For each edge function:
 - **Input validation:** Are all parameters validated? Types checked?
 - **Authorization:** Does it verify `auth.uid()` matches the acting player?
@@ -274,7 +277,7 @@ For each edge function:
 - **Performance:** Are there N+1 queries? Missing indexes?
 
 ### 5.2 Database Schema & RLS
-Audit all RLS policies across all 70+ migrations:
+Audit all RLS policies across all 95 migrations:
 - Are RLS policies **consistent**? (Does a later migration accidentally weaken an earlier one?)
 - Can a player read another player's hand?
 - Can a player modify game state they shouldn't?
@@ -282,7 +285,7 @@ Audit all RLS policies across all 70+ migrations:
 - Does every table have RLS enabled?
 
 ### 5.3 Migration Chain Integrity
-Audit all 70+ migrations in `supabase/migrations/`:
+Audit all 95 migrations (81 in `supabase/migrations/` + 14 in root `migrations/`):
 - Are all migrations **idempotent**? (We've had issues — check all `CREATE` statements for `IF NOT EXISTS`)
 - Are there placeholder migrations? Why? Can they be removed?
 - Do any migrations have `search_path` vulnerabilities? (Copilot flagged this before)
@@ -532,7 +535,7 @@ Audit: `__tests__/` folders throughout the codebase, `jest.config.js`
 - Are game logic tests comprehensive? (all hand types, edge cases)
 
 ### 14.2 E2E Test Inventory (Maestro)
-Audit: `e2e/flows/` (11 Maestro YAML files)
+Audit: `e2e/flows/` (12 Maestro YAML files)
 
 | Flow | What It Tests | Sufficient? |
 |---|---|---|
@@ -547,6 +550,7 @@ Audit: `e2e/flows/` (11 Maestro YAML files)
 | `09_livekit_voice_video.yaml` | Video chat | |
 | `10_sign_in_content_check.yaml` | Auth flow | |
 | `11_app_relaunch_state.yaml` | State persistence | |
+| `12_multiplayer_game_flow.yaml` | Multiplayer game flow | |
 
 - Are these E2E tests running in CI?
 - What critical paths are **not** covered? (e.g., full multiplayer game, reconnection, matchmaking)

@@ -3,6 +3,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 // Use shared parseCards utility to reduce duplication
 import { parseCards } from '../_shared/parseCards.ts';
 import { checkRateLimit, rateLimitResponse } from '../_shared/rateLimiter.ts';
+import { concurrentModificationResponse } from '../_shared/responses.ts';
 
 // Rate-limit config for player-pass: same budget as play-cards.
 // A player physically cannot pass more than once per turn, so 10/10s is very generous.
@@ -234,6 +235,10 @@ async function triggerBotCoordinatorIfNeeded(
     console.error(`[player-pass] ⚠️ Bot next-player check (${label}) failed (non-critical):`, err);
   }
 }
+
+// ==================== CONCURRENT MODIFICATION RESPONSE ====================
+// Uses shared helper from _shared/responses.ts
+const concurrentMod = (context: string) => concurrentModificationResponse(context, corsHeaders, 'player-pass');
 
 // ==================== MAIN HANDLER ====================
 
@@ -654,8 +659,9 @@ Deno.serve(async (req) => {
     const nextTurn = turnOrder[player.player_index];
     
     // Monotonic action counter for training data play_sequence (never resets between tricks).
-    const totalTrainingActions = typeof gameState.total_training_actions === 'number' && Number.isFinite(gameState.total_training_actions)
-      ? gameState.total_training_actions : 0;
+    // Column is NOT NULL DEFAULT 0 (migration 20260718000003), so null shouldn't occur.
+    const hasValidActions = typeof gameState.total_training_actions === 'number' && Number.isFinite(gameState.total_training_actions);
+    const totalTrainingActions = hasValidActions ? gameState.total_training_actions : 0;
 
     // Validate passes with type checking
     const rawPasses = gameState?.passes;
@@ -703,7 +709,8 @@ Deno.serve(async (req) => {
 
       // Clear trick: remove last_play, reset pass count (stored in 'passes' field), set correct turn
       // 🔥 CRITICAL: Clear auto_pass_timer since all players have passed (trick complete)
-      const { error: updateError } = await supabaseClient
+      // Optimistic concurrency: only update if total_training_actions is still what we read
+      const { data: updatedRows1, error: updateError } = await supabaseClient
         .from('game_state')
         .update({
           current_turn: finalNextTurn,
@@ -713,7 +720,9 @@ Deno.serve(async (req) => {
           total_training_actions: totalTrainingActions + 1,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', gameState.id);
+        .eq('id', gameState.id)
+        .eq('total_training_actions', totalTrainingActions)
+        .select('id');
 
       if (updateError) {
         console.log('❌ [player-pass] Failed to update game state:', updateError);
@@ -721,6 +730,10 @@ Deno.serve(async (req) => {
           JSON.stringify({ success: false, error: 'Failed to update game state' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
+      }
+
+      if (!updatedRows1 || updatedRows1.length === 0) {
+        return concurrentMod('Trick-clear');
       }
 
       console.log('✅ [player-pass] Trick cleared successfully, turn returned to player', finalNextTurn);
@@ -799,8 +812,8 @@ Deno.serve(async (req) => {
         cascadeNextTurn = (typeof correctNextTurn === 'number') ? correctNextTurn : nextTurn;
       }
 
-      // Atomic update: skip to trick-cleared state
-      const { error: cascadeError } = await supabaseClient
+      // Atomic update with optimistic concurrency: skip to trick-cleared state
+      const { data: cascadeRows, error: cascadeError } = await supabaseClient
         .from('game_state')
         .update({
           current_turn: cascadeNextTurn,
@@ -810,7 +823,9 @@ Deno.serve(async (req) => {
           total_training_actions: totalTrainingActions + 1,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', gameState.id);
+        .eq('id', gameState.id)
+        .eq('total_training_actions', totalTrainingActions)
+        .select('id');
 
       if (cascadeError) {
         console.log('❌ [player-pass] CASCADE failed:', cascadeError);
@@ -818,6 +833,10 @@ Deno.serve(async (req) => {
           JSON.stringify({ success: false, error: 'Failed to update game state (cascade)' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
+      }
+
+      if (!cascadeRows || cascadeRows.length === 0) {
+        return concurrentMod('CASCADE');
       }
 
       console.log('✅ [player-pass] CASCADE complete: trick cleared, turn →', cascadeNextTurn);
@@ -843,7 +862,8 @@ Deno.serve(async (req) => {
 
     // 8b. Normal pass (timer NOT expired, or no timer) - advance turn and increment pass count
     // 🔥 CRITICAL: Preserve auto_pass_timer - DO NOT set to NULL!
-    const { error: updateError } = await supabaseClient
+    // Optimistic concurrency: only update if total_training_actions is still what we read
+    const { data: updatedRows3, error: updateError } = await supabaseClient
       .from('game_state')
       .update({
         current_turn: nextTurn,
@@ -852,7 +872,9 @@ Deno.serve(async (req) => {
         total_training_actions: totalTrainingActions + 1,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', gameState.id);
+      .eq('id', gameState.id)
+      .eq('total_training_actions', totalTrainingActions)
+      .select('id');
 
     if (updateError) {
       console.log('❌ [player-pass] Failed to update game state:', updateError);
@@ -860,6 +882,10 @@ Deno.serve(async (req) => {
         JSON.stringify({ success: false, error: 'Failed to update game state' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    if (!updatedRows3 || updatedRows3.length === 0) {
+      return concurrentMod('Normal pass');
     }
 
     console.log('✅ [player-pass] Pass processed successfully');

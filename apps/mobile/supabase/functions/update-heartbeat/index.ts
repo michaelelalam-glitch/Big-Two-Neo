@@ -8,10 +8,9 @@ const corsHeaders = {
 
 // Timing constants — keep these in sync with the SQL BOT_REPLACE_AFTER /
 // HEARTBEAT_SLACK values in process_disconnected_players() so drift is obvious.
-/** Grace window for force_sweep validation: 5 s less than BOT_REPLACE_AFTER (60 s)
- *  so a client-side ring that fires at exactly T+60s still passes the server check
- *  when the server clock is a few seconds behind the client clock. */
-const FORCE_SWEEP_GRACE_MS = 55_000;
+/** Force-sweep threshold: must match BOT_REPLACE_AFTER (60 s) to prevent
+ *  premature bot replacement when client clock drifts ahead. */
+const FORCE_SWEEP_THRESHOLD_MS = 60_000;
 /** Matches Phase A's HEARTBEAT_SLACK (30 s). A player silent for this long is
  *  considered disconnected and eligible for the stale-connected force_sweep path. */
 const HEARTBEAT_SLACK_MS = 30_000;
@@ -377,12 +376,17 @@ Deno.serve(async (req) => {
     // server-side validation (expired disconnect timer) to prevent DoS.
     if ((force_sweep === true || sweepOnly) && !shouldSweep) {
       // Primary check: Phase-B-ready player — already marked disconnected with an expired timer.
-      // 5-second grace window: if the server clock is slightly behind the client
-      // clock, the ring fires at clientT0+60s but the server evaluates at ~T0+58s.
-      // Using 55s here allows the forced-sweep validation to proceed; Phase B on the
-      // server now requires disconnect_timer_started_at <= NOW() - 60s, so this does
-      // not relax the actual replacement threshold — it only validates force_sweep.
-      // Use lte (not lt) so the boundary case (disconnect_timer_started_at = now-55s
+      // FORCE_SWEEP_THRESHOLD_MS equals BOT_REPLACE_AFTER (60 s), so the server-side
+      // validation threshold is an exact match: a player must have had
+      // disconnect_timer_started_at set at least 60 s ago to pass. This means the
+      // forced-sweep client request is only accepted once the player is already
+      // eligible for Phase B replacement; no early replacement is possible.
+      // Defense-in-depth: this Edge-runtime Date.now() check is a pre-filter only.
+      // The authoritative Phase B replacement is performed by
+      // process_disconnected_players(), which uses the DB clock (NOW()).
+      // Minor Edge↔DB clock skew is acceptable because the DB function
+      // independently verifies the same 60 s threshold before replacing anyone.
+      // Use lte (not lt) so the boundary case (disconnect_timer_started_at = now-60s
       // exactly) also passes validation rather than being deferred to the 5s retry.
       const { data: expiredTimer, error: expiredTimerError } = await supabaseClient
         .from('room_players')
@@ -391,7 +395,7 @@ Deno.serve(async (req) => {
         .eq('is_bot', false)
         .neq('connection_status', 'connected')
         .not('disconnect_timer_started_at', 'is', null)
-        .lte('disconnect_timer_started_at', new Date(Date.now() - FORCE_SWEEP_GRACE_MS).toISOString())
+        .lte('disconnect_timer_started_at', new Date(Date.now() - FORCE_SWEEP_THRESHOLD_MS).toISOString())
         .limit(1)
         .maybeSingle();
 

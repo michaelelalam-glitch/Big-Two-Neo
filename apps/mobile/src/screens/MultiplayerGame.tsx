@@ -68,6 +68,7 @@ import type {
   Player as MultiplayerPlayer,
 } from '../types/multiplayer';
 import type { ScoreHistory } from '../types/scoreboard';
+import { parsePersistedScoreHistory } from '../utils/parsePersistedScoreHistory';
 import { RejoinModal } from '../components/game/RejoinModal';
 import { GameContextProvider } from '../contexts/GameContext';
 import type { GameContextType } from '../contexts/GameContext';
@@ -660,14 +661,15 @@ export function MultiplayerGame() {
     (async () => {
       try {
         const stored = await AsyncStorage.getItem(ROOM_SCORE_KEY);
-        if (stored) {
-          const parsed: ScoreHistory[] = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            gameLogger.info(
-              `[MultiplayerGame] 🔄 Restoring ${parsed.length} score history entries for room ${roomCode}`
-            );
-            restoreScoreHistory(parsed);
-          }
+        const { entries, shouldRemove } = parsePersistedScoreHistory(stored);
+        if (entries) {
+          gameLogger.info(
+            `[MultiplayerGame] 🔄 Restoring ${entries.length} score history entries for room ${roomCode}`
+          );
+          restoreScoreHistory(entries);
+        } else if (shouldRemove) {
+          gameLogger.warn('[MultiplayerGame] Persisted score history is invalid, removing');
+          await AsyncStorage.removeItem(ROOM_SCORE_KEY);
         }
       } catch (err: unknown) {
         gameLogger.error(

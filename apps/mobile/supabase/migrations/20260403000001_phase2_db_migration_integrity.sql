@@ -6,8 +6,9 @@
 --      process_disconnected_players Phase-B / Phase-C paths.
 --
 -- 2.2  Force-sweep grace-period alignment is a TypeScript edge-function
---      concern (FORCE_SWEEP_GRACE_MS = 55 000 ms, intentionally 5 s less
---      than BOT_REPLACE_AFTER = 60 s to absorb client/server clock drift).
+--      concern (FORCE_SWEEP_GRACE_MS = 60 000 ms, now equal to
+--      BOT_REPLACE_AFTER = 60 s — clock-drift offset was removed when the
+--      timing was aligned to the SQL threshold; see update-heartbeat/index.ts).
 --      The SQL functions process_disconnected_players and
 --      mark_player_disconnected both use the correct 60-second threshold.
 --      No SQL change is required.
