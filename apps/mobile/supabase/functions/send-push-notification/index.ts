@@ -145,21 +145,28 @@ async function getAccessToken(): Promise<string> {
 }
 
 // ── Per-user per-event-type rate limiting ──────────────────────────────────
-// In-memory throttle: max 1 notification per user per event type per 30 s.
+// In-memory throttle: max 1 notification *batch* per user per event type per
+// 30 s.  A "batch" may deliver to multiple device tokens for the same user
+// (one push per registered device), but the 30 s window prevents repeated
+// bursts to the same user+event combination.
 // Stays warm across invocations while the Deno isolate is alive; a cold start
 // resets the map which is an acceptable loss (over-notify once at most).
 const RATE_LIMIT_WINDOW_MS = 30_000;
+const RATE_LIMIT_PRUNE_INTERVAL_MS = 30_000;
 const _lastSent = new Map<string, number>();
+let _lastPruneAt = 0;
 
 function getRateLimitKey(userId: string, eventType: string | undefined): string {
   return `${userId}:${eventType ?? 'default'}`;
 }
 
 function pruneRateLimitEntries(now: number): void {
-  if (_lastSent.size > 5000) {
-    for (const [k, ts] of _lastSent) {
-      if (now - ts > RATE_LIMIT_WINDOW_MS * 2) _lastSent.delete(k);
-    }
+  if (_lastSent.size <= 5000) return;
+  if (now - _lastPruneAt < RATE_LIMIT_PRUNE_INTERVAL_MS) return;
+
+  _lastPruneAt = now;
+  for (const [k, ts] of _lastSent) {
+    if (now - ts > RATE_LIMIT_WINDOW_MS * 2) _lastSent.delete(k);
   }
 }
 
