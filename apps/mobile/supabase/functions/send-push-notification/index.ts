@@ -354,6 +354,8 @@ Deno.serve(async (req) => {
     const accessToken = await getAccessToken()
     
     // Send notifications via FCM v1 API
+    // Track per-user success: only keep throttle reservation for users with ≥1 successful send
+    const userHadSuccess = new Set<string>();
     const results = []
     for (const message of messages) {
       try {
@@ -408,19 +410,26 @@ Deno.serve(async (req) => {
         if (!response.ok) {
           console.error(`❌ FCM error for ${message.to}:`, result)
           results.push({ status: 'error', message: result })
-          if (message.userId) clearThrottleRecord(message.userId, eventType);
         } else {
           console.log(`✅ Sent to ${message.to}`)
           results.push({ status: 'ok', id: result.name })
+          if (message.userId) userHadSuccess.add(message.userId);
         }
       } catch (error) {
         console.error(`❌ Error sending to ${message.to}:`, error)
         results.push({ status: 'error', message: error.message })
-        if (message.userId) clearThrottleRecord(message.userId, eventType);
       }
     }
 
     console.log('✅ Notifications sent via FCM v1 API:', results)
+
+    // Release throttle reservations for users where ALL sends failed
+    // (so they aren't falsely suppressed). Users with ≥1 success keep their reservation.
+    for (const uid of allowedIds) {
+      if (!userHadSuccess.has(uid)) {
+        clearThrottleRecord(uid, eventType);
+      }
+    }
 
     // Return success response
     return new Response(

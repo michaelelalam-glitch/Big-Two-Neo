@@ -1449,7 +1449,7 @@ Deno.serve(async (req) => {
     let updateQuery = supabaseClient
       .from('game_state')
       .update(updateData)
-      .eq('room_id', room.id);
+      .eq('id', gameState.id);
     // Match the exact value we read — NULL needs `.is()`, numbers need `.eq()`
     if (hasValidActions) {
       updateQuery = updateQuery.eq('total_training_actions', gameState.total_training_actions);

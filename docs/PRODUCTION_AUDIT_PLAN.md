@@ -265,7 +265,9 @@ For every hook in `src/hooks/`:
 
 ## PHASE 5 — SUPABASE BACKEND
 
-### 5.1 Edge Functions (All 19)
+### 5.1 Edge Functions (All 18)
+> **Note:** `_shared/` is reviewed as supporting code but is not counted as an edge function.
+
 For each edge function:
 - **Input validation:** Are all parameters validated? Types checked?
 - **Authorization:** Does it verify `auth.uid()` matches the acting player?
