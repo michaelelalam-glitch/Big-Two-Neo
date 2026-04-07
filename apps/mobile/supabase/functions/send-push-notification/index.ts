@@ -31,7 +31,7 @@ interface NotificationRequest {
     // via the `(string & {})` extension (keeps the union open without widening to plain string).
     // When type is absent, isThrottled / reserveThrottleSlot use a 'default' bucket
     // so typeless notifications are still rate-limited.
-    type?: 'game_invite' | 'your_turn' | 'game_started' | 'friend_request' | 'game_ended' | (string & {});
+    type?: 'game_invite' | 'your_turn' | 'game_started' | 'friend_request' | 'friend_accepted' | 'game_ended' | (string & {});
     roomCode?: string;
     [key: string]: any;
   };
@@ -206,7 +206,7 @@ function isThrottled(userId: string, eventType: string | undefined): boolean {
     _lastSent.delete(getRateLimitKey(userId, resolvedType));
     return false;
   }
-  return !!last && now - last < RATE_LIMIT_WINDOW_MS;
+  return last !== undefined && now - last < RATE_LIMIT_WINDOW_MS;
 }
 
 /** Eagerly reserves a throttle slot so concurrent requests for the same user+event

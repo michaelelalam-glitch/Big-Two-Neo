@@ -376,16 +376,16 @@ Deno.serve(async (req) => {
     // server-side validation (expired disconnect timer) to prevent DoS.
     if ((force_sweep === true || sweepOnly) && !shouldSweep) {
       // Primary check: Phase-B-ready player — already marked disconnected with an expired timer.
-      // FORCE_SWEEP_THRESHOLD_MS now equals BOT_REPLACE_AFTER (60 s), so the server-side
+      // FORCE_SWEEP_THRESHOLD_MS equals BOT_REPLACE_AFTER (60 s), so the server-side
       // validation threshold is an exact match: a player must have had
-      // disconnect_timer_started_at set at least 60 s ago to pass.  This means the
-      // forced-sweep client request is only accepted once the server would have already
-      // replaced the bot on its own periodic schedule — no early replacement is possible.
-      // Using 60s here allows the forced-sweep validation to proceed; Phase B on the
+      // disconnect_timer_started_at set at least 60 s ago to pass. This means the
+      // forced-sweep client request is only accepted once the player is already
+      // eligible for Phase B replacement; no early replacement is possible.
       // Defense-in-depth: this Edge-runtime Date.now() check is a pre-filter only.
-      // The authoritative replacement is performed by process_disconnected_players()
-      // which uses the DB clock (NOW()). Minor Edge↔DB clock skew is acceptable
-      // because the DB function independently verifies the 60 s threshold.
+      // The authoritative Phase B replacement is performed by
+      // process_disconnected_players(), which uses the DB clock (NOW()).
+      // Minor Edge↔DB clock skew is acceptable because the DB function
+      // independently verifies the same 60 s threshold before replacing anyone.
       // Use lte (not lt) so the boundary case (disconnect_timer_started_at = now-60s
       // exactly) also passes validation rather than being deferred to the 5s retry.
       const { data: expiredTimer, error: expiredTimerError } = await supabaseClient
