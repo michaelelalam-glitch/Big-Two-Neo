@@ -27,7 +27,7 @@
 
 - Add `X-App-Version` header to Supabase client config (all edge function calls)
 - Create a shared `checkMinimumVersion()` middleware for edge functions
-- Source `minimum_app_version` from an environment variable for edge-function enforcement
+- Source `MINIMUM_APP_VERSION` from an environment variable for edge-function enforcement
 
 **Files:** `src/services/supabase.ts`, new `supabase/functions/_shared/versionCheck.ts`
 
