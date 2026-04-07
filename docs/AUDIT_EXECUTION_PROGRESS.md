@@ -45,7 +45,7 @@
 - [x] **1.3** Update google-services.json.example — ✅ Done
 
 ### Phase 2 — Database & Migration Integrity ✅ COMPLETE
-- [x] **2.1** UNIQUE INDEX on game_history(room_id) — ✅ Migration created (20260719000008)
+- [x] **2.1** UNIQUE INDEX on game_history(room_id) — ✅ Already created/verified in earlier migrations; 20260719000008 is a documentation-only no-op
 - [x] **2.2** FORCE_SWEEP_GRACE_MS 55000 → 60000 — ✅ Fixed in update-heartbeat/index.ts
 - [x] **2.3** Room membership validation in mark-disconnected — ✅ Previously done
 
@@ -128,7 +128,7 @@
 |------|--------|
 | `apps/mobile/.gitignore` | Added `*.bak`, `*.backup`, `google-services.json`, `GoogleService-Info.plist` entries |
 | `apps/mobile/supabase/functions/update-heartbeat/index.ts` | `FORCE_SWEEP_GRACE_MS`: 55000 → 60000 |
-| `apps/mobile/supabase/migrations/20260719000008_unique_game_history_room.sql` | New migration: UNIQUE INDEX on game_history(room_id) |
+| `apps/mobile/supabase/migrations/20260719000008_unique_game_history_room.sql` | Documentation-only placeholder migration; intentionally left blank (no schema change) |
 | `apps/mobile/src/services/sentry.ts` | Added breadcrumb rate limiting (50/s cap) in `captureBreadcrumb()` |
 | `apps/mobile/supabase/functions/send-push-notification/index.ts` | Added per-user per-event-type push notification rate limiting (30s window) |
 | `apps/mobile/src/i18n/index.ts` | Added 5 missing translation keys (botTurnErrorTitle/Message, leaveAndJoin, shareWithFriends, friendsCanJoin) in EN/AR/DE |
