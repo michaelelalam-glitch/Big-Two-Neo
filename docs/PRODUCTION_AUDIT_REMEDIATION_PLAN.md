@@ -3,7 +3,7 @@
 **Created:** April 7, 2026
 **Based on:** Production Audit Report v2 (82 findings)
 **Sprint 1 Status:** ✅ COMPLETE (PR #223 — C1, C4, C5, C6)
-**Remaining:** 78 findings across 5 sprints
+**Remaining:** 78 findings across 4 sprints
 
 ---
 
@@ -66,7 +66,7 @@
 ### PR-2E: Matchmaking Race Condition Fixes (H8, H9, H10)
 **Severity:** 🟠 HIGH | **Effort:** Medium | **Domain:** backend
 
-- H8: Wrap concurrent matchmaking cancellation UPDATE+DELETE in a transaction
+- H8: Replace separate UPDATE+DELETE with atomic `DELETE ... WHERE user_id=X AND status='waiting'`
 - H9: Add dual-state check — verify player is NOT in an active game before queueing
 - H10: Fix incomplete rollback using wrong variable (`matchedUserIds`)
 
