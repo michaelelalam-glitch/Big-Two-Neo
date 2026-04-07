@@ -121,44 +121,48 @@ describe('useGameEndCallbacks', () => {
   });
 
   it('Play Again on iOS uses onAlert instead of showError', async () => {
-    const originalOS = Platform.OS;
+    const originalOSDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS')!;
     Object.defineProperty(Platform, 'OS', { value: 'ios', configurable: true });
 
-    const mockAlert = jest.fn();
-    const { opts, playAgainFn } = makeOptions({
-      gameManagerRef: { current: null },
-      onAlert: mockAlert,
-    });
+    try {
+      const mockAlert = jest.fn();
+      const { opts, playAgainFn } = makeOptions({
+        gameManagerRef: { current: null },
+        onAlert: mockAlert,
+      });
 
-    renderHook(() => useGameEndCallbacks(opts));
-    await playAgainFn.current!();
+      renderHook(() => useGameEndCallbacks(opts));
+      await playAgainFn.current!();
 
-    expect(mockAlert).toHaveBeenCalledWith({
-      title: 'common.error',
-      message: 'Game not ready. Please try again.',
-    });
-    expect(showError).not.toHaveBeenCalled();
-
-    Object.defineProperty(Platform, 'OS', { value: originalOS, configurable: true });
+      expect(mockAlert).toHaveBeenCalledWith({
+        title: 'common.error',
+        message: 'Game not ready. Please try again.',
+      });
+      expect(showError).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(Platform, 'OS', originalOSDescriptor);
+    }
   });
 
   it('Play Again uses showError on Android even with onAlert', async () => {
-    const originalOS = Platform.OS;
+    const originalOSDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS')!;
     Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true });
 
-    const mockAlert = jest.fn();
-    const { opts, playAgainFn } = makeOptions({
-      gameManagerRef: { current: null },
-      onAlert: mockAlert,
-    });
+    try {
+      const mockAlert = jest.fn();
+      const { opts, playAgainFn } = makeOptions({
+        gameManagerRef: { current: null },
+        onAlert: mockAlert,
+      });
 
-    renderHook(() => useGameEndCallbacks(opts));
-    await playAgainFn.current!();
+      renderHook(() => useGameEndCallbacks(opts));
+      await playAgainFn.current!();
 
-    expect(showError).toHaveBeenCalledWith('Game not ready. Please try again.');
-    expect(mockAlert).not.toHaveBeenCalled();
-
-    Object.defineProperty(Platform, 'OS', { value: originalOS, configurable: true });
+      expect(showError).toHaveBeenCalledWith('Game not ready. Please try again.');
+      expect(mockAlert).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(Platform, 'OS', originalOSDescriptor);
+    }
   });
 
   // ── Return to Menu ────────────────────────────────────────────────────
