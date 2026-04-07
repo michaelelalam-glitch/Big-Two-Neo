@@ -1237,10 +1237,9 @@ export function MultiplayerGame() {
 
   // ── C2 Audit: Sync game-session state to Zustand (single source of truth) ──
   // GameView reads these from useGameSessionStore instead of GameContext.
-  // Single atomic setState so all subscribers observe a consistent snapshot
-  // and only one re-render is triggered per update cycle.
+  // Single named syncSessionSnapshot action for atomic update + DevTools tracing.
   useEffect(() => {
-    useGameSessionStore.setState({
+    useGameSessionStore.getState().syncSessionSnapshot({
       layoutPlayers,
       layoutPlayersWithScores: enrichedLayoutPlayers,
       playerTotalScores,
