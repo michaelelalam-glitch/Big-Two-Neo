@@ -5,6 +5,11 @@
 **Scope:** Phases 0–16 (89 tasks across 17 phases)  
 **Source:** [AUDIT_IMPLEMENTATION_CHECKLIST.md](AUDIT_IMPLEMENTATION_CHECKLIST.md)
 
+> **Phase Numbering Note:** The phase numbers below follow the implementation checklist
+> ordering (0 = Dead Code & Repo Hygiene, 1 = Secret Rotation, …). These differ from
+> the canonical PRODUCTION_AUDIT_PLAN.md phases (0 = Full Codebase Inventory, 1 = Security, …).
+> See the checklist source for the authoritative mapping.
+
 ---
 
 ## Summary

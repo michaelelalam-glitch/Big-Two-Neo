@@ -29,7 +29,8 @@ interface NotificationRequest {
   data?: {
     // Enumerate known types for IDE autocomplete while still accepting any string
     // via the `(string & {})` extension (keeps the union open without widening to plain string).
-    // Rate limiting is a no-op when type is absent — see isThrottled / recordSentNotification.
+    // When type is absent, isThrottled / reserveThrottleSlot use a 'default' bucket
+    // so typeless notifications are still rate-limited.
     type?: 'game_invite' | 'your_turn' | 'game_started' | 'friend_request' | 'game_ended' | (string & {});
     roomCode?: string;
     [key: string]: any;
@@ -180,32 +181,37 @@ function pruneRateLimitEntries(now: number): void {
 }
 
 /** Returns true if the notification should be throttled (dropped). Read-only — does not record.
- *  Returns false (never throttles) when eventType is absent so typeless notifications
- *  never block unrelated typed notifications for the same user. */
+ *  Typeless notifications are throttled under a 'default' bucket so they can't bypass rate limiting. */
 function isThrottled(userId: string, eventType: string | undefined): boolean {
-  if (!eventType) return false; // no event type → skip rate limiting
+  const resolvedType = eventType || 'default';
   const now = Date.now();
-  const last = _lastSent.get(getRateLimitKey(userId, eventType));
+  const last = _lastSent.get(getRateLimitKey(userId, resolvedType));
   pruneRateLimitEntries(now);
+  // Guard against clock skew: if last > now the timestamp was recorded with a
+  // future clock.  Treat as expired so the user isn't locked out indefinitely.
+  if (last !== undefined && last > now) {
+    _lastSent.delete(getRateLimitKey(userId, resolvedType));
+    return false;
+  }
   return !!last && now - last < RATE_LIMIT_WINDOW_MS;
 }
 
 /** Eagerly reserves a throttle slot so concurrent requests for the same user+event
  *  are suppressed while the send is in flight. Called BEFORE the actual FCM send.
  *  If all sends for this user later fail, the reservation is released via clearThrottleRecord.
- *  No-op when eventType is absent (matching the isThrottled skip-logic above). */
+ *  Typeless notifications are throttled under a 'default' bucket. */
 function reserveThrottleSlot(userId: string, eventType: string | undefined): void {
-  if (!eventType) return; // no event type → nothing to record
+  const resolvedType = eventType || 'default';
   const now = Date.now();
-  _lastSent.set(getRateLimitKey(userId, eventType), now);
+  _lastSent.set(getRateLimitKey(userId, resolvedType), now);
   pruneRateLimitEntries(now);
 }
 
 /** Removes the throttle reservation for a user+event, called when a send fails
  *  so the user isn't falsely throttled despite receiving nothing. */
 function clearThrottleRecord(userId: string, eventType: string | undefined): void {
-  if (!eventType) return;
-  _lastSent.delete(getRateLimitKey(userId, eventType));
+  const resolvedType = eventType || 'default';
+  _lastSent.delete(getRateLimitKey(userId, resolvedType));
 }
 
 // Validate FCM token format (alphanumeric, colons, hyphens, underscores, reasonable length)
@@ -281,8 +287,8 @@ Deno.serve(async (req) => {
     if (allowedIds.length === 0) {
       console.log(`⏳ All ${user_ids.length} user(s) throttled for event type "${eventType ?? 'default'}"`)
       return new Response(
-        JSON.stringify({ message: 'Rate limited', throttled: throttledIds.length, sent: 0 }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'rate_limited', message: 'Rate limited', throttled: throttledIds.length, sent: 0 }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 

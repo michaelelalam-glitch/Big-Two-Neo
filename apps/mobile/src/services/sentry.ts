@@ -288,7 +288,7 @@ function captureMessage(
  * Breadcrumbs appear in the "Breadcrumbs" section of Sentry events.
  *
  * Rate-limited to {@link BREADCRUMB_RATE_LIMIT} per second to prevent
- * excessive breadcrumb volume from high-frequency console patches.
+ * excessive breadcrumb volume from high-frequency callers.
  */
 const BREADCRUMB_RATE_LIMIT = 50; // max breadcrumbs per second
 let _breadcrumbCount = 0;

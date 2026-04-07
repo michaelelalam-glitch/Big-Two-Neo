@@ -203,27 +203,34 @@ export function useGameStateManager({
             const persistedHistory = await AsyncStorage.getItem(SCORE_HISTORY_KEY);
             if (persistedHistory) {
               const parsed = JSON.parse(persistedHistory);
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                // Validate each entry has the expected ScoreHistory shape
-                const valid = parsed.every(
-                  (entry: unknown) =>
-                    entry != null &&
-                    typeof entry === 'object' &&
-                    typeof (entry as Record<string, unknown>).matchNumber === 'number' &&
-                    Array.isArray((entry as Record<string, unknown>).pointsAdded) &&
-                    Array.isArray((entry as Record<string, unknown>).scores)
-                );
-                if (valid) {
+              if (Array.isArray(parsed)) {
+                if (parsed.length === 0) {
+                  // Empty array is valid but nothing to restore
                   gameLogger.info(
-                    `📊 [useGameStateManager] Restored ${parsed.length} score history entries from AsyncStorage`
+                    '[useGameStateManager] Persisted scoreHistory is an empty array, skipping restore'
                   );
-                  restoreScoreHistory(parsed as ScoreHistory[]);
-                  scoreRestored = true;
                 } else {
-                  gameLogger.warn(
-                    '[useGameStateManager] Persisted scoreHistory failed shape validation, discarding'
+                  // Validate each entry has the expected ScoreHistory shape
+                  const valid = parsed.every(
+                    (entry: unknown) =>
+                      entry != null &&
+                      typeof entry === 'object' &&
+                      typeof (entry as Record<string, unknown>).matchNumber === 'number' &&
+                      Array.isArray((entry as Record<string, unknown>).pointsAdded) &&
+                      Array.isArray((entry as Record<string, unknown>).scores)
                   );
-                  await AsyncStorage.removeItem(SCORE_HISTORY_KEY);
+                  if (valid) {
+                    gameLogger.info(
+                      `📊 [useGameStateManager] Restored ${parsed.length} score history entries from AsyncStorage`
+                    );
+                    restoreScoreHistory(parsed as ScoreHistory[]);
+                    scoreRestored = true;
+                  } else {
+                    gameLogger.warn(
+                      '[useGameStateManager] Persisted scoreHistory failed shape validation, discarding'
+                    );
+                    await AsyncStorage.removeItem(SCORE_HISTORY_KEY);
+                  }
                 }
               } else if (parsed != null) {
                 // Parsed into a non-array value — remove corrupted entry

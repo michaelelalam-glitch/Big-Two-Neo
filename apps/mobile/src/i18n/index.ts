@@ -30,6 +30,7 @@ export interface Translations {
     save: string;
     delete: string;
     confirm: string;
+    disable: string;
     submit: string;
     back: string;
     close: string;
@@ -896,6 +897,7 @@ const en: Translations = {
     save: 'Save',
     delete: 'Delete',
     confirm: 'Confirm',
+    disable: 'Disable',
     submit: 'Submit',
     back: 'Back',
     close: 'Close',
@@ -1722,6 +1724,7 @@ const ar: Translations = {
     save: 'حفظ',
     delete: 'حذف',
     confirm: 'تأكيد',
+    disable: 'تعطيل',
     submit: 'إرسال',
     back: 'رجوع',
     close: 'إغلاق',
@@ -2563,6 +2566,7 @@ const de: Translations = {
     save: 'Speichern',
     delete: 'Löschen',
     confirm: 'Bestätigen',
+    disable: 'Deaktivieren',
     submit: 'Absenden',
     back: 'Zurück',
     close: 'Schließen',

@@ -1467,7 +1467,12 @@ Deno.serve(async (req) => {
     if (!updatedRows || updatedRows.length === 0) {
       console.warn('[play-cards] ⚠️ Concurrent modification detected — game state was already advanced');
       return new Response(
-        JSON.stringify({ success: false, error: 'Concurrent modification — state already advanced' }),
+        JSON.stringify({
+          success: false,
+          error: 'Concurrent modification — state already advanced',
+          code: 'CONCURRENT_MODIFICATION',
+          retryable: true,
+        }),
         { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

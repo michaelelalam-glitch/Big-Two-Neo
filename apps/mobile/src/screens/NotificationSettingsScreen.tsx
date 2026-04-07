@@ -67,7 +67,7 @@ export default function NotificationSettingsScreen() {
       showConfirm({
         title: i18n.t('settings.disableNotificationsTitle'),
         message: i18n.t('settings.disableNotificationsMessage'),
-        confirmText: i18n.t('common.confirm'),
+        confirmText: i18n.t('common.disable'),
         destructive: true,
         onConfirm: async () => {
           await unregisterPushNotifications();

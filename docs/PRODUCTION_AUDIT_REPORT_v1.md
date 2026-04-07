@@ -31,6 +31,11 @@ The Big Two Neo codebase is **well-architected** with clean separation of concer
 |---|-------|-------|------|-------|--------|
 | C1 | **No atomic concurrency guard on game_state updates** | 1 | `supabase/functions/play-cards/index.ts` | L1244-1249 | If `play-cards` and `auto-play-turn` fire within ~100ms of each other on the same turn, both could update `game_state` without conflict detection. The `.eq('room_id', room.id)` filter has no version/turn guard. |
 
+> **Resolution (PR #222):** C1 is resolved via optimistic concurrency control (OCC).
+> `play-cards` and `player-pass` now use a CAS guard on `total_training_actions`
+> (NOT NULL DEFAULT 0) and filter by `gameState.id` PK. A concurrent write returns HTTP 409
+> with `code: 'CONCURRENT_MODIFICATION'`.
+
 **Root Cause:** The `game_state` UPDATE uses only `room_id` as the WHERE clause, with no optimistic concurrency control (no version number, no `WHERE current_turn = X AND turn_number = Y`).
 
 **Blast Radius:** Could cause double-play, corrupted trick history, or turn skipping. Affects `play-cards`, `player-pass`, and `auto-play-turn` equally.
