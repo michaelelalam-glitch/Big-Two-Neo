@@ -74,10 +74,12 @@
 
 ---
 
-### PR-2F: Delete Account Transaction Safety (H5)
+### PR-2F: Delete Account Safety Ordering (H5)
 **Severity:** 🟠 HIGH | **Effort:** Small | **Domain:** backend
 
-- Wrap `delete-account` cleanup steps in a transaction so partial failures don't leave orphaned data
+- Reorder `delete-account` to delete auth user LAST (was first), so partial cleanup failures are retryable
+- Return 207 Multi-Status when any cleanup step fails, allowing the client to surface an error
+- Explicit defense-in-depth deletes for tables with/without FK cascades
 
 **Files:** `supabase/functions/delete-account/index.ts`
 

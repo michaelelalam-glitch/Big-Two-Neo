@@ -8,9 +8,10 @@
  *
  * When the header is absent and `allowMissingHeader` is false (default), the
  * function auto-detects service-role callers by checking the Authorization
- * header against `SUPABASE_SERVICE_ROLE_KEY` and the `x-bot-auth` header
- * against `INTERNAL_BOT_AUTH_KEY`.  Detected service-role requests are allowed
- * through without a version header; all other requests are treated as `0.0.0`.
+ * header and `apikey` header against `SUPABASE_SERVICE_ROLE_KEY`, as well as
+ * the `x-bot-auth` header against `INTERNAL_BOT_AUTH_KEY`.  Detected
+ * service-role requests are allowed through without a version header; all other
+ * requests are treated as `0.0.0`.
  *
  * Usage in an edge function:
  *   import { checkMinimumVersion } from '../_shared/versionCheck.ts';
@@ -46,7 +47,8 @@ function compareSemver(a: string, b: string): -1 | 0 | 1 {
 /**
  * Returns true when the request carries service-role or internal-bot
  * credentials in its headers (Authorization bearer matching the service-role
- * key, or x-bot-auth matching the internal bot key).
+ * key, apikey header matching the service-role key, or x-bot-auth matching the
+ * internal bot key).
  *
  * Note: some edge functions (play-cards, player-pass) also accept a `_bot_auth`
  * field in the JSON body as a tertiary fallback when headers are stripped by
@@ -60,8 +62,10 @@ function isServiceRoleRequest(req: Request): boolean {
   const internalKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
   const authHeader = req.headers.get('authorization') ?? '';
   const botAuthHdr = req.headers.get('x-bot-auth') ?? '';
+  const apikeyHdr = req.headers.get('apikey') ?? '';
   return (
     (serviceKey !== '' && authHeader === `Bearer ${serviceKey}`) ||
+    (serviceKey !== '' && apikeyHdr === serviceKey) ||
     (internalKey !== '' && botAuthHdr === internalKey)
   );
 }
