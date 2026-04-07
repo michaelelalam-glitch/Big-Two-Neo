@@ -1032,8 +1032,13 @@ Deno.serve(async (req) => {
         // H7 Fix: Delete the LiveKit room to free server-side resources.
         // Uses the room UUID as the LiveKit room name (same as get-livekit-token).
         // Best-effort via EdgeRuntime.waitUntil so it doesn't add latency to game completion.
-        try { (globalThis as any).EdgeRuntime?.waitUntil(deleteLiveKitRoom(gameData.room_id!)); } catch (_) {
-          await deleteLiveKitRoom(gameData.room_id!);
+        // Create the promise once to avoid double invocation on waitUntil fallback.
+        const deleteRoomPromise = deleteLiveKitRoom(gameData.room_id!);
+        const edgeRt = (globalThis as any).EdgeRuntime;
+        if (typeof edgeRt?.waitUntil === 'function') {
+          edgeRt.waitUntil(deleteRoomPromise);
+        } else {
+          await deleteRoomPromise;
         }
       } catch (roomCleanupErr) {
         console.warn('[Complete Game] Room cleanup error (non-critical):', roomCleanupErr);
