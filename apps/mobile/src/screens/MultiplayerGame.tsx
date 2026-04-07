@@ -661,25 +661,15 @@ export function MultiplayerGame() {
     (async () => {
       try {
         const stored = await AsyncStorage.getItem(ROOM_SCORE_KEY);
-        const validated = parsePersistedScoreHistory(stored);
-        if (validated) {
+        const { entries, shouldRemove } = parsePersistedScoreHistory(stored);
+        if (entries) {
           gameLogger.info(
-            `[MultiplayerGame] 🔄 Restoring ${validated.length} score history entries for room ${roomCode}`
+            `[MultiplayerGame] 🔄 Restoring ${entries.length} score history entries for room ${roomCode}`
           );
-          restoreScoreHistory(validated);
-        } else if (stored != null) {
-          // stored existed but failed parsing/validation — clean up
-          const parsed = (() => {
-            try {
-              return JSON.parse(stored);
-            } catch {
-              return undefined;
-            }
-          })();
-          if (parsed !== undefined && !Array.isArray(parsed)) {
-            gameLogger.warn('[MultiplayerGame] Persisted score history is not an array, removing');
-            await AsyncStorage.removeItem(ROOM_SCORE_KEY);
-          }
+          restoreScoreHistory(entries);
+        } else if (shouldRemove) {
+          gameLogger.warn('[MultiplayerGame] Persisted score history is invalid, removing');
+          await AsyncStorage.removeItem(ROOM_SCORE_KEY);
         }
       } catch (err: unknown) {
         gameLogger.error(

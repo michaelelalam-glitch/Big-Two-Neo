@@ -202,28 +202,16 @@ export function useGameStateManager({
           let scoreRestored = false;
           try {
             const persistedHistory = await AsyncStorage.getItem(SCORE_HISTORY_KEY);
-            const validated = parsePersistedScoreHistory(persistedHistory);
-            if (validated) {
+            const { entries, shouldRemove } = parsePersistedScoreHistory(persistedHistory);
+            if (entries) {
               gameLogger.info(
-                `📊 [useGameStateManager] Restored ${validated.length} score history entries from AsyncStorage`
+                `📊 [useGameStateManager] Restored ${entries.length} score history entries from AsyncStorage`
               );
-              restoreScoreHistory(validated);
+              restoreScoreHistory(entries);
               scoreRestored = true;
-            } else if (persistedHistory != null) {
-              // Stored value existed but failed parsing/validation — clean up non-array values
-              const parsed = (() => {
-                try {
-                  return JSON.parse(persistedHistory);
-                } catch {
-                  return undefined;
-                }
-              })();
-              if (parsed !== undefined && !Array.isArray(parsed)) {
-                gameLogger.warn(
-                  '[useGameStateManager] Persisted scoreHistory is not an array, removing'
-                );
-                await AsyncStorage.removeItem(SCORE_HISTORY_KEY);
-              }
+            } else if (shouldRemove) {
+              gameLogger.warn('[useGameStateManager] Persisted scoreHistory is invalid, removing');
+              await AsyncStorage.removeItem(SCORE_HISTORY_KEY);
             }
           } catch (err) {
             gameLogger.error(
