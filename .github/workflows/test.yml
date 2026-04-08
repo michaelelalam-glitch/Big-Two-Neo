@@ -395,8 +395,8 @@ jobs:
       - name: 🔑 Inject E2E auth session (iOS)
         # Seeds a Supabase email/password session into AsyncStorage SQLite so
         # that ci-authenticated flows find an active session without OAuth.
-        # Skipped gracefully when E2E_TEST_EMAIL is not set (fork PRs / contributors).
-        if: env.E2E_TEST_EMAIL != ''
+        # Skipped gracefully when either credential is absent (fork PRs / contributors).
+        if: env.E2E_TEST_EMAIL != '' && env.E2E_TEST_PASSWORD != ''
         run: |
           cd apps/mobile
           CI_PLATFORM=ios \
@@ -439,10 +439,10 @@ jobs:
           echo "Smoke exit code: $SMOKE_EXIT"
 
           # ── Phase 2: Authenticated flows (ci-authenticated tag) ───────────────
-          # Only runs if an auth session was injected (E2E_TEST_EMAIL was set).
-          # Skip gracefully when credentials are absent.
+          # Only runs if an auth session was injected (both credentials were set).
+          # Skip gracefully when either credential is absent.
           AUTH_EXIT=0
-          if [ -n "${E2E_TEST_EMAIL:-}" ]; then
+          if [ -n "${E2E_TEST_EMAIL:-}" ] && [ -n "${E2E_TEST_PASSWORD:-}" ]; then
             echo "--- Running authenticated E2E flows ---"
             MAX_ATTEMPTS=2
             for attempt in $(seq 1 $MAX_ATTEMPTS); do
@@ -468,7 +468,7 @@ jobs:
             done
             echo "Auth exit code: $AUTH_EXIT"
           else
-            echo "Skipping authenticated flows (E2E_TEST_EMAIL not set)"
+            echo "Skipping authenticated flows (E2E_TEST_EMAIL or E2E_TEST_PASSWORD not set)"
           fi
 
           # ── Final exit: fail if either phase failed ──────────────────────────
