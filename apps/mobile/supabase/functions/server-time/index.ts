@@ -23,6 +23,9 @@ Deno.serve(async (req) => {
 
   // L3: Require authenticated caller — server-time must not be publicly accessible
   const authHeader = req.headers.get('authorization') ?? '';
+  if (!authHeader.startsWith('Bearer ')) {
+    return errorResponse(401, 'Unauthorized', corsHeaders, 'UNAUTHORIZED', requestId);
+  }
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
   if (!supabaseUrl || !anonKey) {

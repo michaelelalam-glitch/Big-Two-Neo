@@ -85,6 +85,10 @@ function parseCard(cardData: any): Card | null {
       console.warn('[parseCard] Invalid suit/rank in card object:', { suit: cardData.suit, rank: cardData.rank });
       return null;
     }
+    if (typeof cardData.id !== 'string' || !cardData.id) {
+      console.warn('[parseCard] Invalid or missing id in card object:', { id: cardData.id });
+      return null;
+    }
     return cardData as Card;
   }
   
