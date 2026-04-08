@@ -275,8 +275,19 @@ export function useMatchmaking(): UseMatchmakingReturn {
 
         if (isCancelledRef.current) return;
         if (roomError || !room) {
-          // Reset so a subsequent Realtime event or poll tick can retry
+          // Tear down channel and polling to avoid a contradictory state where
+          // isSearching is false but subscriptions are still active and may
+          // call setState unexpectedly. isResolvingMatchRef is reset so a
+          // fresh startMatchmaking() call can proceed.
           isResolvingMatchRef.current = false;
+          if (pollingIntervalRef.current !== null) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+          if (channelRef.current) {
+            supabase.removeChannel(channelRef.current);
+            channelRef.current = null;
+          }
           setError('Failed to fetch room details');
           setIsSearching(false);
           return;
@@ -299,8 +310,16 @@ export function useMatchmaking(): UseMatchmakingReturn {
         setWaitingCount(4);
       })().catch((err: unknown) => {
         if (isCancelledRef.current) return;
-        // Reset so a subsequent Realtime event or poll tick can retry
+        // Tear down and stop searching — consistent with error path above.
         isResolvingMatchRef.current = false;
+        if (pollingIntervalRef.current !== null) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+        if (channelRef.current) {
+          supabase.removeChannel(channelRef.current);
+          channelRef.current = null;
+        }
         setError(err instanceof Error ? err.message : 'Failed to fetch room details');
         setIsSearching(false);
       });
