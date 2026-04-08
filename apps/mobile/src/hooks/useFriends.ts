@@ -10,6 +10,10 @@
  *
  * Realtime updates are handled via a Supabase postgres_changes subscription
  * on the friendships table so the list stays in sync across tabs.
+ *
+ * NOTE: User blocking (block/unblock/isBlocked) is intentionally deferred to a
+ * future release. The unfriend feature covers the immediate v1 need. A backlog
+ * task exists for the full blocking feature (DB schema already in place).
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -58,12 +62,6 @@ interface UseFriendsResult {
   toggleFavorite: (friendshipId: string, current: boolean) => Promise<void>;
   /** True if there's already an accepted or pending friendship with the given userId */
   isFriendOrPending: (userId: string) => boolean;
-  /** H20: Block a user — removes any existing friendship and prevents future friend requests */
-  blockUser: (userId: string) => Promise<void>;
-  /** H20: Unblock a previously blocked user */
-  unblockUser: (userId: string) => Promise<void>;
-  /** H20: Returns true if the current user has blocked the given userId */
-  isBlocked: (userId: string) => boolean;
   refresh: () => Promise<void>;
 }
 
@@ -92,8 +90,6 @@ export function useFriends(): UseFriendsResult {
   const [outgoingPending, setOutgoing] = useState<Friendship[]>([]);
   const [incomingPending, setIncoming] = useState<Friendship[]>([]);
   const [loading, setLoading] = useState(false);
-  // H20: Track which user IDs the current user has blocked (for isBlocked() checks)
-  const [blockedUserIds, setBlockedUserIds] = useState<Set<string>>(new Set());
 
   const fetchAll = useCallback(async () => {
     if (!user?.id) return;
@@ -149,20 +145,6 @@ export function useFriends(): UseFriendsResult {
       setFriends(accepted);
       setOutgoing(outgoing);
       setIncoming(incoming);
-
-      // H20: Fetch blocked users list in the same call sequence for consistency
-      const { data: blockedData, error: blockedError } = await supabase
-        .from('blocked_users')
-        .select('blocked_id')
-        .eq('blocker_id', user.id);
-      if (blockedError) {
-        uiLogger.error('[useFriends] blocked users fetch error', blockedError.message);
-        setBlockedUserIds(new Set()); // clear rather than leave stale alongside updated friends
-      } else {
-        setBlockedUserIds(
-          new Set((blockedData ?? []).map((r: { blocked_id: string }) => r.blocked_id))
-        );
-      }
     } finally {
       setLoading(false);
     }
@@ -175,7 +157,6 @@ export function useFriends(): UseFriendsResult {
       setFriends([]);
       setOutgoing([]);
       setIncoming([]);
-      setBlockedUserIds(new Set());
       return;
     }
 
@@ -234,19 +215,6 @@ export function useFriends(): UseFriendsResult {
               setIncoming(prev => (prev.some(f => f.id === row.id) ? prev : [...prev, tempEntry]));
             }
           }
-          fetchAll();
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'blocked_users',
-          filter: `blocker_id=eq.${user.id}`,
-        },
-        () => {
-          // Re-fetch when the user's block list changes on another device/session
           fetchAll();
         }
       )
@@ -356,48 +324,6 @@ export function useFriends(): UseFriendsResult {
     [friends, outgoingPending, incomingPending]
   );
 
-  // H20: Block / unblock / isBlocked ─────────────────────────────────────────
-
-  const blockUser = useCallback(
-    async (userId: string) => {
-      if (!user?.id) return;
-      const { error } = await supabase
-        .from('blocked_users')
-        .insert({ blocker_id: user.id, blocked_id: userId });
-      if (error) {
-        // Unique constraint: already blocked
-        if (error.code === '23505') return; // idempotent — already blocked
-        throw new Error(error.message);
-      }
-      // Update local state immediately; fetchAll will also refresh on next call
-      setBlockedUserIds(prev => new Set([...prev, userId]));
-    },
-    [user?.id]
-  );
-
-  const unblockUser = useCallback(
-    async (userId: string) => {
-      if (!user?.id) return;
-      const { error } = await supabase
-        .from('blocked_users')
-        .delete()
-        .eq('blocker_id', user.id)
-        .eq('blocked_id', userId);
-      if (error) throw new Error(error.message);
-      setBlockedUserIds(prev => {
-        const next = new Set(prev);
-        next.delete(userId);
-        return next;
-      });
-    },
-    [user?.id]
-  );
-
-  const isBlocked = useCallback(
-    (userId: string): boolean => blockedUserIds.has(userId),
-    [blockedUserIds]
-  );
-
   return {
     friends,
     outgoingPending,
@@ -409,9 +335,6 @@ export function useFriends(): UseFriendsResult {
     removeFriend,
     toggleFavorite,
     isFriendOrPending,
-    blockUser,
-    unblockUser,
-    isBlocked,
     refresh: fetchAll,
   };
 }
