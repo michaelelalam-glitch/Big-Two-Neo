@@ -153,11 +153,18 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       // versions so existing users don't lose their preferences after an update.
       version: 1,
       migrate: (persistedState: unknown, version: number): UserPreferencesState => {
+        // Guard against null/undefined/corrupted AsyncStorage — return an empty
+        // object so Zustand merges it with the store's initial defaults rather
+        // than crashing on a bad cast.
+        const safe =
+          typeof persistedState === 'object' && persistedState !== null
+            ? (persistedState as Partial<UserPreferencesState>)
+            : {};
         if (version === 0) {
-          // v0 → v1: no structural changes yet; pass through as-is.
-          return persistedState as UserPreferencesState;
+          // v0 → v1: no structural changes yet; merge persisted data over defaults.
+          return safe as UserPreferencesState;
         }
-        return persistedState as UserPreferencesState;
+        return safe as UserPreferencesState;
       },
       // Only persist the data fields, not the action functions.
       // soundEnabled/vibrationEnabled are excluded: they're owned by the

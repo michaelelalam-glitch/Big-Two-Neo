@@ -844,28 +844,28 @@ Deno.serve(async (req) => {
       );
     }
 
-    // M10: Validate card format at the boundary — reject malformed input before any game logic.
-    // Cards may be objects { suit, rank, id } or legacy strings (handled by parseCard later).
-    // We validate only when the card is already an object; strings are validated after parseCard.
+    // M10: Validate and normalize card format at the boundary — reject malformed input before any
+    // game logic. Normalizes both object cards { suit, rank, id } and legacy string cards (e.g.
+    // "D3") via parseCard so downstream logic always receives typed Card objects with a valid .id.
     if (cards.length > 13) {
       return new Response(
         JSON.stringify({ success: false, error: 'Too many cards: max 13 per play' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    const normalizedCards: Card[] = [];
     for (const rawCard of cards) {
-      if (typeof rawCard === 'object' && rawCard !== null && ('suit' in rawCard || 'rank' in rawCard)) {
-        const suit = String(rawCard.suit ?? '');
-        const rank = String(rawCard.rank ?? '');
-        if (!VALID_SUITS.has(suit) || !VALID_RANKS.has(rank)) {
-          console.warn('[play-cards] ❌ M10: Invalid card format at boundary:', { suit, rank });
-          return new Response(
-            JSON.stringify({ success: false, error: `Invalid card: suit must be D/C/H/S, rank must be 3-A/2 (got suit="${suit}" rank="${rank}")` }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
+      const parsed = parseCard(rawCard);
+      if (!parsed) {
+        console.warn('[play-cards] ❌ M10: Invalid card at boundary:', rawCard);
+        return new Response(
+          JSON.stringify({ success: false, error: `Invalid card format: ${JSON.stringify(rawCard)}` }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
+      normalizedCards.push(parsed);
     }
+    cards = normalizedCards;
 
     // Now that we have a valid player_id, complete the identity check for client callers.
     if (!isServiceRole && callerJwtUserId !== player_id) {

@@ -84,7 +84,9 @@ export async function checkRateLimit(
   const now = Date.now();
   const cachedAllowedUntil = _allowCache.get(cacheKey);
   if (cachedAllowedUntil !== undefined && now < cachedAllowedUntil) {
-    return { allowed: true, attempts: 0, retryAfterMs: 0 };
+    // Return attempts: 1 (minimum confirmed count) rather than 0 so callers
+    // logging this field are not misled into thinking no requests were made.
+    return { allowed: true, attempts: 1, retryAfterMs: 0 };
   }
   try {
     const { data, error } = await client.rpc('upsert_rate_limit_counter', {
