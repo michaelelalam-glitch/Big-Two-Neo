@@ -79,8 +79,12 @@ const VALID_STRAIGHT_SEQUENCES: string[][] = [
  * - Malformed data, MAX_ITERATIONS boundary cases
  */
 function parseCard(cardData: any): Card | null {
-  // Already a proper card object
+  // Already a proper card object — validate suit/rank values at the boundary
   if (typeof cardData === 'object' && cardData !== null && 'id' in cardData && 'rank' in cardData && 'suit' in cardData) {
+    if (!VALID_SUITS.has(cardData.suit) || !VALID_RANKS.has(cardData.rank)) {
+      console.warn('[parseCard] Invalid suit/rank in card object:', { suit: cardData.suit, rank: cardData.rank });
+      return null;
+    }
     return cardData as Card;
   }
   
@@ -152,10 +156,14 @@ function parseCard(cardData: any): Card | null {
         return { id: cardStr, suit: suit as Card['suit'], rank: rank as Card['rank'] };
       }
       
-      // Fallback for legacy format without regex validation
-      const suit = cardStr[0] as 'D' | 'C' | 'H' | 'S';
-      const rank = cardStr.substring(1) as Card['rank'];
-      return { id: cardStr, suit, rank };
+      // Fallback for legacy format — validate suit/rank with explicit Sets before accepting
+      const suit = cardStr[0];
+      const rank = cardStr.substring(1);
+      if (!VALID_SUITS.has(suit) || !VALID_RANKS.has(rank)) {
+        console.warn('[parseCard] Fallback parse failed suit/rank validation:', { suit, rank, cardStr });
+        return null;
+      }
+      return { id: cardStr, suit: suit as Card['suit'], rank: rank as Card['rank'] };
     }
   }
   
