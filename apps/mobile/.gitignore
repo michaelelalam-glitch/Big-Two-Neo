@@ -89,3 +89,5 @@ credentials/
 # Test outputs
 test-output.log
 test-results.json
+# Manual test helpers (not Jest tests)
+src/__tests__/utils/logger.test.ts
