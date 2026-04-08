@@ -190,7 +190,16 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
     try {
       await attempt();
     } catch (_err) {
-      // Single retry after 500 ms for transient network / PostgREST errors (M6)
+      // Single retry after 500 ms, but only for transient errors (M6).
+      // Skip retry for permanent failures like auth/RLS errors (4xx HTTP status).
+      const postgrestErr = _err as { code?: string; status?: number; message?: string } | null;
+      const httpStatus = postgrestErr?.status ?? 0;
+      const isTransient =
+        httpStatus === 0 || httpStatus >= 500 || httpStatus === 408 || httpStatus === 429;
+      if (!isTransient) {
+        networkLogger.error('[useRealtime] fetchPlayers non-retryable error:', postgrestErr);
+        throw _err;
+      }
       await new Promise<void>(resolve => setTimeout(resolve, 500));
       if (!isMountedRef.current) return;
       try {

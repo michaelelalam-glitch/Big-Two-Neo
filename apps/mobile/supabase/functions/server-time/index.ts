@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
   const requestId = getRequestId(req);
 
   // C3: Enforce minimum app version
-  const versionError = checkMinimumVersion(req, corsHeaders);
+  const versionError = checkMinimumVersion(req, { ...corsHeaders, 'X-Request-ID': requestId });
   if (versionError) return versionError;
 
   // L3: Require authenticated caller — server-time must not be publicly accessible

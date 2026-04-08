@@ -150,8 +150,6 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
   private _audioSessionMutex: Promise<void> = Promise.resolve();
   /** M11: Token refresh timer — cleared on disconnect */
   private _tokenRefreshTimer: ReturnType<typeof setTimeout> | null = null;
-  /** M11: Stored connect parameters for token refresh */
-  private _connectParams: { roomId: string; participantId: string } | null = null;
   /** M13: AppState subscription — removed on disconnect */
   private _appStateSubscription: ReturnType<typeof AppState.addEventListener> | null = null;
   /** M13: Camera/mic state before backgrounding, used for restore on foreground */
@@ -262,7 +260,6 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
     // If the user is still in the room at 55 minutes, silently re-fetch a token
     // and re-connect. The LiveKit room object is reused; remote participants
     // are not disrupted.
-    this._connectParams = { roomId, participantId };
     this._scheduleTokenRefresh(roomId, participantId);
 
     // M13: Pause camera/mic when app backgrounds to conserve bandwidth and battery.
@@ -277,7 +274,6 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
     // M13: Remove AppState listener.
     this._appStateSubscription?.remove();
     this._appStateSubscription = null;
-    this._connectParams = null;
     try {
       await this.room.disconnect();
       gameLogger.info('[LiveKit] Disconnected.');
