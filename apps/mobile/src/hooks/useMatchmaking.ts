@@ -261,11 +261,10 @@ export function useMatchmaking(): UseMatchmakingReturn {
       if (isResolvingMatchRef.current) return;
       isResolvingMatchRef.current = true;
 
-      // Keep channel and polling active until the room fetch succeeds so that
-      // a transient network error does not leave the hook with no live
-      // subscription and isResolvingMatchRef permanently true.  Teardown
-      // moves to the success path; the error paths reset isResolvingMatchRef
-      // so the next Realtime event or poll tick can retry.
+      // Resolve the matched room immediately. If the room fetch fails, this
+      // hook fails fast by tearing down the channel and polling, resetting
+      // isResolvingMatchRef, surfacing an error, and stopping the current
+      // matchmaking attempt. A retry requires a fresh startMatchmaking() call.
       (async () => {
         const { data: room, error: roomError } = await supabase
           .from('rooms')
