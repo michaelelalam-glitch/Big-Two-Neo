@@ -869,9 +869,9 @@ Deno.serve(async (req) => {
     // M10: Validate and normalize card format at the boundary — reject malformed input before any
     // game logic. Normalizes both object cards { suit, rank, id } and legacy string cards (e.g.
     // "D3") via parseCard so downstream logic always receives typed Card objects with a valid .id.
-    if (cards.length > 13) {
+    if (cards.length > 5) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Too many cards: max 13 per play' }),
+        JSON.stringify({ success: false, error: 'Too many cards: max 5 per play' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
