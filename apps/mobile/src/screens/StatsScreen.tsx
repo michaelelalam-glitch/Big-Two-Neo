@@ -883,7 +883,7 @@ export default function StatsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top']} testID="stats-screen">
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={

@@ -114,7 +114,7 @@ export default function NotificationSettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} testID="notification-settings-screen">
       <ScrollView style={styles.content}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('settings.pushNotifications')}</Text>

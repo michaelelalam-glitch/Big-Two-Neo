@@ -20,10 +20,8 @@ const corsHeaders = buildCorsHeaders();
  *   2. Reclaim-from-bot – bot replaced the player (connection_status = 'replaced_by_bot'
  *      OR human_user_id = auth.uid()).
  *      Action: restore the seat fully (user_id, username, is_bot = false, etc.)
-
-
-
-
+ */
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }

@@ -1,0 +1,75 @@
+# Flow 20: Sign-In Screen Layout in Landscape Orientation
+# Validates: The sign-in screen and privacy consent modal render correctly
+#   when the device is rotated to landscape orientation. Catches regressions
+#   in: SafeAreaView inset handling, StyleSheet layout (flex/column to row),
+#   and any text truncation or element overflow that breaks the UI.
+# Tags: smoke, ci
+#
+# CI-safe: no authentication required.
+# Note: Landscape orientation test is iOS Simulator only; Android emulator
+#   profile (pixel_6) also supports landscape via setDeviceOrientation.
+
+appId: com.big2mobile.app
+tags:
+  - smoke
+  - ci
+---
+# ── Step 1: Cold launch in portrait ──────────────────────────────────────
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible:
+      id: "privacy-consent-decline"
+    timeout: 30000
+
+- assertVisible:
+    id: "privacy-consent-accept"
+- assertVisible:
+    id: "privacy-consent-decline"
+- takeScreenshot: "20_consent_portrait"
+
+# ── Step 2: Rotate to landscape while modal is visible ───────────────────
+- setOrientation: landscape
+
+- waitForAnimationToEnd
+
+# Modal must still be visible and interactive in landscape
+- assertVisible:
+    id: "privacy-consent-accept"
+- assertVisible:
+    id: "privacy-consent-decline"
+- takeScreenshot: "20_consent_landscape"
+
+# ── Step 3: Decline in landscape, reach sign-in ───────────────────────────
+- tapOn:
+    id: "privacy-consent-decline"
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 120000
+
+- assertVisible:
+    id: "sign-in-title"
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "20_sign_in_landscape"
+
+# ── Step 4: Rotate back to portrait ──────────────────────────────────────
+- setOrientation: portrait
+
+- waitForAnimationToEnd
+
+# All elements must survive the rotation back
+- assertVisible:
+    id: "sign-in-screen"
+- assertVisible:
+    id: "sign-in-title"
+- assertVisible:
+    id: "sign-in-subtitle"
+- assertVisible:
+    id: "google-sign-in-button"
+- assertVisible:
+    id: "sign-in-footer"
+- takeScreenshot: "20_sign_in_back_portrait"

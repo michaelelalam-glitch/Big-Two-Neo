@@ -1,0 +1,66 @@
+# Flow 22: Leaderboard Screen
+# Validates: Leaderboard screen is accessible and displays core UI
+# Tags: navigation, auth-required
+#
+# Prerequisites: User is authenticated and on the Home screen
+# Source: LeaderboardScreen.tsx — testID="leaderboard-screen"
+
+appId: com.big2mobile.app
+tags:
+  - navigation
+  - auth-required
+---
+# Step 1: Launch and navigate to Home
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Step 2: Navigate to Leaderboard screen
+- tapOn:
+    id: "leaderboard-button"
+- extendedWaitUntil:
+    id: "leaderboard-screen"
+    timeout: 10000
+
+# Step 3: Verify leaderboard title
+- assertVisible: "Leaderboard"
+- takeScreenshot: "22_leaderboard_screen"
+
+# Step 4: Verify type tabs (Casual / Ranked)
+- assertVisible: "Casual"
+- assertVisible: "Ranked"
+
+# Step 5: Tap Ranked tab and verify
+- tapOn: "Ranked"
+- takeScreenshot: "22_leaderboard_ranked"
+
+# Step 6: Tap back to Casual tab
+- tapOn: "Casual"
+
+# Step 7: Verify time-filter tabs exist (All Time / Weekly / Daily)
+- assertVisible: "All Time"
+- assertVisible: "Weekly"
+- assertVisible: "Daily"
+
+# Step 8: Tap Weekly filter
+- tapOn: "Weekly"
+- takeScreenshot: "22_leaderboard_weekly"
+
+# Step 9: Tap Daily filter
+- tapOn: "Daily"
+- takeScreenshot: "22_leaderboard_daily"
+
+# Step 10: Reset to All Time
+- tapOn: "All Time"
+
+# Step 11: Go back
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000

@@ -70,7 +70,7 @@ const ProfileScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} testID="profile-screen">
       <ScrollView
         style={styles.scrollView}
         refreshControl={

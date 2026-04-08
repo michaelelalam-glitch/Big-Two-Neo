@@ -1,0 +1,65 @@
+# Flow 24: Stats Screen
+# Validates: Stats screen is accessible from Profile and displays core UI
+# Tags: navigation, auth-required
+#
+# Prerequisites: User is authenticated and on the Home screen
+# Source: StatsScreen.tsx — testID="stats-screen"
+
+appId: com.big2mobile.app
+tags:
+  - navigation
+  - auth-required
+---
+# Step 1: Launch and navigate to Home
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Step 2: Navigate to Profile screen
+- tapOn:
+    id: "home-profile-button"
+- extendedWaitUntil:
+    id: "profile-screen"
+    timeout: 10000
+
+# Step 3: Tap "View Full Stats"
+- tapOn: "View Full Stats"
+- extendedWaitUntil:
+    id: "stats-screen"
+    timeout: 10000
+
+# Step 4: Verify Stats screen loaded
+- assertVisible: "Stats"
+- takeScreenshot: "24_stats_screen"
+
+# Step 5: Verify mode tabs (Casual / Ranked)
+- assertVisible: "Casual"
+- assertVisible: "Ranked"
+
+# Step 6: Tap Ranked mode tab
+- tapOn: "Ranked"
+- takeScreenshot: "24_stats_ranked"
+
+# Step 7: Tap back to Casual
+- tapOn: "Casual"
+
+# Step 8: Take final screenshot
+- takeScreenshot: "24_stats_screen_full"
+
+# Step 9: Go back to Profile
+- back
+- extendedWaitUntil:
+    id: "profile-screen"
+    timeout: 10000
+
+# Step 10: Go back to Home
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000

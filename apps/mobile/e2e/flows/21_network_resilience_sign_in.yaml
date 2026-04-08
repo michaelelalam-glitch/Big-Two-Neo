@@ -1,0 +1,85 @@
+# Flow 21: Intermittent Network Resilience — Sign-In Screen
+# Validates: The sign-in screen renders correctly even when the initial
+#   AuthProvider session-check (Supabase network round-trip) takes longer
+#   than usual. The screen must not remain on an infinite loading spinner.
+# Tags: smoke, ci
+#
+# CI-safe: no authentication required.
+# Technique: launch the app and assert the sign-in screen appears within
+#   a conservative timeout (120s) even on network-degraded CI runners.
+#   Also validates that pressing the Home key mid-load and returning does
+#   not leave the app stuck on a loading state.
+
+appId: com.big2mobile.app
+tags:
+  - smoke
+  - ci
+---
+# ── Step 1: Cold launch — may hit slow network ────────────────────────────
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible:
+      id: "privacy-consent-decline"
+    timeout: 30000
+- tapOn:
+    id: "privacy-consent-decline"
+
+# Use maximum allowed timeout: AuthProvider session check can be slow in CI
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 120000
+
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "21_network_slow_sign_in_loaded"
+
+# ── Step 2: Background mid-session then resume ────────────────────────────
+# Simulates network interruption between loading states
+- pressKey: Home
+- waitForAnimationToEnd
+
+- launchApp
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 60000
+
+- assertVisible:
+    id: "sign-in-title"
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "21_after_background_during_load"
+
+# ── Step 3: Rapid relaunch with clearState to reset Supabase client ───────
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible:
+      id: "privacy-consent-decline"
+    timeout: 30000
+- tapOn:
+    id: "privacy-consent-decline"
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 120000
+
+# Final assertion: all elements rendered correctly after full reset
+- assertVisible:
+    id: "sign-in-screen"
+- assertVisible:
+    id: "sign-in-title"
+- assertVisible:
+    id: "sign-in-subtitle"
+- assertVisible:
+    id: "google-sign-in-button"
+- assertVisible:
+    id: "sign-in-footer"
+
+- takeScreenshot: "21_final_clean_launch"

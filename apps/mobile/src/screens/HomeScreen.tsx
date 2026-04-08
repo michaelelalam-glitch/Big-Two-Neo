@@ -104,6 +104,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.bellButton}
+              testID="home-notifications-button"
               onPress={() => navigation.navigate('Notifications')}
               accessibilityRole="button"
               accessibilityLabel={
@@ -142,6 +143,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.profileButton}
+              testID="home-profile-button"
               onPress={() => navigation.navigate('Profile')}
             >
               <Text style={styles.profileButtonText}>{i18n.t('home.profile')}</Text>

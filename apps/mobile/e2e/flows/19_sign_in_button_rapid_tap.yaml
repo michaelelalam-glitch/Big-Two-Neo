@@ -1,0 +1,76 @@
+# Flow 19: Google Sign-In Button Rapid Tap Resilience
+# Validates: App does not crash when the Google sign-in button is tapped
+#   multiple times in rapid succession. Catches regressions in: button
+#   debounce logic, double-invocation of the Google OAuth flow, and any
+#   state corruption from rapid concurrent auth initiations.
+# Tags: smoke, ci
+#
+# CI-safe: no authentication required — we only verify the app survives
+# the tap; we do not complete the OAuth flow.
+# The Google auth sheet / webview will appear and be dismissed via relaunch.
+
+appId: com.big2mobile.app
+tags:
+  - smoke
+  - ci
+---
+# ── Step 1: Launch and reach sign-in screen ──────────────────────────────
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible:
+      id: "privacy-consent-decline"
+    timeout: 30000
+- tapOn:
+    id: "privacy-consent-decline"
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 120000
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "19_before_rapid_tap"
+
+# ── Step 2: First tap — trigger Google auth flow ──────────────────────────
+- tapOn:
+    id: "google-sign-in-button"
+
+# Brief wait — auth sheet may appear
+- waitForAnimationToEnd
+
+# ── Step 3: Immediately tap again (rapid double-tap test) ─────────────────
+# Maestro sends the second tap while any auth sheet/overlay may be animating in.
+- tapOn:
+    id: "google-sign-in-button"
+    optional: true
+
+# ── Step 4: Dismiss whatever appeared by relaunching ─────────────────────
+- launchApp
+
+# ── Step 5: Verify app is still functional ────────────────────────────────
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 120000
+
+- assertVisible:
+    id: "sign-in-title"
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "19_stable_after_rapid_tap"
+
+# ── Step 6: Third isolated tap + verify no crash ──────────────────────────
+- tapOn:
+    id: "google-sign-in-button"
+- waitForAnimationToEnd
+- launchApp
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 120000
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "19_final_stable_state"

@@ -1,0 +1,73 @@
+# Flow 16: App Background & Foreground Resume
+# Validates: App survives being backgrounded and brought back to the foreground.
+#   Catches regressions in: React Navigation state persistence, AuthProvider
+#   re-initialization on resume, and Supabase session listener cleanup.
+# Tags: smoke, ci
+#
+# CI-safe: no authentication required.
+# Tests the app at the unauthenticated sign-in surface only.
+
+appId: com.big2mobile.app
+tags:
+  - smoke
+  - ci
+---
+# ── Step 1: Cold launch and dismiss consent ───────────────────────────────
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible:
+      id: "privacy-consent-decline"
+    timeout: 30000
+- tapOn:
+    id: "privacy-consent-decline"
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 120000
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "16_sign_in_before_background"
+
+# ── Step 2: Background the app ────────────────────────────────────────────
+- pressKey: Home
+
+# Brief pause simulating real-world background time
+- waitForAnimationToEnd
+
+# ── Step 3: Bring app back to foreground ─────────────────────────────────
+- launchApp
+
+# ── Step 4: Verify sign-in screen is still intact ─────────────────────────
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 30000
+
+- assertVisible:
+    id: "sign-in-title"
+- assertVisible:
+    id: "sign-in-subtitle"
+- assertVisible:
+    id: "google-sign-in-button"
+- assertVisible:
+    id: "sign-in-footer"
+
+- takeScreenshot: "16_sign_in_after_foreground_resume"
+
+# ── Step 5: Second background → foreground cycle ──────────────────────────
+- pressKey: Home
+- waitForAnimationToEnd
+- launchApp
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 30000
+
+- assertVisible:
+    id: "google-sign-in-button"
+
+- takeScreenshot: "16_sign_in_second_resume"

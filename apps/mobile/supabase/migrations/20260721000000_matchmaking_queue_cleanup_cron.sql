@@ -20,8 +20,17 @@
 -- UPDATE statement that runs as the postgres superuser (no SECURITY DEFINER
 -- function required).
 
--- Enable pg_cron if not already enabled (idempotent).
-CREATE EXTENSION IF NOT EXISTS pg_cron;
+-- Enable pg_cron if not already enabled; wrapped in a DO/EXCEPTION block so
+-- environments without extension-creation privileges (local dev, restricted
+-- Supabase tiers) don't hard-fail the migration before the cron-job registration
+-- block below has a chance to run.
+DO $$
+BEGIN
+  CREATE EXTENSION IF NOT EXISTS pg_cron;
+EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING 'pg_cron extension could not be created: %. Skipping cron job registration.', SQLERRM;
+END;
+$$;
 
 -- Wrap cron registration in a DO block so environments where pg_cron is not
 -- available (e.g. local dev, Supabase free-tier without pg_cron) don't cause a

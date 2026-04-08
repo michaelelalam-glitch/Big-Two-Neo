@@ -555,7 +555,7 @@ export default function LeaderboardScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top']} testID="leaderboard-screen">
       <FlatList
         data={leaderboard}
         renderItem={renderItem}

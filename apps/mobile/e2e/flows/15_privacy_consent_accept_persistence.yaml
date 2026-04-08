@@ -1,0 +1,67 @@
+# Flow 15: Privacy Consent Accept Path & Persistence
+# Validates: Accepting privacy consent stores the decision so the modal does
+#   NOT re-appear on subsequent launches from the same state.
+# Tags: smoke, ci
+#
+# CI-safe: no authentication required.
+# Covers a regression path distinct from flows 01/13/14 which all use the
+# decline path (decline does not persist; modal re-appears on relaunch).
+# Accept should persist: a cold relaunch without clearState must go straight
+# to the sign-in screen without showing the modal again.
+
+appId: com.big2mobile.app
+tags:
+  - smoke
+  - ci
+---
+# ── Step 1: Clear state so consent decision is wiped ─────────────────────
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible:
+      id: "privacy-consent-decline"
+    timeout: 30000
+
+# ── Step 2: Screenshot modal before accepting ─────────────────────────────
+- takeScreenshot: "15_privacy_modal_before_accept"
+
+# ── Step 3: Accept privacy consent ───────────────────────────────────────
+- tapOn:
+    id: "privacy-consent-accept"
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 120000
+
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "15_sign_in_after_accept"
+
+# ── Step 4: Cold relaunch WITHOUT clearState ──────────────────────────────
+# The accepted decision is stored in AsyncStorage; the modal must NOT reappear.
+- launchApp
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 120000
+
+# Confirm privacy modal is gone (it must not be visible)
+- assertNotVisible:
+    id: "privacy-consent-accept"
+- assertNotVisible:
+    id: "privacy-consent-decline"
+
+# Sign-in screen is fully rendered
+- assertVisible:
+    id: "sign-in-title"
+- assertVisible:
+    id: "sign-in-subtitle"
+- assertVisible:
+    id: "google-sign-in-button"
+- assertVisible:
+    id: "sign-in-footer"
+
+- takeScreenshot: "15_sign_in_no_modal_on_relaunch"

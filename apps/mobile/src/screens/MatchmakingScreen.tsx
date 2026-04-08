@@ -223,6 +223,7 @@ export default function MatchmakingScreen() {
       </TouchableOpacity>
 
       <TouchableOpacity
+        testID="cancel-matchmaking-button"
         style={[styles.cancelButton, isLandscape && styles.cancelButtonLandscape]}
         onPress={handleCancel}
       >
@@ -240,7 +241,7 @@ export default function MatchmakingScreen() {
   ) : null;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} testID="matchmaking-screen">
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[styles.scrollContent, isLandscape && styles.scrollContentLandscape]}
