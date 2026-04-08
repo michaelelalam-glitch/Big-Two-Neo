@@ -191,7 +191,11 @@ export function useRoomLobby({
           throw new Error(joinError.message ?? 'Failed to join room');
         }
 
-        const player_index = (joinResult as { player_index: number })?.player_index ?? 0;
+        const rawIndex = (joinResult as { player_index?: unknown } | null)?.player_index;
+        if (typeof rawIndex !== 'number' || Number.isNaN(rawIndex)) {
+          throw new Error('Failed to join room: invalid player index returned');
+        }
+        const player_index = rawIndex;
 
         setRoom(existingRoom);
         await joinChannel(existingRoom.id);

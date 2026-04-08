@@ -23,27 +23,39 @@
 -- Enable pg_cron if not already enabled (idempotent).
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 
--- Remove any existing job with this name before re-creating (idempotent migration).
-SELECT cron.unschedule('cleanup_stale_matched_queue_entries')
-  WHERE EXISTS (
-    SELECT 1 FROM cron.job WHERE jobname = 'cleanup_stale_matched_queue_entries'
-  );
+-- Wrap cron registration in a DO block so environments where pg_cron is not
+-- available (e.g. local dev, Supabase free-tier without pg_cron) don't cause a
+-- hard migration failure — the extension check above is advisory; schema objects
+-- may still be absent if the extension was not actually created.
+DO $$
+BEGIN
+  -- Remove any existing job with this name before re-creating (idempotent).
+  BEGIN
+    PERFORM cron.unschedule('cleanup_stale_matched_queue_entries');
+  EXCEPTION WHEN OTHERS THEN
+    -- Job did not exist or cron schema is unavailable; safe to continue.
+    NULL;
+  END;
 
--- Schedule cleanup job: every minute, reset rows that have been in 'matched'
--- state for > 5 minutes back to 'waiting'.
-SELECT cron.schedule(
-  'cleanup_stale_matched_queue_entries', -- job name
-  '* * * * *',                           -- cron expression: every minute
-  $$
-    UPDATE public.waiting_room
-    SET
-      status               = 'waiting',
-      matched_room_id      = NULL,
-      matched_at           = NULL,
-      processing_started_at = NULL
-    WHERE
-      status     = 'matched'
-      AND matched_at IS NOT NULL
-      AND matched_at < NOW() - INTERVAL '5 minutes';
-  $$
-);
+  -- Schedule cleanup job: every minute, reset rows that have been in 'matched'
+  -- state for > 5 minutes back to 'waiting'.
+  PERFORM cron.schedule(
+    'cleanup_stale_matched_queue_entries',
+    '* * * * *',
+    $$
+      UPDATE public.waiting_room
+      SET
+        status               = 'waiting',
+        matched_room_id      = NULL,
+        matched_at           = NULL,
+        processing_started_at = NULL
+      WHERE
+        status     = 'matched'
+        AND matched_at IS NOT NULL
+        AND matched_at < NOW() - INTERVAL '5 minutes';
+    $$
+  );
+EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING 'pg_cron cleanup job could not be registered: %', SQLERRM;
+END;
+$$;
