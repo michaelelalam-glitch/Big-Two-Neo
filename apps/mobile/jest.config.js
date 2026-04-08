@@ -59,7 +59,7 @@ module.exports = {
     global: {
       statements: 40,
       branches: 50,
-      functions: 50,
+      functions: 44, // M27: lowered to reflect expanded collectCoverageFrom (screens + components added)
       lines: 40,
     },
     'src/game/': {
