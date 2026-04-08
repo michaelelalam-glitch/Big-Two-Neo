@@ -42,9 +42,13 @@ const MAX_BOT_MOVES = 20;
 /**
  * M8: Broadcast safety timeout (ms). Configurable via BROADCAST_TIMEOUT_MS env var.
  * Defaults to 5000 ms. Set a lower value in CI to speed up tests, or higher in slow
- * network environments.
+ * network environments. Guards against NaN/<=0 to prevent immediate resolution.
  */
-const BROADCAST_TIMEOUT_MS = parseInt(Deno.env.get('BROADCAST_TIMEOUT_MS') ?? '5000', 10);
+const _parsedBroadcastTimeoutMs = parseInt(Deno.env.get('BROADCAST_TIMEOUT_MS') ?? '5000', 10);
+const BROADCAST_TIMEOUT_MS =
+  Number.isFinite(_parsedBroadcastTimeoutMs) && _parsedBroadcastTimeoutMs > 0
+    ? _parsedBroadcastTimeoutMs
+    : 5000;
 
 /**
  * Lock timeout — abandon if we can't acquire lock within this duration (ms).

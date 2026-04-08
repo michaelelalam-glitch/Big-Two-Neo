@@ -49,6 +49,7 @@ CREATE OR REPLACE FUNCTION public.check_friend_request_rate_limit()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_catalog
 AS $$
 DECLARE
   v_count int;
@@ -88,6 +89,7 @@ CREATE OR REPLACE FUNCTION public.cleanup_friendship_on_block()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_catalog
 AS $$
 BEGIN
   DELETE FROM public.friendships
@@ -109,6 +111,7 @@ CREATE OR REPLACE FUNCTION public.check_not_blocked_on_friend_request()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_catalog
 AS $$
 DECLARE
   v_blocked bool;

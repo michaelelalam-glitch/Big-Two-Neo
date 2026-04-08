@@ -438,12 +438,17 @@ export function useMatchmaking(): UseMatchmakingReturn {
     setWaitingCount(0);
   }, []);
 
-  // Cleanup on unmount — tear down Realtime channel only (no interval to clear)
+  // Cleanup on unmount — tear down Realtime channel and any active polling fallback
   useEffect(() => {
     return () => {
       isCancelledRef.current = true;
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
+      }
+      // M16: Clear polling fallback interval to prevent setState calls after unmount
+      if (pollingIntervalRef.current !== null) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
       }
     };
   }, []);

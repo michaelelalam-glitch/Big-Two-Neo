@@ -151,13 +151,17 @@ export function useFriends(): UseFriendsResult {
       setIncoming(incoming);
 
       // H20: Fetch blocked users list in the same call sequence for consistency
-      const { data: blockedData } = await supabase
+      const { data: blockedData, error: blockedError } = await supabase
         .from('blocked_users')
         .select('blocked_id')
         .eq('blocker_id', user.id);
-      if (blockedData) {
-        setBlockedUserIds(new Set(blockedData.map((r: { blocked_id: string }) => r.blocked_id)));
+      if (blockedError) {
+        uiLogger.error('[useFriends] blocked users fetch error', blockedError.message);
+        return;
       }
+      setBlockedUserIds(
+        new Set((blockedData ?? []).map((r: { blocked_id: string }) => r.blocked_id))
+      );
     } finally {
       setLoading(false);
     }

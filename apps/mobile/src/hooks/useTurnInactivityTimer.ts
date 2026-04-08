@@ -98,6 +98,9 @@ export function useTurnInactivityTimer({
   const activeTurnSequenceRef = useRef<string | null>(null);
   const hasExpiredRef = useRef(false);
   const lastAutoPlayAttemptRef = useRef<number>(0);
+  /** Tracks the last connection status that caused auto-play to be skipped.
+   * Prevents log flooding: only emits a warning when the status changes. */
+  const lastSkippedStatusRef = useRef<ConnectionStatus | undefined>(undefined);
 
   /**
    * Client-local start time for the current turn.
@@ -370,11 +373,18 @@ export function useTurnInactivityTimer({
           status === 'replaced_by_bot' ||
           status === 'reconnecting'
         ) {
-          networkLogger.warn(
-            `⏰ [TurnTimer] Skipping auto-play: connection status is "${status}" — server will handle bot replacement`
-          );
+          // Only warn once per distinct status transition to avoid log flooding
+          // during the entire period the player remains in this connection state.
+          if (lastSkippedStatusRef.current !== status) {
+            networkLogger.warn(
+              `⏰ [TurnTimer] Skipping auto-play: connection status is "${status}" — server will handle bot replacement`
+            );
+            lastSkippedStatusRef.current = status;
+          }
           return;
         }
+        // Reset skip-log guard when connection is healthy again
+        lastSkippedStatusRef.current = undefined;
 
         if (!hasExpiredRef.current) {
           hasExpiredRef.current = true;

@@ -365,8 +365,8 @@ const Card = React.memo(function Card({
         accessible={true}
         accessibilityLabel={
           i18n.t('cardA11y.cardLabel', {
-            rank: i18n.t(RANK_I18N_KEYS[card.rank] ?? 'cardA11y.two') || card.rank,
-            suit: i18n.t(SUIT_I18N_KEYS[card.suit] ?? 'cardA11y.spades') || card.suit,
+            rank: RANK_I18N_KEYS[card.rank] ? i18n.t(RANK_I18N_KEYS[card.rank]) : card.rank,
+            suit: SUIT_I18N_KEYS[card.suit] ? i18n.t(SUIT_I18N_KEYS[card.suit]) : card.suit,
           }) + (isSelected ? `, ${i18n.t('cardA11y.selected')}` : '')
         }
         accessibilityRole="button"
