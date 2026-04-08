@@ -25,6 +25,10 @@ Deno.serve(async (req) => {
   const authHeader = req.headers.get('authorization') ?? '';
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+  if (!supabaseUrl || !anonKey) {
+    console.error('[server-time] SUPABASE_URL or SUPABASE_ANON_KEY not configured');
+    return errorResponse(500, 'Server misconfigured', corsHeaders, 'INTERNAL_ERROR', requestId);
+  }
   const anonClient = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: authHeader } },
     auth: { autoRefreshToken: false, persistSession: false },
