@@ -261,18 +261,11 @@ export function useMatchmaking(): UseMatchmakingReturn {
       if (isResolvingMatchRef.current) return;
       isResolvingMatchRef.current = true;
 
-      // Stop polling if active
-      if (pollingIntervalRef.current !== null) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
-
-      // Tear down channel immediately
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
-
+      // Keep channel and polling active until the room fetch succeeds so that
+      // a transient network error does not leave the hook with no live
+      // subscription and isResolvingMatchRef permanently true.  Teardown
+      // moves to the success path; the error paths reset isResolvingMatchRef
+      // so the next Realtime event or poll tick can retry.
       (async () => {
         const { data: room, error: roomError } = await supabase
           .from('rooms')
@@ -282,10 +275,23 @@ export function useMatchmaking(): UseMatchmakingReturn {
 
         if (isCancelledRef.current) return;
         if (roomError || !room) {
+          // Reset so a subsequent Realtime event or poll tick can retry
+          isResolvingMatchRef.current = false;
           setError('Failed to fetch room details');
           setIsSearching(false);
           return;
         }
+
+        // Room fetch succeeded — now tear down channel and polling
+        if (pollingIntervalRef.current !== null) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+        if (channelRef.current) {
+          supabase.removeChannel(channelRef.current);
+          channelRef.current = null;
+        }
+
         setMatchFound(true);
         setRoomCode(room.code);
         setRoomId(entry.matched_room_id);
@@ -293,6 +299,8 @@ export function useMatchmaking(): UseMatchmakingReturn {
         setWaitingCount(4);
       })().catch((err: unknown) => {
         if (isCancelledRef.current) return;
+        // Reset so a subsequent Realtime event or poll tick can retry
+        isResolvingMatchRef.current = false;
         setError(err instanceof Error ? err.message : 'Failed to fetch room details');
         setIsSearching(false);
       });

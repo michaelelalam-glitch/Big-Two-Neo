@@ -508,15 +508,9 @@ const styles = StyleSheet.create({
   },
 });
 
-// H12: Outer validation renders null for missing or malformed card data so
-// CardInner is only instantiated with valid props, keeping its hooks unconditional.
+// H12: Outer validation renders null for malformed card data so CardInner is
+// only instantiated with valid props, keeping its hooks unconditional.
 const Card = React.memo(function Card(props: CardProps) {
-  if (!props.card) {
-    if (typeof __DEV__ !== 'undefined' && __DEV__) {
-      console.error('[Card] 🚨 INVALID CARD OBJECT: card is null/undefined');
-    }
-    return null;
-  }
   if (!props.card.rank || !props.card.suit) {
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
       console.error('[Card] 🚨 INVALID CARD DATA: missing rank or suit', props.card);
