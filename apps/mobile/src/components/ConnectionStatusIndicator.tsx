@@ -76,6 +76,13 @@ export function ConnectionStatusIndicator({ status, style }: ConnectionStatusInd
           color: '#7C3AED',
           bg: 'rgba(124, 58, 237, 0.1)',
         };
+      default:
+        return {
+          icon: '🔴',
+          text: i18n.t('common.disconnected'),
+          color: COLORS.error,
+          bg: 'rgba(239, 68, 68, 0.1)',
+        };
     }
   };
 

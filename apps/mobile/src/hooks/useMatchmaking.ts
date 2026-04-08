@@ -298,12 +298,17 @@ export function useMatchmaking(): UseMatchmakingReturn {
     const startPollingFallback = () => {
       if (pollingIntervalRef.current !== null) return; // already polling
       console.warn('⚠️ [useMatchmaking] Realtime unavailable — starting polling fallback');
+      // in-flight guard: prevents overlapping async executions if a poll
+      // takes longer than the 5s interval before completing
+      let isInFlight = false;
       pollingIntervalRef.current = setInterval(async () => {
         if (isCancelledRef.current) {
           clearInterval(pollingIntervalRef.current!);
           pollingIntervalRef.current = null;
           return;
         }
+        if (isInFlight) return; // skip tick — previous poll still running
+        isInFlight = true;
         try {
           const { data, error: pollErr } = await supabase
             .from('waiting_room')
@@ -322,6 +327,8 @@ export function useMatchmaking(): UseMatchmakingReturn {
           }
         } catch {
           // Ignore transient polling errors
+        } finally {
+          isInFlight = false;
         }
       }, 5000);
     };

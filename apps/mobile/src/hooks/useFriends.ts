@@ -174,6 +174,7 @@ export function useFriends(): UseFriendsResult {
       setFriends([]);
       setOutgoing([]);
       setIncoming([]);
+      setBlockedUserIds(new Set());
       return;
     }
 
