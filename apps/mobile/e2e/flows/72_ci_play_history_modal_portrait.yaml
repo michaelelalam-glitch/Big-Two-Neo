@@ -1,6 +1,6 @@
 appId: com.big2mobile.app
 tags:
-  - ci-authenticated
+  - game-room-e2e
   - play-history
   - portrait
 ---

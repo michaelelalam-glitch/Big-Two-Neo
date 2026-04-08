@@ -1,6 +1,6 @@
 appId: com.big2mobile.app
 tags:
-  - ci-authenticated
+  - online-e2e
   - rejoin
 ---
 # Flow 81: RejoinModal — reclaim seat, watch, and leave options
