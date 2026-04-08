@@ -121,6 +121,10 @@ describe('BotAI - Extended Coverage Tests', () => {
   });
 
   describe('Medium difficulty comprehensive tests', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
     test('medium bot passes strategically (approximately 15% with valid plays)', () => {
       const bot = new BotAI('medium');
       const hand: Card[] = [

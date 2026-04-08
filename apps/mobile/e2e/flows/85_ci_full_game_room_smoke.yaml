@@ -110,6 +110,9 @@ tags:
 # ── Drive game to end and verify GameEndModal ─────────────────────
 - runFlow: ./51_ci_offline_1v3_bots_4player.yaml
 
+# Wait for game end modal to appear after bots drive the match to completion
+- waitForAnimationToEnd
+
 - assertVisible:
     id: "game-end-score-tab"
 - assertVisible:

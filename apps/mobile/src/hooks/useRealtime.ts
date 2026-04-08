@@ -37,6 +37,17 @@ import { useAutoPassTimer } from './useAutoPassTimer';
 import { useClockSync } from './useClockSync';
 import { useRoomLobby } from './useRoomLobby';
 
+// Known non-retryable auth / RLS / JWT PostgreSQL error codes.
+// Hoisted to module scope so the Set is allocated once rather than per-retry.
+const NON_RETRYABLE_CODES = new Set([
+  '42501',
+  '28P01',
+  '28000',
+  'PGRST301',
+  'PGRST302',
+  'PGRST303',
+]);
+
 // Re-export types for backward compatibility
 export type { UseRealtimeOptions } from '../types/realtimeTypes';
 
@@ -198,15 +209,6 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       const isNetworkError =
         _err instanceof TypeError ||
         /Failed to fetch|Network request failed/i.test(postgrestErr?.message ?? '');
-      // Known non-retryable auth / RLS / JWT PostgreSQL error codes.
-      const NON_RETRYABLE_CODES = new Set([
-        '42501',
-        '28P01',
-        '28000',
-        'PGRST301',
-        'PGRST302',
-        'PGRST303',
-      ]);
       const isTransient = isNetworkError || !NON_RETRYABLE_CODES.has(postgrestErr?.code ?? '');
       if (!isTransient) {
         networkLogger.error('[useRealtime] fetchPlayers non-retryable error:', postgrestErr);
