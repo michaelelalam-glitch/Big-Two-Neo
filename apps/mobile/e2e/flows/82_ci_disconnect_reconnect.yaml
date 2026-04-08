@@ -1,0 +1,46 @@
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - disconnect
+  - reconnect
+---
+# Flow 82: Disconnect / Reconnect — background app during active game, foreground, verify game resumes
+
+# Enter an active multiplayer game
+- runFlow: ./55_ci_online_join_existing.yaml
+
+# Background the app (simulates real-world disconnect)
+- pressKey: HOME
+- waitForAnimationToEnd
+
+# Foreground the app again (simulates reconnect)
+- launchApp:
+    id: com.big2mobile.app
+    clearState: false
+- waitForAnimationToEnd
+
+# If ActiveGameBanner shows (game was briefly left), tap rejoin
+- tapOn:
+    id: "rejoin-game-button"
+    optional: true
+- waitForAnimationToEnd
+
+# If RejoinModal shows (bot replaced), reclaim seat
+- tapOn:
+    id: "reclaim-seat-button"
+    optional: true
+- waitForAnimationToEnd
+
+# Verify we are back inside the game
+- assertVisible:
+    id: "play-button"
+- assertVisible:
+    id: "pass-button"
+- assertVisible:
+    id: "sort-button"
+
+# Play a card to confirm interaction still works post-reconnect
+- tapOn:
+    id: "play-button"
+    optional: true
+- waitForAnimationToEnd

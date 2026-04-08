@@ -1,0 +1,58 @@
+# Flow 39: Match Type Selection Screen — All buttons
+# Validates: Match type selection screen shows Casual and Ranked options
+# Tags: ci-authenticated, navigation, matchmaking
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - navigation
+  - matchmaking
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Open Find Game modal then tap Casual to reach MatchTypeSelectionScreen
+- tapOn:
+    id: "find-game-button"
+- extendedWaitUntil:
+    visible: "Choose Game Mode"
+    timeout: 6000
+- takeScreenshot: "39_find_game_modal"
+
+# Navigate to MatchTypeSelectionScreen via casual (adjust if flow is different)
+- tapOn:
+    id: "find-game-casual"
+- extendedWaitUntil:
+    id: "match-type-selection-screen"
+    timeout: 8000
+- takeScreenshot: "39_match_type_selection"
+
+# Verify both match type options
+- assertVisible:
+    id: "casual-match-type"
+- assertVisible:
+    id: "ranked-match-type"
+
+# Select Ranked
+- tapOn:
+    id: "ranked-match-type"
+- takeScreenshot: "39_ranked_selected"
+
+# Select Casual
+- tapOn:
+    id: "casual-match-type"
+- takeScreenshot: "39_casual_selected"
+
+# Go back
+- tapOn:
+    id: "match-type-back-button"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 8000

@@ -1,0 +1,60 @@
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - rejoin
+---
+# Flow 81: RejoinModal — reclaim seat, watch, and leave options
+# This modal appears when a player was away >60s and a bot replaced their seat
+
+# Enter a multiplayer game and wait for bot-replacement event
+# (simulated by navigating away for an extended idle period)
+- runFlow: ./55_ci_online_join_existing.yaml
+
+# Navigate away to trigger bot replacement
+- tapOn:
+    id: "game-settings-button"
+    optional: true
+- back:
+    optional: true
+- waitForAnimationToEnd
+
+# Wait for bot-replacement timeout (simulated: up to 65 seconds)
+# In CI we expect the server or test fixture to fire this event immediately
+- waitForAnimationToEnd
+
+# Return to the game — RejoinModal should appear
+- tapOn:
+    id: "rejoin-game-button"
+    optional: true
+- waitForAnimationToEnd
+
+# Assert reclaim, watch, and leave buttons are all present
+- assertVisible:
+    id: "reclaim-seat-button"
+- assertVisible:
+    id: "rejoin-watch-button"
+    optional: true
+- assertVisible:
+    id: "rejoin-leave-button"
+    optional: true
+
+# Tap Watch Game first (non-destructive)
+- tapOn:
+    id: "rejoin-watch-button"
+    optional: true
+- waitForAnimationToEnd
+
+# Reopen rejoin modal if needed by tapping "back to seat" or similar
+# Leave via the leave button permanently
+- tapOn:
+    id: "rejoin-leave-button"
+    optional: true
+- waitForAnimationToEnd
+
+# Should be back at HomeScreen
+- assertVisible:
+    id: "start-game-button"
+    optional: true
+- assertVisible:
+    id: "offline-game-button"
+    optional: true

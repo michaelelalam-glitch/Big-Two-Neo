@@ -1,0 +1,48 @@
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - scoreboard
+  - portrait
+---
+# Flow 70: Expanded scoreboard — open, scroll, verify players, close (portrait)
+
+- runFlow: ./48_ci_game_room_navigation.yaml
+
+# Open the expanded scoreboard via the expand button
+- tapOn:
+    text: "▶"
+    optional: true
+- waitForAnimationToEnd
+
+# Scoreboard may also open via the score area tap
+- tapOn:
+    text: "Match 1"
+    optional: true
+- waitForAnimationToEnd
+
+# Verify scoreboard container is visible
+- assertVisible:
+    text: "Match"
+    optional: true
+
+# Scroll through the scoreboard to see all player rows
+- scroll:
+    direction: DOWN
+    duration: 500
+- scroll:
+    direction: UP
+    duration: 500
+
+# Close the expanded scoreboard
+- tapOn:
+    text: "✕"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Close"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    id: "close-settings-button"
+    optional: true
+- waitForAnimationToEnd

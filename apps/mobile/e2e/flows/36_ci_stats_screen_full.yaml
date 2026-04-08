@@ -1,0 +1,51 @@
+# Flow 36: Stats Screen — Full walk-through
+# Validates: Stats screen loads and displays graphs/stats sections
+# Tags: ci-authenticated, navigation, stats
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - navigation
+  - stats
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Navigate to Stats (usually accessible from Profile or direct navigation)
+- tapOn:
+    id: "home-profile-button"
+- extendedWaitUntil:
+    id: "profile-screen"
+    timeout: 8000
+
+# Look for any Stats nav link (adjust text to match actual UI)
+- tapOn: "Stats"
+- extendedWaitUntil:
+    id: "stats-screen"
+    timeout: 8000
+- takeScreenshot: "36_stats_top"
+
+- scroll:
+    direction: down
+    duration: 800
+- takeScreenshot: "36_stats_bottom"
+
+- scroll:
+    direction: up
+    duration: 800
+
+- back
+- extendedWaitUntil:
+    id: "profile-screen"
+    timeout: 8000
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 8000

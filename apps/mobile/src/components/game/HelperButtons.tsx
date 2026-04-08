@@ -45,6 +45,7 @@ const HelperButtonsComponent: React.FC<HelperButtonsProps> = ({
         accessibilityRole="button"
         accessibilityLabel="Sort cards lowest to highest"
         accessibilityState={{ disabled }}
+        testID="sort-button"
       >
         <Text style={[styles.buttonText, styles.sortButtonText]}>{i18n.t('game.sort')}</Text>
       </Pressable>
@@ -62,6 +63,7 @@ const HelperButtonsComponent: React.FC<HelperButtonsProps> = ({
         accessibilityRole="button"
         accessibilityLabel="Smart sort by combo type"
         accessibilityState={{ disabled }}
+        testID="smart-sort-button"
       >
         <Text style={[styles.buttonText, styles.smartButtonText]}>{i18n.t('game.smart')}</Text>
       </Pressable>
@@ -79,6 +81,7 @@ const HelperButtonsComponent: React.FC<HelperButtonsProps> = ({
         accessibilityRole="button"
         accessibilityLabel="Get hint for best play"
         accessibilityState={{ disabled }}
+        testID="hint-button"
       >
         <Text style={[styles.buttonText, styles.hintButtonText]}>{i18n.t('game.hint')}</Text>
       </Pressable>

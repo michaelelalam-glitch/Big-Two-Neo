@@ -1,0 +1,55 @@
+# Flow 62: Offline Game — Landscape + settings combination
+# Validates: In-game settings modal works in landscape orientation
+# Tags: ci-authenticated, offline-game, orientation, game-controls
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - offline-game
+  - orientation
+  - game-controls
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+- tapOn: "Offline Practice"
+- extendedWaitUntil:
+    visible: "Bot Difficulty"
+    timeout: 6000
+- tapOn:
+    id: "difficulty-easy"
+
+- extendedWaitUntil:
+    id: "pass-button"
+    timeout: 20000
+
+# Rotate to landscape
+- setOrientation: landscape
+- takeScreenshot: "62_landscape_game"
+
+# Open in-game settings in landscape
+- tapOn:
+    id: "settings-button"
+- extendedWaitUntil:
+    id: "close-settings-button"
+    timeout: 6000
+- takeScreenshot: "62_settings_in_landscape"
+
+# Close settings while in landscape
+- tapOn:
+    id: "close-settings-button"
+- assertVisible:
+    id: "pass-button"
+- takeScreenshot: "62_landscape_after_settings_close"
+
+# Rotate back
+- setOrientation: portrait
+- assertVisible:
+    id: "pass-button"

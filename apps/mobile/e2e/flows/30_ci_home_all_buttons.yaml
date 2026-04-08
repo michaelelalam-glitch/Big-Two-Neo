@@ -1,0 +1,91 @@
+# Flow 30: Home Screen — All buttons visible and tappable
+# Validates: Every button on the Home screen is present and navigates correctly
+# Tags: ci-authenticated, navigation
+#
+# Prerequisites: Session injected via ci-seed-e2e-auth.mjs
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - navigation
+---
+# Step 1: Launch with injected session
+- launchApp
+
+# Step 2: Navigate past game selection to Home
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+- takeScreenshot: "30_home_screen"
+
+# Step 3: Verify all primary home buttons exist
+- assertVisible:
+    id: "find-game-button"
+- assertVisible:
+    id: "leaderboard-button"
+- assertVisible:
+    id: "home-notifications-button"
+- assertVisible:
+    id: "home-settings-button"
+- assertVisible:
+    id: "home-profile-button"
+- assertVisible:
+    id: "bug-report-button"
+
+# Step 4: Verify "Offline Practice" button is present
+- assertVisible: "Offline Practice"
+
+# Step 5: Tap Notifications
+- tapOn:
+    id: "home-notifications-button"
+- extendedWaitUntil:
+    id: "notifications-screen"
+    timeout: 8000
+- takeScreenshot: "30_notifications_from_home"
+- back
+
+# Step 6: Back to Home
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 8000
+
+# Step 7: Tap Profile
+- tapOn:
+    id: "home-profile-button"
+- extendedWaitUntil:
+    id: "profile-screen"
+    timeout: 8000
+- takeScreenshot: "30_profile_from_home"
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 8000
+
+# Step 8: Tap Settings
+- tapOn:
+    id: "home-settings-button"
+- extendedWaitUntil:
+    id: "settings-screen"
+    timeout: 8000
+- takeScreenshot: "30_settings_from_home"
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 8000
+
+# Step 9: Tap Leaderboard
+- tapOn:
+    id: "leaderboard-button"
+- extendedWaitUntil:
+    id: "leaderboard-screen"
+    timeout: 8000
+- takeScreenshot: "30_leaderboard_from_home"
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 8000

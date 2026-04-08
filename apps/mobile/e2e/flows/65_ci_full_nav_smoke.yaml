@@ -1,0 +1,117 @@
+# Flow 65: Full navigation smoke — every screen from Home in one session
+# Validates: All 8 main screens are reachable and render without crashing
+# Tags: ci-authenticated, navigation, smoke
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - navigation
+  - smoke
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+- takeScreenshot: "65_home"
+
+# 1. Leaderboard
+- tapOn:
+    id: "leaderboard-button"
+- extendedWaitUntil:
+    id: "leaderboard-screen"
+    timeout: 8000
+- takeScreenshot: "65_leaderboard"
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 8000
+
+# 2. Notifications
+- tapOn:
+    id: "home-notifications-button"
+- extendedWaitUntil:
+    id: "notifications-screen"
+    timeout: 8000
+- takeScreenshot: "65_notifications"
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 8000
+
+# 3. Profile
+- tapOn:
+    id: "home-profile-button"
+- extendedWaitUntil:
+    id: "profile-screen"
+    timeout: 8000
+- takeScreenshot: "65_profile"
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 8000
+
+# 4. Settings
+- tapOn:
+    id: "home-settings-button"
+- extendedWaitUntil:
+    id: "settings-screen"
+    timeout: 8000
+- takeScreenshot: "65_settings"
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 8000
+
+# 5. Find Game Modal
+- tapOn:
+    id: "find-game-button"
+- extendedWaitUntil:
+    visible: "Choose Game Mode"
+    timeout: 6000
+- takeScreenshot: "65_find_game_modal"
+- tapOn:
+    id: "find-game-modal-close"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 8000
+
+# 6. Offline Difficulty Modal
+- tapOn: "Offline Practice"
+- extendedWaitUntil:
+    visible: "Bot Difficulty"
+    timeout: 6000
+- takeScreenshot: "65_difficulty_modal"
+- tapOn:
+    id: "difficulty-modal-close"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 8000
+
+# 7. Create Room
+- tapOn: "Create Room"
+- extendedWaitUntil:
+    id: "create-room-submit-button"
+    timeout: 8000
+- takeScreenshot: "65_create_room"
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 8000
+
+# 8. Join Room
+- tapOn: "Join Room"
+- extendedWaitUntil:
+    id: "room-code-input"
+    timeout: 8000
+- takeScreenshot: "65_join_room"
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 8000
+
+- takeScreenshot: "65_full_nav_smoke_complete"

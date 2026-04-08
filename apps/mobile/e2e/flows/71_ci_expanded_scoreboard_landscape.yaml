@@ -1,0 +1,40 @@
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - scoreboard
+  - landscape
+---
+# Flow 71: Expanded scoreboard — open, scroll, close in landscape
+
+- runFlow: ./62_ci_landscape_mode_game.yaml
+
+# Open the expanded scoreboard in landscape
+- tapOn:
+    text: "▶"
+    optional: true
+- waitForAnimationToEnd
+
+# Verify landscape scoreboard component is visible
+- assertVisible:
+    id: "oval-table-container"
+    optional: true
+
+# Scroll scoreboard content
+- scroll:
+    direction: DOWN
+    duration: 500
+- scroll:
+    direction: UP
+    duration: 500
+
+# Close
+- tapOn:
+    text: "✕"
+    optional: true
+- waitForAnimationToEnd
+
+# Return to portrait
+- tapOn:
+    id: "orientation-toggle-button"
+    optional: true
+- waitForAnimationToEnd

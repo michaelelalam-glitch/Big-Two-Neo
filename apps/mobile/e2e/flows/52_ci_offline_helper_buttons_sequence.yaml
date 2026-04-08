@@ -1,0 +1,63 @@
+# Flow 52: Offline Game — All helper buttons in sequence
+# Validates: Sort → Smart Sort → Hint all work without errors in a single session
+# Tags: ci-authenticated, offline-game, game-controls
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - offline-game
+  - game-controls
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+- tapOn: "Offline Practice"
+- extendedWaitUntil:
+    visible: "Bot Difficulty"
+    timeout: 6000
+- tapOn:
+    id: "difficulty-medium"
+
+- extendedWaitUntil:
+    id: "pass-button"
+    timeout: 20000
+- takeScreenshot: "52_helper_buttons_game_start"
+
+# Sequence: Sort → Smart → Hint → Sort → Smart → Hint (verify idempotent)
+- tapOn:
+    id: "sort-button"
+- takeScreenshot: "52_after_sort_1"
+
+- tapOn:
+    id: "smart-sort-button"
+- takeScreenshot: "52_after_smart_1"
+
+- tapOn:
+    id: "hint-button"
+- takeScreenshot: "52_after_hint_1"
+
+- tapOn:
+    id: "sort-button"
+- takeScreenshot: "52_after_sort_2"
+
+- tapOn:
+    id: "smart-sort-button"
+- takeScreenshot: "52_after_smart_2"
+
+- tapOn:
+    id: "hint-button"
+- takeScreenshot: "52_after_hint_2"
+
+# Verify no crash
+- assertVisible:
+    id: "pass-button"
+- assertNotVisible:
+    text: "Error"
+    optional: true

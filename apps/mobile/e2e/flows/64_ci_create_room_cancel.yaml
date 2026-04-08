@@ -1,0 +1,36 @@
+# Flow 64: Create Room → Cancel / Back navigation
+# Validates: Create Room can be cancelled and returns to home cleanly
+# Tags: ci-authenticated, rooms
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - rooms
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Open Create Room
+- tapOn: "Create Room"
+- extendedWaitUntil:
+    id: "create-room-submit-button"
+    timeout: 8000
+- takeScreenshot: "64_create_room_opened"
+
+# Navigate back without submitting
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 8000
+- takeScreenshot: "64_back_to_home_after_cancel"
+
+# Verify home is intact
+- assertVisible:
+    id: "find-game-button"

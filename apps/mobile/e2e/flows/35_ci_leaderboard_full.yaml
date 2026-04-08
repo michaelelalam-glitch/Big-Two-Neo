@@ -1,0 +1,47 @@
+# Flow 35: Leaderboard Screen — Full walk-through with all tabs
+# Validates: Leaderboard tabs (Casual/Ranked) and time filters (All Time/Weekly/Daily)
+# Tags: ci-authenticated, navigation, leaderboard
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - navigation
+  - leaderboard
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Open Leaderboard
+- tapOn:
+    id: "leaderboard-button"
+- extendedWaitUntil:
+    id: "leaderboard-screen"
+    timeout: 10000
+- takeScreenshot: "35_leaderboard_casual"
+
+# Type tabs: switch to Ranked
+- tapOn: "Ranked"
+- takeScreenshot: "35_leaderboard_ranked"
+
+# Back to Casual
+- tapOn: "Casual"
+
+# Time filters
+- tapOn: "Weekly"
+- takeScreenshot: "35_leaderboard_weekly"
+- tapOn: "Daily"
+- takeScreenshot: "35_leaderboard_daily"
+- tapOn: "All Time"
+
+# Navigate back
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 8000

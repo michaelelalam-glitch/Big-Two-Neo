@@ -1,0 +1,43 @@
+# Flow 50: Lobby Screen — Display and navigation
+# Validates: Lobby screen renders correctly with game info
+# Tags: ci-authenticated, rooms
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - rooms
+---
+# Note: Reaching LobbyScreen requires a real room to exist or a deep-link.
+# This flow exercises the lobby screen via the Create Room → Lobby path.
+
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Create a room to enter the lobby
+- tapOn: "Create Room"
+- extendedWaitUntil:
+    id: "create-room-submit-button"
+    timeout: 8000
+
+# Submit room creation
+- tapOn:
+    id: "create-room-submit-button"
+
+# Wait for lobby screen
+- extendedWaitUntil:
+    id: "lobby-screen"
+    timeout: 15000
+- takeScreenshot: "50_lobby_screen"
+
+# Navigate back
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000

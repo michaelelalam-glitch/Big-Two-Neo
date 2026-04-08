@@ -1,0 +1,48 @@
+# Flow 38: Notification Settings Screen — Full walk-through
+# Validates: Notification settings screen loads and shows toggle options
+# Tags: ci-authenticated, navigation, notifications
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - navigation
+  - notifications
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Navigate: Notifications → Notification Settings
+- tapOn:
+    id: "home-notifications-button"
+- extendedWaitUntil:
+    id: "notifications-screen"
+    timeout: 8000
+
+# Tap Settings icon within notifications screen (adjust text/id to actual UI)
+- tapOn: "Settings"
+- extendedWaitUntil:
+    id: "notification-settings-screen"
+    timeout: 8000
+- takeScreenshot: "38_notification_settings_screen"
+
+# Scroll through settings
+- scroll:
+    direction: down
+    duration: 800
+- takeScreenshot: "38_notification_settings_bottom"
+
+- back
+- extendedWaitUntil:
+    id: "notifications-screen"
+    timeout: 8000
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 8000

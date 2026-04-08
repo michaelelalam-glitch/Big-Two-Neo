@@ -1,0 +1,61 @@
+# Flow 46: Offline Game — In-game Settings (camera/mic toggles)
+# Validates: In-game settings modal shows camera and mic toggles
+# Tags: ci-authenticated, offline-game, game-controls
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - offline-game
+  - game-controls
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+- tapOn: "Offline Practice"
+- extendedWaitUntil:
+    visible: "Bot Difficulty"
+    timeout: 6000
+- tapOn:
+    id: "difficulty-easy"
+
+- extendedWaitUntil:
+    id: "pass-button"
+    timeout: 20000
+
+# Open in-game settings
+- tapOn:
+    id: "settings-button"
+- extendedWaitUntil:
+    id: "close-settings-button"
+    timeout: 6000
+- takeScreenshot: "46_in_game_settings_open"
+
+# Verify camera/mic toggles
+- assertVisible:
+    id: "camera-toggle-button"
+- assertVisible:
+    id: "mic-toggle-button"
+
+# Toggle camera
+- tapOn:
+    id: "camera-toggle-button"
+- takeScreenshot: "46_camera_toggled"
+
+# Toggle mic
+- tapOn:
+    id: "mic-toggle-button"
+- takeScreenshot: "46_mic_toggled"
+
+# Close settings
+- tapOn:
+    id: "close-settings-button"
+- assertVisible:
+    id: "pass-button"
+- takeScreenshot: "46_settings_closed"

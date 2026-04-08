@@ -1,0 +1,31 @@
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - friends
+  - game-room
+---
+# Flow 83: Add Friend from inside the game room
+
+# Enter a multiplayer game (need actual opponents, not bots)
+- runFlow: ./55_ci_online_join_existing.yaml
+
+# Wait for all players to be visible
+- waitForAnimationToEnd
+
+# Tap the Add Friend button next to an opponent
+- tapOn:
+    id: "add-friend-button"
+- waitForAnimationToEnd
+
+# Verify button state changed to "Request Sent" or similar
+- assertVisible:
+    text: "Request Sent"
+    optional: true
+- assertVisible:
+    text: "Sent"
+    optional: true
+
+# Or verify button label changed to a pending/outgoing state
+- assertNotVisible:
+    text: "Add Friend"
+    optional: true

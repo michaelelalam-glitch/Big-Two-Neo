@@ -1,0 +1,41 @@
+# Flow 31: Find Game Modal — Casual & Ranked buttons
+# Validates: Find Game modal opens, shows both options, cancel works
+# Tags: ci-authenticated, navigation, matchmaking
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - navigation
+  - matchmaking
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Open Find Game modal
+- tapOn:
+    id: "find-game-button"
+- extendedWaitUntil:
+    visible: "Choose Game Mode"
+    timeout: 6000
+- takeScreenshot: "31_find_game_modal"
+
+# Verify both options visible
+- assertVisible:
+    id: "find-game-casual"
+- assertVisible:
+    id: "find-game-ranked"
+
+# Close modal via X button
+- tapOn:
+    id: "find-game-modal-close"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 5000
+- takeScreenshot: "31_modal_closed"

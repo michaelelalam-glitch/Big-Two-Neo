@@ -1,0 +1,147 @@
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - smoke
+  - portrait
+---
+# Flow 85: Full Game Room Comprehensive Smoke Test
+# Covers: core actions, chat, throwables, play history, scoreboard, settings, game-end modal
+
+# Run offline solo game to enter game room
+- runFlow: ./51_ci_offline_1v3_bots_4player.yaml
+
+# ── Core action buttons ────────────────────────────────────────────
+- assertVisible:
+    id: "play-button"
+- assertVisible:
+    id: "pass-button"
+- assertVisible:
+    id: "sort-button"
+- assertVisible:
+    id: "smart-sort-button"
+- assertVisible:
+    id: "hint-button"
+
+# ── Chat ─────────────────────────────────────────────────────────
+- tapOn:
+    id: "chat-toggle-button"
+    optional: true
+- waitForAnimationToEnd
+- assertVisible:
+    id: "chat-input"
+- tapOn:
+    id: "chat-input"
+- inputText: "smoke test"
+- tapOn:
+    id: "chat-send-button"
+- waitForAnimationToEnd
+- tapOn:
+    id: "chat-drawer-header"
+- waitForAnimationToEnd
+
+# ── Throwable Picker ─────────────────────────────────────────────
+- tapOn:
+    id: "throwable-toggle-button"
+    optional: true
+- waitForAnimationToEnd
+- assertVisible:
+    id: "throw-picker-egg"
+- assertVisible:
+    id: "throw-picker-smoke"
+- assertVisible:
+    id: "throw-picker-confetti"
+- assertVisible:
+    id: "throw-picker-cake"
+- tapOn:
+    text: "Cancel"
+    optional: true
+- back:
+    optional: true
+- waitForAnimationToEnd
+
+# ── Play History Modal ────────────────────────────────────────────
+- tapOn:
+    id: "play-history-button"
+    optional: true
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Card Play History"
+    optional: true
+- tapOn:
+    text: "Close"
+    optional: true
+- tapOn:
+    id: "close-play-history-button"
+    optional: true
+- waitForAnimationToEnd
+
+# ── Expanded Scoreboard ───────────────────────────────────────────
+- tapOn:
+    id: "scoreboard-expand-button"
+    optional: true
+- tapOn:
+    text: "Match 1"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Close"
+    optional: true
+- tapOn:
+    id: "close-scoreboard-button"
+    optional: true
+- waitForAnimationToEnd
+
+# ── Settings / Leave ─────────────────────────────────────────────
+- tapOn:
+    id: "settings-button"
+    optional: true
+- waitForAnimationToEnd
+- assertVisible:
+    id: "settings-modal"
+    optional: true
+- tapOn:
+    text: "Cancel"
+    optional: true
+- tapOn:
+    id: "close-settings-button"
+    optional: true
+- waitForAnimationToEnd
+
+# ── Drive game to end and verify GameEndModal ─────────────────────
+- runFlow: ./51_ci_offline_1v3_bots_4player.yaml
+
+- assertVisible:
+    id: "game-end-score-tab"
+- assertVisible:
+    id: "game-end-play-tab"
+- assertVisible:
+    id: "game-end-copy-results"
+- assertVisible:
+    id: "game-end-share"
+- assertVisible:
+    id: "game-end-play-again"
+- assertVisible:
+    id: "game-end-return-to-menu"
+
+# Switch to Play History tab
+- tapOn:
+    id: "game-end-play-tab"
+- waitForAnimationToEnd
+
+# Back to Score tab
+- tapOn:
+    id: "game-end-score-tab"
+- waitForAnimationToEnd
+
+# Return to menu
+- tapOn:
+    id: "game-end-return-to-menu"
+- waitForAnimationToEnd
+
+# Verify back on HomeScreen
+- assertVisible:
+    id: "offline-game-button"
+    optional: true
+- assertVisible:
+    id: "start-game-button"
+    optional: true

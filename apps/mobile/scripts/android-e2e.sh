@@ -20,19 +20,51 @@ fi
 echo "Installing APK: $APK_PATH"
 adb install "$APK_PATH"
 
-# Launch app once to warm up
+# Launch app once to warm up (also causes AsyncStorage DB to be created)
 adb shell am start -n com.big2mobile.app/.MainActivity || true
 sleep 10
 adb shell am force-stop com.big2mobile.app || true
 sleep 3
 
-# Run CI-tagged Maestro flows
+# ── Phase 1: Pre-auth smoke flows ─────────────────────────────────────────────
+# These tests run against an unauthenticated session (sign-in screen).
 mkdir -p apps/mobile/e2e/results-android
 set +e
 maestro test --include-tags ci apps/mobile/e2e/flows/ \
   --format junit \
-  --output apps/mobile/e2e/results-android/results.xml
-MAESTRO_EXIT=$?
+  --output apps/mobile/e2e/results-android/results-smoke.xml
+SMOKE_EXIT=$?
 set -e
-echo "Maestro Android exit code: $MAESTRO_EXIT"
-exit $MAESTRO_EXIT
+echo "Maestro Android smoke exit code: $SMOKE_EXIT"
+
+# ── Phase 2: Inject auth session ───────────────────────────────────────────────
+# Requires E2E_TEST_EMAIL and E2E_TEST_PASSWORD to be set.
+# If credentials are absent we skip authenticated flows (non-blocking for forks).
+if [ -z "${E2E_TEST_EMAIL:-}" ] || [ -z "${E2E_TEST_PASSWORD:-}" ]; then
+  echo "::warning::E2E_TEST_EMAIL/E2E_TEST_PASSWORD not set — skipping authenticated E2E flows."
+  exit "$SMOKE_EXIT"
+fi
+
+echo "Injecting E2E auth session for ${E2E_TEST_EMAIL}..."
+CI_PLATFORM=android \
+  EXPO_PUBLIC_SUPABASE_URL="${EXPO_PUBLIC_SUPABASE_URL}" \
+  EXPO_PUBLIC_SUPABASE_ANON_KEY="${EXPO_PUBLIC_SUPABASE_ANON_KEY}" \
+  E2E_TEST_EMAIL="${E2E_TEST_EMAIL}" \
+  E2E_TEST_PASSWORD="${E2E_TEST_PASSWORD}" \
+  node apps/mobile/scripts/ci-seed-e2e-auth.mjs
+
+# ── Phase 3: Authenticated E2E flows ──────────────────────────────────────────
+set +e
+maestro test --include-tags ci-authenticated apps/mobile/e2e/flows/ \
+  --format junit \
+  --output apps/mobile/e2e/results-android/results-authenticated.xml
+AUTH_EXIT=$?
+set -e
+echo "Maestro Android authenticated exit code: $AUTH_EXIT"
+
+# Fail if either phase failed
+if [ "$SMOKE_EXIT" -ne 0 ] || [ "$AUTH_EXIT" -ne 0 ]; then
+  echo "::error::One or more Maestro phases failed (smoke=$SMOKE_EXIT, auth=$AUTH_EXIT)"
+  exit 1
+fi
+exit 0

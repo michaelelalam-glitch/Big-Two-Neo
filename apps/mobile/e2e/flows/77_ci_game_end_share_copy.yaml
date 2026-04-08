@@ -1,0 +1,45 @@
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - game-end
+  - share
+---
+# Flow 77: Game end modal — Share Results and Copy Results buttons
+
+- runFlow: ./51_ci_offline_1v3_bots_4player.yaml
+- waitForAnimationToEnd
+
+# Assert share and copy buttons are present
+- assertVisible:
+    id: "game-end-share"
+- assertVisible:
+    id: "game-end-copy-results"
+
+# Tap Copy Results first (doesn't leave the modal)
+- tapOn:
+    id: "game-end-copy-results"
+- waitForAnimationToEnd
+
+# Verify in-modal toast appears (copied confirmation)
+- assertVisible:
+    text: "copied"
+    optional: true
+- assertVisible:
+    text: "Copied"
+    optional: true
+
+# Tap Share Results — this may open native share sheet
+- tapOn:
+    id: "game-end-share"
+- waitForAnimationToEnd
+
+# Dismiss the native share sheet if it appeared
+- tapOn:
+    text: "Cancel"
+    optional: true
+- waitForAnimationToEnd
+
+# Return to menu to clean up
+- tapOn:
+    id: "game-end-return-to-menu"
+- waitForAnimationToEnd

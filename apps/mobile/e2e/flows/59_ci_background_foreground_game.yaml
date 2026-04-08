@@ -1,0 +1,50 @@
+# Flow 59: App Background / Foreground during game
+# Validates: Backgrounding app mid-game and resuming does not crash or lose state
+# Tags: ci-authenticated, offline-game, stability
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - offline-game
+  - stability
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+- tapOn: "Offline Practice"
+- extendedWaitUntil:
+    visible: "Bot Difficulty"
+    timeout: 6000
+- tapOn:
+    id: "difficulty-easy"
+
+- extendedWaitUntil:
+    id: "pass-button"
+    timeout: 20000
+- takeScreenshot: "59_game_before_background"
+
+# Background and foreground the app
+- pressKey: HOME
+- takeScreenshot: "59_app_backgrounded"
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    id: "pass-button"
+    timeout: 15000
+- takeScreenshot: "59_game_resumed"
+
+# Verify state preserved
+- assertVisible:
+    id: "pass-button"
+- assertVisible:
+    id: "play-button"
+- assertNotVisible:
+    text: "Error"
+    optional: true

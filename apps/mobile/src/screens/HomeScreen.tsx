@@ -179,6 +179,7 @@ export default function HomeScreen() {
               ]}
               onPress={() => setShowFindGameModal(true)}
               disabled={isQuickPlaying || isRankedSearching}
+              testID="find-game-button"
             >
               {isQuickPlaying || isRankedSearching ? (
                 <>
@@ -286,6 +287,7 @@ export default function HomeScreen() {
               onPress={() => setShowDifficultyModal(false)}
               accessibilityLabel={i18n.t('common.close')}
               accessibilityRole="button"
+              testID="difficulty-modal-close"
             >
               <Text style={styles.modalCloseText}>✕</Text>
             </TouchableOpacity>
@@ -310,6 +312,7 @@ export default function HomeScreen() {
                     isLandscape && styles.modalButtonLandscape,
                   ]}
                   onPress={() => handleStartOfflineWithDifficulty('easy')}
+                  testID="difficulty-easy"
                 >
                   <Text
                     style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}
@@ -327,6 +330,7 @@ export default function HomeScreen() {
                     isLandscape && styles.modalButtonLandscape,
                   ]}
                   onPress={() => handleStartOfflineWithDifficulty('medium')}
+                  testID="difficulty-medium"
                 >
                   <Text
                     style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}
@@ -344,6 +348,7 @@ export default function HomeScreen() {
                     isLandscape && styles.modalButtonLandscape,
                   ]}
                   onPress={() => handleStartOfflineWithDifficulty('hard')}
+                  testID="difficulty-hard"
                 >
                   <Text
                     style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}
@@ -379,6 +384,7 @@ export default function HomeScreen() {
               onPress={() => setShowFindGameModal(false)}
               accessibilityLabel={i18n.t('common.close')}
               accessibilityRole="button"
+              testID="find-game-modal-close"
             >
               <Text style={styles.modalCloseText}>✕</Text>
             </TouchableOpacity>
@@ -404,6 +410,7 @@ export default function HomeScreen() {
                   ]}
                   onPress={handleCasualMatch}
                   disabled={isQuickPlaying}
+                  testID="find-game-casual"
                 >
                   <Text
                     style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}
@@ -424,6 +431,7 @@ export default function HomeScreen() {
                   ]}
                   onPress={() => handleRankedMatch(0)}
                   disabled={isRankedSearching}
+                  testID="find-game-ranked"
                 >
                   <Text
                     style={[styles.modalButtonIcon, isLandscape && styles.modalButtonIconLandscape]}

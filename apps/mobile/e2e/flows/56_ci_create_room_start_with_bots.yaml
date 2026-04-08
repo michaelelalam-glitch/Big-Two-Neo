@@ -1,0 +1,52 @@
+# Flow 56: Create Room → Lobby → Start with bots (4-player simulation)
+# Validates: Full room creation → lobby → start game with bots filling empty slots.
+#            This is the "4-humans" CI proxy: 1 real user + 3 bots = full 4-player game.
+# Tags: ci-authenticated, rooms, four-player
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - rooms
+  - four-player
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Create a room
+- tapOn: "Create Room"
+- extendedWaitUntil:
+    id: "create-room-submit-button"
+    timeout: 8000
+- takeScreenshot: "56_create_room_form"
+- tapOn:
+    id: "create-room-submit-button"
+
+# Enter lobby
+- extendedWaitUntil:
+    id: "lobby-screen"
+    timeout: 15000
+- takeScreenshot: "56_lobby_waiting"
+
+# Start game (bots fill remaining slots — 4-player game)
+# Adjust button text to match actual "Start Game" / "Fill with Bots" UI
+- tapOn: "Start Game"
+- extendedWaitUntil:
+    id: "pass-button"
+    timeout: 25000
+- takeScreenshot: "56_four_player_room_game_start"
+
+# Verify game controls in room game
+- assertVisible:
+    id: "pass-button"
+- assertVisible:
+    id: "play-button"
+- tapOn:
+    id: "pass-button"
+- takeScreenshot: "56_room_game_after_pass"

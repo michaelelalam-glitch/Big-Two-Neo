@@ -1,0 +1,49 @@
+# Flow 63: Settings Screen — Timer setting interaction
+# Validates: Settings screen renders game timer/turn options and toggles respond
+# Tags: ci-authenticated, settings
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - settings
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Open Settings
+- tapOn:
+    id: "home-settings-button"
+- extendedWaitUntil:
+    id: "settings-screen"
+    timeout: 8000
+- takeScreenshot: "63_settings_open"
+
+# Scroll to timer/game settings section
+- scroll:
+    direction: down
+    duration: 600
+- takeScreenshot: "63_settings_scrolled"
+
+# Scroll to bottom
+- scroll:
+    direction: down
+    duration: 600
+- takeScreenshot: "63_settings_bottom"
+
+# Scroll back up
+- scroll:
+    direction: up
+    duration: 1200
+
+# Navigate back
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 8000

@@ -1,0 +1,41 @@
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - banner
+  - online
+---
+# Flow 80: ActiveGameBanner — online game countdown shown, replace-bot-button visible after bot replaces
+
+# Join an online multiplayer game
+- runFlow: ./55_ci_online_join_existing.yaml
+
+# Navigate home to trigger the banner
+- tapOn:
+    id: "game-settings-button"
+    optional: true
+- tapOn:
+    id: "game-settings-leave-button"
+    optional: true
+- back:
+    optional: true
+- waitForAnimationToEnd
+
+# Banner should show with countdown (online game countdown ≤60s)
+- assertVisible:
+    id: "rejoin-game-button"
+- assertVisible:
+    id: "leave-game-banner-button"
+
+# Verify countdown text appears (number + "s" pattern)
+- assertVisible:
+    text: "s"
+    optional: true
+
+# Tap rejoin while game is still live (before bot replacement)
+- tapOn:
+    id: "rejoin-game-button"
+- waitForAnimationToEnd
+
+# Verify we're back in the game
+- assertVisible:
+    id: "play-button"

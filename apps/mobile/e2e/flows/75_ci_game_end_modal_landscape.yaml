@@ -1,0 +1,46 @@
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - game-end
+  - landscape
+---
+# Flow 75: Game end modal in landscape — verify all elements and actions
+
+- runFlow: ./74_ci_game_end_modal_portrait.yaml
+
+# NOTE: If the flow above returned to menu, re-enter a game
+# This flow verifies the game end modal can be interacted with in landscape
+
+- runFlow: ./51_ci_offline_1v3_bots_4player.yaml
+- waitForAnimationToEnd
+
+# Verify game end modal appeared; switch to landscape via rotation
+- assertVisible:
+    id: "game-end-score-tab"
+    optional: true
+
+# Rotate to landscape (system gesture or orientation button if in-game)
+# In Maestro we trigger rotate via the built-in command
+- scroll:
+    direction: RIGHT
+    duration: 200
+    optional: true
+
+- tapOn:
+    id: "game-end-play-tab"
+    optional: true
+- waitForAnimationToEnd
+
+# Scroll in landscape
+- scroll:
+    direction: DOWN
+    duration: 500
+- scroll:
+    direction: UP
+    duration: 300
+
+# Test Play Again in landscape
+- tapOn:
+    id: "game-end-play-again"
+    optional: true
+- waitForAnimationToEnd

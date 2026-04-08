@@ -1,0 +1,55 @@
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - banner
+  - offline
+---
+# Flow 79: ActiveGameBanner — start offline game, go home, leave via banner
+
+# Navigate to offline game setup
+- tapOn:
+    id: "offline-game-button"
+- waitForAnimationToEnd
+
+- tapOn:
+    text: "Solo Practice"
+    optional: true
+- tapOn:
+    text: "1v3 Bots"
+    optional: true
+- waitForAnimationToEnd
+
+# Suspend the game by navigating back to home
+- tapOn:
+    text: "Settings"
+    optional: true
+- tapOn:
+    id: "game-settings-leave-button"
+    optional: true
+- back:
+    optional: true
+- waitForAnimationToEnd
+
+# Banner should appear on HomeScreen
+- assertVisible:
+    id: "leave-game-banner-button"
+
+# Tap Leave — should prompt confirmation or immediately dismiss
+- tapOn:
+    id: "leave-game-banner-button"
+- waitForAnimationToEnd
+
+# Confirm leave if a dialog appears
+- tapOn:
+    text: "Leave"
+    optional: true
+- tapOn:
+    text: "Confirm"
+    optional: true
+- waitForAnimationToEnd
+
+# Banner should no longer be visible
+- assertNotVisible:
+    id: "rejoin-game-button"
+- assertNotVisible:
+    id: "leave-game-banner-button"

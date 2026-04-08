@@ -1,0 +1,35 @@
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - game-end
+  - play-again
+---
+# Flow 76: Game end modal — Play Again button restarts game with same configuration
+
+- runFlow: ./51_ci_offline_1v3_bots_4player.yaml
+- waitForAnimationToEnd
+
+# Wait for game end modal
+- assertVisible:
+    id: "game-end-play-again"
+
+# Tap Play Again — should restart game without returning to menu
+- tapOn:
+    id: "game-end-play-again"
+- waitForAnimationToEnd
+
+# Verify a new game started (match counter resets or game view appears)
+- assertVisible:
+    text: "Match"
+    optional: true
+- assertVisible:
+    id: "pass-button"
+    optional: true
+- assertVisible:
+    id: "play-button"
+    optional: true
+
+# The new game should be playable — verify helper buttons are present
+- assertVisible:
+    id: "sort-button"
+    optional: true

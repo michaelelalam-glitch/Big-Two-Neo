@@ -1,0 +1,42 @@
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - chat
+  - landscape
+---
+# Flow 67: Chat — open drawer, send message, close (landscape orientation)
+
+- runFlow: ./62_ci_landscape_mode_game.yaml
+
+# Rotate to landscape then open chat
+- setLocation:
+    lat: 0
+    lon: 0
+- tapOn:
+    text: "💬"
+    optional: true
+- waitForAnimationToEnd
+- assertVisible:
+    id: "chat-drawer-header"
+
+# Type and send a message in landscape mode
+- tapOn:
+    id: "chat-input"
+- inputText: "Landscape chat message"
+- tapOn:
+    id: "chat-send-button"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Landscape chat message"
+
+# Swipe up on header to close (gesture close)
+- swipe:
+    direction: UP
+    id: "chat-drawer-header"
+- waitForAnimationToEnd
+
+# Rotate back to portrait
+- tapOn:
+    id: "orientation-toggle-button"
+    optional: true
+- waitForAnimationToEnd

@@ -1,0 +1,41 @@
+# Flow 49: Join Room Screen — Validation and back navigation
+# Validates: Join Room screen loads, code input is present, back works
+# Tags: ci-authenticated, rooms
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - rooms
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Navigate to Join Room
+- tapOn: "Join Room"
+- extendedWaitUntil:
+    visible: "Join Room"
+    timeout: 8000
+- takeScreenshot: "49_join_room_screen"
+
+# Verify room code input
+- assertVisible:
+    id: "room-code-input"
+
+# Type invalid code to verify validation
+- tapOn:
+    id: "room-code-input"
+- inputText: "ZZZZ"
+- takeScreenshot: "49_invalid_code_entered"
+
+# Dismiss keyboard and go back
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 8000

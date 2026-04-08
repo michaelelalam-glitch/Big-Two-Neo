@@ -195,7 +195,7 @@ jobs:
     # runners are ~10× more expensive) and because fork PRs don't have access
     # to repository secrets which the app needs to boot without crashing.
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    timeout-minutes: 80
+    timeout-minutes: 100
 
     env:
       # App needs Supabase env vars to initialize without crashing.
@@ -203,6 +203,9 @@ jobs:
       # cannot access these secrets.
       EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
       EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+      # E2E test account for authenticated flow injection (optional — skipped if absent)
+      E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+      E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
     
     steps:
       - name: 📥 Checkout code
@@ -388,44 +391,43 @@ jobs:
           sleep 15
           xcrun simctl terminate booted com.big2mobile.app || true
           sleep 5
-      
+
+      - name: 🔑 Inject E2E auth session (iOS)
+        # Seeds a Supabase email/password session into AsyncStorage SQLite so
+        # that ci-authenticated flows find an active session without OAuth.
+        # Skipped gracefully when E2E_TEST_EMAIL is not set (fork PRs / contributors).
+        if: env.E2E_TEST_EMAIL != ''
+        run: |
+          cd apps/mobile
+          CI_PLATFORM=ios \
+            EXPO_PUBLIC_SUPABASE_URL="${EXPO_PUBLIC_SUPABASE_URL}" \
+            EXPO_PUBLIC_SUPABASE_ANON_KEY="${EXPO_PUBLIC_SUPABASE_ANON_KEY}" \
+            E2E_TEST_EMAIL="${E2E_TEST_EMAIL}" \
+            E2E_TEST_PASSWORD="${E2E_TEST_PASSWORD}" \
+            node scripts/ci-seed-e2e-auth.mjs
+
       - name: 🎭 Run Maestro E2E tests
         run: |
           cd apps/mobile
           # Create results directory (Maestro doesn't auto-create it)
           mkdir -p e2e/results
-          # Run CI-tagged flows (tests that pass without authentication).
-          # Auth-dependent flows (02-08) require Google/Apple Sign-In which
-          # cannot be automated in CI — they run locally or in dedicated
-          # integration environments with test credentials.
-          #
-          # timeout-minutes is 45 to account for:
-          #   - XCUITest driver startup on a cold macos-latest runner: up to 5 min
-          #     (MAESTRO_DRIVER_STARTUP_TIMEOUT=300000 below)
-          #   - App launch + sign-in screen render (Release JS bundle): up to 3 min
-          #   - Test assertions and screenshot: ~1 min
-          #   - Buffer for runner variance: ~5 min
-          #   - One retry after simulator warm-up on "App crashed" flakes: ~10 min
-          #   Shorter timeouts can be too short: Maestro may be killed mid-startup,
-          #   producing exit 65 and no results XML.
-          #
-          # Retry logic: iOS simulator can crash on clearState: true (flaky).
-          # We attempt once, and if it fails we re-warm the simulator then retry.
+          # ── Phase 1: Pre-auth smoke tests (ci tag) ───────────────────────────
+          # Runs sign-in screen state, offline UI, etc. No session required.
           MAX_ATTEMPTS=2
-          MAESTRO_EXIT=1
+          SMOKE_EXIT=1
           for attempt in $(seq 1 $MAX_ATTEMPTS); do
-            echo "--- Maestro attempt $attempt/$MAX_ATTEMPTS ---"
+            echo "--- Smoke attempt $attempt/$MAX_ATTEMPTS ---"
             set +e
             maestro test --include-tags ci e2e/flows/ \
               --format junit \
-              --output e2e/results/results.xml
-            MAESTRO_EXIT=$?
+              --output e2e/results/results-smoke.xml
+            SMOKE_EXIT=$?
             set -e
-            if [ $MAESTRO_EXIT -eq 0 ]; then
+            if [ $SMOKE_EXIT -eq 0 ]; then
               break
             fi
             if [ $attempt -lt $MAX_ATTEMPTS ]; then
-              echo "Attempt $attempt failed (exit $MAESTRO_EXIT) — re-warming simulator before retry..."
+              echo "Smoke attempt $attempt failed (exit $SMOKE_EXIT) — re-warming simulator..."
               xcrun simctl terminate booted com.big2mobile.app || true
               sleep 10
               xcrun simctl launch booted com.big2mobile.app || true
@@ -434,10 +436,48 @@ jobs:
               sleep 5
             fi
           done
-          echo "Maestro exit code: $MAESTRO_EXIT"
-          echo "Results file: $(test -f e2e/results/results.xml && echo PRESENT || echo MISSING)"
-          exit $MAESTRO_EXIT
-        timeout-minutes: 45
+          echo "Smoke exit code: $SMOKE_EXIT"
+
+          # ── Phase 2: Authenticated flows (ci-authenticated tag) ───────────────
+          # Only runs if an auth session was injected (E2E_TEST_EMAIL was set).
+          # Skip gracefully when credentials are absent.
+          AUTH_EXIT=0
+          if [ -n "${E2E_TEST_EMAIL:-}" ]; then
+            echo "--- Running authenticated E2E flows ---"
+            MAX_ATTEMPTS=2
+            for attempt in $(seq 1 $MAX_ATTEMPTS); do
+              echo "--- Auth attempt $attempt/$MAX_ATTEMPTS ---"
+              set +e
+              maestro test --include-tags ci-authenticated e2e/flows/ \
+                --format junit \
+                --output e2e/results/results-authenticated.xml
+              AUTH_EXIT=$?
+              set -e
+              if [ $AUTH_EXIT -eq 0 ]; then
+                break
+              fi
+              if [ $attempt -lt $MAX_ATTEMPTS ]; then
+                echo "Auth attempt $attempt failed (exit $AUTH_EXIT) — re-warming simulator..."
+                xcrun simctl terminate booted com.big2mobile.app || true
+                sleep 10
+                xcrun simctl launch booted com.big2mobile.app || true
+                sleep 15
+                xcrun simctl terminate booted com.big2mobile.app || true
+                sleep 5
+              fi
+            done
+            echo "Auth exit code: $AUTH_EXIT"
+          else
+            echo "Skipping authenticated flows (E2E_TEST_EMAIL not set)"
+          fi
+
+          # ── Final exit: fail if either phase failed ──────────────────────────
+          echo "Results smoke:  $(test -f e2e/results/results-smoke.xml && echo PRESENT || echo MISSING)"
+          echo "Results auth:   $(test -f e2e/results/results-authenticated.xml && echo PRESENT || echo MISSING)"
+          if [ $SMOKE_EXIT -ne 0 ] || [ $AUTH_EXIT -ne 0 ]; then
+            exit 1
+          fi
+        timeout-minutes: 65
         env:
           # Give Maestro's XCUITest driver up to 5 minutes to start the
           # XCTest server on port 7001. Default (~90s) is too short on
@@ -468,6 +508,9 @@ jobs:
     env:
       EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
       EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+      # E2E test account for authenticated flow injection (optional — skipped if absent)
+      E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+      E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
 
     steps:
       - name: 📥 Checkout code
