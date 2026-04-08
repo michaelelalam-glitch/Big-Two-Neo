@@ -408,6 +408,9 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
   }
 
   private async _doTokenRefresh(roomId: string, participantId: string): Promise<void> {
+    // Clear the stale timer ID immediately — the callback has already fired so
+    // the field would otherwise stay non-null even though no refresh is pending.
+    this._tokenRefreshTimer = null;
     gameLogger.info('[LiveKit] M11: Refreshing token before TTL expiry...');
     try {
       const { data, error } = await supabase.functions.invoke<{

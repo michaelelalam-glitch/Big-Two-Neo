@@ -128,6 +128,20 @@ function parseCard(cardData: any): Card | null {
             break;
           }
         } else if (typeof parsed === 'object' && parsed !== null) {
+          // Validate the parsed object has required Card fields with known-good values
+          // before accepting — malformed JSON objects (e.g. {value:"3", suit:"X"}) must
+          // not pass through as Cards.
+          const p = parsed as Record<string, unknown>;
+          if (
+            typeof p.id !== 'string' ||
+            typeof p.suit !== 'string' ||
+            typeof p.rank !== 'string' ||
+            !VALID_SUITS.has(p.suit) ||
+            !VALID_RANKS.has(p.rank)
+          ) {
+            console.warn('[parseCard] JSON-parsed object is not a valid Card:', parsed);
+            return null;
+          }
           return parsed as Card;
         } else {
           break;
