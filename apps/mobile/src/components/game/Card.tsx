@@ -503,10 +503,18 @@ const styles = StyleSheet.create({
 
 // H12: Outer null/undefined guard — renders null when card is missing so that
 // CardInner's hooks always run unconditionally (satisfies react-hooks/rules-of-hooks).
+// H12: Outer runtime validation — renders null when card data is missing or malformed
+// so CardInner is never instantiated (and no hooks run) for bad card payloads.
 const Card = React.memo(function Card(props: CardProps) {
   if (!props.card) {
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
       console.error('[Card] 🚨 INVALID CARD OBJECT: card is null/undefined');
+    }
+    return null;
+  }
+  if (!props.card.rank || !props.card.suit) {
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.error('[Card] 🚨 INVALID CARD DATA: missing rank or suit', props.card);
     }
     return null;
   }

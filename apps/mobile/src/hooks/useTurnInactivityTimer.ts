@@ -40,6 +40,11 @@ export interface UseTurnInactivityTimerOptions {
    * bot-replacement through its own 60s grace period. The client-side inactivity
    * timer must NOT call auto-play-turn in parallel — that would create a race
    * condition between the edge function and pg_cron process_disconnected_players().
+   *
+   * **Required for multiplayer usage.** Omitting this option leaves the H1
+   * dual-timer race unresolved: the client will still attempt auto-play-turn
+   * even while disconnected, racing with the server's bot-replacement logic.
+   * Always pass the value returned by `useConnectionManager().connectionStatus`.
    */
   connectionStatus?: ConnectionStatus;
   /** Callback when auto-play happens (show "I'm Still Here?" modal) */

@@ -583,6 +583,7 @@ export function MultiplayerGame() {
     rejoinStatus,
     forceSweep,
     stopHeartbeats,
+    connectionStatus,
   } = useConnectionManager({
     roomId: roomInfo?.id ?? '',
     playerId: myRoomPlayerId ?? '',
@@ -1099,6 +1100,9 @@ export function MultiplayerGame() {
     // (once added to UseRealtimeReturn) when turn_auto_played needs to reach other clients.
     getCorrectedNow: getTurnCorrectedNow,
     currentUserId: user?.id,
+    // H1: Pass connectionStatus so the hook can skip auto-play while disconnected
+    // and avoid racing with the server's pg_cron bot-replacement logic.
+    connectionStatus,
     onAutoPlay: (cards, action) => {
       // auto-play-turn edge function replaces the player with a bot immediately
       // (65s spec). Stop heartbeats (without calling mark-disconnected) so they
