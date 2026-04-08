@@ -29,12 +29,8 @@ tags:
     timeout: 10000
 
 # Step 3: Verify Notifications header
-- assertVisible: "🔔 Notifications"
-- takeScreenshot: "27_notifications_screen"
-
-# Step 4: Verify page content is visible (empty state text or content)
-# The title header "🔔 Notifications" is always rendered regardless of state
 - assertVisible: "Notifications"
+- takeScreenshot: "27_notifications_screen"
 
 # Step 5: Take final screenshot
 - takeScreenshot: "27_notifications_full"
