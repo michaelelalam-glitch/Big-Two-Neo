@@ -87,7 +87,8 @@ const RANK_I18N_KEYS: Record<string, string> = {
   '2': 'cardA11y.two',
 };
 
-const Card = React.memo(function Card({
+// H12: CardInner owns all hooks — card is guaranteed non-null by the Card wrapper below.
+const CardInner = React.memo(function CardInner({
   card,
   isSelected,
   onToggleSelect,
@@ -105,19 +106,6 @@ const Card = React.memo(function Card({
   sharedDragY = 0,
   cardOverlap = DEFAULT_CARD_OVERLAP_MARGIN,
 }: CardProps) {
-  // H12: Guard production builds from console.error noise on invalid card objects.
-  if (!card || !card.rank || !card.suit) {
-    if (typeof __DEV__ !== 'undefined' && __DEV__) {
-      console.error('[Card] 🚨 INVALID CARD OBJECT:', {
-        hasCard: !!card,
-        cardId: card?.id,
-        cardRank: card?.rank,
-        cardSuit: card?.suit,
-        fullCard: JSON.stringify(card),
-      });
-    }
-  }
-
   const translateY = useSharedValue(0);
   const translateX = useSharedValue(0);
   const scale = useSharedValue(1);
@@ -352,10 +340,10 @@ const Card = React.memo(function Card({
     [cardWidth, cardHeight]
   );
 
-  // All hooks have been called above — safe to bail out here (Rules of Hooks).
-  // The guard at the top already logs in __DEV__; here we prevent a runtime crash
-  // from reading card.suit / card.rank when the card object is invalid.
-  if (!card || !card.rank || !card.suit) {
+  // All hooks have been called above — safe to bail out here.
+  // card is guaranteed non-null by the Card wrapper; this guard catches
+  // cards with a missing rank or suit field before reading them in JSX.
+  if (!card.rank || !card.suit) {
     return null;
   }
 
@@ -511,6 +499,18 @@ const styles = StyleSheet.create({
   cardImage: {
     borderRadius: 6,
   },
+});
+
+// H12: Outer null/undefined guard — renders null when card is missing so that
+// CardInner's hooks always run unconditionally (satisfies react-hooks/rules-of-hooks).
+const Card = React.memo(function Card(props: CardProps) {
+  if (!props.card) {
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.error('[Card] 🚨 INVALID CARD OBJECT: card is null/undefined');
+    }
+    return null;
+  }
+  return <CardInner {...props} />;
 });
 
 export default Card;

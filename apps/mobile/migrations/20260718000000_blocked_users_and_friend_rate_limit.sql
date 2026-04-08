@@ -1,4 +1,16 @@
 -- ============================================================================
+-- LEGACY / REFERENCE-ONLY — DO NOT APPLY VIA SUPABASE CLI
+--
+-- This file is kept for historical reference only. The authoritative version
+-- of these migrations is managed by the Supabase CLI and lives under:
+--   apps/mobile/supabase/migrations/20260720000003_blocked_users_and_friend_rate_limit.sql
+--
+-- Files in apps/mobile/migrations/ are intended for manual SQL-editor
+-- application only (see APPLY_MIGRATIONS.sql) and are NOT picked up by
+-- `supabase db push` / CI. Do not treat this file as the source of truth.
+-- ============================================================================
+
+-- ============================================================================
 -- Sprint 4 PR-4F: blocked_users table + friend request DB rate limiting
 --
 -- H20: blocked_users table was completely missing. Creates it with RLS so

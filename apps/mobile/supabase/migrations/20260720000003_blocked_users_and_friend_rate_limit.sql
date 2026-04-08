@@ -47,8 +47,9 @@ CREATE POLICY "blocked_users_delete_own"
 -- ── Friend request DB-side rate limit trigger (M29) ──────────────────────────
 -- Limits each user to 10 friend requests per hour to prevent spam via direct
 -- API calls that fully bypass the client-side throttle in useFriends.ts.
--- Counts ALL inserts in the window (not just status='pending') to prevent
--- bypass via deletion of older pending rows.
+-- Uses the append-only rate_limit_tracking counter (upsert_rate_limit_counter)
+-- so deletion of older pending rows cannot bypass this limit.
+-- Consistent with enforce_create_room_rate_limit (same table + ERRCODE P0429).
 
 CREATE OR REPLACE FUNCTION public.check_friend_request_rate_limit()
 RETURNS TRIGGER
@@ -57,24 +58,26 @@ SECURITY DEFINER
 SET search_path = public, pg_catalog
 AS $$
 DECLARE
-  v_count int;
-  v_window_start timestamptz;
+  MAX_REQUESTS_PER_HOUR CONSTANT integer := 10;
+  WINDOW_SECS           CONSTANT integer := 3600;
+  v_caller_uid uuid;
+  v_attempts   integer;
 BEGIN
   -- Only rate-limit INSERT of new pending requests
   IF TG_OP = 'INSERT' AND NEW.status = 'pending' THEN
-    v_window_start := NOW() - INTERVAL '1 hour';
-    -- Count all rows inserted in the window regardless of current status
-    -- so deletion of old pending rows cannot bypass this limit
-    SELECT COUNT(*)
-      INTO v_count
-      FROM public.friendships
-     WHERE requester_id = NEW.requester_id
-       AND created_at >= v_window_start;
+    -- auth.uid() is null when called from service-role or direct SQL — skip check.
+    v_caller_uid := auth.uid();
+    IF v_caller_uid IS NULL THEN
+      RETURN NEW;
+    END IF;
 
-    IF v_count >= 10 THEN
+    -- Increment the append-only counter (deletion-proof: counts all attempts,
+    -- not just rows still present in friendships).
+    v_attempts := upsert_rate_limit_counter(v_caller_uid, 'friend_request', WINDOW_SECS);
+
+    IF v_attempts > MAX_REQUESTS_PER_HOUR THEN
       RAISE EXCEPTION 'Maximum 10 friend requests per hour exceeded'
-        USING DETAIL = 'friend_request_rate_limit',
-              ERRCODE = 'P0001';
+        USING ERRCODE = 'P0429';  -- consistent with enforce_create_room_rate_limit
     END IF;
   END IF;
   RETURN NEW;

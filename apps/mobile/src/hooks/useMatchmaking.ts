@@ -111,7 +111,8 @@ export function useMatchmaking(): UseMatchmakingReturn {
    * Calls `find-match` once to register the user in the waiting room.
    * If a match is immediately available the function resolves it
    * synchronously. Otherwise a Realtime subscription on `waiting_room`
-   * drives all further state transitions — no polling interval is started.
+   * drives all further state transitions. If Realtime later reports
+   * CHANNEL_ERROR or TIMED_OUT, the M16 polling fallback activates automatically.
    *
    * The `isStartingRef` guard prevents a second concurrent invocation (e.g.
    * the user tapping "Find Match" twice in rapid succession) from creating a
