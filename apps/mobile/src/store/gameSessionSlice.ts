@@ -50,6 +50,16 @@ export interface GameSessionState {
   setIsPlayerReady: (ready: boolean) => void;
   setIsGameFinished: (finished: boolean) => void;
   setMatchNumber: (match: number) => void;
+  /** Atomically sync layout, score, and game-status session fields in a single named store action */
+  syncSessionSnapshot: (snapshot: {
+    layoutPlayers: LayoutPlayer[];
+    layoutPlayersWithScores: LayoutPlayerWithTimer[];
+    playerTotalScores: number[];
+    currentPlayerName: string;
+    isPlayerReady: boolean;
+    isGameFinished: boolean;
+    matchNumber: number;
+  }) => void;
   /** Reset all session state when a game ends / player navigates away */
   resetSession: () => void;
 }
@@ -66,6 +76,7 @@ const INITIAL_STATE: Omit<
   | 'setIsPlayerReady'
   | 'setIsGameFinished'
   | 'setMatchNumber'
+  | 'syncSessionSnapshot'
   | 'resetSession'
 > = {
   customCardOrder: [],
@@ -107,6 +118,8 @@ export const useGameSessionStore = create<GameSessionState>()(
         set({ isGameFinished: finished }, false, 'gameSession/setIsGameFinished'),
 
       setMatchNumber: match => set({ matchNumber: match }, false, 'gameSession/setMatchNumber'),
+
+      syncSessionSnapshot: snapshot => set(snapshot, false, 'gameSession/syncSessionSnapshot'),
 
       resetSession: () => set({ ...INITIAL_STATE }, false, 'gameSession/resetSession'),
     }),

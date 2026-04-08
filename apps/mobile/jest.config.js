@@ -5,7 +5,7 @@ module.exports = {
   // cache between runs. Without this, Jest uses a temp directory that is lost on
   // every CI run, causing a 10-15 minute cold-start recompilation of all .ts/.tsx files.
   cacheDirectory: '<rootDir>/.jest-cache',
-  roots: ['<rootDir>/src'],
+  roots: ['<rootDir>/src', '<rootDir>/__tests__'],
   testMatch: ['**/__tests__/**/*.test.{ts,tsx}'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
   // Use v8 coverage provider — significantly faster than the default babel provider,

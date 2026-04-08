@@ -9,6 +9,7 @@
  */
 import React, { Profiler, useMemo, useCallback, useState, useRef, useEffect } from 'react';
 import { View, Text, Pressable, TouchableOpacity, ActivityIndicator, Animated } from 'react-native';
+import { useShallow } from 'zustand/react/shallow';
 import {
   CardHand,
   PlayerInfo,
@@ -40,10 +41,36 @@ import type { DragZoneState } from '../components/game';
 import { useGameContext } from '../contexts/GameContext';
 import { useFriendsContext } from '../contexts/FriendsContext';
 import { AddFriendButton } from '../components/friends';
-import { useUserPreferencesStore } from '../store';
+import { useUserPreferencesStore, useGameSessionStore } from '../store';
 import { LAYOUT } from '../constants';
 
 function GameViewComponent() {
+  // C2 Audit: read migrated state from Zustand (single source of truth).
+  // Single subscription with shallow equality avoids 9 separate re-render triggers.
+  const {
+    customCardOrder,
+    setCustomCardOrder,
+    layoutPlayers,
+    layoutPlayersWithScores,
+    playerTotalScores,
+    currentPlayerName,
+    isPlayerReady,
+    isGameFinished,
+    matchNumber,
+  } = useGameSessionStore(
+    useShallow(s => ({
+      customCardOrder: s.customCardOrder,
+      setCustomCardOrder: s.setCustomCardOrder,
+      layoutPlayers: s.layoutPlayers,
+      layoutPlayersWithScores: s.layoutPlayersWithScores,
+      playerTotalScores: s.playerTotalScores,
+      currentPlayerName: s.currentPlayerName,
+      isPlayerReady: s.isPlayerReady,
+      isGameFinished: s.isGameFinished,
+      matchNumber: s.matchNumber,
+    }))
+  );
+
   const profilePhotoSize = useUserPreferencesStore(s => s.profilePhotoSize);
   const throwableClipSize = useMemo(() => {
     const scaleMap = { small: 0.85, medium: 1.0, large: 1.25 } as const;
@@ -66,16 +93,10 @@ function GameViewComponent() {
     setSelectedCardIds,
     handleCardsReorder,
     selectedCards,
-    customCardOrder,
-    setCustomCardOrder,
     effectiveLastPlayedCards,
     effectiveLastPlayedBy,
     effectiveLastPlayComboType,
     effectiveLastPlayCombo,
-    layoutPlayers,
-    layoutPlayersWithScores,
-    playerTotalScores,
-    currentPlayerName,
     togglePlayHistory,
     toggleScoreboardExpanded,
     memoizedPlayerNames,
@@ -84,8 +105,6 @@ function GameViewComponent() {
     memoizedOriginalPlayerNames,
     effectiveAutoPassTimerState,
     effectiveScoreboardCurrentPlayerIndex,
-    matchNumber,
-    isGameFinished,
     displayOrderScoreHistory,
     playHistoryByMatch,
     handlePlayCards,
@@ -98,7 +117,6 @@ function GameViewComponent() {
     handleSort,
     handleSmartSort,
     handleHint,
-    isPlayerReady,
     gameManagerRef,
     isMountedRef,
     // Task #651 / #649 video + voice chat
@@ -318,7 +336,7 @@ function GameViewComponent() {
           />
         )}
 
-        {isInitializing ? (
+        {isInitializing || layoutPlayersWithScores.length === 0 ? (
           // Loading state
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#fff" style={{ marginBottom: 12 }} />

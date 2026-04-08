@@ -30,9 +30,15 @@ const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 const hasCredentials = !!SUPABASE_URL && !!SUPABASE_ANON_KEY && !!SUPABASE_SERVICE_ROLE_KEY;
-const describeWithCredentials = hasCredentials ? describe : describe.skip;
+if (!hasCredentials) {
+  // C10 Fix: Visible warning instead of silent skip so CI dashboards surface skipped integration tests.
+  console.warn(
+    '[SKIP] matchmaking-timeout: Supabase credentials not set — integration tests skipped'
+  );
+}
+const describeIntegration = hasCredentials ? describe : describe.skip;
 
-describeWithCredentials('Matchmaking Timeout Edge Cases', () => {
+describeIntegration('Matchmaking Timeout Edge Cases', () => {
   let supabase: SupabaseClient;
   const authUserIds: string[] = [];
   const roomIdsToClean: string[] = [];

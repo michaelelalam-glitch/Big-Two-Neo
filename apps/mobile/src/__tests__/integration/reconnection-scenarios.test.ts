@@ -33,9 +33,14 @@ const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 const hasCredentials = !!SUPABASE_URL && !!SUPABASE_ANON_KEY && !!SUPABASE_SERVICE_ROLE_KEY;
-const describeWithCredentials = hasCredentials ? describe : describe.skip;
+if (!hasCredentials) {
+  console.warn(
+    '[SKIP] reconnection-scenarios: Supabase credentials not set — integration tests skipped'
+  );
+}
+const describeIntegration = hasCredentials ? describe : describe.skip;
 
-describeWithCredentials('Reconnection Scenarios', () => {
+describeIntegration('Reconnection Scenarios', () => {
   let supabase: SupabaseClient;
   let testRoomId: string;
   let testRoomCode: string;

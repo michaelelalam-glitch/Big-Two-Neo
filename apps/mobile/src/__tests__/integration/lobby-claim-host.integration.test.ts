@@ -69,7 +69,10 @@ const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
 // Skip entire suite when credentials are absent (e.g., CI without service keys or anon key).
 const hasCredentials = !!SUPABASE_URL && !!SUPABASE_SERVICE_ROLE_KEY && !!SUPABASE_ANON_KEY;
-const describeWithCredentials = hasCredentials ? describe : describe.skip;
+if (!hasCredentials) {
+  console.warn('[SKIP] lobby-claim-host: Supabase credentials not set — integration tests skipped');
+}
+const describeIntegration = hasCredentials ? describe : describe.skip;
 
 function uniqueRoomCode(): string {
   // rooms.code is VARCHAR(10); "T" prefix + 9 hex chars = 10 chars total.
@@ -83,7 +86,7 @@ interface TestUserCredentials {
   password: string;
 }
 
-describeWithCredentials('lobby_claim_host — Integration Tests', () => {
+describeIntegration('lobby_claim_host — Integration Tests', () => {
   let supabase: SupabaseClient;
   let u1: string; // will be first human (player_index 0)
   let u2: string; // second human (player_index 1)
@@ -125,7 +128,7 @@ describeWithCredentials('lobby_claim_host — Integration Tests', () => {
   }
 
   beforeAll(async () => {
-    // Credentials are guaranteed present here — describeWithCredentials skips otherwise.
+    // Credentials are guaranteed present here — describeIntegration skips otherwise.
     supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     const createUser = async (label: string): Promise<TestUserCredentials> => {
@@ -136,7 +139,8 @@ describeWithCredentials('lobby_claim_host — Integration Tests', () => {
         password,
         email_confirm: true,
       });
-      if (error || !data.user) throw new Error(`Failed to create user (${label}): ${error?.message}`);
+      if (error || !data.user)
+        throw new Error(`Failed to create user (${label}): ${error?.message}`);
       createdUserIds.push(data.user.id);
       return { id: data.user.id, email, password };
     };
@@ -159,7 +163,7 @@ describeWithCredentials('lobby_claim_host — Integration Tests', () => {
       await supabase.from('rooms').delete().eq('id', roomId);
     }
     testRoomIds = [];
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await new Promise(resolve => setTimeout(resolve, 50));
   });
 
   afterAll(async () => {
@@ -168,7 +172,11 @@ describeWithCredentials('lobby_claim_host — Integration Tests', () => {
       await supabase.from('room_players').delete().eq('user_id', userId);
     }
     for (const userId of createdUserIds) {
-      try { await supabase.auth.admin.deleteUser(userId); } catch { /* ignore */ }
+      try {
+        await supabase.auth.admin.deleteUser(userId);
+      } catch {
+        /* ignore */
+      }
     }
   }, 15_000);
 
@@ -365,7 +373,8 @@ describeWithCredentials('lobby_claim_host — Integration Tests', () => {
       .insert({ code, host_id: u1, is_public: true, is_matchmaking: true, status: 'waiting' })
       .select()
       .single();
-    if (roomErr || !matchRoom) throw new Error(`Failed to create matchmaking room: ${roomErr?.message}`);
+    if (roomErr || !matchRoom)
+      throw new Error(`Failed to create matchmaking room: ${roomErr?.message}`);
     testRoomIds.push(matchRoom.id);
 
     await insertPlayer(matchRoom.id, u1, { playerIndex: 0, isHost: true });

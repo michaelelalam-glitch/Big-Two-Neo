@@ -17,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../services/supabase';
 import { gameLogger } from '../utils/logger';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import { useGameSessionStore } from '../store';
 import { DISCONNECT_TIMER_KEY } from './useActiveGameBanner';
 
 interface UseGameCleanupOptions {
@@ -199,6 +200,11 @@ export function useGameCleanup({
       }
     };
   }, [userId, roomCode, navigation, orientationAvailable]);
+
+  // M5 Audit fix: reset Zustand game-session state on unmount only.
+  // Placed in a separate unmount-only effect (empty dep array) so it never
+  // fires mid-session when userId/roomCode/navigation deps change.
+  useEffect(() => () => useGameSessionStore.getState().resetSession(), []);
 
   return { isMountedRef };
 }

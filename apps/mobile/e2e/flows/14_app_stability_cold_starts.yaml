@@ -1,0 +1,88 @@
+# Flow 14: App Stability Under Repeated Cold Starts
+# Validates: No memory leaks, state corruption, or crashes across multiple
+#   rapid cold-start cycles. Catches regressions in initialization logic
+#   (AuthProvider, audio init, haptic init, Supabase client setup).
+# Tags: smoke, stability, ci
+#
+# Exercises 3 consecutive clear-state launches to surface:
+# - Race conditions in singleton initialization (Supabase, sound manager)
+# - AsyncStorage corruption from interrupted writes
+# - JS bundle caching issues across Hermes restarts
+#
+# No authentication required.
+
+appId: com.big2mobile.app
+tags:
+  - smoke
+  - stability
+  - ci
+---
+# ── Cycle 1: Initial cold start ──────────────────────────────────────────
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible:
+      id: "privacy-consent-decline"
+    timeout: 30000
+- tapOn:
+    id: "privacy-consent-decline"
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 120000
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "14_stability_cycle1"
+
+# ── Cycle 2: Immediate cold restart with state clear ─────────────────────
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible:
+      id: "privacy-consent-decline"
+    timeout: 30000
+- tapOn:
+    id: "privacy-consent-decline"
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 120000
+- assertVisible:
+    id: "sign-in-title"
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "14_stability_cycle2"
+
+# ── Cycle 3: Third cold start ────────────────────────────────────────────
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible:
+      id: "privacy-consent-decline"
+    timeout: 30000
+- tapOn:
+    id: "privacy-consent-decline"
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 120000
+
+# Full assertion set on cycle 3 — all elements must render correctly
+- assertVisible:
+    id: "sign-in-screen"
+- assertVisible:
+    id: "sign-in-title"
+- assertVisible:
+    id: "sign-in-subtitle"
+- assertVisible:
+    id: "google-sign-in-button"
+- assertVisible:
+    id: "sign-in-footer"
+
+- takeScreenshot: "14_stability_cycle3_final"

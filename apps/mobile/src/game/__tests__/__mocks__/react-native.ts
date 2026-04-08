@@ -45,6 +45,8 @@ export const ActivityIndicator = 'ActivityIndicator';
 export const TouchableOpacity = 'TouchableOpacity';
 export const ScrollView = 'ScrollView';
 export const Modal = 'Modal';
+export const StatusBar = 'StatusBar';
+export const Switch = 'Switch';
 
 export const Share = {
   share: jest.fn(),

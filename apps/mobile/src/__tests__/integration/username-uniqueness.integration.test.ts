@@ -71,16 +71,18 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 // Skip entire suite when credentials are absent (e.g., CI without service keys).
 const hasCredentials = !!SUPABASE_URL && !!SUPABASE_SERVICE_ROLE_KEY;
-const describeWithCredentials = hasCredentials ? describe : describe.skip;
+if (!hasCredentials) {
+  console.warn(
+    '[SKIP] username-uniqueness: Supabase credentials not set — integration tests skipped'
+  );
+}
+const describeIntegration = hasCredentials ? describe : describe.skip;
 
-/** Generate a collision-safe room code using UUID.
- * rooms.code is VARCHAR(10): 'T' (1 char) + 9 chars = 10 chars max.
- */
 function uniqueRoomCode(): string {
   return `T${randomUUID().replace(/-/g, '').substring(0, 9).toUpperCase()}`;
 }
 
-describeWithCredentials('Username Uniqueness - Integration Tests', () => {
+describeIntegration('Username Uniqueness - Integration Tests', () => {
   let supabase: SupabaseClient;
   let u1: string;
   let u2: string;
@@ -122,9 +124,7 @@ describeWithCredentials('Username Uniqueness - Integration Tests', () => {
         email_confirm: true,
       });
       if (error || !data.user) {
-        throw new Error(
-          `Failed to create test auth user (${label}): ${error?.message}`
-        );
+        throw new Error(`Failed to create test auth user (${label}): ${error?.message}`);
       }
       createdUserIds.push(data.user.id);
       return data.user.id;
@@ -151,7 +151,7 @@ describeWithCredentials('Username Uniqueness - Integration Tests', () => {
         .then(() => {});
     }
     // Brief delay for trigger propagation
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await new Promise(resolve => setTimeout(resolve, 50));
   });
 
   afterAll(async () => {
@@ -366,13 +366,12 @@ describeWithCredentials('Username Uniqueness - Integration Tests', () => {
 
       // Both promises resolve (Supabase returns errors in response, not rejections)
       const fulfilled = results.filter(
-        (r): r is PromiseFulfilledResult<{ data: any; error: any }> =>
-          r.status === 'fulfilled'
+        (r): r is PromiseFulfilledResult<{ data: any; error: any }> => r.status === 'fulfilled'
       );
       expect(fulfilled).toHaveLength(2);
 
-      const successes = fulfilled.filter((r) => !r.value.error);
-      const failures = fulfilled.filter((r) => r.value.error);
+      const successes = fulfilled.filter(r => !r.value.error);
+      const failures = fulfilled.filter(r => r.value.error);
 
       // Exactly one should succeed and one should fail
       expect(successes.length).toBeGreaterThanOrEqual(1);
