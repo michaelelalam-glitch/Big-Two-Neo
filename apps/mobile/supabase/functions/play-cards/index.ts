@@ -5,16 +5,17 @@ import { parseCards } from '../_shared/parseCards.ts';
 import { checkRateLimit, rateLimitResponse } from '../_shared/rateLimiter.ts';
 import { concurrentModificationResponse } from '../_shared/responses.ts';
 import { checkMinimumVersion } from '../_shared/versionCheck.ts';
+// M12: CORS origin controlled by ALLOWED_ORIGIN env var
+import { buildCorsHeaders } from '../_shared/cors.ts';
 
 // Rate-limit config for play-cards: max 10 plays per 10-second window per user.
 // Normal gameplay is ~1 play every several seconds; 10/10s is generous for legitimate use.
 const PLAY_CARDS_RATE_LIMIT_MAX    = 10;
 const PLAY_CARDS_RATE_LIMIT_WINDOW = 10; // seconds
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-app-version',
-};
+// M10: Valid card field values for boundary validation at the edge function entry point.
+const VALID_SUITS = new Set(['D', 'C', 'H', 'S']);
+const VALID_RANKS = new Set(['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2']);
 
 // ==================== TYPES ====================
 
@@ -709,6 +710,9 @@ function _cachedPlayerHash(hash: string, id: string): void {
 // ==================== MAIN HANDLER ====================
 
 Deno.serve(async (req) => {
+  // M12: CORS origin controlled by ALLOWED_ORIGIN env var
+  const corsHeaders = buildCorsHeaders();
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -838,6 +842,29 @@ Deno.serve(async (req) => {
         JSON.stringify({ success: false, error: 'Missing required fields' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // M10: Validate card format at the boundary — reject malformed input before any game logic.
+    // Cards may be objects { suit, rank, id } or legacy strings (handled by parseCard later).
+    // We validate only when the card is already an object; strings are validated after parseCard.
+    if (cards.length > 13) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Too many cards: max 13 per play' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    for (const rawCard of cards) {
+      if (typeof rawCard === 'object' && rawCard !== null && ('suit' in rawCard || 'rank' in rawCard)) {
+        const suit = String(rawCard.suit ?? '');
+        const rank = String(rawCard.rank ?? '');
+        if (!VALID_SUITS.has(suit) || !VALID_RANKS.has(rank)) {
+          console.warn('[play-cards] ❌ M10: Invalid card format at boundary:', { suit, rank });
+          return new Response(
+            JSON.stringify({ success: false, error: `Invalid card: suit must be D/C/H/S, rank must be 3-A/2 (got suit="${suit}" rank="${rank}")` }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
     }
 
     // Now that we have a valid player_id, complete the identity check for client callers.

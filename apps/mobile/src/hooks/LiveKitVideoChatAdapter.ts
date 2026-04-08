@@ -45,6 +45,7 @@ import {
   RoomOptions,
   DisconnectReason,
 } from 'livekit-client';
+import { AppState, type AppStateStatus } from 'react-native';
 import { supabase } from '../services/supabase';
 import { gameLogger } from '../utils/logger';
 import type { VideoChatAdapter, VideoChatParticipant, LiveKitTrackRef } from './useVideoChat';
@@ -147,6 +148,15 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
   private _audioSessionActive = false;
   /** Mutex to prevent concurrent start/stop audio session calls */
   private _audioSessionMutex: Promise<void> = Promise.resolve();
+  /** M11: Token refresh timer — cleared on disconnect */
+  private _tokenRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+  /** M11: Stored connect parameters for token refresh */
+  private _connectParams: { roomId: string; participantId: string } | null = null;
+  /** M13: AppState subscription — removed on disconnect */
+  private _appStateSubscription: ReturnType<typeof AppState.addEventListener> | null = null;
+  /** M13: Camera/mic state before backgrounding, used for restore on foreground */
+  private _cameraEnabledBeforeBackground = false;
+  private _micEnabledBeforeBackground = false;
 
   constructor() {
     // _registerGlobals is set at module-evaluation time (see top of file).
@@ -247,9 +257,27 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
       throw connectErr;
     }
     gameLogger.info('[LiveKit] Connected.');
+
+    // M11: Schedule token refresh ~5 minutes before the 1-hour TTL expires.
+    // If the user is still in the room at 55 minutes, silently re-fetch a token
+    // and re-connect. The LiveKit room object is reused; remote participants
+    // are not disrupted.
+    this._connectParams = { roomId, participantId };
+    this._scheduleTokenRefresh(roomId, participantId);
+
+    // M13: Pause camera/mic when app backgrounds to conserve bandwidth and battery.
+    // Restore the previous state when the app returns to the foreground.
+    this._appStateSubscription?.remove();
+    this._appStateSubscription = AppState.addEventListener('change', this._handleAppStateChange);
   }
 
   async disconnect(): Promise<void> {
+    // M11: Cancel any pending token refresh before disconnecting.
+    this._clearTokenRefresh();
+    // M13: Remove AppState listener.
+    this._appStateSubscription?.remove();
+    this._appStateSubscription = null;
+    this._connectParams = null;
     try {
       await this.room.disconnect();
       gameLogger.info('[LiveKit] Disconnected.');
@@ -364,6 +392,113 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
   }
 
   // ── Internal event wiring ─────────────────────────────────────────────────
+
+  // M11: Token refresh utilities ─────────────────────────────────────────────
+
+  /** Schedule a proactive token refresh 55 minutes into the session (5 min before 1hr TTL). */
+  private _scheduleTokenRefresh(roomId: string, participantId: string): void {
+    this._clearTokenRefresh();
+    const REFRESH_DELAY_MS = 55 * 60 * 1000; // 55 minutes
+    this._tokenRefreshTimer = setTimeout(() => {
+      this._doTokenRefresh(roomId, participantId);
+    }, REFRESH_DELAY_MS);
+  }
+
+  private _clearTokenRefresh(): void {
+    if (this._tokenRefreshTimer !== null) {
+      clearTimeout(this._tokenRefreshTimer);
+      this._tokenRefreshTimer = null;
+    }
+  }
+
+  private async _doTokenRefresh(roomId: string, participantId: string): Promise<void> {
+    gameLogger.info('[LiveKit] M11: Refreshing token before TTL expiry...');
+    try {
+      const { data, error } = await supabase.functions.invoke<{
+        token: string;
+        livekitUrl: string;
+      }>('get-livekit-token', {
+        body: { roomId, displayName: participantId },
+      });
+      if (error || !data?.token || !data?.livekitUrl) {
+        throw new Error(error instanceof Error ? error.message : 'Token refresh failed');
+      }
+      // Re-connect with fresh token; LiveKit SDK handles graceful migration.
+      await this.room.connect(data.livekitUrl, data.token);
+      gameLogger.info('[LiveKit] M11: Token refreshed and room reconnected.');
+      // Schedule the next refresh for the new token.
+      this._scheduleTokenRefresh(roomId, participantId);
+    } catch (err) {
+      gameLogger.warn(
+        '[LiveKit] M11: Token refresh failed:',
+        err instanceof Error ? err.message : String(err)
+      );
+      this._notifyError(
+        new Error(
+          `LiveKit token refresh failed: ${err instanceof Error ? err.message : String(err)}`
+        )
+      );
+    }
+  }
+
+  // M13: App background/foreground pause ─────────────────────────────────────
+
+  /** Arrow function so `this` is captured — used as AppState event handler. */
+  private _handleAppStateChange = async (nextState: AppStateStatus): Promise<void> => {
+    if (nextState === 'background' || nextState === 'inactive') {
+      // Capture current publish state before pausing.
+      const camPub = this.room.localParticipant.getTrackPublication(Track.Source.Camera);
+      const micPub = this.room.localParticipant.getTrackPublication(Track.Source.Microphone);
+      this._cameraEnabledBeforeBackground = camPub != null && !camPub.isMuted;
+      this._micEnabledBeforeBackground = micPub != null && !micPub.isMuted;
+      if (this._cameraEnabledBeforeBackground) {
+        try {
+          await this.room.localParticipant.setCameraEnabled(false);
+          gameLogger.info('[LiveKit] M13: Camera paused on background.');
+        } catch (e) {
+          gameLogger.warn(
+            '[LiveKit] M13: Failed to pause camera on background:',
+            e instanceof Error ? e.message : String(e)
+          );
+        }
+      }
+      if (this._micEnabledBeforeBackground) {
+        try {
+          await this.room.localParticipant.setMicrophoneEnabled(false);
+          gameLogger.info('[LiveKit] M13: Microphone muted on background.');
+        } catch (e) {
+          gameLogger.warn(
+            '[LiveKit] M13: Failed to mute mic on background:',
+            e instanceof Error ? e.message : String(e)
+          );
+        }
+      }
+    } else if (nextState === 'active') {
+      // Restore camera/mic to their pre-background state.
+      if (this._cameraEnabledBeforeBackground) {
+        try {
+          await this.room.localParticipant.setCameraEnabled(true);
+          gameLogger.info('[LiveKit] M13: Camera restored on foreground.');
+        } catch (e) {
+          gameLogger.warn(
+            '[LiveKit] M13: Failed to restore camera on foreground:',
+            e instanceof Error ? e.message : String(e)
+          );
+        }
+      }
+      if (this._micEnabledBeforeBackground) {
+        try {
+          await this.room.localParticipant.setMicrophoneEnabled(true);
+          gameLogger.info('[LiveKit] M13: Microphone restored on foreground.');
+        } catch (e) {
+          gameLogger.warn(
+            '[LiveKit] M13: Failed to restore mic on foreground:',
+            e instanceof Error ? e.message : String(e)
+          );
+        }
+      }
+    }
+  };
 
   private _notifyParticipants(overrideSnapshot?: VideoChatParticipant[]): void {
     const snapshot = overrideSnapshot ?? snapshotParticipants(this.room);

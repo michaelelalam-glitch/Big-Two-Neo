@@ -10,11 +10,10 @@
  *   supabase secrets set GA4_MEASUREMENT_ID=G-XXXXXXXXXX
  */
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-app-version',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+// M12: CORS origin controlled by ALLOWED_ORIGIN env var (see _shared/cors.ts)
+import { buildCorsHeaders } from '../_shared/cors.ts';
+// L5: Request ID tracing + L4: standardized error responses
+import { getRequestId } from '../_shared/responses.ts';
 
 const GA4_API_SECRET = Deno.env.get('GA4_API_SECRET') ?? '';
 const GA4_MEASUREMENT_ID = Deno.env.get('GA4_MEASUREMENT_ID') ?? '';
@@ -68,9 +67,15 @@ function isRateLimited(userId: string): boolean {
 }
 
 Deno.serve(async (req) => {
+  // M12: CORS origin controlled by ALLOWED_ORIGIN env var
+  const corsHeaders = buildCorsHeaders();
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+  // L5: Propagate request ID for tracing
+  const requestId = getRequestId(req);
 
     // C3: Enforce minimum app version
     const versionError = checkMinimumVersion(req, corsHeaders);
@@ -188,14 +193,14 @@ Deno.serve(async (req) => {
       JSON.stringify({ status: ga4Response.status }),
       {
         status: ga4Response.ok ? 200 : 502,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Request-ID': requestId },
       },
     );
   } catch (error: any) {
-    console.error('[analytics-proxy] Error:', error);
+    console.error(`[analytics-proxy] reqId=${requestId} Error:`, error);
     return new Response(
-      JSON.stringify({ error: error.message || 'Unknown error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      JSON.stringify({ success: false, error: error.message || 'Unknown error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Request-ID': requestId } },
     );
   }
 });

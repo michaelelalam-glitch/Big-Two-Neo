@@ -46,6 +46,9 @@ function generateRoomCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
   for (let i = 0; i < 6; i++) {
+    // Math.random() is intentional: room codes are NOT security-critical.
+    // They are short-lived, human-readable join codes for ad-hoc games.
+    // Duplicate codes are handled by the DB unique constraint + MAX_ROOM_CREATE_ATTEMPTS retry. (L17)
     code += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return code;
@@ -155,7 +158,9 @@ export function useRoomLobby({
   }, [userId, username, onError]);
 
   /**
-   * Join an existing room by code
+   * Join an existing room by code.
+   * Uses join_room_atomic RPC to prevent TOCTOU race conditions (M28):
+   * the DB-level advisory lock ensures count+index+insert are atomic.
    */
   const joinRoom = useCallback(
     async (code: string): Promise<void> => {
@@ -163,6 +168,7 @@ export function useRoomLobby({
       setError(null);
 
       try {
+        // Fetch room for local UI state (setRoom) — read-only, no concurrency risk.
         const { data: existingRoom, error: roomError } = await supabase
           .from('rooms')
           .select('*')
@@ -170,46 +176,22 @@ export function useRoomLobby({
           .eq('status', 'waiting')
           .single();
 
-        if (roomError) throw new Error('Room not found or already started');
+        if (roomError || !existingRoom) throw new Error('Room not found or already started');
 
-        const { count } = await supabase
-          .from('room_players')
-          .select('*', { count: 'exact', head: true })
-          .eq('room_id', existingRoom.id);
-
-        // Clamp to [2, 4] — the game engine assumes exactly 4 seats (player_index 0–3).
-        // Trusting a DB value > 4 would allow seat indices outside that range
-        // and corrupt room state.  Values < 2 make no sense for a multiplayer game.
-        const effectiveMaxPlayers = Math.min(Math.max(existingRoom.max_players ?? 4, 2), 4);
-        if (typeof count === 'number' && count >= effectiveMaxPlayers) {
-          throw new Error('Room is full');
-        }
-
-        const { data: existingPlayers } = await supabase
-          .from('room_players')
-          .select('player_index')
-          .eq('room_id', existingRoom.id)
-          .order('player_index');
-
-        const takenPositions = new Set(existingPlayers?.map(p => p.player_index) || []);
-        let player_index = 0;
-        while (takenPositions.has(player_index) && player_index < effectiveMaxPlayers)
-          player_index++;
-        if (player_index >= effectiveMaxPlayers) {
-          throw new Error('Room is full');
-        }
-
-        const { error: playerError } = await supabase.from('room_players').insert({
-          room_id: existingRoom.id,
-          user_id: userId,
-          username,
-          player_index,
-          is_host: false,
-          is_ready: false,
-          is_bot: false,
+        // Atomic join: advisory-locked insert inside a DB transaction prevents
+        // double-join and seat collision under concurrent callers (M28).
+        const { data: joinResult, error: joinError } = await supabase.rpc('join_room_atomic', {
+          p_room_code: code.toUpperCase(),
+          p_user_id: userId,
+          p_username: username,
         });
 
-        if (playerError) throw playerError;
+        if (joinError) {
+          // Surface meaningful DB-level error messages (room full, banned, etc.)
+          throw new Error(joinError.message ?? 'Failed to join room');
+        }
+
+        const player_index = (joinResult as { player_index: number })?.player_index ?? 0;
 
         setRoom(existingRoom);
         await joinChannel(existingRoom.id);

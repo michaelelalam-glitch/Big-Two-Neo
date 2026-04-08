@@ -1,0 +1,823 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`LandscapeCard — visual regression (L11) black-suit (spades) card snapshot 1`] = `
+<View
+  accessibilityLabel="J of ♠"
+  accessibilityRole="image"
+  accessible={true}
+  style={
+    [
+      {
+        "elevation": 3,
+        "shadowColor": "#000",
+        "shadowOffset": {
+          "height": 2,
+          "width": 0,
+        },
+        "shadowOpacity": 0.2,
+        "shadowRadius": 4,
+      },
+      {
+        "borderRadius": 12,
+        "height": 104,
+        "width": 72,
+      },
+      undefined,
+    ]
+  }
+>
+  <View
+    style={
+      {
+        "backgroundColor": "#FFFFFF",
+        "borderColor": "#E0E0E0",
+        "borderRadius": 6,
+        "borderWidth": 1,
+        "height": "100%",
+        "padding": 4,
+        "width": "100%",
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "alignItems": "flex-start",
+          "left": 2,
+          "position": "absolute",
+          "top": 2,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "color": "#2C3E50",
+            "fontSize": 16,
+            "fontWeight": "bold",
+            "lineHeight": 18,
+          }
+        }
+      >
+        J
+      </Text>
+      <Text
+        style={
+          {
+            "color": "#2C3E50",
+            "fontSize": 14,
+            "lineHeight": 16,
+          }
+        }
+      >
+        ♠
+      </Text>
+    </View>
+    <Text
+      style={
+        {
+          "color": "#2C3E50",
+          "fontSize": 32,
+          "marginTop": 20,
+          "textAlign": "center",
+        }
+      }
+    >
+      ♠
+    </Text>
+    <View
+      style={
+        [
+          {
+            "alignItems": "flex-start",
+            "left": 2,
+            "position": "absolute",
+            "top": 2,
+          },
+          {
+            "alignItems": "flex-end",
+            "bottom": 2,
+            "left": undefined,
+            "right": 2,
+            "top": undefined,
+            "transform": [
+              {
+                "rotate": "180deg",
+              },
+            ],
+          },
+        ]
+      }
+    >
+      <Text
+        style={
+          {
+            "color": "#2C3E50",
+            "fontSize": 16,
+            "fontWeight": "bold",
+            "lineHeight": 18,
+          }
+        }
+      >
+        J
+      </Text>
+      <Text
+        style={
+          {
+            "color": "#2C3E50",
+            "fontSize": 14,
+            "lineHeight": 16,
+          }
+        }
+      >
+        ♠
+      </Text>
+    </View>
+  </View>
+</View>
+`;
+
+exports[`LandscapeCard — visual regression (L11) red-suit (hearts) card snapshot 1`] = `
+<View
+  accessibilityLabel="Q of ♥"
+  accessibilityRole="image"
+  accessible={true}
+  style={
+    [
+      {
+        "elevation": 3,
+        "shadowColor": "#000",
+        "shadowOffset": {
+          "height": 2,
+          "width": 0,
+        },
+        "shadowOpacity": 0.2,
+        "shadowRadius": 4,
+      },
+      {
+        "borderRadius": 12,
+        "height": 104,
+        "width": 72,
+      },
+      undefined,
+    ]
+  }
+>
+  <View
+    style={
+      {
+        "backgroundColor": "#FFFFFF",
+        "borderColor": "#E0E0E0",
+        "borderRadius": 6,
+        "borderWidth": 1,
+        "height": "100%",
+        "padding": 4,
+        "width": "100%",
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "alignItems": "flex-start",
+          "left": 2,
+          "position": "absolute",
+          "top": 2,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "color": "#E74C3C",
+            "fontSize": 16,
+            "fontWeight": "bold",
+            "lineHeight": 18,
+          }
+        }
+      >
+        Q
+      </Text>
+      <Text
+        style={
+          {
+            "color": "#E74C3C",
+            "fontSize": 14,
+            "lineHeight": 16,
+          }
+        }
+      >
+        ♥
+      </Text>
+    </View>
+    <Text
+      style={
+        {
+          "color": "#E74C3C",
+          "fontSize": 32,
+          "marginTop": 20,
+          "textAlign": "center",
+        }
+      }
+    >
+      ♥
+    </Text>
+    <View
+      style={
+        [
+          {
+            "alignItems": "flex-start",
+            "left": 2,
+            "position": "absolute",
+            "top": 2,
+          },
+          {
+            "alignItems": "flex-end",
+            "bottom": 2,
+            "left": undefined,
+            "right": 2,
+            "top": undefined,
+            "transform": [
+              {
+                "rotate": "180deg",
+              },
+            ],
+          },
+        ]
+      }
+    >
+      <Text
+        style={
+          {
+            "color": "#E74C3C",
+            "fontSize": 16,
+            "fontWeight": "bold",
+            "lineHeight": 18,
+          }
+        }
+      >
+        Q
+      </Text>
+      <Text
+        style={
+          {
+            "color": "#E74C3C",
+            "fontSize": 14,
+            "lineHeight": 16,
+          }
+        }
+      >
+        ♥
+      </Text>
+    </View>
+  </View>
+</View>
+`;
+
+exports[`LandscapeCard — visual regression (L11) renders base-size card snapshot 1`] = `
+<View
+  accessibilityLabel="A of ♠"
+  accessibilityRole="image"
+  accessible={true}
+  style={
+    [
+      {
+        "elevation": 3,
+        "shadowColor": "#000",
+        "shadowOffset": {
+          "height": 2,
+          "width": 0,
+        },
+        "shadowOpacity": 0.2,
+        "shadowRadius": 4,
+      },
+      {
+        "borderRadius": 12,
+        "height": 104,
+        "width": 72,
+      },
+      undefined,
+    ]
+  }
+>
+  <View
+    style={
+      {
+        "backgroundColor": "#FFFFFF",
+        "borderColor": "#E0E0E0",
+        "borderRadius": 6,
+        "borderWidth": 1,
+        "height": "100%",
+        "padding": 4,
+        "width": "100%",
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "alignItems": "flex-start",
+          "left": 2,
+          "position": "absolute",
+          "top": 2,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "color": "#2C3E50",
+            "fontSize": 16,
+            "fontWeight": "bold",
+            "lineHeight": 18,
+          }
+        }
+      >
+        A
+      </Text>
+      <Text
+        style={
+          {
+            "color": "#2C3E50",
+            "fontSize": 14,
+            "lineHeight": 16,
+          }
+        }
+      >
+        ♠
+      </Text>
+    </View>
+    <Text
+      style={
+        {
+          "color": "#2C3E50",
+          "fontSize": 32,
+          "marginTop": 20,
+          "textAlign": "center",
+        }
+      }
+    >
+      ♠
+    </Text>
+    <View
+      style={
+        [
+          {
+            "alignItems": "flex-start",
+            "left": 2,
+            "position": "absolute",
+            "top": 2,
+          },
+          {
+            "alignItems": "flex-end",
+            "bottom": 2,
+            "left": undefined,
+            "right": 2,
+            "top": undefined,
+            "transform": [
+              {
+                "rotate": "180deg",
+              },
+            ],
+          },
+        ]
+      }
+    >
+      <Text
+        style={
+          {
+            "color": "#2C3E50",
+            "fontSize": 16,
+            "fontWeight": "bold",
+            "lineHeight": 18,
+          }
+        }
+      >
+        A
+      </Text>
+      <Text
+        style={
+          {
+            "color": "#2C3E50",
+            "fontSize": 14,
+            "lineHeight": 16,
+          }
+        }
+      >
+        ♠
+      </Text>
+    </View>
+  </View>
+</View>
+`;
+
+exports[`LandscapeCard — visual regression (L11) renders center-size card snapshot 1`] = `
+<View
+  accessibilityLabel="2 of ♣"
+  accessibilityRole="image"
+  accessible={true}
+  style={
+    [
+      {
+        "elevation": 3,
+        "shadowColor": "#000",
+        "shadowOffset": {
+          "height": 2,
+          "width": 0,
+        },
+        "shadowOpacity": 0.2,
+        "shadowRadius": 4,
+      },
+      {
+        "borderRadius": 10,
+        "height": 98,
+        "width": 70,
+      },
+      undefined,
+    ]
+  }
+>
+  <View
+    style={
+      {
+        "backgroundColor": "#FFFFFF",
+        "borderColor": "#E0E0E0",
+        "borderRadius": 6,
+        "borderWidth": 1,
+        "height": "100%",
+        "padding": 4,
+        "width": "100%",
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "alignItems": "flex-start",
+          "left": 2,
+          "position": "absolute",
+          "top": 2,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "color": "#2C3E50",
+            "fontSize": 15.52,
+            "fontWeight": "bold",
+            "lineHeight": 18,
+          }
+        }
+      >
+        2
+      </Text>
+      <Text
+        style={
+          {
+            "color": "#2C3E50",
+            "fontSize": 13.58,
+            "lineHeight": 16,
+          }
+        }
+      >
+        ♣
+      </Text>
+    </View>
+    <Text
+      style={
+        {
+          "color": "#2C3E50",
+          "fontSize": 31.04,
+          "marginTop": 19.4,
+          "textAlign": "center",
+        }
+      }
+    >
+      ♣
+    </Text>
+    <View
+      style={
+        [
+          {
+            "alignItems": "flex-start",
+            "left": 2,
+            "position": "absolute",
+            "top": 2,
+          },
+          {
+            "alignItems": "flex-end",
+            "bottom": 2,
+            "left": undefined,
+            "right": 2,
+            "top": undefined,
+            "transform": [
+              {
+                "rotate": "180deg",
+              },
+            ],
+          },
+        ]
+      }
+    >
+      <Text
+        style={
+          {
+            "color": "#2C3E50",
+            "fontSize": 15.52,
+            "fontWeight": "bold",
+            "lineHeight": 18,
+          }
+        }
+      >
+        2
+      </Text>
+      <Text
+        style={
+          {
+            "color": "#2C3E50",
+            "fontSize": 13.58,
+            "lineHeight": 16,
+          }
+        }
+      >
+        ♣
+      </Text>
+    </View>
+  </View>
+</View>
+`;
+
+exports[`LandscapeCard — visual regression (L11) renders compact-size card snapshot 1`] = `
+<View
+  accessibilityLabel="K of ♥"
+  accessibilityRole="image"
+  accessible={true}
+  style={
+    [
+      {
+        "elevation": 3,
+        "shadowColor": "#000",
+        "shadowOffset": {
+          "height": 2,
+          "width": 0,
+        },
+        "shadowOpacity": 0.2,
+        "shadowRadius": 4,
+      },
+      {
+        "borderRadius": 4,
+        "height": 46,
+        "width": 32,
+      },
+      undefined,
+    ]
+  }
+>
+  <View
+    style={
+      {
+        "backgroundColor": "#FFFFFF",
+        "borderColor": "#E0E0E0",
+        "borderRadius": 6,
+        "borderWidth": 1,
+        "height": "100%",
+        "padding": 4,
+        "width": "100%",
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "alignItems": "flex-start",
+          "left": 2,
+          "position": "absolute",
+          "top": 2,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "color": "#E74C3C",
+            "fontSize": 7.04,
+            "fontWeight": "bold",
+            "lineHeight": 18,
+          }
+        }
+      >
+        K
+      </Text>
+      <Text
+        style={
+          {
+            "color": "#E74C3C",
+            "fontSize": 6.16,
+            "lineHeight": 16,
+          }
+        }
+      >
+        ♥
+      </Text>
+    </View>
+    <Text
+      style={
+        {
+          "color": "#E74C3C",
+          "fontSize": 14.08,
+          "marginTop": 8.8,
+          "textAlign": "center",
+        }
+      }
+    >
+      ♥
+    </Text>
+    <View
+      style={
+        [
+          {
+            "alignItems": "flex-start",
+            "left": 2,
+            "position": "absolute",
+            "top": 2,
+          },
+          {
+            "alignItems": "flex-end",
+            "bottom": 2,
+            "left": undefined,
+            "right": 2,
+            "top": undefined,
+            "transform": [
+              {
+                "rotate": "180deg",
+              },
+            ],
+          },
+        ]
+      }
+    >
+      <Text
+        style={
+          {
+            "color": "#E74C3C",
+            "fontSize": 7.04,
+            "fontWeight": "bold",
+            "lineHeight": 18,
+          }
+        }
+      >
+        K
+      </Text>
+      <Text
+        style={
+          {
+            "color": "#E74C3C",
+            "fontSize": 6.16,
+            "lineHeight": 16,
+          }
+        }
+      >
+        ♥
+      </Text>
+    </View>
+  </View>
+</View>
+`;
+
+exports[`LandscapeCard — visual regression (L11) renders hand-size card snapshot 1`] = `
+<View
+  accessibilityLabel="3 of ♦"
+  accessibilityRole="image"
+  accessible={true}
+  style={
+    [
+      {
+        "elevation": 3,
+        "shadowColor": "#000",
+        "shadowOffset": {
+          "height": 2,
+          "width": 0,
+        },
+        "shadowOpacity": 0.2,
+        "shadowRadius": 4,
+      },
+      {
+        "borderRadius": 8,
+        "height": 84,
+        "width": 60,
+      },
+      undefined,
+    ]
+  }
+>
+  <View
+    style={
+      {
+        "backgroundColor": "#FFFFFF",
+        "borderColor": "#E0E0E0",
+        "borderRadius": 6,
+        "borderWidth": 1,
+        "height": "100%",
+        "padding": 4,
+        "width": "100%",
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "alignItems": "flex-start",
+          "left": 2,
+          "position": "absolute",
+          "top": 2,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "color": "#E74C3C",
+            "fontSize": 13.28,
+            "fontWeight": "bold",
+            "lineHeight": 18,
+          }
+        }
+      >
+        3
+      </Text>
+      <Text
+        style={
+          {
+            "color": "#E74C3C",
+            "fontSize": 11.62,
+            "lineHeight": 16,
+          }
+        }
+      >
+        ♦
+      </Text>
+    </View>
+    <Text
+      style={
+        {
+          "color": "#E74C3C",
+          "fontSize": 26.56,
+          "marginTop": 16.599999999999998,
+          "textAlign": "center",
+        }
+      }
+    >
+      ♦
+    </Text>
+    <View
+      style={
+        [
+          {
+            "alignItems": "flex-start",
+            "left": 2,
+            "position": "absolute",
+            "top": 2,
+          },
+          {
+            "alignItems": "flex-end",
+            "bottom": 2,
+            "left": undefined,
+            "right": 2,
+            "top": undefined,
+            "transform": [
+              {
+                "rotate": "180deg",
+              },
+            ],
+          },
+        ]
+      }
+    >
+      <Text
+        style={
+          {
+            "color": "#E74C3C",
+            "fontSize": 13.28,
+            "fontWeight": "bold",
+            "lineHeight": 18,
+          }
+        }
+      >
+        3
+      </Text>
+      <Text
+        style={
+          {
+            "color": "#E74C3C",
+            "fontSize": 11.62,
+            "lineHeight": 16,
+          }
+        }
+      >
+        ♦
+      </Text>
+    </View>
+  </View>
+</View>
+`;

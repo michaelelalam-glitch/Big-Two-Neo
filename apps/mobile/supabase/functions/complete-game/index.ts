@@ -1,6 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { checkMinimumVersion } from '../_shared/versionCheck.ts';
+// M12: CORS origin controlled by ALLOWED_ORIGIN env var
+import { buildCorsHeaders } from '../_shared/cors.ts';
 
 // H7 Fix: LiveKit env vars for room cleanup after game completion
 const LIVEKIT_API_KEY    = Deno.env.get('LIVEKIT_API_KEY')    ?? '';
@@ -24,10 +26,10 @@ interface GameCompletionRequest {
     original_username: string | null; // Original player name before bot replaced them
     combos_played: {
       singles: number;
-      pairs: number;
-      triples: number;
-      straights: number;
-      flushes: number;
+
+
+
+
       full_houses: number;
       four_of_a_kinds: number;
       straight_flushes: number;
@@ -47,10 +49,10 @@ interface GameCompletionRequest {
   // because it is contaminated by bot heartbeats for replaced players.
 }
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-app-version',
-};
+const corsHeaders = buildCorsHeaders();
+
+
+
 
 // ─── H7 Fix: LiveKit room cleanup helpers ───────────────────────────────────
 // TODO: Extract toBase64Url + JWT signing helpers into _shared/livekit.ts to

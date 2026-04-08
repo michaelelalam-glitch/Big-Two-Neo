@@ -1,6 +1,7 @@
 // Side-effect 'react-native-gesture-handler' import lives in index.ts (the entry point)
 // so it executes before any other app code, per the library's setup requirements.
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 // Explicit import removed - Babel plugin handles initialization in v4.1.6+
 // See: https://docs.swmansion.com/react-native-reanimated/docs/fundamentals/installation
 import 'react-native-reanimated';
@@ -154,16 +155,20 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AuthProvider>
-        <StatusBar style="light" />
-        <AppNavigator />
-        {/* Consent modal is shown above everything else on first launch */}
-        <PrivacyConsentModal
-          visible={consentDecision === null}
-          onAccept={handleConsentAccept}
-          onDecline={handleConsentDecline}
-        />
-      </AuthProvider>
+      {/* SafeAreaProvider must wrap the entire tree so useSafeAreaInsets() reflects
+          the correct system bar insets with edgeToEdgeEnabled=true on Android (M26). */}
+      <SafeAreaProvider>
+        <AuthProvider>
+          <StatusBar style="light" />
+          <AppNavigator />
+          {/* Consent modal is shown above everything else on first launch */}
+          <PrivacyConsentModal
+            visible={consentDecision === null}
+            onAccept={handleConsentAccept}
+            onDecline={handleConsentDecline}
+          />
+        </AuthProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

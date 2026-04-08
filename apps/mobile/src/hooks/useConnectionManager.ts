@@ -34,7 +34,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
+import { AppState, AppStateStatus, DeviceEventEmitter, Platform } from 'react-native';
 import { supabase } from '../services/supabase';
 import { networkLogger } from '../utils/logger';
 import { trackConnection, trackEvent } from '../services/analytics';
@@ -450,14 +450,36 @@ export function useConnectionManager({
 
   // ── Memory warning: release non-essential resources ────────────────────────
   useEffect(() => {
-    // iOS fires 'memoryWarning' via AppState when the OS is under memory pressure.
-    const sub = AppState.addEventListener('memoryWarning', () => {
-      networkLogger.warn('[useConnectionManager] Memory warning — releasing resources');
+    const handleMemoryPressure = () => {
+      networkLogger.warn('[useConnectionManager] Memory pressure — releasing resources');
       // soundManager is imported lazily to avoid circular deps;
       // fire-and-forget cleanup is fine here.
       import('../utils/soundManager').then(m => m.soundManager.cleanup()).catch(() => {});
-    });
-    return () => sub.remove();
+    };
+
+    // iOS fires 'memoryWarning' via AppState; Android fires 'onTrimMemory' via
+    // DeviceEventEmitter with a trim level (TRIM_MEMORY_RUNNING_CRITICAL = 15+). (L15)
+    const iosSub = AppState.addEventListener('memoryWarning', handleMemoryPressure);
+
+    let androidSub: ReturnType<typeof DeviceEventEmitter.addListener> | null = null;
+    if (Platform.OS === 'android') {
+      androidSub = DeviceEventEmitter.addListener(
+        'onTrimMemory',
+        ({ level }: { level: number }) => {
+          // TRIM_MEMORY_RUNNING_CRITICAL = 15, TRIM_MEMORY_COMPLETE = 80.
+          // Only act on moderate or higher pressure to avoid releasing resources
+          // on benign background housekeeping (level < 10).
+          if (level >= 10) {
+            handleMemoryPressure();
+          }
+        }
+      );
+    }
+
+    return () => {
+      iosSub.remove();
+      androidSub?.remove();
+    };
   }, []);
 
   // ── Start heartbeat on mount ──────────────────────────────────────────────

@@ -29,7 +29,7 @@ module.exports = {
     // - Existing `any` usages in legacy modules should be either refactored or explicitly documented
     //   with eslint-disable comments tied to tech-debt tasks.
     // - Once the outstanding `any` usage backlog is cleared, tighten this rule to 'error'.
-    '@typescript-eslint/no-explicit-any': 'warn',
+    '@typescript-eslint/no-explicit-any': 'error',
     '@typescript-eslint/no-require-imports': 'error', // Prefer static imports; callsites using require() for graceful-degradation have inline disables
     
     // React Hooks rules

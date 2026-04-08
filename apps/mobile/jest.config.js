@@ -38,6 +38,9 @@ module.exports = {
     'src/hooks/**/*.{ts,tsx}',
     'src/contexts/**/*.{ts,tsx}',
     'src/services/**/*.{ts,tsx}',
+    // M27: expanded to include screens and all components for broader coverage visibility
+    'src/screens/**/*.{ts,tsx}',
+    'src/components/**/*.{ts,tsx}',
     '!src/game/**/*.test.ts',
     '!src/game/**/index.ts',
     '!src/components/scoreboard/**/*.test.{ts,tsx}',
@@ -47,6 +50,8 @@ module.exports = {
     '!src/contexts/**/*.test.{ts,tsx}',
     '!src/contexts/__tests__/**',
     '!src/services/**/*.test.{ts,tsx}',
+    '!src/screens/**/*.test.{ts,tsx}',
+    '!src/components/**/*.test.{ts,tsx}',
   ],
   // Coverage thresholds ratcheted to actuals (Feb 2026 CI audit).
   // Per-path thresholds: game/scoreboard at established levels, new paths collecting data.
@@ -71,7 +76,7 @@ module.exports = {
     },
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|react-native-reanimated|react-native-gesture-handler|react-native-worklets|react-native-safe-area-context|expo|expo-av|expo-audio|expo-screen-orientation|@expo|@react-navigation|@sentry)/)',
+    'node_modules/(?!(react-native|@react-native|react-native-reanimated|react-native-gesture-handler|react-native-worklets|react-native-safe-area-context|expo|expo-audio|expo-screen-orientation|@expo|@react-navigation|@sentry)/)',
   ],
   setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],
   moduleNameMapper: {
@@ -81,7 +86,6 @@ module.exports = {
     '^react-native-safe-area-context$': '<rootDir>/src/game/__tests__/__mocks__/safe-area-context.ts',
     '^react-native-svg$': '<rootDir>/src/__tests__/__mocks__/react-native-svg.ts',
     '^expo-haptics$': '<rootDir>/src/game/__tests__/__mocks__/expo-haptics.ts',
-    '^expo-av$': '<rootDir>/src/__tests__/__mocks__/expo-av.ts',
     '^expo-audio$': '<rootDir>/src/__tests__/__mocks__/expo-audio.ts',
     '^expo-screen-orientation$': '<rootDir>/src/__tests__/__mocks__/expo-screen-orientation.ts',
     '^expo-clipboard$': '<rootDir>/src/__tests__/__mocks__/expo-clipboard.ts',

@@ -156,10 +156,11 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   });
 
   /**
-   * Fetch all room players from room_players table
+   * Fetch all room players from room_players table.
+   * Retries once after 500 ms on transient network errors before re-throwing (M6).
    */
   const fetchPlayers = useCallback(async (roomId: string) => {
-    try {
+    const attempt = async (): Promise<void> => {
       const { data, error } = await supabase
         .from('room_players')
         .select('*')
@@ -184,9 +185,20 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           }
         }
       }
+    };
+
+    try {
+      await attempt();
     } catch (err) {
-      networkLogger.error('[useRealtime] Failed to fetch players:', err);
-      throw err;
+      // Single retry after 500 ms for transient network / PostgREST errors (M6)
+      await new Promise<void>(resolve => setTimeout(resolve, 500));
+      if (!isMountedRef.current) return;
+      try {
+        await attempt();
+      } catch (retryErr) {
+        networkLogger.error('[useRealtime] fetchPlayers retry failed:', retryErr);
+        throw retryErr;
+      }
     }
   }, []);
 

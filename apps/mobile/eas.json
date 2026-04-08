@@ -29,6 +29,8 @@
     },
     "preview": {
       "distribution": "internal",
+      "node": "20.19.0",
+      "pnpm": "10.19.0",
       "ios": {
         "simulator": false
       },
@@ -37,6 +39,8 @@
       }
     },
     "production": {
+      "node": "20.19.0",
+      "pnpm": "10.19.0",
       "ios": {
         "simulator": false
       },

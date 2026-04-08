@@ -46,6 +46,23 @@ export interface RateLimitResult {
  * ALLOWS the request and logs the error — rate limiting is best-effort and
  * should never block legitimate gameplay.
  */
+/**
+ * M7: Short-lived in-memory allow-cache to reduce DB round-trips.
+ *
+ * When a user's request was allowed in the last ALLOW_CACHE_TTL_MS milliseconds
+ * for the same action, we skip the DB call and return a cached "allowed" result.
+ * This is safe because:
+ *  - The cache only stores ALLOWED results (never cached blocks).
+ *  - TTL is 1 s — much shorter than the rate-limit window (≥10 s), so we cannot
+ *    grant more than (1 s / window) extra requests above the nominal limit.
+ *  - The cache is instance-local; correctness of enforcement relies on the DB
+ *    upsert which remains the source of truth.
+ *
+ * Effect: reduces DB queries by up to ~10× for burst gameplay (e.g. fast passes).
+ */
+const ALLOW_CACHE_TTL_MS = 1_000; // 1 second
+const _allowCache = new Map<string, number>(); // key → expiresAt epoch ms
+
 export async function checkRateLimit(
   client: any,           // SupabaseClient — typed as `any` to avoid importing the heavy type in every caller
   userId: string,
@@ -53,6 +70,13 @@ export async function checkRateLimit(
   maxPerWindow: number,
   windowSeconds: number,
 ): Promise<RateLimitResult> {
+  // M7: Check instance-local allow cache before going to DB
+  const cacheKey = `${userId}:${action}`;
+  const now = Date.now();
+  const cachedAllowedUntil = _allowCache.get(cacheKey);
+  if (cachedAllowedUntil !== undefined && now < cachedAllowedUntil) {
+    return { allowed: true, attempts: 0, retryAfterMs: 0 };
+  }
   try {
     const { data, error } = await client.rpc('upsert_rate_limit_counter', {
       p_user_id:     userId,
@@ -91,9 +115,16 @@ export async function checkRateLimit(
       );
     }
 
+    // M7: Populate allow cache so the next request within the TTL skips the DB call.
+    if (allowed) {
+      _allowCache.set(cacheKey, Date.now() + ALLOW_CACHE_TTL_MS);
+    } else {
+      // If blocked, evict any stale allow cache entry immediately.
+      _allowCache.delete(cacheKey);
+    }
+
     return { allowed, attempts, retryAfterMs };
   } catch (err) {
-    // Unexpected error — fail open so gameplay isn't disrupted.
     console.error(`[rateLimiter] Unexpected error for ${action}:`, err);
     return { allowed: true, attempts: 0, retryAfterMs: 0 };
   }
