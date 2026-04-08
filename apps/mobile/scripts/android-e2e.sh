@@ -11,6 +11,13 @@ adb wait-for-device
 adb shell 'while [ -z "$(getprop sys.boot_completed)" ]; do sleep 1; done; input keyevent 82'
 sleep 5
 
+# Switch adb to root mode so the auth-injection script can access
+# /data/data/<package>/databases/RKStorage (requires root on userdebug images).
+# reactivecircus/android-emulator-runner uses google_apis images which support adb root.
+adb root || echo "::warning::adb root unavailable — auth injection into RKStorage may fail"
+sleep 2
+adb wait-for-device
+
 # Install the APK
 APK_PATH=$(find apps/mobile/android/app/build/outputs/apk -name "*.apk" | head -1)
 if [ -z "$APK_PATH" ]; then
