@@ -150,6 +150,9 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
   private _audioSessionMutex: Promise<void> = Promise.resolve();
   /** M11: Token refresh timer — cleared on disconnect */
   private _tokenRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Lifecycle flag: true between a successful connect() and the start of disconnect().
+   *  Used by _doTokenRefresh to bail out early if disconnect races the refresh timer. */
+  private _isConnected = false;
   /** M13: AppState subscription — removed on disconnect */
   private _appStateSubscription: ReturnType<typeof AppState.addEventListener> | null = null;
   /** M13: Camera/mic state before backgrounding, used for restore on foreground */
@@ -255,6 +258,7 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
       throw connectErr;
     }
     gameLogger.info('[LiveKit] Connected.');
+    this._isConnected = true;
 
     // M11: Schedule token refresh ~5 minutes before the 1-hour TTL expires.
     // If the user is still in the room at 55 minutes, silently re-fetch a token
@@ -269,6 +273,8 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
   }
 
   async disconnect(): Promise<void> {
+    // Set lifecycle flag immediately so any racing _doTokenRefresh bails out.
+    this._isConnected = false;
     // M11: Cancel any pending token refresh before disconnecting.
     this._clearTokenRefresh();
     // M13: Remove AppState listener.
@@ -411,6 +417,11 @@ export class LiveKitVideoChatAdapter implements VideoChatAdapter {
     // Clear the stale timer ID immediately — the callback has already fired so
     // the field would otherwise stay non-null even though no refresh is pending.
     this._tokenRefreshTimer = null;
+    // Bail out if disconnect() has already started or connect() never succeeded.
+    if (!this._isConnected) {
+      gameLogger.info('[LiveKit] M11: Token refresh skipped — not connected.');
+      return;
+    }
     gameLogger.info('[LiveKit] M11: Refreshing token before TTL expiry...');
     try {
       const { data, error } = await supabase.functions.invoke<{

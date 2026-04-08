@@ -77,9 +77,9 @@ Deno.serve(async (req) => {
   // L5: Propagate request ID for tracing
   const requestId = getRequestId(req);
 
-    // C3: Enforce minimum app version
-    const versionError = checkMinimumVersion(req, { ...corsHeaders, 'X-Request-ID': requestId });
-    if (versionError) return versionError;
+  // C3: Enforce minimum app version
+  const versionError = checkMinimumVersion(req, { ...corsHeaders, 'X-Request-ID': requestId });
+  if (versionError) return versionError;
 
   if (req.method !== 'POST') {
     return errorResponse(405, 'Method not allowed', corsHeaders, 'METHOD_NOT_ALLOWED', requestId);
