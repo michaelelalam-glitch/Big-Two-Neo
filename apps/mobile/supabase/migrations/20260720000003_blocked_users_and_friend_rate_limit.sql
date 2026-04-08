@@ -84,28 +84,41 @@ BEGIN
 END;
 $$;
 
--- Guard: fail with a clear message if public.friendships does not exist yet.
--- On a fresh `supabase db reset` / `supabase db push`, this migration must run
--- AFTER the migration that creates the friendships table.  If the table is absent
--- the trigger creation will fail with a confusing "relation does not exist" error.
-DO $$
-BEGIN
-  IF to_regclass('public.friendships') IS NULL THEN
-    RAISE EXCEPTION
-      'Migration 20260720000003 requires public.friendships to exist. '
-      'Ensure the migration that creates that table has been applied first.';
-  END IF;
-END $$;
-
+-- Apply triggers on public.friendships only when that table exists in the
+-- CLI-managed schema.  This keeps a fresh `supabase db reset` / `supabase db push`
+-- working even if friendships is still created by a legacy/manual migration.
+-- Uses EXECUTE (dynamic SQL) so DDL can run inside the conditional block.
 -- Trigger order: BEFORE INSERT triggers fire alphabetically by name.
 -- trg_00_no_friend_request_when_blocked must run BEFORE
--- trg_01_friend_request_rate_limit so that blocked requests are rejected
--- without consuming the sender's rate-limit budget.
-DROP TRIGGER IF EXISTS trg_friend_request_rate_limit ON public.friendships;
-CREATE TRIGGER trg_01_friend_request_rate_limit
-  BEFORE INSERT ON public.friendships
-  FOR EACH ROW
-  EXECUTE FUNCTION public.check_friend_request_rate_limit();
+-- trg_01_friend_request_rate_limit so blocked requests are rejected before
+-- consuming the sender's rate-limit budget.
+DO $$
+BEGIN
+  IF to_regclass('public.friendships') IS NOT NULL THEN
+    -- Idempotent: drop both old name and new name before (re-)creating.
+    EXECUTE 'DROP TRIGGER IF EXISTS trg_friend_request_rate_limit ON public.friendships';
+    EXECUTE 'DROP TRIGGER IF EXISTS trg_01_friend_request_rate_limit ON public.friendships';
+    EXECUTE '
+      CREATE TRIGGER trg_01_friend_request_rate_limit
+        BEFORE INSERT ON public.friendships
+        FOR EACH ROW
+        EXECUTE FUNCTION public.check_friend_request_rate_limit()
+    ';
+
+    EXECUTE 'DROP TRIGGER IF EXISTS trg_no_friend_request_when_blocked ON public.friendships';
+    EXECUTE 'DROP TRIGGER IF EXISTS trg_00_no_friend_request_when_blocked ON public.friendships';
+    EXECUTE '
+      CREATE TRIGGER trg_00_no_friend_request_when_blocked
+        BEFORE INSERT ON public.friendships
+        FOR EACH ROW
+        EXECUTE FUNCTION public.check_not_blocked_on_friend_request()
+    ';
+  ELSE
+    RAISE WARNING
+      'public.friendships not found — skipping friend-request triggers. '
+      'Apply the migration that creates friendships first if these triggers are needed.';
+  END IF;
+END $$;
 
 -- ── Remove existing friendships when a block is created ───────────────────────
 -- When a user blocks another, any pending/accepted friendship between them should
@@ -159,8 +172,6 @@ BEGIN
 END;
 $$;
 
-DROP TRIGGER IF EXISTS trg_no_friend_request_when_blocked ON public.friendships;
-CREATE TRIGGER trg_00_no_friend_request_when_blocked
-  BEFORE INSERT ON public.friendships
-  FOR EACH ROW
-  EXECUTE FUNCTION public.check_not_blocked_on_friend_request();
+-- NOTE: The triggers on public.friendships (trg_00_no_friend_request_when_blocked
+-- and trg_01_friend_request_rate_limit) are created inside the DO $$ conditional
+-- block above, which guards against public.friendships not existing yet.
