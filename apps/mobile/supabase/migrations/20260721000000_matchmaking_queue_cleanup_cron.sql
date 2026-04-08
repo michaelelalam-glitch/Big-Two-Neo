@@ -16,9 +16,9 @@
 -- Requires: pg_cron extension enabled on the Supabase project.
 --           (Dashboard → Extensions → pg_cron → Enable)
 --
--- Note: pg_cron runs in the 'cron' schema. The job body is a plain SQL
--- DO block so it works with Supabase's pg_cron integration (no SECURITY DEFINER
--- function required — DELETE/UPDATE runs as the postgres superuser).
+-- Note: pg_cron runs in the 'cron' schema. The scheduled command is a plain
+-- UPDATE statement that runs as the postgres superuser (no SECURITY DEFINER
+-- function required).
 
 -- Enable pg_cron if not already enabled (idempotent).
 CREATE EXTENSION IF NOT EXISTS pg_cron;

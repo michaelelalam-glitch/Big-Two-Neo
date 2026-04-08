@@ -109,7 +109,7 @@ jobs:
           echo "Baseline: 200-400ms cold / <50ms warm (Deno edge functions)"
           echo "Alert threshold: >800ms cold start (check Supabase dashboard)"
 
-      - name: �📦 Bundle size check (Task #616)
+      - name: 📦 Bundle size check (Task #616)
         run: |
           cd apps/mobile
           node scripts/check-bundle-size.js

@@ -26,8 +26,6 @@ const LIVEKIT_API_KEY    = Deno.env.get('LIVEKIT_API_KEY')    ?? '';
 const LIVEKIT_API_SECRET = Deno.env.get('LIVEKIT_API_SECRET') ?? '';
 const LIVEKIT_URL        = Deno.env.get('LIVEKIT_URL')        ?? '';
 
-// M12: CORS origin controlled by ALLOWED_ORIGIN env var
-import { buildCorsHeaders } from '../_shared/cors.ts';
 const CORS_HEADERS = buildCorsHeaders();
 
 // ---------------------------------------------------------------------------

@@ -61,7 +61,16 @@ export interface RateLimitResult {
  * Effect: reduces DB queries by up to ~10× for burst gameplay (e.g. fast passes).
  */
 const ALLOW_CACHE_TTL_MS = 1_000; // 1 second
+const ALLOW_CACHE_MAX_SIZE = 500; // max entries before forcing a full sweep
 const _allowCache = new Map<string, number>(); // key → expiresAt epoch ms
+
+/** Evict all expired entries; if still over ALLOW_CACHE_MAX_SIZE, clear entirely. */
+function _pruneAllowCache(nowMs: number): void {
+  for (const [key, expiresAt] of _allowCache) {
+    if (nowMs >= expiresAt) _allowCache.delete(key);
+  }
+  if (_allowCache.size > ALLOW_CACHE_MAX_SIZE) _allowCache.clear();
+}
 
 export async function checkRateLimit(
   client: any,           // SupabaseClient — typed as `any` to avoid importing the heavy type in every caller
@@ -117,6 +126,8 @@ export async function checkRateLimit(
 
     // M7: Populate allow cache so the next request within the TTL skips the DB call.
     if (allowed) {
+      // Opportunistically prune expired entries to bound Map growth.
+      if (_allowCache.size >= ALLOW_CACHE_MAX_SIZE) _pruneAllowCache(Date.now());
       _allowCache.set(cacheKey, Date.now() + ALLOW_CACHE_TTL_MS);
     } else {
       // If blocked, evict any stale allow cache entry immediately.
