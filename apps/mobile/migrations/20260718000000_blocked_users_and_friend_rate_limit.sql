@@ -92,7 +92,8 @@ END;
 $$;
 
 DROP TRIGGER IF EXISTS trg_friend_request_rate_limit ON public.friendships;
-CREATE TRIGGER trg_friend_request_rate_limit
+DROP TRIGGER IF EXISTS trg_01_friend_request_rate_limit ON public.friendships;
+CREATE TRIGGER trg_01_friend_request_rate_limit
   BEFORE INSERT ON public.friendships
   FOR EACH ROW
   EXECUTE FUNCTION public.check_friend_request_rate_limit();
@@ -150,7 +151,8 @@ END;
 $$;
 
 DROP TRIGGER IF EXISTS trg_no_friend_request_when_blocked ON public.friendships;
-CREATE TRIGGER trg_no_friend_request_when_blocked
+DROP TRIGGER IF EXISTS trg_00_no_friend_request_when_blocked ON public.friendships;
+CREATE TRIGGER trg_00_no_friend_request_when_blocked
   BEFORE INSERT ON public.friendships
   FOR EACH ROW
   EXECUTE FUNCTION public.check_not_blocked_on_friend_request();

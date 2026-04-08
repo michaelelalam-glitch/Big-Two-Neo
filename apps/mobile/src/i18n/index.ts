@@ -586,6 +586,16 @@ export interface Translations {
     cardLabel: string;
     /** Template: '{{rank}} of {{suit}}, selected' — localized selected-card label */
     selectedCardLabel: string;
+    /** Hint shown when card is not selected (or only this card is selected) */
+    hintSelectDeselect: string;
+    /** Hint shown when card is selected and multiple cards are selected */
+    hintDeselectMulti: string;
+    /** Accessibility action label to select a card */
+    actionSelect: string;
+    /** Accessibility action label to deselect a card */
+    actionDeselect: string;
+    /** Accessibility action label for long press */
+    actionLongPress: string;
   };
 
   // Lobby Screen
@@ -1448,6 +1458,11 @@ const en: Translations = {
     selected: 'selected',
     cardLabel: '{{rank}} of {{suit}}',
     selectedCardLabel: '{{rank}} of {{suit}}, selected',
+    hintSelectDeselect: 'Double tap to select or deselect. Long press then drag to rearrange.',
+    hintDeselectMulti: 'Double tap to deselect. Drag with other selected cards to play.',
+    actionSelect: 'Select card',
+    actionDeselect: 'Deselect card',
+    actionLongPress: 'Long press',
   },
   lobby: {
     title: 'Game Lobby',
@@ -2229,6 +2244,11 @@ const ar: Translations = {
     selected: 'محدد',
     cardLabel: '{{rank}} من {{suit}}',
     selectedCardLabel: '{{rank}} من {{suit}}، محدد',
+    hintSelectDeselect: 'انقر مرتين للتحديد أو إلغاء التحديد. اضغط طويلاً ثم اسحب لإعادة الترتيب.',
+    hintDeselectMulti: 'انقر مرتين لإلغاء التحديد. اسحب مع البطاقات المحددة الأخرى للعب.',
+    actionSelect: 'تحديد البطاقة',
+    actionDeselect: 'إلغاء تحديد البطاقة',
+    actionLongPress: 'ضغط طويل',
   },
   lobby: {
     title: 'صالة اللعبة',
@@ -3112,6 +3132,13 @@ const de: Translations = {
     selected: 'ausgewählt',
     cardLabel: '{{rank}} von {{suit}}',
     selectedCardLabel: '{{rank}} von {{suit}}, ausgewählt',
+    hintSelectDeselect:
+      'Doppeltippen zum Auswählen oder Abwählen. Lang drücken dann ziehen zum Neuanordnen.',
+    hintDeselectMulti:
+      'Doppeltippen zum Abwählen. Mit anderen ausgewählten Karten ziehen zum Spielen.',
+    actionSelect: 'Karte auswählen',
+    actionDeselect: 'Karte abwählen',
+    actionLongPress: 'Langer Druck',
   },
   lobby: {
     title: 'Spiellobby',

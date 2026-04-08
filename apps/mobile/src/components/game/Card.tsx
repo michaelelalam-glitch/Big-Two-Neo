@@ -371,15 +371,22 @@ const CardInner = React.memo(function CardInner({
           disabled
             ? undefined
             : isSelected && hasMultipleSelected
-              ? 'Double tap to deselect. Drag with other selected cards to play.'
-              : 'Double tap to select or deselect. Long press then drag to rearrange.'
+              ? i18n.t('cardA11y.hintDeselectMulti')
+              : i18n.t('cardA11y.hintSelectDeselect')
         }
         accessibilityActions={
           disabled
             ? undefined
             : [
-                { name: 'activate', label: isSelected ? 'Deselect card' : 'Select card' },
-                ...(onLongPress ? [{ name: 'longpress', label: 'Long press' }] : []),
+                {
+                  name: 'activate',
+                  label: isSelected
+                    ? i18n.t('cardA11y.actionDeselect')
+                    : i18n.t('cardA11y.actionSelect'),
+                },
+                ...(onLongPress
+                  ? [{ name: 'longpress', label: i18n.t('cardA11y.actionLongPress') }]
+                  : []),
               ]
         }
         onAccessibilityAction={event => {

@@ -84,8 +84,25 @@ BEGIN
 END;
 $$;
 
+-- Guard: fail with a clear message if public.friendships does not exist yet.
+-- On a fresh `supabase db reset` / `supabase db push`, this migration must run
+-- AFTER the migration that creates the friendships table.  If the table is absent
+-- the trigger creation will fail with a confusing "relation does not exist" error.
+DO $$
+BEGIN
+  IF to_regclass('public.friendships') IS NULL THEN
+    RAISE EXCEPTION
+      'Migration 20260720000003 requires public.friendships to exist. '
+      'Ensure the migration that creates that table has been applied first.';
+  END IF;
+END $$;
+
+-- Trigger order: BEFORE INSERT triggers fire alphabetically by name.
+-- trg_00_no_friend_request_when_blocked must run BEFORE
+-- trg_01_friend_request_rate_limit so that blocked requests are rejected
+-- without consuming the sender's rate-limit budget.
 DROP TRIGGER IF EXISTS trg_friend_request_rate_limit ON public.friendships;
-CREATE TRIGGER trg_friend_request_rate_limit
+CREATE TRIGGER trg_01_friend_request_rate_limit
   BEFORE INSERT ON public.friendships
   FOR EACH ROW
   EXECUTE FUNCTION public.check_friend_request_rate_limit();
@@ -143,7 +160,7 @@ END;
 $$;
 
 DROP TRIGGER IF EXISTS trg_no_friend_request_when_blocked ON public.friendships;
-CREATE TRIGGER trg_no_friend_request_when_blocked
+CREATE TRIGGER trg_00_no_friend_request_when_blocked
   BEFORE INSERT ON public.friendships
   FOR EACH ROW
   EXECUTE FUNCTION public.check_not_blocked_on_friend_request();
