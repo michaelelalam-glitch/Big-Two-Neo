@@ -11,11 +11,12 @@
  * Realtime updates are handled via a Supabase postgres_changes subscription
  * on the friendships table so the list stays in sync across tabs.
  *
- * NOTE: User blocking (block/unblock/isBlocked) is intentionally deferred to a
- * future v2 release. The unfriend feature covers the immediate v1 need.
- * A backlog task (#674) exists for the full client-side blocking implementation.
- * The DB schema (blocked_users table + triggers) was created in this PR via migration
- * 20260720000003 — no client hooks for blocking are wired up here.
+ * NOTE: User blocking (block/unblock/isBlocked) is intentionally deferred to v2.
+ * The unfriend feature covers the immediate v1 need. Future audits should check
+ * backlog task #675 for the client-side blocking implementation plan.
+ * The DB schema (blocked_users table + RLS + triggers) was already deployed via
+ * migration 20260720000003 — only the React Native UI and hook wiring remain.
+ * No block/unblock client hooks are wired up in this hook until that task ships.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
