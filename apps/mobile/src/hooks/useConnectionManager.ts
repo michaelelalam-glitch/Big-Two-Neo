@@ -457,8 +457,11 @@ export function useConnectionManager({
       import('../utils/soundManager').then(m => m.soundManager.cleanup()).catch(() => {});
     };
 
-    // iOS fires 'memoryWarning' via AppState; Android fires 'onTrimMemory' via
-    // DeviceEventEmitter with a trim level (TRIM_MEMORY_RUNNING_CRITICAL = 15+). (L15)
+    // iOS fires 'memoryWarning' via AppState; Android requires a native bridge
+    // module to forward ComponentCallbacks2.onTrimMemory() into JS as
+    // 'onTrimMemory'. Without that native module this listener is a no-op.
+    // TODO: implement a TrimMemoryModule native module to emit this event, or
+    //       migrate to a cross-platform AppState 'memoryWarning' equivalent.
     const iosSub = AppState.addEventListener('memoryWarning', handleMemoryPressure);
 
     let androidSub: ReturnType<typeof DeviceEventEmitter.addListener> | null = null;

@@ -162,9 +162,12 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
             : {};
         if (version === 0) {
           // v0 → v1: no structural changes yet; merge persisted data over defaults.
-          return safe as UserPreferencesState;
+          // Double-cast via unknown makes the intentional partial→full type coercion
+          // explicit: Zustand merges this partial with the in-memory state (keeping
+          // action functions from the default store).
+          return safe as unknown as UserPreferencesState;
         }
-        return safe as UserPreferencesState;
+        return safe as unknown as UserPreferencesState;
       },
       // Only persist the data fields, not the action functions.
       // soundEnabled/vibrationEnabled are excluded: they're owned by the

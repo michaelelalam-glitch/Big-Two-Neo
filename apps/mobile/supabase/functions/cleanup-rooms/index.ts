@@ -3,11 +3,9 @@
  * cleanup-rooms Edge Function (Task #523)
  *
  * Calls the cleanup_abandoned_rooms() Postgres RPC to:
- *   - Delete empty waiting rooms older than 2 hours
-
-
-
-
+ *   - Delete empty waiting rooms (status = 'waiting', no players) older than 2 hours
+ *   - Delete completed/cancelled rooms older than 30 days
+ *
  *   - Periodic cleanup in this project is handled by pg_cron calling the
  *     cleanup_abandoned_rooms() SQL function directly (no HTTP).
  *   - This Edge Function is intended for manual or external HTTP-triggered
