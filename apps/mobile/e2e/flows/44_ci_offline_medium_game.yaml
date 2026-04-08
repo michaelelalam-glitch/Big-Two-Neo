@@ -25,7 +25,8 @@ tags:
     id: "difficulty-medium"
 
 - extendedWaitUntil:
-    id: "pass-button"
+    visible:
+      id: "pass-button"
     timeout: 20000
 - takeScreenshot: "44_game_medium_start"
 

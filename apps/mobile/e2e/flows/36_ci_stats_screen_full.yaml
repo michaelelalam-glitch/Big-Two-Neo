@@ -22,13 +22,15 @@ tags:
 - tapOn:
     id: "home-profile-button"
 - extendedWaitUntil:
-    id: "profile-screen"
+    visible:
+      id: "profile-screen"
     timeout: 8000
 
 # Look for any Stats nav link (adjust text to match actual UI)
 - tapOn: "Stats"
 - extendedWaitUntil:
-    id: "stats-screen"
+    visible:
+      id: "stats-screen"
     timeout: 8000
 - takeScreenshot: "36_stats_top"
 
@@ -43,7 +45,8 @@ tags:
 
 - back
 - extendedWaitUntil:
-    id: "profile-screen"
+    visible:
+      id: "profile-screen"
     timeout: 8000
 - back
 - extendedWaitUntil:

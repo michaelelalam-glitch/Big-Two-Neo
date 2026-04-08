@@ -28,7 +28,8 @@ tags:
     timeout: 5000
 - tapOn: "Casual Match"
 - extendedWaitUntil:
-    id: "matchmaking-screen"
+    visible:
+      id: "matchmaking-screen"
     timeout: 10000
 
 # Step 3: Verify matchmaking screen title

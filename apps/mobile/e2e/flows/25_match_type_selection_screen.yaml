@@ -30,7 +30,8 @@ tags:
 # Step 3: Tap "Ranked Match" to navigate to Match Type Selection
 - tapOn: "Ranked Match"
 - extendedWaitUntil:
-    id: "match-type-selection-screen"
+    visible:
+      id: "match-type-selection-screen"
     timeout: 10000
 
 # Step 4: Verify screen title

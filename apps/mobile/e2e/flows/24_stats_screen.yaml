@@ -25,13 +25,15 @@ tags:
 - tapOn:
     id: "home-profile-button"
 - extendedWaitUntil:
-    id: "profile-screen"
+    visible:
+      id: "profile-screen"
     timeout: 10000
 
 # Step 3: Tap "View Full Stats"
 - tapOn: "View Full Stats"
 - extendedWaitUntil:
-    id: "stats-screen"
+    visible:
+      id: "stats-screen"
     timeout: 10000
 
 # Step 4: Verify Stats screen loaded
@@ -55,7 +57,8 @@ tags:
 # Step 9: Go back to Profile
 - back
 - extendedWaitUntil:
-    id: "profile-screen"
+    visible:
+      id: "profile-screen"
     timeout: 10000
 
 # Step 10: Go back to Home

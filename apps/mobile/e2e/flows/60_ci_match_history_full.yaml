@@ -22,7 +22,8 @@ tags:
 - tapOn:
     id: "home-profile-button"
 - extendedWaitUntil:
-    id: "profile-screen"
+    visible:
+      id: "profile-screen"
     timeout: 8000
 
 # Tap Match History tab/button
@@ -41,7 +42,8 @@ tags:
 
 - back
 - extendedWaitUntil:
-    id: "profile-screen"
+    visible:
+      id: "profile-screen"
     timeout: 8000
 - back
 - extendedWaitUntil:

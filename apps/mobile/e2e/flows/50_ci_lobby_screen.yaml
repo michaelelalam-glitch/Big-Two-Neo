@@ -23,7 +23,8 @@ tags:
 # Create a room to enter the lobby
 - tapOn: "Create Room"
 - extendedWaitUntil:
-    id: "create-room-submit-button"
+    visible:
+      id: "create-room-submit-button"
     timeout: 8000
 
 # Submit room creation
@@ -32,7 +33,8 @@ tags:
 
 # Wait for lobby screen
 - extendedWaitUntil:
-    id: "lobby-screen"
+    visible:
+      id: "lobby-screen"
     timeout: 15000
 - takeScreenshot: "50_lobby_screen"
 

@@ -22,13 +22,15 @@ tags:
 - tapOn:
     id: "home-notifications-button"
 - extendedWaitUntil:
-    id: "notifications-screen"
+    visible:
+      id: "notifications-screen"
     timeout: 8000
 
 # Tap Settings icon within notifications screen (adjust text/id to actual UI)
 - tapOn: "Settings"
 - extendedWaitUntil:
-    id: "notification-settings-screen"
+    visible:
+      id: "notification-settings-screen"
     timeout: 8000
 - takeScreenshot: "38_notification_settings_screen"
 
@@ -40,7 +42,8 @@ tags:
 
 - back
 - extendedWaitUntil:
-    id: "notifications-screen"
+    visible:
+      id: "notifications-screen"
     timeout: 8000
 - back
 - extendedWaitUntil:

@@ -25,7 +25,8 @@ tags:
 - tapOn:
     id: "leaderboard-button"
 - extendedWaitUntil:
-    id: "leaderboard-screen"
+    visible:
+      id: "leaderboard-screen"
     timeout: 10000
 
 # Step 3: Verify leaderboard title

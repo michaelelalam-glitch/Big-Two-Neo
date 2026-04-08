@@ -26,14 +26,16 @@ tags:
     id: "difficulty-easy"
 
 - extendedWaitUntil:
-    id: "pass-button"
+    visible:
+      id: "pass-button"
     timeout: 20000
 
 # Open in-game settings
 - tapOn:
     id: "settings-button"
 - extendedWaitUntil:
-    id: "close-settings-button"
+    visible:
+      id: "close-settings-button"
     timeout: 6000
 - takeScreenshot: "46_in_game_settings_open"
 

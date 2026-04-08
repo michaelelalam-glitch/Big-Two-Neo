@@ -20,7 +20,8 @@ tags:
 # Open Create Room
 - tapOn: "Create Room"
 - extendedWaitUntil:
-    id: "create-room-submit-button"
+    visible:
+      id: "create-room-submit-button"
     timeout: 8000
 - takeScreenshot: "64_create_room_opened"
 

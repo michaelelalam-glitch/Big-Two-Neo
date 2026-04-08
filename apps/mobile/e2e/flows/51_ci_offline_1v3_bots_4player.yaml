@@ -31,7 +31,8 @@ tags:
 
 # Wait for 4-player board to load
 - extendedWaitUntil:
-    id: "pass-button"
+    visible:
+      id: "pass-button"
     timeout: 25000
 - takeScreenshot: "51_four_player_game_start"
 

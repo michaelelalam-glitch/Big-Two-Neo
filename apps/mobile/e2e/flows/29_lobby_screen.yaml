@@ -31,7 +31,8 @@ tags:
 - tapOn:
     id: "create-room-submit-button"
 - extendedWaitUntil:
-    id: "lobby-screen"
+    visible:
+      id: "lobby-screen"
     timeout: 15000
 
 # Step 4: Verify Lobby screen loaded

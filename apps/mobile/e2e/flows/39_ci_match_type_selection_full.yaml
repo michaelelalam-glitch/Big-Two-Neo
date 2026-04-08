@@ -30,7 +30,8 @@ tags:
 - tapOn:
     id: "find-game-casual"
 - extendedWaitUntil:
-    id: "match-type-selection-screen"
+    visible:
+      id: "match-type-selection-screen"
     timeout: 8000
 - takeScreenshot: "39_match_type_selection"
 

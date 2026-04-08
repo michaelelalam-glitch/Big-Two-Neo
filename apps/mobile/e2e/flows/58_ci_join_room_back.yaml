@@ -20,7 +20,8 @@ tags:
 # Open Join Room
 - tapOn: "Join Room"
 - extendedWaitUntil:
-    id: "room-code-input"
+    visible:
+      id: "room-code-input"
     timeout: 8000
 - takeScreenshot: "58_join_room"
 

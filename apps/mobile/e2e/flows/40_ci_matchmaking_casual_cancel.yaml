@@ -28,7 +28,8 @@ tags:
 
 # Wait for matchmaking screen
 - extendedWaitUntil:
-    id: "matchmaking-screen"
+    visible:
+      id: "matchmaking-screen"
     timeout: 12000
 - takeScreenshot: "40_matchmaking_casual_searching"
 

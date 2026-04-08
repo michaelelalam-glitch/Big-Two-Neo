@@ -21,7 +21,8 @@ tags:
 - tapOn:
     id: "leaderboard-button"
 - extendedWaitUntil:
-    id: "leaderboard-screen"
+    visible:
+      id: "leaderboard-screen"
     timeout: 8000
 - takeScreenshot: "57_leaderboard"
 
@@ -35,19 +36,22 @@ tags:
 - tapOn:
     id: "home-profile-button"
 - extendedWaitUntil:
-    id: "profile-screen"
+    visible:
+      id: "profile-screen"
     timeout: 8000
 
 # Tap Stats tab/button within profile
 - tapOn: "Stats"
 - extendedWaitUntil:
-    id: "stats-screen"
+    visible:
+      id: "stats-screen"
     timeout: 8000
 - takeScreenshot: "57_stats_screen"
 
 - back
 - extendedWaitUntil:
-    id: "profile-screen"
+    visible:
+      id: "profile-screen"
     timeout: 8000
 - back
 - extendedWaitUntil:

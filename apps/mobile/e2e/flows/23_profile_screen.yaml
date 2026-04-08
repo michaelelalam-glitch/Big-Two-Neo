@@ -25,7 +25,8 @@ tags:
 - tapOn:
     id: "home-profile-button"
 - extendedWaitUntil:
-    id: "profile-screen"
+    visible:
+      id: "profile-screen"
     timeout: 10000
 
 # Step 3: Verify Profile screen header

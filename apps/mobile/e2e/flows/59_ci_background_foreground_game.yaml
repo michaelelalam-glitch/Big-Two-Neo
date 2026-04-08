@@ -26,7 +26,8 @@ tags:
     id: "difficulty-easy"
 
 - extendedWaitUntil:
-    id: "pass-button"
+    visible:
+      id: "pass-button"
     timeout: 20000
 - takeScreenshot: "59_game_before_background"
 
@@ -36,7 +37,8 @@ tags:
 - launchApp:
     stopApp: false
 - extendedWaitUntil:
-    id: "pass-button"
+    visible:
+      id: "pass-button"
     timeout: 15000
 - takeScreenshot: "59_game_resumed"
 

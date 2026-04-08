@@ -44,7 +44,8 @@ tags:
 - tapOn:
     id: "home-notifications-button"
 - extendedWaitUntil:
-    id: "notifications-screen"
+    visible:
+      id: "notifications-screen"
     timeout: 8000
 - takeScreenshot: "30_notifications_from_home"
 - back
@@ -58,7 +59,8 @@ tags:
 - tapOn:
     id: "home-profile-button"
 - extendedWaitUntil:
-    id: "profile-screen"
+    visible:
+      id: "profile-screen"
     timeout: 8000
 - takeScreenshot: "30_profile_from_home"
 - back
@@ -70,7 +72,8 @@ tags:
 - tapOn:
     id: "home-settings-button"
 - extendedWaitUntil:
-    id: "settings-screen"
+    visible:
+      id: "settings-screen"
     timeout: 8000
 - takeScreenshot: "30_settings_from_home"
 - back
@@ -82,7 +85,8 @@ tags:
 - tapOn:
     id: "leaderboard-button"
 - extendedWaitUntil:
-    id: "leaderboard-screen"
+    visible:
+      id: "leaderboard-screen"
     timeout: 8000
 - takeScreenshot: "30_leaderboard_from_home"
 - back

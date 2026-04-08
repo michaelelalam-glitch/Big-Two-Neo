@@ -22,7 +22,8 @@ tags:
 - tapOn:
     id: "home-notifications-button"
 - extendedWaitUntil:
-    id: "notifications-screen"
+    visible:
+      id: "notifications-screen"
     timeout: 8000
 - takeScreenshot: "37_notifications_screen"
 

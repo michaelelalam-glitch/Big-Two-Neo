@@ -22,7 +22,8 @@ tags:
 - tapOn:
     id: "home-settings-button"
 - extendedWaitUntil:
-    id: "settings-screen"
+    visible:
+      id: "settings-screen"
     timeout: 8000
 - takeScreenshot: "33_settings_top"
 

@@ -25,7 +25,8 @@ tags:
 - tapOn:
     id: "home-settings-button"
 - extendedWaitUntil:
-    id: "settings-screen"
+    visible:
+      id: "settings-screen"
     timeout: 10000
 
 # Step 3: Verify Settings loaded
@@ -36,7 +37,8 @@ tags:
 # Settings screen has a "Notifications" link row in the settings list
 - tapOn: "Notifications"
 - extendedWaitUntil:
-    id: "notification-settings-screen"
+    visible:
+      id: "notification-settings-screen"
     timeout: 10000
 
 # Step 5: Verify Notification Settings screen content
@@ -50,7 +52,8 @@ tags:
 # Step 7: Go back to Settings
 - back
 - extendedWaitUntil:
-    id: "settings-screen"
+    visible:
+      id: "settings-screen"
     timeout: 10000
 
 # Step 8: Go back to Home

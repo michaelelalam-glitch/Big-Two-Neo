@@ -22,7 +22,8 @@ tags:
 # Create a room
 - tapOn: "Create Room"
 - extendedWaitUntil:
-    id: "create-room-submit-button"
+    visible:
+      id: "create-room-submit-button"
     timeout: 8000
 - takeScreenshot: "56_create_room_form"
 - tapOn:
@@ -30,7 +31,8 @@ tags:
 
 # Enter lobby
 - extendedWaitUntil:
-    id: "lobby-screen"
+    visible:
+      id: "lobby-screen"
     timeout: 15000
 - takeScreenshot: "56_lobby_waiting"
 
@@ -38,7 +40,8 @@ tags:
 # Adjust button text to match actual "Start Game" / "Fill with Bots" UI
 - tapOn: "Start Game"
 - extendedWaitUntil:
-    id: "pass-button"
+    visible:
+      id: "pass-button"
     timeout: 25000
 - takeScreenshot: "56_four_player_room_game_start"
 

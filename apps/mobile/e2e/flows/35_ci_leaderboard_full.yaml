@@ -22,7 +22,8 @@ tags:
 - tapOn:
     id: "leaderboard-button"
 - extendedWaitUntil:
-    id: "leaderboard-screen"
+    visible:
+      id: "leaderboard-screen"
     timeout: 10000
 - takeScreenshot: "35_leaderboard_casual"
 

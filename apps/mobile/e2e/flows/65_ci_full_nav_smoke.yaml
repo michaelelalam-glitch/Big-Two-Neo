@@ -23,7 +23,8 @@ tags:
 - tapOn:
     id: "leaderboard-button"
 - extendedWaitUntil:
-    id: "leaderboard-screen"
+    visible:
+      id: "leaderboard-screen"
     timeout: 8000
 - takeScreenshot: "65_leaderboard"
 - back
@@ -35,7 +36,8 @@ tags:
 - tapOn:
     id: "home-notifications-button"
 - extendedWaitUntil:
-    id: "notifications-screen"
+    visible:
+      id: "notifications-screen"
     timeout: 8000
 - takeScreenshot: "65_notifications"
 - back
@@ -47,7 +49,8 @@ tags:
 - tapOn:
     id: "home-profile-button"
 - extendedWaitUntil:
-    id: "profile-screen"
+    visible:
+      id: "profile-screen"
     timeout: 8000
 - takeScreenshot: "65_profile"
 - back
@@ -59,7 +62,8 @@ tags:
 - tapOn:
     id: "home-settings-button"
 - extendedWaitUntil:
-    id: "settings-screen"
+    visible:
+      id: "settings-screen"
     timeout: 8000
 - takeScreenshot: "65_settings"
 - back
@@ -95,7 +99,8 @@ tags:
 # 7. Create Room
 - tapOn: "Create Room"
 - extendedWaitUntil:
-    id: "create-room-submit-button"
+    visible:
+      id: "create-room-submit-button"
     timeout: 8000
 - takeScreenshot: "65_create_room"
 - back
@@ -106,7 +111,8 @@ tags:
 # 8. Join Room
 - tapOn: "Join Room"
 - extendedWaitUntil:
-    id: "room-code-input"
+    visible:
+      id: "room-code-input"
     timeout: 8000
 - takeScreenshot: "65_join_room"
 - back

@@ -25,7 +25,8 @@ tags:
     id: "difficulty-hard"
 
 - extendedWaitUntil:
-    id: "pass-button"
+    visible:
+      id: "pass-button"
     timeout: 20000
 - takeScreenshot: "45_game_hard_start"
 

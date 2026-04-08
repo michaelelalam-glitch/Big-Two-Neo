@@ -26,7 +26,8 @@ tags:
     id: "difficulty-easy"
 
 - extendedWaitUntil:
-    id: "pass-button"
+    visible:
+      id: "pass-button"
     timeout: 20000
 
 # Rapid taps on sort (simulates fast user interaction)
