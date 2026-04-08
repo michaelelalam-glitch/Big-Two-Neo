@@ -584,6 +584,8 @@ export interface Translations {
     selected: string;
     /** Template: '{{rank}} of {{suit}}' */
     cardLabel: string;
+    /** Template: '{{rank}} of {{suit}}, selected' — localized selected-card label */
+    selectedCardLabel: string;
   };
 
   // Lobby Screen
@@ -1445,6 +1447,7 @@ const en: Translations = {
     two: 'Two',
     selected: 'selected',
     cardLabel: '{{rank}} of {{suit}}',
+    selectedCardLabel: '{{rank}} of {{suit}}, selected',
   },
   lobby: {
     title: 'Game Lobby',
@@ -2225,6 +2228,7 @@ const ar: Translations = {
     two: 'اثنان',
     selected: 'محدد',
     cardLabel: '{{rank}} من {{suit}}',
+    selectedCardLabel: '{{rank}} من {{suit}}، محدد',
   },
   lobby: {
     title: 'صالة اللعبة',
@@ -3107,6 +3111,7 @@ const de: Translations = {
     two: 'Zwei',
     selected: 'ausgewählt',
     cardLabel: '{{rank}} von {{suit}}',
+    selectedCardLabel: '{{rank}} von {{suit}}, ausgewählt',
   },
   lobby: {
     title: 'Spiellobby',

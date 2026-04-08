@@ -236,6 +236,19 @@ export function useFriends(): UseFriendsResult {
           fetchAll();
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'blocked_users',
+          filter: `blocker_id=eq.${user.id}`,
+        },
+        () => {
+          // Re-fetch when the user's block list changes on another device/session
+          fetchAll();
+        }
+      )
       .subscribe();
 
     return () => {
