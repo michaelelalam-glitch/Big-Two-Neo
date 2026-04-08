@@ -316,7 +316,7 @@ export function useMatchmaking(): UseMatchmakingReturn {
         try {
           const { data, error: pollErr } = await supabase
             .from('waiting_room')
-            .select('*')
+            .select('status, matched_room_id, waiting_count, user_id')
             .eq('user_id', userId)
             .single();
 
