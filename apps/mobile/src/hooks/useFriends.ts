@@ -157,11 +157,12 @@ export function useFriends(): UseFriendsResult {
         .eq('blocker_id', user.id);
       if (blockedError) {
         uiLogger.error('[useFriends] blocked users fetch error', blockedError.message);
-        return;
+        setBlockedUserIds(new Set()); // clear rather than leave stale alongside updated friends
+      } else {
+        setBlockedUserIds(
+          new Set((blockedData ?? []).map((r: { blocked_id: string }) => r.blocked_id))
+        );
       }
-      setBlockedUserIds(
-        new Set((blockedData ?? []).map((r: { blocked_id: string }) => r.blocked_id))
-      );
     } finally {
       setLoading(false);
     }
