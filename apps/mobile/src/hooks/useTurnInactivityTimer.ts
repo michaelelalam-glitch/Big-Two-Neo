@@ -19,6 +19,7 @@ import type { GameState, Player, BroadcastEvent, BroadcastData, Card } from '../
 import { invokeWithRetry } from '../utils/edgeFunctionRetry';
 import { networkLogger } from '../utils/logger';
 import { turnTimeStart, turnTimeEnd } from '../services/analytics';
+import type { ConnectionStatus } from '../components/ConnectionStatusIndicator';
 
 export interface UseTurnInactivityTimerOptions {
   /** Current game state (turn_started_at, current_turn) */
@@ -33,6 +34,19 @@ export interface UseTurnInactivityTimerOptions {
   getCorrectedNow: () => number;
   /** Current authenticated user id */
   currentUserId?: string | null;
+  /**
+   * H1: Current connection status from useConnectionManager.
+   * When the player is disconnected or replaced by a bot, the server handles
+   * bot-replacement through its own 60s grace period. The client-side inactivity
+   * timer must NOT call auto-play-turn in parallel — that would create a race
+   * condition between the edge function and pg_cron process_disconnected_players().
+   *
+   * **Required for multiplayer usage.** Omitting this option leaves the H1
+   * dual-timer race unresolved: the client will still attempt auto-play-turn
+   * even while disconnected, racing with the server's bot-replacement logic.
+   * Always pass the value returned by `useConnectionManager().connectionStatus`.
+   */
+  connectionStatus?: ConnectionStatus;
   /** Callback when auto-play happens (show "I'm Still Here?" modal) */
   onAutoPlay?: (cards: Card[] | null, action: 'play' | 'pass') => void;
 }
@@ -58,6 +72,7 @@ export function useTurnInactivityTimer({
   broadcastMessage,
   getCorrectedNow,
   currentUserId,
+  connectionStatus,
   onAutoPlay,
 }: UseTurnInactivityTimerOptions): TurnInactivityTimer {
   // ── Refs (all state the interval callback needs) ────────────────────────
@@ -73,6 +88,11 @@ export function useTurnInactivityTimer({
 
   /** Execution guard to prevent concurrent auto-play calls */
   const autoPlayExecutionGuard = useRef<number | null>(null);
+  /**
+   * H1: Mirrors the connectionStatus prop inside the interval so the stable
+   * polling callback can check it without being re-created on every status change.
+   */
+  const connectionStatusRef = useRef<ConnectionStatus | undefined>(connectionStatus);
   /** Tracks whether auto-play is in progress — read inside the stable interval
    *  via setTimerState to expose isAutoPlayInProgress to consumers. A ref is used
    *  instead of useState so the interval (deps: [room?.id, currentUserId]) is not
@@ -83,6 +103,9 @@ export function useTurnInactivityTimer({
   const activeTurnSequenceRef = useRef<string | null>(null);
   const hasExpiredRef = useRef(false);
   const lastAutoPlayAttemptRef = useRef<number>(0);
+  /** Tracks the last connection status that caused auto-play to be skipped.
+   * Prevents log flooding: only emits a warning when the status changes. */
+  const lastSkippedStatusRef = useRef<ConnectionStatus | undefined>(undefined);
 
   /**
    * Client-local start time for the current turn.
@@ -118,6 +141,9 @@ export function useTurnInactivityTimer({
   useEffect(() => {
     getCorrectedNowRef.current = getCorrectedNow;
   }, [getCorrectedNow]);
+  useEffect(() => {
+    connectionStatusRef.current = connectionStatus;
+  }, [connectionStatus]);
   useEffect(() => {
     onAutoPlayRef.current = onAutoPlay;
   }, [onAutoPlay]);
@@ -341,6 +367,29 @@ export function useTurnInactivityTimer({
         const now = Date.now();
         if (now - lastAutoPlayAttemptRef.current < 1000) return; // Throttle to 1s
         lastAutoPlayAttemptRef.current = now;
+
+        // H1: If the player is disconnected or replaced, the server-side bot
+        // replacement via pg_cron + process_disconnected_players() handles auto-play.
+        // Calling auto-play-turn concurrently races with that mechanism and can
+        // cause duplicate plays or conflicting DB writes.  Skip until reconnected.
+        const status = connectionStatusRef.current;
+        if (
+          status === 'disconnected' ||
+          status === 'replaced_by_bot' ||
+          status === 'reconnecting'
+        ) {
+          // Only warn once per distinct status transition to avoid log flooding
+          // during the entire period the player remains in this connection state.
+          if (lastSkippedStatusRef.current !== status) {
+            networkLogger.warn(
+              `⏰ [TurnTimer] Skipping auto-play: connection status is "${status}" — server will handle bot replacement`
+            );
+            lastSkippedStatusRef.current = status;
+          }
+          return;
+        }
+        // Reset skip-log guard when connection is healthy again
+        lastSkippedStatusRef.current = undefined;
 
         if (!hasExpiredRef.current) {
           hasExpiredRef.current = true;

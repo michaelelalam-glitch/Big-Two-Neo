@@ -513,10 +513,21 @@ export function useDisconnectDetection({
         stableActive = isEffectivelyActive || Date.now() < localEffectivelyActiveUntilRef.current;
       }
 
-      // Local player on their turn: always suppress the grey disconnect ring so
-      // the yellow turn ring is visible (disconnect_timer_started_at can linger
-      // from the previous disconnect window after reconnect).
-      const suppressDisconnectRing = idx === 0 && stableActive;
+      // H1: Local player on their active turn — suppress the grey disconnect ring so
+      // the yellow turn ring is visible. The exception is when the player is actually
+      // disconnected or reconnecting right now: in that case the grey ring must take
+      // priority and continue depleting from turn_started_at (same anchor as the yellow
+      // ring) so the countdown continues seamlessly without a visual jump.
+      // Note: disconnect_timer_started_at can linger after reconnect; when the player is
+      // fully reconnected (!isReconnecting, !isDisconnected, !isClientDisconnected) the
+      // 1.5 s stableActive hold keeps the stale grey ring suppressed until serverConfirmedConnected
+      // or the Realtime update clears the timer on the server.
+      const suppressDisconnectRing =
+        idx === 0 &&
+        stableActive &&
+        !isClientDisconnected &&
+        !(player.isDisconnected ?? false) &&
+        !isReconnecting;
 
       // Server authoritative reconnect: if the server confirms connected + no
       // timer, discard stale client-side detection immediately.

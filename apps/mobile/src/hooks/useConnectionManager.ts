@@ -219,7 +219,7 @@ export function useConnectionManager({
 
       // Server detected we were replaced by a bot (user_id no longer matches)
       if (data?.replaced_by_bot) {
-        setConnectionStatus('disconnected');
+        setConnectionStatus('replaced_by_bot');
         stopHeartbeat();
         trackEvent('player_replaced_by_bot', { room_id: roomId });
         sentryCapture.breadcrumb('Replaced by bot', { room_id: roomId }, 'connection');

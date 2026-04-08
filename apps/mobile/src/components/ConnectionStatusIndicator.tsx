@@ -3,7 +3,7 @@ import { Text, StyleSheet, Animated } from 'react-native';
 import { COLORS, FONT_SIZES, SPACING } from '../constants';
 import { i18n } from '../i18n';
 
-export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected';
+export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected' | 'replaced_by_bot';
 
 interface ConnectionStatusIndicatorProps {
   status: ConnectionStatus;
@@ -21,9 +21,9 @@ interface ConnectionStatusIndicatorProps {
 export function ConnectionStatusIndicator({ status, style }: ConnectionStatusIndicatorProps) {
   const pulseAnim = React.useRef(new Animated.Value(1)).current;
 
-  // Pulse animation for reconnecting state
+  // Pulse animation for reconnecting and replaced_by_bot states
   React.useEffect(() => {
-    if (status === 'reconnecting') {
+    if (status === 'reconnecting' || status === 'replaced_by_bot') {
       const pulse = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
@@ -63,6 +63,20 @@ export function ConnectionStatusIndicator({ status, style }: ConnectionStatusInd
           bg: 'rgba(245, 158, 11, 0.1)',
         };
       case 'disconnected':
+        return {
+          icon: '🔴',
+          text: i18n.t('common.disconnected'),
+          color: COLORS.error,
+          bg: 'rgba(239, 68, 68, 0.1)',
+        };
+      case 'replaced_by_bot':
+        return {
+          icon: '🤖',
+          text: i18n.t('common.replacedByBot'),
+          color: '#7C3AED',
+          bg: 'rgba(124, 58, 237, 0.1)',
+        };
+      default:
         return {
           icon: '🔴',
           text: i18n.t('common.disconnected'),

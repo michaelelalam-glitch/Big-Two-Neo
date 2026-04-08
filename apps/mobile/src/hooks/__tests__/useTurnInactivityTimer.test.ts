@@ -463,4 +463,89 @@ describe('useTurnInactivityTimer', () => {
     expect(clearIntervalSpy).toHaveBeenCalled();
     clearIntervalSpy.mockRestore();
   });
+
+  // ── H1: connectionStatus gate — auto-play must be suppressed when disconnected ──
+
+  it.each([['disconnected' as const], ['reconnecting' as const], ['replaced_by_bot' as const]])(
+    'does not call auto-play-turn when connectionStatus is "%s" and timer expires',
+    async status => {
+      const turnStart = Date.now();
+      const gs = makeGameState({
+        current_turn: 0,
+        turn_started_at: new Date(turnStart).toISOString(),
+      });
+
+      mockInvokeWithRetry.mockResolvedValue({
+        data: { success: true, action: 'pass', cards: null },
+        error: null,
+      });
+
+      renderHook(() =>
+        useTurnInactivityTimer(
+          makeDefaultOptions({
+            gameState: gs as any,
+            getCorrectedNow: () => turnStart + 61_000, // 61s → expired
+            connectionStatus: status,
+          })
+        )
+      );
+
+      act(() => {
+        jest.advanceTimersByTime(600);
+      });
+
+      // Flush any pending microtasks
+      await Promise.resolve();
+
+      expect(mockInvokeWithRetry).not.toHaveBeenCalled();
+    }
+  );
+
+  it('resumes auto-play when connectionStatus transitions from disconnected to connected', async () => {
+    const turnStart = Date.now();
+    const gs = makeGameState({
+      current_turn: 0,
+      turn_started_at: new Date(turnStart).toISOString(),
+    });
+
+    mockInvokeWithRetry.mockResolvedValue({
+      data: { success: true, action: 'pass', cards: null },
+      error: null,
+    });
+
+    let status: 'disconnected' | 'connected' = 'disconnected';
+    const { rerender } = renderHook(
+      (props: { connectionStatus: 'disconnected' | 'connected' }) =>
+        useTurnInactivityTimer(
+          makeDefaultOptions({
+            gameState: gs as any,
+            getCorrectedNow: () => turnStart + 61_000,
+            connectionStatus: props.connectionStatus,
+          })
+        ),
+      { initialProps: { connectionStatus: status } }
+    );
+
+    // First tick — disconnected → no auto-play
+    act(() => {
+      jest.advanceTimersByTime(600);
+    });
+    await Promise.resolve();
+    expect(mockInvokeWithRetry).not.toHaveBeenCalled();
+
+    // Transition to connected
+    rerender({ connectionStatus: 'connected' });
+
+    // Next tick — connected → auto-play fires
+    act(() => {
+      jest.advanceTimersByTime(600);
+    });
+
+    await waitFor(() => {
+      expect(mockInvokeWithRetry).toHaveBeenCalledWith(
+        'auto-play-turn',
+        expect.objectContaining({ body: { room_code: 'ABCD' } })
+      );
+    });
+  });
 });

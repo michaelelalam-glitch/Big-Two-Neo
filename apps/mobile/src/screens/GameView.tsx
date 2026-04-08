@@ -84,6 +84,7 @@ function GameViewComponent() {
     toggleOrientation,
     isInitializing,
     isConnected,
+    connectionStatus,
     showSettings,
     setShowSettings,
     roomCode,
@@ -295,6 +296,17 @@ function GameViewComponent() {
   // render (which would break React.memo on GameSettingsModal). Task #628.
   const closeSettings = useCallback(() => setShowSettings(false), [setShowSettings]);
 
+  // H13: Stable drag-to-play callback for LandscapeGameLayout. Inlining this
+  // as an arrow function creates a new reference on every render, defeating
+  // the React.memo wrapping on LandscapeGameLayout (now added in H14).
+  const handleLandscapeDragPlay = useCallback(
+    (cards: Card[]) => {
+      gameLogger.info('🎴 [Landscape] Drag-to-play triggered with cards:', cards.length);
+      handleCardHandPlayCards(cards);
+    },
+    [handleCardHandPlayCards]
+  );
+
   // Performance profiling callback (Task #430)
   // useCallback with empty deps: same identity across all re-renders, no new
   // allocation on updates. The callback itself is stateless (reads no closure
@@ -331,7 +343,7 @@ function GameViewComponent() {
         {/* Task #575: Connection status indicator for multiplayer */}
         {isMultiplayerGame && (
           <ConnectionStatusIndicator
-            status={isConnected ? 'connected' : 'reconnecting'}
+            status={connectionStatus}
             style={{ position: 'absolute', top: 50, alignSelf: 'center', zIndex: 200 }}
           />
         )}
@@ -379,10 +391,7 @@ function GameViewComponent() {
             onCardsReorder={handleCardsReorder}
             // Drag-to-play callback — uses handleCardHandPlayCards (not handlePlayCards directly)
             // so play_method is correctly set to 'drag' in analytics before the play is processed.
-            onPlayCards={(cards: Card[]) => {
-              gameLogger.info('🎴 [Landscape] Drag-to-play triggered with cards:', cards.length);
-              handleCardHandPlayCards(cards);
-            }}
+            onPlayCards={handleLandscapeDragPlay}
             // Control callbacks
             onOrientationToggle={toggleOrientation}
             onHelp={() => gameLogger.info('Help requested')}

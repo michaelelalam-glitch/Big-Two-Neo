@@ -164,15 +164,24 @@ let _lastPruneAt = 0;
 
 /** Known event types used as distinct rate-limit buckets. Keep in sync with accepted `data.type` values. Anything else is mapped to 'default' to bound Map key growth. */
 const KNOWN_EVENT_TYPES = new Set([
-  'game_invite', 'friend_request', 'friend_accepted', 'game_started', 'game_ended', 'your_turn', 'default',
+  'game_invite', 'friend_request', 'friend_accepted', 'game_started', 'game_ended', 'your_turn', 'player_turn', 'default',
 ]);
+
+/** M22: Map legacy/alternate event type aliases to their canonical form for rate-limit bucketing.
+ *  'player_turn' sent by older server versions must be treated as 'your_turn' so they share
+ *  the same 30s bucket instead of each opening a new independent window. */
+const EVENT_TYPE_ALIASES: Record<string, string> = {
+  player_turn: 'your_turn',
+};
 const MAX_EVENT_TYPE_LEN = 32;
 
-/** Normalise an event type: map unknown/oversized values to 'default'. */
+/** Normalise an event type: apply aliases first, then map unknown/oversized values to 'default'. */
 function normalizeEventType(raw: string | undefined): string {
   if (!raw) return 'default';
   const trimmed = raw.slice(0, MAX_EVENT_TYPE_LEN);
-  return KNOWN_EVENT_TYPES.has(trimmed) ? trimmed : 'default';
+  // M22: Apply alias mapping before checking known types
+  const aliased = EVENT_TYPE_ALIASES[trimmed] ?? trimmed;
+  return KNOWN_EVENT_TYPES.has(aliased) ? aliased : 'default';
 }
 
 function getRateLimitKey(userId: string, eventType: string): string {

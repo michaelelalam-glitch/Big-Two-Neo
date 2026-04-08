@@ -181,7 +181,7 @@ describe('useConnectionManager', () => {
     const { result } = renderHook(() => useConnectionManager(opts));
 
     await waitFor(() => {
-      expect(result.current.connectionStatus).toBe('disconnected');
+      expect(result.current.connectionStatus).toBe('replaced_by_bot');
     });
 
     expect(opts.onBotReplaced).toHaveBeenCalled();

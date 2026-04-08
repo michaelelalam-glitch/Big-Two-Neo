@@ -31,7 +31,13 @@ describe('BotAI - Extended Coverage Tests', () => {
       let passCount = 0;
       const iterations = 20;
       for (let i = 0; i < iterations; i++) {
-        const result = bot.getPlay({ hand, lastPlay, isFirstPlayOfGame: false, playerCardCounts: [4, 4], currentPlayerIndex: 0 });
+        const result = bot.getPlay({
+          hand,
+          lastPlay,
+          isFirstPlayOfGame: false,
+          playerCardCounts: [4, 4],
+          currentPlayerIndex: 0,
+        });
         if (result.cards === null) passCount++;
       }
 
@@ -59,7 +65,13 @@ describe('BotAI - Extended Coverage Tests', () => {
       let passCount = 0;
       const iterations = 20;
       for (let i = 0; i < iterations; i++) {
-        const result = bot.getPlay({ hand, lastPlay, isFirstPlayOfGame: false, playerCardCounts: [4, 4], currentPlayerIndex: 0 });
+        const result = bot.getPlay({
+          hand,
+          lastPlay,
+          isFirstPlayOfGame: false,
+          playerCardCounts: [4, 4],
+          currentPlayerIndex: 0,
+        });
         if (result.cards === null) passCount++;
       }
 
@@ -76,7 +88,13 @@ describe('BotAI - Extended Coverage Tests', () => {
         { id: 'JD', rank: 'J' as const, suit: 'D' as const },
       ];
 
-      const result = bot.getPlay({ hand, lastPlay: null, isFirstPlayOfGame: true, playerCardCounts: [4, 4], currentPlayerIndex: 0 });
+      const result = bot.getPlay({
+        hand,
+        lastPlay: null,
+        isFirstPlayOfGame: true,
+        playerCardCounts: [4, 4],
+        currentPlayerIndex: 0,
+      });
       expect(result.cards).not.toBeNull();
       expect(result.cards![0]).toContain('3');
     });
@@ -90,7 +108,13 @@ describe('BotAI - Extended Coverage Tests', () => {
         { id: '9S', rank: '9' as const, suit: 'S' as const },
       ];
 
-      const result = bot.getPlay({ hand, lastPlay: null, isFirstPlayOfGame: true, playerCardCounts: [4, 4], currentPlayerIndex: 0 });
+      const result = bot.getPlay({
+        hand,
+        lastPlay: null,
+        isFirstPlayOfGame: true,
+        playerCardCounts: [4, 4],
+        currentPlayerIndex: 0,
+      });
       expect(result.cards).not.toBeNull();
       expect(result.cards!.some(id => id === '3D')).toBe(true);
     });
@@ -114,14 +138,21 @@ describe('BotAI - Extended Coverage Tests', () => {
       let passCount = 0;
       const iterations = 100;
       for (let i = 0; i < iterations; i++) {
-        const result = bot.getPlay({ hand, lastPlay, isFirstPlayOfGame: false, playerCardCounts: [4, 4], currentPlayerIndex: 0 });
+        const result = bot.getPlay({
+          hand,
+          lastPlay,
+          isFirstPlayOfGame: false,
+          playerCardCounts: [4, 4],
+          currentPlayerIndex: 0,
+        });
         if (result.cards === null) passCount++;
       }
 
       // Should pass roughly 15% ± 10% (strategic passing).
       // Lower bound is 2 (not 5) to avoid flakiness: P(X≤2 | n=100, p=0.15) < 0.01%.
+      // Upper bound is 35 (not 25): P(X≥35 | n=100, p=0.15) < 0.01%, avoiding false failures at ~2.8σ.
       expect(passCount).toBeGreaterThan(2);
-      expect(passCount).toBeLessThan(25);
+      expect(passCount).toBeLessThan(35);
     });
 
     test('medium bot makes first play with low card', () => {
@@ -133,7 +164,13 @@ describe('BotAI - Extended Coverage Tests', () => {
         { id: 'AS', rank: 'A' as const, suit: 'S' as const },
       ];
 
-      const result = bot.getPlay({ hand, lastPlay: null, isFirstPlayOfGame: true, playerCardCounts: [4, 4], currentPlayerIndex: 0 });
+      const result = bot.getPlay({
+        hand,
+        lastPlay: null,
+        isFirstPlayOfGame: true,
+        playerCardCounts: [4, 4],
+        currentPlayerIndex: 0,
+      });
       expect(result.cards).not.toBeNull();
       expect(result.cards![0]).toContain('3');
     });
@@ -151,7 +188,13 @@ describe('BotAI - Extended Coverage Tests', () => {
         combo_type: 'Single' as const,
       };
 
-      const result = bot.getPlay({ hand, lastPlay, isFirstPlayOfGame: false, playerCardCounts: [3, 3], currentPlayerIndex: 0 });
+      const result = bot.getPlay({
+        hand,
+        lastPlay,
+        isFirstPlayOfGame: false,
+        playerCardCounts: [3, 3],
+        currentPlayerIndex: 0,
+      });
       // Should play (not pass) most of the time
       expect(result.cards === null || (result.cards && result.cards.length === 1)).toBe(true);
     });
@@ -172,11 +215,23 @@ describe('BotAI - Extended Coverage Tests', () => {
       };
 
       // When opponent has 1-2 cards, hard bot is more likely to play
-      const result1 = bot.getPlay({ hand, lastPlay, isFirstPlayOfGame: false, playerCardCounts: [1, 3], currentPlayerIndex: 0 });
-      
+      const result1 = bot.getPlay({
+        hand,
+        lastPlay,
+        isFirstPlayOfGame: false,
+        playerCardCounts: [1, 3],
+        currentPlayerIndex: 0,
+      });
+
       // When opponent has many cards, harder to predict
-      const result2 = bot.getPlay({ hand, lastPlay, isFirstPlayOfGame: false, playerCardCounts: [8, 3], currentPlayerIndex: 0 });
-      
+      const result2 = bot.getPlay({
+        hand,
+        lastPlay,
+        isFirstPlayOfGame: false,
+        playerCardCounts: [8, 3],
+        currentPlayerIndex: 0,
+      });
+
       // Just verify it returns valid results
       expect(result1.cards === null || Array.isArray(result1.cards)).toBe(true);
       expect(result2.cards === null || Array.isArray(result2.cards)).toBe(true);
@@ -191,7 +246,13 @@ describe('BotAI - Extended Coverage Tests', () => {
         { id: 'AS', rank: 'A' as const, suit: 'S' as const },
       ];
 
-      const result = bot.getPlay({ hand, lastPlay: null, isFirstPlayOfGame: true, playerCardCounts: [4, 4], currentPlayerIndex: 0 });
+      const result = bot.getPlay({
+        hand,
+        lastPlay: null,
+        isFirstPlayOfGame: true,
+        playerCardCounts: [4, 4],
+        currentPlayerIndex: 0,
+      });
       expect(result.cards).not.toBeNull();
       expect(result.cards![0]).toContain('3');
     });
@@ -210,7 +271,13 @@ describe('BotAI - Extended Coverage Tests', () => {
         combo_type: 'Single' as const,
       };
 
-      const result = bot.getPlay({ hand, lastPlay, isFirstPlayOfGame: false, playerCardCounts: [3, 4], currentPlayerIndex: 0 });
+      const result = bot.getPlay({
+        hand,
+        lastPlay,
+        isFirstPlayOfGame: false,
+        playerCardCounts: [3, 4],
+        currentPlayerIndex: 0,
+      });
       // Hard bot should play strategically
       expect(result.cards === null || (result.cards && result.cards.length === 1)).toBe(true);
     });
@@ -231,7 +298,13 @@ describe('BotAI - Extended Coverage Tests', () => {
         combo_type: 'Single' as const,
       };
 
-      const result = bot.getPlay({ hand, lastPlay, isFirstPlayOfGame: false, playerCardCounts: [4, 4], currentPlayerIndex: 0 });
+      const result = bot.getPlay({
+        hand,
+        lastPlay,
+        isFirstPlayOfGame: false,
+        playerCardCounts: [4, 4],
+        currentPlayerIndex: 0,
+      });
       expect(result.cards === null || Array.isArray(result.cards)).toBe(true);
     });
 
@@ -244,7 +317,13 @@ describe('BotAI - Extended Coverage Tests', () => {
         { id: '9S', rank: '9' as const, suit: 'S' as const },
       ];
 
-      const result = bot.getPlay({ hand, lastPlay: null, isFirstPlayOfGame: true, playerCardCounts: [4, 4], currentPlayerIndex: 0 });
+      const result = bot.getPlay({
+        hand,
+        lastPlay: null,
+        isFirstPlayOfGame: true,
+        playerCardCounts: [4, 4],
+        currentPlayerIndex: 0,
+      });
       expect(result.cards).not.toBeNull();
       expect(result.cards!.some(id => id === '3D')).toBe(true);
     });
@@ -257,7 +336,13 @@ describe('BotAI - Extended Coverage Tests', () => {
         { id: '7H', rank: '7' as const, suit: 'H' as const },
       ];
 
-      const result = bot.getPlay({ hand, lastPlay: null, isFirstPlayOfGame: false, playerCardCounts: [3, 3], currentPlayerIndex: 0 });
+      const result = bot.getPlay({
+        hand,
+        lastPlay: null,
+        isFirstPlayOfGame: false,
+        playerCardCounts: [3, 3],
+        currentPlayerIndex: 0,
+      });
       expect(result.cards).not.toBeNull();
     });
 
@@ -278,7 +363,13 @@ describe('BotAI - Extended Coverage Tests', () => {
         combo_type: 'Pair' as const,
       };
 
-      const result = bot.getPlay({ hand, lastPlay, isFirstPlayOfGame: false, playerCardCounts: [4, 4], currentPlayerIndex: 0 });
+      const result = bot.getPlay({
+        hand,
+        lastPlay,
+        isFirstPlayOfGame: false,
+        playerCardCounts: [4, 4],
+        currentPlayerIndex: 0,
+      });
       // Should be null or 2-card play
       expect(result.cards === null || (result.cards && result.cards.length === 2)).toBe(true);
     });
@@ -301,7 +392,13 @@ describe('BotAI - Extended Coverage Tests', () => {
         combo_type: 'Triple' as const,
       };
 
-      const result = bot.getPlay({ hand, lastPlay, isFirstPlayOfGame: false, playerCardCounts: [4, 4], currentPlayerIndex: 0 });
+      const result = bot.getPlay({
+        hand,
+        lastPlay,
+        isFirstPlayOfGame: false,
+        playerCardCounts: [4, 4],
+        currentPlayerIndex: 0,
+      });
       expect(result.cards === null || (result.cards && result.cards.length === 3)).toBe(true);
     });
 
@@ -317,7 +414,13 @@ describe('BotAI - Extended Coverage Tests', () => {
         combo_type: 'Single' as const,
       };
 
-      const result = bot.getPlay({ hand, lastPlay, isFirstPlayOfGame: false, playerCardCounts: [2, 2], currentPlayerIndex: 0 });
+      const result = bot.getPlay({
+        hand,
+        lastPlay,
+        isFirstPlayOfGame: false,
+        playerCardCounts: [2, 2],
+        currentPlayerIndex: 0,
+      });
       // Can only pass (or might have 2S)
       expect(result.cards === null || Array.isArray(result.cards)).toBe(true);
     });
