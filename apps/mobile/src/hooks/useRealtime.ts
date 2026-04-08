@@ -189,7 +189,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
 
     try {
       await attempt();
-    } catch (err) {
+    } catch (_err) {
       // Single retry after 500 ms for transient network / PostgREST errors (M6)
       await new Promise<void>(resolve => setTimeout(resolve, 500));
       if (!isMountedRef.current) return;

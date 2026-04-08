@@ -6,9 +6,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 // See: https://docs.swmansion.com/react-native-reanimated/docs/fundamentals/installation
 import 'react-native-reanimated';
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, StatusBar } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { i18n } from './src/i18n';
 import AppNavigator from './src/navigation/AppNavigator';
@@ -159,7 +158,7 @@ export default function App() {
           the correct system bar insets with edgeToEdgeEnabled=true on Android (M26). */}
       <SafeAreaProvider>
         <AuthProvider>
-          <StatusBar style="light" />
+          <StatusBar barStyle="light-content" />
           <AppNavigator />
           {/* Consent modal is shown above everything else on first launch */}
           <PrivacyConsentModal
