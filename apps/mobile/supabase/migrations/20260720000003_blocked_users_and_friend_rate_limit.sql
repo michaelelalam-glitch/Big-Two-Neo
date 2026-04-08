@@ -95,9 +95,16 @@ SECURITY DEFINER
 SET search_path = public, pg_catalog
 AS $$
 BEGIN
-  DELETE FROM public.friendships
-  WHERE (requester_id = NEW.blocker_id AND addressee_id = NEW.blocked_id)
-     OR (requester_id = NEW.blocked_id AND addressee_id = NEW.blocker_id);
+  -- Guard against friendships table not yet existing in the CLI-managed schema
+  -- (it may still be created by a legacy/manual migration).  Dynamic SQL avoids
+  -- a hard reference that would fail at function-call time when the table is absent.
+  IF to_regclass('public.friendships') IS NOT NULL THEN
+    EXECUTE '
+      DELETE FROM public.friendships
+      WHERE (requester_id = $1 AND addressee_id = $2)
+         OR (requester_id = $2 AND addressee_id = $1)
+    ' USING NEW.blocker_id, NEW.blocked_id;
+  END IF;
   RETURN NEW;
 END;
 $$;
