@@ -373,6 +373,12 @@ export function useMatchmaking(): UseMatchmakingReturn {
         // M16: Start polling fallback when Realtime is unavailable
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           startPollingFallback();
+        } else if (status === 'SUBSCRIBED') {
+          // Realtime recovered — stop polling to avoid redundant DB load
+          if (pollingIntervalRef.current !== null) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
         }
       });
 

@@ -62,12 +62,11 @@ BEGIN
       INTO v_count
       FROM public.friendships
      WHERE requester_id = NEW.requester_id
-       AND status = 'pending'
        AND created_at >= v_window_start;
 
     IF v_count >= 10 THEN
-      RAISE EXCEPTION 'friend_request_rate_limit'
-        USING DETAIL = 'Maximum 10 friend requests per hour exceeded',
+      RAISE EXCEPTION 'Maximum 10 friend requests per hour exceeded'
+        USING DETAIL = 'friend_request_rate_limit',
               ERRCODE = 'P0001';
     END IF;
   END IF;
@@ -124,9 +123,9 @@ BEGIN
     ) INTO v_blocked;
 
     IF v_blocked THEN
-      RAISE EXCEPTION 'friend_request_blocked'
-        USING DETAIL = 'Cannot send friend request to or from a blocked user',
-              ERRCODE = 'P0002';
+      RAISE EXCEPTION 'Cannot send friend request to or from a blocked user'
+        USING ERRCODE = 'P0001',
+              DETAIL = 'friend_request_blocked';
     END IF;
   END IF;
   RETURN NEW;
