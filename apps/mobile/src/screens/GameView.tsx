@@ -83,7 +83,7 @@ function GameViewComponent() {
     currentOrientation,
     toggleOrientation,
     isInitializing,
-    isConnected,
+    isConnected: _isConnected,
     connectionStatus,
     showSettings,
     setShowSettings,
