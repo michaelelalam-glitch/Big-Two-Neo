@@ -352,6 +352,13 @@ const Card = React.memo(function Card({
     [cardWidth, cardHeight]
   );
 
+  // All hooks have been called above — safe to bail out here (Rules of Hooks).
+  // The guard at the top already logs in __DEV__; here we prevent a runtime crash
+  // from reading card.suit / card.rank when the card object is invalid.
+  if (!card || !card.rank || !card.suit) {
+    return null;
+  }
+
   return (
     <GestureDetector gesture={composedGesture}>
       <Animated.View

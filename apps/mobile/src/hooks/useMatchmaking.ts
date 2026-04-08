@@ -48,12 +48,15 @@ interface UseMatchmakingReturn {
 /**
  * Hook for managing matchmaking (Quick Play feature)
  *
- * Uses Supabase Realtime as the **single** source of truth for match detection.
+ * Uses Supabase Realtime as the primary source for match detection.
  * A one-shot `find-match` call registers the user in the waiting room (and
  * resolves immediately when a match is already available). After that,
- * Postgres-change events on `waiting_room` drive all state updates — there is
- * no polling interval, which eliminates the dual-source race condition where
- * both polling and Realtime could previously call `setMatchFound` concurrently.
+ * Postgres-change events on `waiting_room` drive all state updates.
+ *
+ * M16: If Realtime reports CHANNEL_ERROR or TIMED_OUT, a 5-second polling
+ * fallback against `waiting_room` activates automatically. The polling interval
+ * is cleared when: (a) a match is found, (b) Realtime recovers (SUBSCRIBED),
+ * or (c) matchmaking is cancelled/unmounted.
  *
  * Race-condition guards:
  * - `isStartingRef` — prevents a second concurrent call to `startMatchmaking`
