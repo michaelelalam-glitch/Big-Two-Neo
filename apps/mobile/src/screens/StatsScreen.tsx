@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import formatDistanceToNow from 'date-fns/formatDistanceToNow'; // M25: path import for tree-shaking
-import format from 'date-fns/format'; // M25: path import for tree-shaking
+import { formatDistanceToNow } from 'date-fns/formatDistanceToNow'; // M25: path import for tree-shaking
+import { format } from 'date-fns/format'; // M25: path import for tree-shaking
 import { SafeAreaView } from 'react-native-safe-area-context';
 import EmptyState from '../components/EmptyState';
 import StreakGraph from '../components/stats/StreakGraph';

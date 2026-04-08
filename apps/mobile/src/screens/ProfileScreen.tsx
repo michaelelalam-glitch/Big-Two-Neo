@@ -10,7 +10,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import format from 'date-fns/format'; // M25: path import for tree-shaking
+import { format } from 'date-fns/format'; // M25: path import for tree-shaking
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { FriendsList } from '../components/friends';
 import { RankBadge, Rank } from '../components/RankBadge';

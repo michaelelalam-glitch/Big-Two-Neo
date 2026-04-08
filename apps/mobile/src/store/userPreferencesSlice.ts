@@ -152,12 +152,12 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       // The migrate function handles upgrading stored data from older schema
       // versions so existing users don't lose their preferences after an update.
       version: 1,
-      migrate: (persistedState, version) => {
+      migrate: (persistedState: unknown, version: number): UserPreferencesState => {
         if (version === 0) {
           // v0 → v1: no structural changes yet; pass through as-is.
-          return persistedState as ReturnType<typeof useUserPreferencesStore.getState>;
+          return persistedState as UserPreferencesState;
         }
-        return persistedState as ReturnType<typeof useUserPreferencesStore.getState>;
+        return persistedState as UserPreferencesState;
       },
       // Only persist the data fields, not the action functions.
       // soundEnabled/vibrationEnabled are excluded: they're owned by the
