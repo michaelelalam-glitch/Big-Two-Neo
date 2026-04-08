@@ -20,10 +20,10 @@ tags:
     optional: true
 
 # Scroll scoreboard content
-- scroll:
+- swipe:
     direction: DOWN
     duration: 500
-- scroll:
+- swipe:
     direction: UP
     duration: 500
 

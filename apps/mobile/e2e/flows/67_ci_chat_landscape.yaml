@@ -31,8 +31,9 @@ tags:
 
 # Swipe up on header to close (gesture close)
 - swipe:
+    from:
+      id: "chat-drawer-header"
     direction: UP
-    id: "chat-drawer-header"
 - waitForAnimationToEnd
 
 # Rotate back to portrait

@@ -28,8 +28,7 @@ tags:
     id: "game-settings-leave-button"
     optional: true
 # Fallback: use hardware back
-- back:
-    optional: true
+- back
 - waitForAnimationToEnd
 
 # Should be on HomeScreen with ActiveGameBanner visible

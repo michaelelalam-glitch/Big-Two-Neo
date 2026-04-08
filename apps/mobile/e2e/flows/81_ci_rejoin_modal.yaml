@@ -14,8 +14,7 @@ tags:
 - tapOn:
     id: "game-settings-button"
     optional: true
-- back:
-    optional: true
+- back
 - waitForAnimationToEnd
 
 # Wait for bot-replacement timeout (simulated: up to 65 seconds)

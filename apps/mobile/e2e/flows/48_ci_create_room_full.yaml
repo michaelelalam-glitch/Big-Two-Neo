@@ -29,8 +29,8 @@ tags:
     id: "create-room-submit-button"
 
 # Scroll to see full form
-- scroll:
-    direction: down
+- swipe:
+    direction: DOWN
     duration: 600
 - takeScreenshot: "48_create_room_form"
 

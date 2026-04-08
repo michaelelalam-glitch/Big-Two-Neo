@@ -34,13 +34,13 @@ tags:
     timeout: 8000
 - takeScreenshot: "36_stats_top"
 
-- scroll:
-    direction: down
+- swipe:
+    direction: DOWN
     duration: 800
 - takeScreenshot: "36_stats_bottom"
 
-- scroll:
-    direction: up
+- swipe:
+    direction: UP
     duration: 800
 
 - back

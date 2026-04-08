@@ -26,10 +26,10 @@ tags:
     optional: true
 
 # Scroll through the scoreboard to see all player rows
-- scroll:
+- swipe:
     direction: DOWN
     duration: 500
-- scroll:
+- swipe:
     direction: UP
     duration: 500
 

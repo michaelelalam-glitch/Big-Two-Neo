@@ -26,8 +26,7 @@ tags:
 - tapOn:
     id: "game-settings-leave-button"
     optional: true
-- back:
-    optional: true
+- back
 - waitForAnimationToEnd
 
 # Banner should appear on HomeScreen

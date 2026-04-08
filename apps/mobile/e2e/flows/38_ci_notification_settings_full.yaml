@@ -35,8 +35,8 @@ tags:
 - takeScreenshot: "38_notification_settings_screen"
 
 # Scroll through settings
-- scroll:
-    direction: down
+- swipe:
+    direction: DOWN
     duration: 800
 - takeScreenshot: "38_notification_settings_bottom"
 

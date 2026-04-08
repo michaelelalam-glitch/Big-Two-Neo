@@ -21,10 +21,9 @@ tags:
 
 # Rotate to landscape (system gesture or orientation button if in-game)
 # In Maestro we trigger rotate via the built-in command
-- scroll:
+- swipe:
     direction: RIGHT
     duration: 200
-    optional: true
 
 - tapOn:
     id: "game-end-play-tab"
@@ -32,10 +31,10 @@ tags:
 - waitForAnimationToEnd
 
 # Scroll in landscape
-- scroll:
+- swipe:
     direction: DOWN
     duration: 500
-- scroll:
+- swipe:
     direction: UP
     duration: 300
 

@@ -46,12 +46,12 @@ tags:
     optional: true
 
 # Scroll down in play history
-- scroll:
+- swipe:
     direction: DOWN
     duration: 600
 
 # Scroll back up
-- scroll:
+- swipe:
     direction: UP
     duration: 400
 
@@ -61,10 +61,10 @@ tags:
 - waitForAnimationToEnd
 
 # Scroll score history
-- scroll:
+- swipe:
     direction: DOWN
     duration: 600
-- scroll:
+- swipe:
     direction: UP
     duration: 400
 

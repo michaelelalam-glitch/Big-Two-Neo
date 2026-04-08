@@ -18,10 +18,10 @@ tags:
     optional: true
 
 # Scroll through history
-- scroll:
+- swipe:
     direction: DOWN
     duration: 600
-- scroll:
+- swipe:
     direction: UP
     duration: 300
 

@@ -31,13 +31,13 @@ tags:
 - takeScreenshot: "60_match_history_screen"
 
 # Scroll through history
-- scroll:
-    direction: down
+- swipe:
+    direction: DOWN
     duration: 800
 - takeScreenshot: "60_match_history_scrolled"
 
-- scroll:
-    direction: up
+- swipe:
+    direction: UP
     duration: 800
 
 - back

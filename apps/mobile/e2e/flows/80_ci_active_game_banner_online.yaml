@@ -16,8 +16,7 @@ tags:
 - tapOn:
     id: "game-settings-leave-button"
     optional: true
-- back:
-    optional: true
+- back
 - waitForAnimationToEnd
 
 # Banner should show with countdown (online game countdown ≤60s)

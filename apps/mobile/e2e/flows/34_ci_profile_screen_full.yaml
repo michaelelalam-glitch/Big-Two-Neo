@@ -28,14 +28,14 @@ tags:
 - takeScreenshot: "34_profile_top"
 
 # Scroll down to see stats/history sections
-- scroll:
-    direction: down
+- swipe:
+    direction: DOWN
     duration: 800
 - takeScreenshot: "34_profile_bottom"
 
 # Scroll back up
-- scroll:
-    direction: up
+- swipe:
+    direction: UP
     duration: 800
 
 # Navigate back
