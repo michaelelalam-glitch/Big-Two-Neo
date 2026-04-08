@@ -1,6 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { checkMinimumVersion } from '../_shared/versionCheck.ts';
+import { checkRateLimit, rateLimitResponse } from '../_shared/rateLimiter.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -52,6 +53,13 @@ Deno.serve(async (req) => {
         JSON.stringify({ success: false, error: 'Not authenticated' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // M2: Rate limit reconnect attempts — max 5 per 60 seconds per user
+    const rl = await checkRateLimit(supabaseClient, user.id, 'reconnect_player', 5, 60);
+    if (!rl.allowed) {
+      console.warn('⚠️ [reconnect-player] Rate limit exceeded for user:', user.id.substring(0, 8));
+      return rateLimitResponse(rl.retryAfterMs, corsHeaders);
     }
 
     const body = await req.json();

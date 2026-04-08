@@ -40,6 +40,13 @@ const BOT_MOVE_DELAY_MS = 0;
 const MAX_BOT_MOVES = 20;
 
 /**
+ * M8: Broadcast safety timeout (ms). Configurable via BROADCAST_TIMEOUT_MS env var.
+ * Defaults to 5000 ms. Set a lower value in CI to speed up tests, or higher in slow
+ * network environments.
+ */
+const BROADCAST_TIMEOUT_MS = parseInt(Deno.env.get('BROADCAST_TIMEOUT_MS') ?? '5000', 10);
+
+/**
  * Lock timeout — abandon if we can't acquire lock within this duration (ms).
  * C12 Fix: Increased from 15s to 30s so that a single FETCH_TIMEOUT_MS (10s)
  * doesn't consume >50% of the budget, leaving room for retries and lease refresh.
@@ -110,8 +117,8 @@ async function broadcastToRoom(
       }
     };
 
-    // Safety net: always resolve after 5 s to avoid blocking the EF indefinitely
-    const safetyTimeout = setTimeout(finish, 5000);
+    // Safety net: always resolve after BROADCAST_TIMEOUT_MS to avoid blocking the EF indefinitely
+    const safetyTimeout = setTimeout(finish, BROADCAST_TIMEOUT_MS);
 
     channel.subscribe((status: string) => {
       if (status === 'SUBSCRIBED') {

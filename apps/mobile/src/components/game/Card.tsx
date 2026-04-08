@@ -11,6 +11,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { COLORS, SPACING, CARD_FONTS, TYPOGRAPHY } from '../../constants';
 import type { Card as CardType } from '../../game/types';
+import { i18n } from '../../i18n';
 
 interface CardProps {
   card: CardType;
@@ -60,28 +61,30 @@ const SUIT_SYMBOLS: Record<string, string> = {
   S: '♠',
 };
 
-// Task #645: Full names for VoiceOver/TalkBack accessibility labels
-const SUIT_NAMES: Record<string, string> = {
-  H: 'Hearts',
-  D: 'Diamonds',
-  C: 'Clubs',
-  S: 'Spades',
+// H11: Map suit/rank codes to i18n key suffixes for VoiceOver/TalkBack accessibility labels.
+// Using i18n ensures accessibility labels are announced in the user's selected language
+// instead of being hardcoded in English (Task #645).
+const SUIT_I18N_KEYS: Record<string, string> = {
+  H: 'cardA11y.hearts',
+  D: 'cardA11y.diamonds',
+  C: 'cardA11y.clubs',
+  S: 'cardA11y.spades',
 };
 
-const RANK_NAMES: Record<string, string> = {
-  A: 'Ace',
-  K: 'King',
-  Q: 'Queen',
-  J: 'Jack',
-  '10': 'Ten',
-  '9': 'Nine',
-  '8': 'Eight',
-  '7': 'Seven',
-  '6': 'Six',
-  '5': 'Five',
-  '4': 'Four',
-  '3': 'Three',
-  '2': 'Two',
+const RANK_I18N_KEYS: Record<string, string> = {
+  A: 'cardA11y.ace',
+  K: 'cardA11y.king',
+  Q: 'cardA11y.queen',
+  J: 'cardA11y.jack',
+  '10': 'cardA11y.ten',
+  '9': 'cardA11y.nine',
+  '8': 'cardA11y.eight',
+  '7': 'cardA11y.seven',
+  '6': 'cardA11y.six',
+  '5': 'cardA11y.five',
+  '4': 'cardA11y.four',
+  '3': 'cardA11y.three',
+  '2': 'cardA11y.two',
 };
 
 const Card = React.memo(function Card({
@@ -102,15 +105,17 @@ const Card = React.memo(function Card({
   sharedDragY = 0,
   cardOverlap = DEFAULT_CARD_OVERLAP_MARGIN,
 }: CardProps) {
-  // 🔥 CRITICAL DEBUG: Why are cards rendering blank?
+  // H12: Guard production builds from console.error noise on invalid card objects.
   if (!card || !card.rank || !card.suit) {
-    console.error('[Card] 🚨 INVALID CARD OBJECT:', {
-      hasCard: !!card,
-      cardId: card?.id,
-      cardRank: card?.rank,
-      cardSuit: card?.suit,
-      fullCard: JSON.stringify(card),
-    });
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.error('[Card] 🚨 INVALID CARD OBJECT:', {
+        hasCard: !!card,
+        cardId: card?.id,
+        cardRank: card?.rank,
+        cardSuit: card?.suit,
+        fullCard: JSON.stringify(card),
+      });
+    }
   }
 
   const translateY = useSharedValue(0);
@@ -358,7 +363,12 @@ const Card = React.memo(function Card({
           styles.touchTargetExpansion, // Add invisible padding for larger touch area
         ]}
         accessible={true}
-        accessibilityLabel={`${RANK_NAMES[card.rank] ?? card.rank} of ${SUIT_NAMES[card.suit] ?? card.suit}${isSelected ? ', selected' : ''}`}
+        accessibilityLabel={
+          i18n.t('cardA11y.cardLabel', {
+            rank: i18n.t(RANK_I18N_KEYS[card.rank] ?? 'cardA11y.two') || card.rank,
+            suit: i18n.t(SUIT_I18N_KEYS[card.suit] ?? 'cardA11y.spades') || card.suit,
+          }) + (isSelected ? `, ${i18n.t('cardA11y.selected')}` : '')
+        }
         accessibilityRole="button"
         accessibilityState={{ selected: isSelected, disabled: disabled }}
         accessibilityHint={

@@ -95,6 +95,12 @@ export function useMatchmaking(): UseMatchmakingReturn {
    * concurrent room-code fetch.
    */
   const isResolvingMatchRef = useRef(false);
+  /**
+   * M16: Fallback polling interval ID. Set when Realtime fails (CHANNEL_ERROR /
+   * TIMED_OUT) so we continue checking for match status via direct DB query.
+   * Cleared when Realtime recovers, match is found, or matchmaking is cancelled.
+   */
+  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   /**
    * Start searching for a match.
@@ -229,12 +235,96 @@ export function useMatchmaking(): UseMatchmakingReturn {
    * The `isCancelledRef` guard ensures that a Realtime event delivered after
    * `cancelMatchmaking()` (possible due to buffering) does not incorrectly
    * transition the hook back into "match found" state.
+   *
+   * M16: If Realtime reports CHANNEL_ERROR or TIMED_OUT, a 5-second polling
+   * fallback kicks in to query `waiting_room` directly. The interval is cleared
+   * once a match is found, the subscription recovers, or matchmaking is cancelled.
    */
   const subscribeToWaitingRoom = (userId: string) => {
-    // Clean up existing channel
+    // Clean up existing channel and any stale polling interval
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
     }
+    if (pollingIntervalRef.current !== null) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+
+    /** Shared match resolution logic used by both Realtime and polling paths. */
+    const resolveMatchedEntry = (entry: WaitingRoomEntry) => {
+      if (isCancelledRef.current) return;
+      if (!entry.matched_room_id) return;
+      if (isResolvingMatchRef.current) return;
+      isResolvingMatchRef.current = true;
+
+      // Stop polling if active
+      if (pollingIntervalRef.current !== null) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+
+      // Tear down channel immediately
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+
+      (async () => {
+        const { data: room, error: roomError } = await supabase
+          .from('rooms')
+          .select('code')
+          .eq('id', entry.matched_room_id!)
+          .single();
+
+        if (isCancelledRef.current) return;
+        if (roomError || !room) {
+          setError('Failed to fetch room details');
+          setIsSearching(false);
+          return;
+        }
+        setMatchFound(true);
+        setRoomCode(room.code);
+        setRoomId(entry.matched_room_id);
+        setIsSearching(false);
+        setWaitingCount(4);
+      })().catch((err: unknown) => {
+        if (isCancelledRef.current) return;
+        setError(err instanceof Error ? err.message : 'Failed to fetch room details');
+        setIsSearching(false);
+      });
+    };
+
+    /** M16: Start polling waiting_room every 5 s as a Realtime fallback. */
+    const startPollingFallback = () => {
+      if (pollingIntervalRef.current !== null) return; // already polling
+      console.warn('⚠️ [useMatchmaking] Realtime unavailable — starting polling fallback');
+      pollingIntervalRef.current = setInterval(async () => {
+        if (isCancelledRef.current) {
+          clearInterval(pollingIntervalRef.current!);
+          pollingIntervalRef.current = null;
+          return;
+        }
+        try {
+          const { data, error: pollErr } = await supabase
+            .from('waiting_room')
+            .select('*')
+            .eq('user_id', userId)
+            .single();
+
+          if (pollErr || !data) return;
+
+          const entry = data as WaitingRoomEntry;
+          if (typeof entry.waiting_count === 'number') {
+            setWaitingCount(entry.waiting_count);
+          }
+          if (entry.status === 'matched') {
+            resolveMatchedEntry(entry);
+          }
+        } catch {
+          // Ignore transient polling errors
+        }
+      }, 5000);
+    };
 
     // Create new channel
     const channel = supabase
@@ -266,54 +356,25 @@ export function useMatchmaking(): UseMatchmakingReturn {
             setWaitingCount(updatedEntry.waiting_count);
           }
 
+          // Realtime is working — clear any active polling fallback
+          if (pollingIntervalRef.current !== null) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+
           // Subscription is already filtered to UPDATE events for this user;
           // only act when the row transitions to 'matched'.
           if (payload.new && payload.new.status === 'matched') {
-            const entry = payload.new as WaitingRoomEntry;
-            if (entry.matched_room_id) {
-              // Guard: if another buffered/duplicate UPDATE already started a
-              // room-code fetch, skip this one entirely.
-              if (isResolvingMatchRef.current) return;
-              isResolvingMatchRef.current = true;
-
-              // Tear down channel immediately — no further events are needed
-              // and removing it here prevents additional buffered events from
-              // passing the guard above before removeChannel takes effect.
-              if (channelRef.current) {
-                supabase.removeChannel(channelRef.current);
-                channelRef.current = null;
-              }
-
-              // Fetch room code then resolve
-              (async () => {
-                const { data: room, error: roomError } = await supabase
-                  .from('rooms')
-                  .select('code')
-                  // matched_room_id is guaranteed non-null when a match is found
-                  .eq('id', entry.matched_room_id!)
-                  .single();
-
-                if (isCancelledRef.current) return;
-                if (roomError || !room) {
-                  setError('Failed to fetch room details');
-                  setIsSearching(false);
-                  return;
-                }
-                setMatchFound(true);
-                setRoomCode(room.code);
-                setRoomId(entry.matched_room_id);
-                setIsSearching(false);
-                setWaitingCount(4);
-              })().catch((err: unknown) => {
-                if (isCancelledRef.current) return;
-                setError(err instanceof Error ? err.message : 'Failed to fetch room details');
-                setIsSearching(false);
-              });
-            }
+            resolveMatchedEntry(payload.new as WaitingRoomEntry);
           }
         }
       )
-      .subscribe();
+      .subscribe((status: string) => {
+        // M16: Start polling fallback when Realtime is unavailable
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          startPollingFallback();
+        }
+      });
 
     channelRef.current = channel;
   };
@@ -342,6 +403,12 @@ export function useMatchmaking(): UseMatchmakingReturn {
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
+      }
+
+      // M16: Clear any active polling fallback
+      if (pollingIntervalRef.current !== null) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
       }
 
       // Call cancel-matchmaking Edge Function
