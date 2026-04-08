@@ -883,9 +883,10 @@ Deno.serve(async (req) => {
     for (const rawCard of cards) {
       const parsed = parseCard(rawCard);
       if (!parsed) {
-        console.warn('[play-cards] ❌ M10: Invalid card at boundary:', rawCard);
+        // Log full payload server-side for debugging; return generic message to avoid reflecting attacker-controlled input
+        console.warn('[play-cards] ❌ M10: Invalid card at boundary:', JSON.stringify(rawCard).slice(0, 200));
         return new Response(
-          JSON.stringify({ success: false, error: `Invalid card format: ${JSON.stringify(rawCard)}` }),
+          JSON.stringify({ success: false, error: 'Invalid card format' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }

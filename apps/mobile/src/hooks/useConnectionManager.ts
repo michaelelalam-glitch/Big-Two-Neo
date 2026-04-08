@@ -466,17 +466,18 @@ export function useConnectionManager({
 
     let androidSub: ReturnType<typeof DeviceEventEmitter.addListener> | null = null;
     if (Platform.OS === 'android') {
-      androidSub = DeviceEventEmitter.addListener(
-        'onTrimMemory',
-        ({ level }: { level: number }) => {
-          // TRIM_MEMORY_RUNNING_CRITICAL = 15, TRIM_MEMORY_COMPLETE = 80.
-          // Only act on moderate or higher pressure to avoid releasing resources
-          // on benign background housekeeping (level < 10).
-          if (level >= 10) {
-            handleMemoryPressure();
-          }
+      androidSub = DeviceEventEmitter.addListener('onTrimMemory', (event: unknown) => {
+        // TRIM_MEMORY_RUNNING_CRITICAL = 15, TRIM_MEMORY_COMPLETE = 80.
+        // Only act on moderate or higher pressure to avoid releasing resources
+        // on benign background housekeeping (level < 10).
+        const level =
+          event != null && typeof event === 'object' && 'level' in event
+            ? (event as { level: number }).level
+            : undefined;
+        if (typeof level === 'number' && level >= 10) {
+          handleMemoryPressure();
         }
-      );
+      });
     }
 
     return () => {
