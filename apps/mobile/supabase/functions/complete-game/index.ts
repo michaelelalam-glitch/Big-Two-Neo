@@ -26,10 +26,10 @@ interface GameCompletionRequest {
     original_username: string | null; // Original player name before bot replaced them
     combos_played: {
       singles: number;
-
-
-
-
+      pairs: number;
+      triples: number;
+      straights: number;
+      flushes: number;
       full_houses: number;
       four_of_a_kinds: number;
       straight_flushes: number;
