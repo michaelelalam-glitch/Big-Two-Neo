@@ -460,6 +460,7 @@ export function LocalAIGame() {
       toggleOrientation,
       isInitializing,
       isConnected: true,
+      connectionStatus: 'connected',
       showSettings,
       setShowSettings,
       effectivePlayerHand,

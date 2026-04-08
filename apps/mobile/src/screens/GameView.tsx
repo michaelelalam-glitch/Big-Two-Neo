@@ -84,6 +84,7 @@ function GameViewComponent() {
     toggleOrientation,
     isInitializing,
     isConnected,
+    connectionStatus,
     showSettings,
     setShowSettings,
     roomCode,
@@ -342,7 +343,7 @@ function GameViewComponent() {
         {/* Task #575: Connection status indicator for multiplayer */}
         {isMultiplayerGame && (
           <ConnectionStatusIndicator
-            status={isConnected ? 'connected' : 'reconnecting'}
+            status={connectionStatus}
             style={{ position: 'absolute', top: 50, alignSelf: 'center', zIndex: 200 }}
           />
         )}

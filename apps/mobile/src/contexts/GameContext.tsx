@@ -17,6 +17,7 @@ import type { AutoPassTimerState, ThrowableType } from '../types/multiplayer';
 import type { LiveKitTrackRef } from '../hooks/useVideoChat';
 import type { ActiveThrowableEffect, IncomingThrowable } from '../hooks/useThrowables';
 import type { InGameAlertOptions } from '../components/game/InGameAlert';
+import type { ConnectionStatus } from '../components/ConnectionStatusIndicator';
 
 // ---------------------------------------------------------------------------
 // Player type aliases (mirror the inline types in the old GameViewProps)
@@ -53,6 +54,8 @@ export interface GameContextType {
   // ── Status flags ───────────────────────────────────────────────────────
   isInitializing: boolean;
   isConnected: boolean;
+  /** Full connection status for ConnectionStatusIndicator. Always 'connected' for local AI games. */
+  connectionStatus: ConnectionStatus;
 
   // ── Settings modal ─────────────────────────────────────────────────────
   showSettings: boolean;
