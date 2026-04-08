@@ -34,7 +34,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { AppState, AppStateStatus, DeviceEventEmitter, Platform } from 'react-native';
+import { AppState, AppStateStatus } from 'react-native';
 import { supabase } from '../services/supabase';
 import { networkLogger } from '../utils/logger';
 import { trackConnection, trackEvent } from '../services/analytics';
@@ -458,31 +458,14 @@ export function useConnectionManager({
     };
 
     // iOS fires 'memoryWarning' via AppState; Android requires a native bridge
-    // module to forward ComponentCallbacks2.onTrimMemory() into JS as
-    // 'onTrimMemory'. Without that native module this listener is a no-op.
-    // TODO: implement a TrimMemoryModule native module to emit this event, or
-    //       migrate to a cross-platform AppState 'memoryWarning' equivalent.
+    // module to forward ComponentCallbacks2.onTrimMemory() into JS. Since that
+    // native module is not yet implemented, memory-pressure handling on Android
+    // relies on the OS reclaiming resources directly.
+    // TODO: implement a TrimMemoryModule native module to emit this event.
     const iosSub = AppState.addEventListener('memoryWarning', handleMemoryPressure);
-
-    let androidSub: ReturnType<typeof DeviceEventEmitter.addListener> | null = null;
-    if (Platform.OS === 'android') {
-      androidSub = DeviceEventEmitter.addListener('onTrimMemory', (event: unknown) => {
-        // TRIM_MEMORY_RUNNING_CRITICAL = 15, TRIM_MEMORY_COMPLETE = 80.
-        // Only act on moderate or higher pressure to avoid releasing resources
-        // on benign background housekeeping (level < 10).
-        const level =
-          event != null && typeof event === 'object' && 'level' in event
-            ? (event as { level: number }).level
-            : undefined;
-        if (typeof level === 'number' && level >= 10) {
-          handleMemoryPressure();
-        }
-      });
-    }
 
     return () => {
       iosSub.remove();
-      androidSub?.remove();
     };
   }, []);
 
