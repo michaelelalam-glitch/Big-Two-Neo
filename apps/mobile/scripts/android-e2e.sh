@@ -11,13 +11,6 @@ adb wait-for-device
 adb shell 'while [ -z "$(getprop sys.boot_completed)" ]; do sleep 1; done; input keyevent 82'
 sleep 5
 
-# Switch adb to root mode so the auth-injection script can access
-# /data/data/<package>/databases/RKStorage (requires root on userdebug images).
-# reactivecircus/android-emulator-runner uses google_apis images which support adb root.
-adb root || echo "::warning::adb root unavailable — auth injection into RKStorage may fail"
-sleep 2
-adb wait-for-device
-
 # Install the APK
 APK_PATH=$(find apps/mobile/android/app/build/outputs/apk -name "*.apk" | head -1)
 if [ -z "$APK_PATH" ]; then
@@ -52,6 +45,15 @@ if [ -z "${E2E_TEST_EMAIL:-}" ] || [ -z "${E2E_TEST_PASSWORD:-}" ]; then
   exit "$SMOKE_EXIT"
 fi
 
+# Switch adb to root mode only for auth injection so we can write to
+# /data/data/<package>/databases/RKStorage (requires root on userdebug images).
+# We do this AFTER the smoke test phase to avoid disrupting Maestro's adb
+# connection via the daemon restart that adb root causes.
+echo "Elevating adb to root for auth injection..."
+adb root || echo "::warning::adb root unavailable — sqlite3 injection may fail"
+sleep 3
+adb wait-for-device
+
 echo "Injecting E2E auth session for ${E2E_TEST_EMAIL}..."
 CI_PLATFORM=android \
   EXPO_PUBLIC_SUPABASE_URL="${EXPO_PUBLIC_SUPABASE_URL}" \
@@ -59,6 +61,11 @@ CI_PLATFORM=android \
   E2E_TEST_EMAIL="${E2E_TEST_EMAIL}" \
   E2E_TEST_PASSWORD="${E2E_TEST_PASSWORD}" \
   node apps/mobile/scripts/ci-seed-e2e-auth.mjs
+
+# Drop back to shell user so Maestro's adb connection isn't running as root.
+adb unroot || true
+sleep 2
+adb wait-for-device
 
 # ── Phase 3: Authenticated E2E flows ──────────────────────────────────────────
 set +e

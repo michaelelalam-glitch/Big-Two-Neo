@@ -26,7 +26,8 @@
  */
 
 import { execSync, spawnSync } from 'child_process';
-import { existsSync, writeFileSync, unlinkSync, mkdirSync } from 'fs';
+import { createHash } from 'crypto';
+import { existsSync, readFileSync, writeFileSync, unlinkSync, mkdirSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
@@ -104,27 +105,42 @@ if (platform === 'android') {
 }
 
 // ─── Android injection via adb + sqlite3 ─────────────────────────────────────
+// async-storage v2 uses an "AsyncStorage" database with a "Storage" table.
+// Fall back to the old "RKStorage"/"catalystLocalStorage" schema for v1 installs.
 function injectAndroid(key, value) {
-  const DB_PATH = `/data/data/${APP_ID}/databases/RKStorage`;
+  const NEW_DB = `/data/data/${APP_ID}/databases/AsyncStorage`;
+  const OLD_DB = `/data/data/${APP_ID}/databases/RKStorage`;
 
-  // Write a temporary SQL file locally, push it to the device, execute it.
-  // This avoids shell-escaping nightmares for the large JSON value.
   const tmpSql = join(tmpdir(), 'e2e_auth_inject.sql');
   const escapedValue = value.replace(/'/g, "''");
-  const sql =
+
+  // v2 schema (async-storage >= 2.0)
+  const newSql =
+    `CREATE TABLE IF NOT EXISTS "Storage" ("key" TEXT NOT NULL, "value" TEXT, PRIMARY KEY("key"));\n` +
+    `INSERT OR REPLACE INTO "Storage" ("key", "value") VALUES ('${key}', '${escapedValue}');`;
+
+  // v1 legacy schema
+  const oldSql =
     `CREATE TABLE IF NOT EXISTS catalystLocalStorage ` +
     `(key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '');\n` +
     `INSERT OR REPLACE INTO catalystLocalStorage (key, value) ` +
     `VALUES ('${key}', '${escapedValue}');`;
 
-  writeFileSync(tmpSql, sql, 'utf8');
-
+  writeFileSync(tmpSql, newSql, 'utf8');
   try {
-    // Push SQL to device
     run(`adb push "${tmpSql}" /data/local/tmp/e2e_auth.sql`);
-    // Execute against RKStorage
-    run(`adb shell "sqlite3 ${DB_PATH} < /data/local/tmp/e2e_auth.sql"`);
-    // Clean up temp file on device
+    // Try v2 AsyncStorage db first (sqlite3 creates it if it doesn't exist yet)
+    const result = spawnSync(
+      `adb shell "sqlite3 ${NEW_DB} < /data/local/tmp/e2e_auth.sql"`,
+      { shell: true, stdio: 'pipe' },
+    );
+    if (result.status !== 0) {
+      // v2 db not available — fall back to legacy RKStorage
+      console.log('[ci-seed-auth] AsyncStorage db unavailable — trying legacy RKStorage...');
+      writeFileSync(tmpSql, oldSql, 'utf8');
+      run(`adb push "${tmpSql}" /data/local/tmp/e2e_auth.sql`);
+      run(`adb shell "sqlite3 ${OLD_DB} < /data/local/tmp/e2e_auth.sql"`);
+    }
     run(`adb shell rm /data/local/tmp/e2e_auth.sql`);
     console.log('[ci-seed-auth] ✅ Session injected into Android AsyncStorage');
   } finally {
@@ -132,34 +148,53 @@ function injectAndroid(key, value) {
   }
 }
 
-// ─── iOS injection via sqlite3 host-side ─────────────────────────────────────
+// ─── iOS injection (host-side) ────────────────────────────────────────────────
+// async-storage v2 stores keys as individual files inside a per-bundle
+// directory rather than a SQLite database:
+//   {Sandbox}/Library/Application Support/{bundleId}/RCTAsyncLocalStorage_V1/
+// Each key is stored as a file named MD5(key). Values > 1024 bytes are stored
+// in the file; manifest.json records {key: null} for those entries.
+// We always write the value as a file (auth session ~1840 bytes > 1024 threshold).
+// Fall back to the old RKStorage SQLite schema for v1 installs.
 function injectIOS(key, value) {
-  // Find the RKStorage SQLite file inside the simulator sandbox for our app.
-  // @react-native-async-storage places it at:
-  //   {Sandbox}/Documents/RKStorage  (v1.x)
-  //   {Sandbox}/Library/Application Support/RKStorage  (some v2.x builds)
-  // We search both locations.
-  let dbPath = findIOSDb();
+  // ── Try v2 file-based storage first ──────────────────────────────────────
+  let storageDir = findIOSStorageV2();
 
+  if (storageDir) {
+    injectIOSv2(key, value, storageDir);
+    return;
+  }
+
+  // ── Try to find/create parent dir then create the v2 storage directory ──
+  storageDir = findOrCreateIOSStorageV2();
+  if (storageDir) {
+    injectIOSv2(key, value, storageDir);
+    return;
+  }
+
+  // ── Fall back to old RKStorage SQLite (async-storage v1) ─────────────────
+  let dbPath = findIOSDb();
   if (!dbPath) {
-    // The DB is only created after the app first reads/writes AsyncStorage.
-    // Warm-up launch in the workflow creates it; if still missing, launch again.
-    console.log('[ci-seed-auth] RKStorage not found — cold-launching app to create DB...');
+    console.log('[ci-seed-auth] Storage not found — cold-launching app to initialise storage...');
     run('xcrun simctl launch booted com.big2mobile.app || true');
     sleep(6);
     run('xcrun simctl terminate booted com.big2mobile.app || true');
     sleep(2);
+    // Re-check both formats after launch
+    storageDir = findIOSStorageV2() || findOrCreateIOSStorageV2();
+    if (storageDir) {
+      injectIOSv2(key, value, storageDir);
+      return;
+    }
     dbPath = findIOSDb();
   }
 
   if (!dbPath) {
-    console.error(`[ci-seed-auth] ❌ Could not locate RKStorage for ${APP_ID}.`);
-    console.error('    Searched: Documents/RKStorage and Library/Application Support/RKStorage');
+    console.error(`[ci-seed-auth] ❌ Could not locate AsyncStorage for ${APP_ID}.`);
     process.exit(1);
   }
 
-  console.log(`[ci-seed-auth] Found RKStorage at: ${dbPath}`);
-
+  // Inject into v1 SQLite
   const tmpSql = join(tmpdir(), 'e2e_auth_inject.sql');
   const escapedValue = value.replace(/'/g, "''");
   const sql =
@@ -167,25 +202,80 @@ function injectIOS(key, value) {
     `(key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '');\n` +
     `INSERT OR REPLACE INTO catalystLocalStorage (key, value) ` +
     `VALUES ('${key}', '${escapedValue}');`;
-
   writeFileSync(tmpSql, sql, 'utf8');
   try {
     run(`sqlite3 "${dbPath}" < "${tmpSql}"`);
-    console.log('[ci-seed-auth] ✅ Session injected into iOS AsyncStorage');
+    console.log('[ci-seed-auth] ✅ Session injected into iOS RKStorage (v1 fallback)');
   } finally {
     try { unlinkSync(tmpSql); } catch { /* ignore */ }
   }
 }
 
+/** Find existing RCTAsyncLocalStorage_V1 directory in simulator sandbox. */
+function findIOSStorageV2() {
+  try {
+    const result = execSync(
+      `find ~/Library/Developer/CoreSimulator/Devices -path "*/${APP_ID}/RCTAsyncLocalStorage_V1" -type d 2>/dev/null`,
+      { encoding: 'utf8', timeout: 15000 },
+    );
+    const lines = result.trim().split('\n').filter(Boolean);
+    return lines[0] || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Find the app's Application Support directory and create
+ * RCTAsyncLocalStorage_V1 inside it (app sandbox exists but storage dir
+ * not yet initialised by the library).
+ */
+function findOrCreateIOSStorageV2() {
+  try {
+    const result = execSync(
+      `find ~/Library/Developer/CoreSimulator/Devices -path "*/Library/Application Support/${APP_ID}" -type d 2>/dev/null`,
+      { encoding: 'utf8', timeout: 15000 },
+    );
+    const lines = result.trim().split('\n').filter(Boolean);
+    if (lines.length === 0) return null;
+    const storageDir = join(lines[0], 'RCTAsyncLocalStorage_V1');
+    mkdirSync(storageDir, { recursive: true });
+    return storageDir;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Write key into RCTAsyncLocalStorage_V1 directory (async-storage v2 format):
+ *   - value file: {storageDir}/{MD5(key)}
+ *   - manifest.json: {key: null}  (null = value stored in file, not inline)
+ */
+function injectIOSv2(key, value, storageDir) {
+  const md5 = createHash('md5').update(key, 'utf8').digest('hex');
+  const keyFilePath = join(storageDir, md5);
+  const manifestPath = join(storageDir, 'manifest.json');
+
+  writeFileSync(keyFilePath, value, 'utf8');
+
+  let manifest = {};
+  if (existsSync(manifestPath)) {
+    try { manifest = JSON.parse(readFileSync(manifestPath, 'utf8')); } catch { manifest = {}; }
+  }
+  manifest[key] = null; // null = value is in separate file (not inlined)
+  writeFileSync(manifestPath, JSON.stringify(manifest), 'utf8');
+
+  console.log(`[ci-seed-auth] ✅ Session injected into iOS RCTAsyncLocalStorage_V1 (${md5})`);
+}
+
+/** Find RKStorage SQLite file (async-storage v1 legacy). */
 function findIOSDb() {
-  // Try both known paths
   try {
     const result = execSync(
       `find ~/Library/Developer/CoreSimulator/Devices -name "RKStorage" 2>/dev/null`,
-      { encoding: 'utf8', timeout: 15000 }
+      { encoding: 'utf8', timeout: 15000 },
     );
     const lines = result.trim().split('\n').filter(Boolean);
-    // Prefer the path that belongs to our app bundle
     const appPath = lines.find(p => p.includes(APP_ID));
     return appPath || lines[0] || null;
   } catch {
