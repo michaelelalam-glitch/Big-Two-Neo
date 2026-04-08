@@ -191,11 +191,23 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
       await attempt();
     } catch (_err) {
       // Single retry after 500 ms, but only for transient errors (M6).
-      // Skip retry for permanent failures like auth/RLS errors (4xx HTTP status).
+      // Skip retry for permanent auth/RLS failures detected via PostgreSQL error code.
+      // PostgREST errors expose `code` (PostgreSQL error code), not an HTTP `status` field,
+      // so checking `status` would resolve to 0 and treat every error as potentially transient.
       const postgrestErr = _err as { code?: string; status?: number; message?: string } | null;
-      const httpStatus = postgrestErr?.status ?? 0;
-      const isTransient =
-        httpStatus === 0 || httpStatus >= 500 || httpStatus === 408 || httpStatus === 429;
+      const isNetworkError =
+        _err instanceof TypeError ||
+        /Failed to fetch|Network request failed/i.test(postgrestErr?.message ?? '');
+      // Known non-retryable auth / RLS / JWT PostgreSQL error codes.
+      const NON_RETRYABLE_CODES = new Set([
+        '42501',
+        '28P01',
+        '28000',
+        'PGRST301',
+        'PGRST302',
+        'PGRST303',
+      ]);
+      const isTransient = isNetworkError || !NON_RETRYABLE_CODES.has(postgrestErr?.code ?? '');
       if (!isTransient) {
         networkLogger.error('[useRealtime] fetchPlayers non-retryable error:', postgrestErr);
         throw _err;

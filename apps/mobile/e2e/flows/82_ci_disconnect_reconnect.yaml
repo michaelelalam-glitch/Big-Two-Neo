@@ -10,7 +10,7 @@ tags:
 - runFlow: ./55_ci_online_join_existing.yaml
 
 # Background the app (simulates real-world disconnect)
-- pressKey: HOME
+- pressKey: Home
 - waitForAnimationToEnd
 
 # Foreground the app again (simulates reconnect)

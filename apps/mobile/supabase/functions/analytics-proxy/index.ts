@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response(
       JSON.stringify({ error: 'Method not allowed' }),
-      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Request-ID': requestId } },
     );
   }
 
@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
   if (!authHeader?.startsWith('Bearer ')) {
     return new Response(
       JSON.stringify({ error: 'Unauthorized' }),
-      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Request-ID': requestId } },
     );
   }
   const token = authHeader.replace('Bearer ', '');
@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
     console.error('[analytics-proxy] SUPABASE_URL or SUPABASE_ANON_KEY not configured');
     return new Response(
       JSON.stringify({ error: 'Server misconfigured' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Request-ID': requestId } },
     );
   }
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
   if (authError || !user) {
     return new Response(
       JSON.stringify({ error: 'Invalid or expired token' }),
-      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Request-ID': requestId } },
     );
   }
 
@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
   if (isRateLimited(user.id)) {
     return new Response(
       JSON.stringify({ error: 'Too many requests' }),
-      { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Request-ID': requestId } },
     );
   }
 
@@ -130,7 +130,7 @@ Deno.serve(async (req) => {
     console.error('[analytics-proxy] GA4_API_SECRET or GA4_MEASUREMENT_ID not configured');
     return new Response(
       JSON.stringify({ error: 'Analytics not configured' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Request-ID': requestId } },
     );
   }
 
@@ -140,7 +140,7 @@ Deno.serve(async (req) => {
   } catch {
     return new Response(
       JSON.stringify({ error: 'Invalid JSON body' }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Request-ID': requestId } },
     );
   }
 
@@ -149,7 +149,7 @@ Deno.serve(async (req) => {
     if (!body.client_id || !Array.isArray(body.events) || body.events.length === 0) {
       return new Response(
         JSON.stringify({ error: 'Invalid payload: client_id and events[] required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Request-ID': requestId } },
       );
     }
 
@@ -157,7 +157,7 @@ Deno.serve(async (req) => {
     if (body.events.length > 25) {
       return new Response(
         JSON.stringify({ error: 'Too many events (max 25 per request)' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Request-ID': requestId } },
       );
     }
 
