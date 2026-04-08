@@ -12,8 +12,10 @@
  * on the friendships table so the list stays in sync across tabs.
  *
  * NOTE: User blocking (block/unblock/isBlocked) is intentionally deferred to a
- * future release. The unfriend feature covers the immediate v1 need. A backlog
- * task exists for the full blocking feature (DB schema already in place).
+ * future v2 release. The unfriend feature covers the immediate v1 need.
+ * A backlog task (#674) exists for the full client-side blocking implementation.
+ * The DB schema (blocked_users table + triggers) was created in this PR via migration
+ * 20260720000003 — no client hooks for blocking are wired up here.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
