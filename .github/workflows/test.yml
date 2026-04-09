@@ -289,13 +289,14 @@ jobs:
           # On cache hits xcodebuild performs an incremental compile (~2-5 min)
           # instead of a full rebuild (~15-20 min).
           path: ~/DerivedData/Big2Mobile
-          # v3: force cache miss to clear partial DerivedData accumulated from
-          # multiple prior failed builds (incremental-build corruption cycle).
-          # Once the first successful build populates the cache, subsequent runs
-          # will hit this key and get incremental builds again.
-          key: ${{ runner.os }}-deriveddata-v3-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json') }}
+          # v4: force cache miss to clear stale Xcode ModuleCache (.pcm files)
+          # that caused DarwinFoundation build failures when the Xcode 16.4
+          # toolchain was updated (mtime changed on ptrcheck.h).
+          # ModuleCache is also deleted before every build (see step below)
+          # so future Xcode toolchain updates can never poison the cache again.
+          key: ${{ runner.os }}-deriveddata-v4-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json') }}
           restore-keys: |
-            ${{ runner.os }}-deriveddata-v3-
+            ${{ runner.os }}-deriveddata-v4-
 
       - name: 📦 Install dependencies
         run: |
@@ -304,6 +305,17 @@ jobs:
       
       - name: 🔑 Create Firebase config for build
         run: cp apps/mobile/google-services.json.example apps/mobile/google-services.json
+
+      - name: 🗑️ Clear Xcode ModuleCache (prevent mtime-poisoned cache failures)
+        run: |
+          # The ModuleCache contains .pcm (precompiled module) files keyed by
+          # the Xcode toolchain mtime. When GitHub Actions updates Xcode between
+          # cache writes and cache reads, mtime changes invalidate all modules
+          # and cause cascading DarwinFoundation / _stdint errors. Deleting only
+          # the ModuleCache (~seconds to regenerate) preserves the compiled
+          # object files (.o) that make incremental builds fast.
+          rm -rf ~/DerivedData/Big2Mobile/ModuleCache.noindex || true
+          echo "ModuleCache cleared"
 
       - name: 🏗️ Build iOS app for Simulator
         run: |
@@ -367,7 +379,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ~/DerivedData/Big2Mobile
-          key: ${{ runner.os }}-deriveddata-v3-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json') }}
+          key: ${{ runner.os }}-deriveddata-v4-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json') }}
       
       - name: 📲 Install app on Simulator
         run: |
@@ -608,6 +620,11 @@ jobs:
           set -euo pipefail
           cd apps/mobile
           npx expo prebuild --clean --platform android
+          # expo prebuild generates org.gradle.jvmargs=-Xmx2048m which overrides
+          # the GRADLE_OPTS env var, causing D8 dex merger to OOM on CI runners.
+          # Patch it to 4096m before running Gradle.
+          sed -i "s/^org\.gradle\.jvmargs=.*/org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m/" android/gradle.properties
+          echo "Gradle JVM args after patch:"; grep jvmargs android/gradle.properties
           cd android
           chmod +x gradlew
           ./gradlew assembleRelease \
