@@ -52,9 +52,10 @@ if (!['ios', 'android'].includes(platform)) {
 }
 
 const APP_ID = 'com.big2mobile.app';
-// Supabase JS v2 storage key: sb-{hostname}-auth-token
-const hostname = new URL(supabaseUrl).hostname;
-const STORAGE_KEY = `sb-${hostname}-auth-token`;
+// Supabase JS v2 default storage key: sb-{project-ref}-auth-token
+// where project-ref = hostname.split('.')[0]  (e.g. "dppybucldqufbqhwnkxu")
+const projectRef = new URL(supabaseUrl).hostname.split('.')[0];
+const STORAGE_KEY = `sb-${projectRef}-auth-token`;
 
 console.log(`[ci-seed-auth] Platform: ${platform}`);
 console.log(`[ci-seed-auth] Supabase URL: ${supabaseUrl}`);
