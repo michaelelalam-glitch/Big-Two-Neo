@@ -438,6 +438,22 @@ jobs:
           done
           echo "Smoke exit code: $SMOKE_EXIT"
 
+          # ── Phase 1b: Re-inject auth session after smoke tests ─────────────────
+          # Smoke flows use clearState: true which wipes the auth session that was
+          # injected before the Maestro run.  Re-inject so Phase 2 starts fresh.
+          if [ -n "${E2E_TEST_EMAIL:-}" ] && [ -n "${E2E_TEST_PASSWORD:-}" ]; then
+            echo "Re-injecting auth session after smoke tests wiped AsyncStorage..."
+            CI_PLATFORM=ios \
+              EXPO_PUBLIC_SUPABASE_URL="${EXPO_PUBLIC_SUPABASE_URL}" \
+              EXPO_PUBLIC_SUPABASE_ANON_KEY="${EXPO_PUBLIC_SUPABASE_ANON_KEY}" \
+              E2E_TEST_EMAIL="${E2E_TEST_EMAIL}" \
+              E2E_TEST_PASSWORD="${E2E_TEST_PASSWORD}" \
+              node scripts/ci-seed-e2e-auth.mjs
+            # Force-stop the app so the next launchApp reads the fresh session
+            xcrun simctl terminate booted com.big2mobile.app || true
+            sleep 3
+          fi
+
           # ── Phase 2: Authenticated flows (ci-authenticated tag) ───────────────
           # Only runs if an auth session was injected (both credentials were set).
           # Skip gracefully when either credential is absent.

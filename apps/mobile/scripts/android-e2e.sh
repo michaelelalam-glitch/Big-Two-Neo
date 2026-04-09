@@ -62,10 +62,27 @@ CI_PLATFORM=android \
   E2E_TEST_PASSWORD="${E2E_TEST_PASSWORD}" \
   node apps/mobile/scripts/ci-seed-e2e-auth.mjs
 
+# Fix database file ownership after root injection.
+# sqlite3 running as root may create journal/WAL files owned by root,
+# preventing the app (running as its own UID) from reading the database.
+APP_OWNER=$(adb shell stat -c '%u:%g' /data/data/com.big2mobile.app/)
+echo "Fixing database ownership to ${APP_OWNER}..."
+adb shell chown -R "${APP_OWNER}" /data/data/com.big2mobile.app/databases/ || true
+
+# Verify the injected session is readable
+echo "Verifying auth injection..."
+adb shell "sqlite3 /data/data/com.big2mobile.app/databases/AsyncStorage \"SELECT length(value) FROM Storage WHERE key LIKE 'sb-%auth-token';\"" || echo "::warning::Could not verify auth injection"
+
 # Drop back to shell user so Maestro's adb connection isn't running as root.
 adb unroot || true
 sleep 2
 adb wait-for-device
+
+# Force-stop the app so the next launchApp starts completely fresh
+# and reads the injected auth session from AsyncStorage.
+echo "Restarting app to load injected auth..."
+adb shell am force-stop com.big2mobile.app || true
+sleep 2
 
 # ── Phase 3: Authenticated E2E flows ──────────────────────────────────────────
 set +e
