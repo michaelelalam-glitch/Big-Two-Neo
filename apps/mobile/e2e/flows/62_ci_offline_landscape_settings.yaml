@@ -32,7 +32,7 @@ tags:
     timeout: 20000
 
 # Rotate to landscape
-- setOrientation: landscape
+- setOrientation: LANDSCAPE_LEFT
 - takeScreenshot: "62_landscape_game"
 
 # Open in-game settings in landscape
