@@ -61,7 +61,9 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
-    // C3: Enforce minimum app version
+    // Version check: allow missing x-app-version header because this endpoint
+    // is invoked by pg_cron and internal server-side callers that do not carry
+    // a client version header. allowMissingHeader=true is intentional here.
     const versionError = checkMinimumVersion(req, corsHeaders, true);
     if (versionError) return versionError;
 

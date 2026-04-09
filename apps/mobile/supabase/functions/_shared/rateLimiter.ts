@@ -46,32 +46,6 @@ export interface RateLimitResult {
  * ALLOWS the request and logs the error — rate limiting is best-effort and
  * should never block legitimate gameplay.
  */
-/**
- * M7: Short-lived in-memory allow-cache to reduce DB round-trips.
- *
- * When a user's request was allowed in the last ALLOW_CACHE_TTL_MS milliseconds
- * for the same action, we skip the DB call and return a cached "allowed" result.
- * This is safe because:
- *  - The cache only stores ALLOWED results (never cached blocks).
- *  - TTL is 1 s — much shorter than the rate-limit window (≥10 s), so we cannot
- *    grant more than (1 s / window) extra requests above the nominal limit.
- *  - The cache is instance-local; correctness of enforcement relies on the DB
- *    upsert which remains the source of truth.
- *
- * Effect: reduces DB queries by up to ~10× for burst gameplay (e.g. fast passes).
- */
-const ALLOW_CACHE_TTL_MS = 1_000; // 1 second
-const ALLOW_CACHE_MAX_SIZE = 500; // max entries before forcing a full sweep
-const _allowCache = new Map<string, number>(); // key → expiresAt epoch ms
-
-/** Evict all expired entries; if still over ALLOW_CACHE_MAX_SIZE, clear entirely. */
-function _pruneAllowCache(nowMs: number): void {
-  for (const [key, expiresAt] of _allowCache) {
-    if (nowMs >= expiresAt) _allowCache.delete(key);
-  }
-  if (_allowCache.size > ALLOW_CACHE_MAX_SIZE) _allowCache.clear();
-}
-
 export async function checkRateLimit(
   client: any,           // SupabaseClient — typed as `any` to avoid importing the heavy type in every caller
   userId: string,
@@ -79,15 +53,9 @@ export async function checkRateLimit(
   maxPerWindow: number,
   windowSeconds: number,
 ): Promise<RateLimitResult> {
-  // M7: Check instance-local allow cache before going to DB
-  const cacheKey = `${userId}:${action}`;
-  const now = Date.now();
-  const cachedAllowedUntil = _allowCache.get(cacheKey);
-  if (cachedAllowedUntil !== undefined && now < cachedAllowedUntil) {
-    // Return attempts: 1 (minimum confirmed count) rather than 0 so callers
-    // logging this field are not misled into thinking no requests were made.
-    return { allowed: true, attempts: 1, retryAfterMs: 0 };
-  }
+  // M7: Check against DB for every request — no in-memory bypass.
+  // (The former allow-cache was removed because it allowed unbounded requests
+  // within its 1s TTL window without incrementing the DB counter.)
   try {
     const { data, error } = await client.rpc('upsert_rate_limit_counter', {
       p_user_id:     userId,
@@ -124,16 +92,6 @@ export async function checkRateLimit(
         `[rateLimiter] 🚨 SUSPICIOUS: action="${action}" user=${userId.substring(0, 8)} ` +
         `attempts=${attempts} (${Math.round(attempts / maxPerWindow)}× limit). Possible abuse.`,
       );
-    }
-
-    // M7: Populate allow cache so the next request within the TTL skips the DB call.
-    if (allowed) {
-      // Opportunistically prune expired entries to bound Map growth.
-      if (_allowCache.size >= ALLOW_CACHE_MAX_SIZE) _pruneAllowCache(Date.now());
-      _allowCache.set(cacheKey, Date.now() + ALLOW_CACHE_TTL_MS);
-    } else {
-      // If blocked, evict any stale allow cache entry immediately.
-      _allowCache.delete(cacheKey);
     }
 
     return { allowed, attempts, retryAfterMs };

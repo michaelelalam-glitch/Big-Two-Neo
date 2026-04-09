@@ -1,5 +1,7 @@
 -- ==========================================================================
 -- C5 FIX: Add waiting_count column to waiting_room table
+-- (C5 = Sprint 1 finding: waiting_count column missing from waiting_room,
+--  causing Realtime live-count updates to silently drop in useMatchmaking)
 -- ==========================================================================
 -- The `useMatchmaking` hook expects a `waiting_count` field on `waiting_room`
 -- rows delivered via Realtime UPDATE events. The find-match Edge Function
