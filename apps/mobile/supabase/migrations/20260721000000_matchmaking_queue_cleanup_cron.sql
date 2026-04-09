@@ -8,10 +8,13 @@
 -- those users from joining future matchmaking queues (the find-match function
 -- short-circuits for users with status IN ('processing', 'matched')).
 --
--- Fix: schedule a pg_cron job that fires every minute and resets rows that have
+-- Fix: schedule a pg_cron job that fires every hour and resets rows that have
 -- been in 'matched' state for more than 5 minutes back to 'waiting'. This is
 -- safe to do because start_new_match completes in < 30 seconds on any healthy
 -- path; 5 minutes provides ample margin while preventing the permanent block.
+-- Note: with hourly scheduling, entries may remain stuck for up to ~65 minutes
+-- in the worst case (row ages 1 minute after a cleanup run). This is acceptable
+-- for the rare failure path and avoids excessive pg_cron load.
 --
 -- Requires: pg_cron extension enabled on the Supabase project.
 --           (Dashboard → Extensions → pg_cron → Enable)

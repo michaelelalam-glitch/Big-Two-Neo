@@ -259,7 +259,10 @@ Deno.serve(async (req) => {
   }
 
     // C3: Enforce minimum app version
-    const versionError = checkMinimumVersion(req, corsHeaders, true);
+    // Do not pass allowMissingHeader=true here: this function is called by the
+    // mobile client and must enforce the version gate. Service-role callers are
+    // still allowed through via isServiceRoleRequest auto-detection (default).
+    const versionError = checkMinimumVersion(req, corsHeaders);
     if (versionError) return versionError;
 
   try {
