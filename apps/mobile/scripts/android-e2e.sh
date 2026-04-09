@@ -20,12 +20,6 @@ fi
 echo "Installing APK: $APK_PATH"
 adb install "$APK_PATH"
 
-# Launch app once to warm up (also causes AsyncStorage DB to be created)
-adb shell am start -n com.big2mobile.app/.MainActivity || true
-sleep 10
-adb shell am force-stop com.big2mobile.app || true
-sleep 3
-
 # ── Phase 1: Pre-auth smoke flows ─────────────────────────────────────────────
 # These tests run against an unauthenticated session (sign-in screen).
 mkdir -p apps/mobile/e2e/results-android
@@ -57,32 +51,30 @@ adb wait-for-device
 # Ensure the databases directory exists (clearState may have wiped it)
 adb shell "mkdir -p /data/data/com.big2mobile.app/databases" || true
 
-# ── Poll for Room initialization ───────────────────────────────────────────────
+# ── Launch app + wait for Room to initialise AsyncStorage DB ──────────────────
 # clearState:true (used by smoke flows) wipes all app data.  Room lazily
-# initialises its AsyncStorage database on first JS access, which can take
-# several seconds on a CI emulator.  We launch the app and poll until Room
-# has created the database AND the Storage table (≤ 30 s), then stop it
-# cleanly before injection.  Polling avoids the fixed 8 s sleep that was
-# too short on slow emulators.
+# initialises its AsyncStorage database on first JS access.  On a fresh-install
+# CI emulator (ART not yet JIT-compiled), the first cold start can take 30–60 s.
+# We launch without adb-root so the app runs as its normal UID, wait 30 s for
+# the JIT/startup to complete, then re-root and poll for up to 90 s more.
 ROOM_READY=0
-STORAGE_TABLE_READY=0
 
-DB_EXISTS=$(adb shell "test -f /data/data/com.big2mobile.app/databases/AsyncStorage && echo yes || echo no")
-if [ "$DB_EXISTS" != "yes" ]; then
-  echo "AsyncStorage database missing — launching app to initialise Room..."
-  adb unroot || true
-  sleep 2
-  adb wait-for-device
-  adb shell am start -n com.big2mobile.app/.MainActivity || true
-  # Re-root while app is warming up so we can poll the protected data dir
-  sleep 3
-  adb root || true
-  sleep 2
-  adb wait-for-device
-fi
+echo "Launching app to initialise Room AsyncStorage database..."
+adb unroot || true
+sleep 2
+adb wait-for-device
+adb shell am start -n com.big2mobile.app/.MainActivity || true
 
-echo "Polling for Room Storage table (up to 30 s)..."
-for POLL_ITER in $(seq 1 15); do
+# Give the app time to fully start (ART cold-start on CI can take ~30 s).
+# Then re-root so we can query the protected /data/data directory.
+echo "Waiting 30 s for cold-start JIT compilation + Room init..."
+sleep 30
+adb root || true
+sleep 3
+adb wait-for-device
+
+echo "Polling for Room Storage table (up to 90 s)..."
+for POLL_ITER in $(seq 1 45); do
   DB_FILE=$(adb shell "test -f /data/data/com.big2mobile.app/databases/AsyncStorage && echo yes || echo no" 2>/dev/null || echo no)
   if [ "$DB_FILE" = "yes" ]; then
     # Check that Room has also created the Storage table
@@ -90,16 +82,15 @@ for POLL_ITER in $(seq 1 15); do
     if [ "$TABLE_COUNT" = "1" ]; then
       echo "Room Storage table ready after ${POLL_ITER} poll(s)."
       ROOM_READY=1
-      STORAGE_TABLE_READY=1
       break
     fi
   fi
-  echo "  ...not ready yet (poll $POLL_ITER/15), waiting 2 s"
+  echo "  ...not ready yet (poll $POLL_ITER/45), waiting 2 s"
   sleep 2
 done
 
 if [ "$ROOM_READY" != "1" ]; then
-  echo "::warning::Room Storage table did not appear in 30 s — attempting injection anyway (may fail)"
+  echo "::warning::Room Storage table did not appear in 120 s — attempting injection anyway (may fail)"
 fi
 
 # Stop the app cleanly before injection so Room releases its WAL lock
