@@ -48,55 +48,20 @@ adb root || echo "::warning::adb root unavailable — sqlite3 injection may fail
 sleep 3
 adb wait-for-device
 
-# NOTE: Do NOT mkdir the databases directory here.
-# If created while adb is root the directory is owned by root:root (mode 755)
-# and the app (uid u0_aXXX) cannot write into it, so Room never creates the
-# AsyncStorage DB file.  Room's database builder creates the directory
-# automatically with correct ownership when it first runs.
+# NOTE: The app uses the legacy @react-native-async-storage/async-storage
+# v1 backend (AsyncStoragePackage.java / RKStorage), NOT the Room-based v2
+# backend. Auth session lands in RKStorage's `catalystLocalStorage` table —
+# not in AsyncStorage's `Storage` table. No Room polling is needed.
 
-# ── Launch app + wait for Room to initialise AsyncStorage DB ──────────────────
-# clearState:true (used by smoke flows) wipes all app data.  Room lazily
-# initialises its AsyncStorage database on first JS access.  On a fresh-install
-# CI emulator (ART not yet JIT-compiled), the first cold start can take 30–60 s.
-# We launch without adb-root so the app runs as its normal UID, wait 30 s for
-# the JIT/startup to complete, then re-root and poll for up to 90 s more.
-ROOM_READY=0
+# Ensure the databases directory exists with correct ownership.
+# clearState:true (used by smoke flows) wipes the directory; the app
+# recreates it during smoke flows with normal uid ownership.  If it is
+# missing (e.g. early smoke failure), create and immediately chown it.
+DB_DIR=/data/data/com.big2mobile.app/databases
+APP_OWNER=$(adb shell stat -c '%u:%g' /data/data/com.big2mobile.app/ 2>/dev/null || echo "u0_a126:u0_a126")
+adb shell "test -d ${DB_DIR} || (mkdir -p ${DB_DIR} && chown ${APP_OWNER} ${DB_DIR})" || true
 
-echo "Launching app to initialise Room AsyncStorage database..."
-adb unroot || true
-sleep 2
-adb wait-for-device
-adb shell am start -n com.big2mobile.app/.MainActivity || true
-
-# Give the app time to fully start (ART cold-start on CI can take ~30 s).
-# Then re-root so we can query the protected /data/data directory.
-echo "Waiting 30 s for cold-start JIT compilation + Room init..."
-sleep 30
-adb root || true
-sleep 3
-adb wait-for-device
-
-echo "Polling for Room Storage table (up to 90 s)..."
-for POLL_ITER in $(seq 1 45); do
-  DB_FILE=$(adb shell "test -f /data/data/com.big2mobile.app/databases/AsyncStorage && echo yes || echo no" 2>/dev/null || echo no)
-  if [ "$DB_FILE" = "yes" ]; then
-    # Check that Room has also created the Storage table
-    TABLE_COUNT=$(adb shell "sqlite3 /data/data/com.big2mobile.app/databases/AsyncStorage 'SELECT count(*) FROM sqlite_master WHERE type=\"table\" AND name=\"Storage\";'" 2>/dev/null | tr -d '[:space:]' || echo 0)
-    if [ "$TABLE_COUNT" = "1" ]; then
-      echo "Room Storage table ready after ${POLL_ITER} poll(s)."
-      ROOM_READY=1
-      break
-    fi
-  fi
-  echo "  ...not ready yet (poll $POLL_ITER/45), waiting 2 s"
-  sleep 2
-done
-
-if [ "$ROOM_READY" != "1" ]; then
-  echo "::warning::Room Storage table did not appear in 120 s — attempting injection anyway (may fail)"
-fi
-
-# Stop the app cleanly before injection so Room releases its WAL lock
+# Stop the app before injection so it releases any SQLite file locks.
 adb shell am force-stop com.big2mobile.app || true
 sleep 2
 
@@ -109,29 +74,27 @@ CI_PLATFORM=android \
   node apps/mobile/scripts/ci-seed-e2e-auth.mjs
 
 # Fix database file ownership after root injection.
-# sqlite3 running as root may create journal/WAL files owned by root,
+# sqlite3 running as root may create files owned by root,
 # preventing the app (running as its own UID) from reading the database.
-APP_OWNER=$(adb shell stat -c '%u:%g' /data/data/com.big2mobile.app/)
 echo "Fixing database ownership to ${APP_OWNER}..."
 adb shell chown -R "${APP_OWNER}" /data/data/com.big2mobile.app/databases/ || true
 
-# Force a WAL checkpoint so the injected data is in the main database file,
-# not just in the -wal segment (Room reads both, but this ensures consistency).
-echo "Running WAL checkpoint..."
-adb shell "sqlite3 /data/data/com.big2mobile.app/databases/AsyncStorage 'PRAGMA wal_checkpoint(TRUNCATE);'" || true
-
-# Verify the injected session is readable — hard-fail if not found
+# Verify the injected session is readable — check BOTH backends.
+# The app currently uses legacy RKStorage (catalystLocalStorage table),
+# but we also check Room AsyncStorage (Storage table) in case the build
+# ever switches to the v2 backend.
 echo "Verifying auth injection..."
-INJECT_VERIFY=$(adb shell "sqlite3 /data/data/com.big2mobile.app/databases/AsyncStorage 'SELECT count(*) FROM Storage WHERE key LIKE \"sb-%-auth-token\";'" 2>/dev/null | tr -d '[:space:]' || echo 0)
-echo "Auth row count: ${INJECT_VERIFY}"
+VERIFY_ROOM=$(adb shell "sqlite3 /data/data/com.big2mobile.app/databases/AsyncStorage 'SELECT count(*) FROM Storage WHERE key LIKE \"sb-%-auth-token\";'" 2>/dev/null | tr -d '[:space:]' || echo 0)
+VERIFY_LEGACY=$(adb shell "sqlite3 /data/data/com.big2mobile.app/databases/RKStorage 'SELECT count(*) FROM catalystLocalStorage WHERE key LIKE \"sb-%-auth-token\";'" 2>/dev/null | tr -d '[:space:]' || echo 0)
+echo "Auth rows — Room (AsyncStorage/Storage): ${VERIFY_ROOM} | Legacy (RKStorage/catalystLocalStorage): ${VERIFY_LEGACY}"
 echo "Database files:"
 adb shell "ls -la /data/data/com.big2mobile.app/databases/" || true
-if [ "${INJECT_VERIFY}" != "1" ]; then
-  echo "::error::Auth injection verify FAILED — Storage table has ${INJECT_VERIFY} auth rows (expected 1). Check ci-seed-e2e-auth.mjs output above."
+if [ "${VERIFY_ROOM}" != "1" ] && [ "${VERIFY_LEGACY}" != "1" ]; then
+  echo "::error::Auth injection verify FAILED — 0 auth rows in both AsyncStorage (Room) and RKStorage (legacy). Check ci-seed-e2e-auth.mjs output above."
   adb unroot || true
   exit 1
 fi
-echo "✅ Auth injection verified (1 row found)."
+echo "✅ Auth injection verified (Room: ${VERIFY_ROOM}, RKStorage: ${VERIFY_LEGACY})."
 
 # Drop back to shell user so Maestro's adb connection isn't running as root.
 adb unroot || true
