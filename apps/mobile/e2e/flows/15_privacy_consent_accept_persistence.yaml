@@ -1,18 +1,19 @@
 # Flow 15: Privacy Consent Accept Path & Persistence
 # Validates: Accepting privacy consent stores the decision so the modal does
 #   NOT re-appear on subsequent launches from the same state.
-# Tags: smoke, ci
+# Tags: smoke
 #
-# CI-safe: no authentication required.
-# Covers a regression path distinct from flows 01/13/14 which all use the
-# decline path (decline does not persist; modal re-appears on relaunch).
-# Accept should persist: a cold relaunch without clearState must go straight
-# to the sign-in screen without showing the modal again.
+# INTENTIONALLY EXCLUDED FROM `ci` TAG:
+# This flow accepts consent (not decline). Once accepted, iOS persists the
+# consent decision across clearState: true boundaries (via simulator-cached
+# App Group / NSUserDefaults shared storage). Subsequent flows that call
+# clearState: true and expect the consent modal to appear will fail if this
+# flow has run earlier in the same Maestro session.
+# Run locally only, or in a dedicated isolated CI job.
 
 appId: com.big2mobile.app
 tags:
   - smoke
-  - ci
 ---
 # ── Step 1: Clear state so consent decision is wiped ─────────────────────
 - launchApp:
