@@ -45,14 +45,42 @@ if [ -z "${E2E_TEST_EMAIL:-}" ] || [ -z "${E2E_TEST_PASSWORD:-}" ]; then
   exit "$SMOKE_EXIT"
 fi
 
+# Force-stop the app BEFORE injection so Room releases its WAL lock on the
+# AsyncStorage database.  If the app still holds the lock, sqlite3 writes
+# may succeed but end up in a WAL segment that Room later discards.
+echo "Stopping app before auth injection..."
+adb shell am force-stop com.big2mobile.app || true
+sleep 2
+
 # Switch adb to root mode only for auth injection so we can write to
-# /data/data/<package>/databases/RKStorage (requires root on userdebug images).
+# /data/data/<package>/databases/ (requires root on userdebug images).
 # We do this AFTER the smoke test phase to avoid disrupting Maestro's adb
 # connection via the daemon restart that adb root causes.
 echo "Elevating adb to root for auth injection..."
 adb root || echo "::warning::adb root unavailable — sqlite3 injection may fail"
 sleep 3
 adb wait-for-device
+
+# Ensure the databases directory exists (clearState may have wiped it)
+adb shell "mkdir -p /data/data/com.big2mobile.app/databases" || true
+
+# If the AsyncStorage Room database doesn't exist yet (clearState may have
+# wiped it and the last smoke flow may not have triggered Room init),
+# launch the app briefly so Room creates the database with its metadata.
+DB_EXISTS=$(adb shell "test -f /data/data/com.big2mobile.app/databases/AsyncStorage && echo yes || echo no")
+if [ "$DB_EXISTS" != "yes" ]; then
+  echo "AsyncStorage database missing — launching app briefly to create it..."
+  adb unroot || true
+  sleep 2
+  adb wait-for-device
+  adb shell am start -n com.big2mobile.app/.MainActivity || true
+  sleep 8
+  adb shell am force-stop com.big2mobile.app || true
+  sleep 2
+  adb root || true
+  sleep 3
+  adb wait-for-device
+fi
 
 echo "Injecting E2E auth session for ${E2E_TEST_EMAIL}..."
 CI_PLATFORM=android \
@@ -69,9 +97,16 @@ APP_OWNER=$(adb shell stat -c '%u:%g' /data/data/com.big2mobile.app/)
 echo "Fixing database ownership to ${APP_OWNER}..."
 adb shell chown -R "${APP_OWNER}" /data/data/com.big2mobile.app/databases/ || true
 
+# Force a WAL checkpoint so the injected data is in the main database file,
+# not just in the -wal segment (Room reads both, but this ensures consistency).
+echo "Running WAL checkpoint..."
+adb shell "sqlite3 /data/data/com.big2mobile.app/databases/AsyncStorage 'PRAGMA wal_checkpoint(TRUNCATE);'" || true
+
 # Verify the injected session is readable
 echo "Verifying auth injection..."
-adb shell "sqlite3 /data/data/com.big2mobile.app/databases/AsyncStorage \"SELECT length(value) FROM Storage WHERE key LIKE 'sb-%auth-token';\"" || echo "::warning::Could not verify auth injection"
+adb shell "sqlite3 /data/data/com.big2mobile.app/databases/AsyncStorage 'SELECT count(*) || \" rows, key=\" || key FROM Storage WHERE key LIKE \"sb-%-auth-token\";'" || echo "::warning::Could not verify auth injection"
+echo "Database files:"
+adb shell "ls -la /data/data/com.big2mobile.app/databases/" || true
 
 # Drop back to shell user so Maestro's adb connection isn't running as root.
 adb unroot || true

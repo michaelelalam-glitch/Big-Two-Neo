@@ -116,9 +116,14 @@ function injectAndroid(key, value) {
   const escapedValue = value.replace(/'/g, "''");
 
   // v2 schema (async-storage >= 2.0)
-  const newSql =
-    `CREATE TABLE IF NOT EXISTS "Storage" ("key" TEXT NOT NULL, "value" TEXT, PRIMARY KEY("key"));\n` +
-    `INSERT OR REPLACE INTO "Storage" ("key", "value") VALUES ('${key}', '${escapedValue}');`;
+  // Only INSERT into the existing Room database — do NOT touch room_master_table
+  // or PRAGMA user_version.  The database (with correct Room metadata) is already
+  // created when the app launched during smoke tests.  CREATE TABLE IF NOT EXISTS
+  // is harmless on an existing table.
+  const newSql = [
+    `CREATE TABLE IF NOT EXISTS "Storage" ("key" TEXT NOT NULL, "value" TEXT, PRIMARY KEY("key"));`,
+    `INSERT OR REPLACE INTO "Storage" ("key", "value") VALUES ('${key}', '${escapedValue}');`,
+  ].join('\n');
 
   // v1 legacy schema
   const oldSql =
@@ -135,13 +140,27 @@ function injectAndroid(key, value) {
       `adb shell "sqlite3 ${NEW_DB} < /data/local/tmp/e2e_auth.sql"`,
       { shell: true, stdio: 'pipe' },
     );
+    if (result.stdout && result.stdout.length > 0) {
+      console.log(`[ci-seed-auth] sqlite3 stdout: ${result.stdout.toString().trim()}`);
+    }
+    if (result.stderr && result.stderr.length > 0) {
+      console.log(`[ci-seed-auth] sqlite3 stderr: ${result.stderr.toString().trim()}`);
+    }
     if (result.status !== 0) {
       // v2 db not available — fall back to legacy RKStorage
-      console.log('[ci-seed-auth] AsyncStorage db unavailable — trying legacy RKStorage...');
+      console.log(`[ci-seed-auth] AsyncStorage db failed (exit ${result.status}) — trying legacy RKStorage...`);
       writeFileSync(tmpSql, oldSql, 'utf8');
       run(`adb push "${tmpSql}" /data/local/tmp/e2e_auth.sql`);
       run(`adb shell "sqlite3 ${OLD_DB} < /data/local/tmp/e2e_auth.sql"`);
     }
+    // Inline verification — confirm the row is actually in the database
+    const verify = spawnSync(
+      `adb shell "sqlite3 ${NEW_DB} \\"SELECT length(value) FROM Storage WHERE key = '${key}';\\"" `,
+      { shell: true, stdio: 'pipe' },
+    );
+    const verifyOut = (verify.stdout || '').toString().trim();
+    console.log(`[ci-seed-auth] Verify SELECT length: ${verifyOut || '(empty)'}`);
+
     run(`adb shell rm /data/local/tmp/e2e_auth.sql`);
     console.log('[ci-seed-auth] ✅ Session injected into Android AsyncStorage');
   } finally {
