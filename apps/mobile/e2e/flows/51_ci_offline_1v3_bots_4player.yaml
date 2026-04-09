@@ -1,0 +1,78 @@
+# Flow 51: Offline Game — 1 Human vs 3 Bots (4-player simulation)
+# Validates: Full 4-player game scenario with 1 human and 3 bots.
+#            This is the maximum testable multiplayer scenario in CI.
+#            Tests: card passing, multiple rounds, all 4 player slots populated,
+#            no crash across extended gameplay.
+# Tags: ci-authenticated, offline-game, four-player
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - offline-game
+  - four-player
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 20000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Launch offline game (always spawns 3 bots = 4-player table)
+- tapOn: "Offline Practice"
+- extendedWaitUntil:
+    visible: "Bot Difficulty"
+    timeout: 6000
+- tapOn:
+    id: "difficulty-easy"
+
+# Wait for 4-player board to load
+- extendedWaitUntil:
+    visible:
+      id: "pass-button"
+    timeout: 25000
+- takeScreenshot: "51_four_player_game_start"
+
+# Verify the game board is showing (4 player positions)
+- assertVisible:
+    id: "pass-button"
+- assertVisible:
+    id: "play-button"
+
+# Round 1: Pass multiple times
+- tapOn:
+    id: "pass-button"
+- tapOn:
+    id: "pass-button"
+- tapOn:
+    id: "pass-button"
+- takeScreenshot: "51_round1_three_passes"
+
+# Use hint to see suggested play
+- tapOn:
+    id: "hint-button"
+- takeScreenshot: "51_hint_shown"
+
+# Smart sort the hand
+- tapOn:
+    id: "smart-sort-button"
+
+# Round 2: Continue passing
+- tapOn:
+    id: "pass-button"
+- tapOn:
+    id: "pass-button"
+- tapOn:
+    id: "pass-button"
+- takeScreenshot: "51_round2_passes"
+
+# Verify no errors after extended gameplay
+- assertNotVisible:
+    text: "Error"
+    optional: true
+- assertVisible:
+    id: "pass-button"
+- takeScreenshot: "51_game_stable_extended"

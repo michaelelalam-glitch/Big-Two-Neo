@@ -1131,7 +1131,7 @@ export default function LobbyScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} testID="lobby-screen">
       {/* Invite Friends Modal */}
       <Modal
         visible={showInviteModal}

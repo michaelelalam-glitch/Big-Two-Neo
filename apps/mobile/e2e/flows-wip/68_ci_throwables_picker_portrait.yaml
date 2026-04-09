@@ -1,0 +1,67 @@
+appId: com.big2mobile.app
+tags:
+  - game-room-e2e
+  - throwables
+  - portrait
+---
+# Flow 68: Throwables — open picker, select each type, dismiss (portrait)
+# Opens the throwable picker via the throw button and cycles through all 4 options
+
+- runFlow: ./86_ci_game_room_navigation.yaml
+
+# Open throwable picker
+- tapOn:
+    text: "🎯"
+    optional: true
+- waitForAnimationToEnd
+
+# Verify picker is visible
+- assertVisible:
+    id: "throw-picker-egg"
+- assertVisible:
+    id: "throw-picker-smoke"
+- assertVisible:
+    id: "throw-picker-confetti"
+- assertVisible:
+    id: "throw-picker-cake"
+
+# Dismiss by tapping backdrop (close without selecting)
+- tapOn:
+    point: "50%, 20%"
+- waitForAnimationToEnd
+
+# Re-open and select egg
+- tapOn:
+    text: "🎯"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    id: "throw-picker-egg"
+- waitForAnimationToEnd
+
+# Re-open and select confetti
+- tapOn:
+    text: "🎯"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    id: "throw-picker-confetti"
+- waitForAnimationToEnd
+
+# Re-open and select cake
+- tapOn:
+    text: "🎯"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    id: "throw-picker-cake"
+- waitForAnimationToEnd
+
+# Re-open and select smoke
+- tapOn:
+    text: "🎯"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    id: "throw-picker-smoke"
+- waitForAnimationToEnd

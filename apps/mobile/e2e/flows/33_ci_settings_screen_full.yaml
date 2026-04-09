@@ -1,0 +1,50 @@
+# Flow 33: Settings Screen — Full walk-through
+# Validates: Settings screen renders and all sections are visible
+# Tags: ci-authenticated, navigation, settings
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - navigation
+  - settings
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 20000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Open Settings
+- tapOn:
+    id: "home-settings-button"
+- extendedWaitUntil:
+    visible:
+      id: "settings-screen"
+    timeout: 8000
+- takeScreenshot: "33_settings_top"
+
+# Scroll to see more sections
+- swipe:
+    direction: DOWN
+    duration: 800
+- takeScreenshot: "33_settings_middle"
+
+- swipe:
+    direction: DOWN
+    duration: 800
+- takeScreenshot: "33_settings_bottom"
+
+# Scroll back up
+- swipe:
+    direction: UP
+    duration: 1200
+
+# Navigate back
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 8000

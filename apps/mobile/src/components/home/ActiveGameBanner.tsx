@@ -328,6 +328,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
             }}
             activeOpacity={0.8}
             disabled={isRejoining || isLeaving}
+            testID="rejoin-game-button"
           >
             {isRejoining ? (
               <ActivityIndicator size="small" color="#fff" />
@@ -351,6 +352,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
             }}
             activeOpacity={0.8}
             disabled={isRejoining || isLeaving}
+            testID="replace-bot-button"
           >
             {isRejoining ? (
               <ActivityIndicator size="small" color="#fff" />
@@ -373,6 +375,7 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
           }}
           activeOpacity={0.8}
           disabled={isRejoining || isLeaving}
+          testID="leave-game-banner-button"
         >
           {isLeaving ? (
             <ActivityIndicator size="small" color="#fff" />

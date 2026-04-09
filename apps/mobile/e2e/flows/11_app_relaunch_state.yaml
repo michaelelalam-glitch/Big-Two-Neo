@@ -44,6 +44,11 @@ tags:
 # restarts the app without a separate stopApp call.  This avoids the
 # XCUITest AXServer race condition that can crash iOS simulators in CI
 # when an explicit stopApp is followed immediately by launchApp.
+# Three consecutive waitForAnimationToEnd calls compound to give the
+# XCUITest AXServer adequate teardown time (Maestro has no sleep command).
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- waitForAnimationToEnd
 - launchApp
 
 # Step 4: App should return to sign-in screen (no authenticated session exists)

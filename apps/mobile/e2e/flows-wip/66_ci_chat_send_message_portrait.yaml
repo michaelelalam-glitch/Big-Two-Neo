@@ -1,0 +1,55 @@
+appId: com.big2mobile.app
+tags:
+  - game-room-e2e
+  - chat
+  - portrait
+---
+# Flow 66: Chat — open drawer, send a message, verify it appears, close drawer (portrait)
+# Requires an active multiplayer game room session (authenticated)
+
+- runFlow: ./86_ci_game_room_navigation.yaml
+
+# Open the chat drawer via the chat icon button
+- tapOn:
+    id: "chat-icon-button"
+    optional: true
+- waitForAnimationToEnd
+
+# If chat-icon-button not found, try finding by text or fallback label
+- tapOn:
+    text: "💬"
+    optional: true
+- waitForAnimationToEnd
+
+# Verify chat drawer header is visible
+- assertVisible:
+    id: "chat-drawer-header"
+
+# Type a test message
+- tapOn:
+    id: "chat-input"
+- inputText: "Hello from E2E test!"
+
+# Send the message
+- tapOn:
+    id: "chat-send-button"
+- waitForAnimationToEnd
+
+# Assert the message appears in the list
+- assertVisible:
+    text: "Hello from E2E test!"
+
+# Send another message to test rapid send
+- tapOn:
+    id: "chat-input"
+- inputText: "Second message"
+- tapOn:
+    id: "chat-send-button"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Second message"
+
+# Close chat by tapping the header
+- tapOn:
+    id: "chat-drawer-header"
+- waitForAnimationToEnd

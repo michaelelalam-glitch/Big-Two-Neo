@@ -1,0 +1,42 @@
+# Flow 32: Offline Difficulty Modal — Easy / Medium / Hard buttons
+# Validates: Difficulty modal opens with all 3 options, close button works
+# Tags: ci-authenticated, navigation, offline-game
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - navigation
+  - offline-game
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 20000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Tap Offline Practice
+- tapOn: "Offline Practice"
+- extendedWaitUntil:
+    visible: "Bot Difficulty"
+    timeout: 6000
+- takeScreenshot: "32_difficulty_modal"
+
+# Verify all 3 difficulty buttons
+- assertVisible:
+    id: "difficulty-easy"
+- assertVisible:
+    id: "difficulty-medium"
+- assertVisible:
+    id: "difficulty-hard"
+
+# Close modal via X button
+- tapOn:
+    id: "difficulty-modal-close"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 5000
+- takeScreenshot: "32_modal_closed"

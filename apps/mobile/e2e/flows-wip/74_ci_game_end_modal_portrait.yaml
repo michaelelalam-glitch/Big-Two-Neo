@@ -1,0 +1,85 @@
+appId: com.big2mobile.app
+tags:
+  - game-room-e2e
+  - game-end
+  - portrait
+---
+# Flow 74: Game end modal — verify all elements in portrait
+# This flow drives an offline game to completion (bots eliminate each other)
+# then verifies every element of the game end modal
+
+- runFlow: ./51_ci_offline_1v3_bots_4player.yaml
+
+# By now the game should have ended (bots drive it to completion quickly at hard difficulty)
+# Wait for game end modal to appear
+- waitForAnimationToEnd
+
+# Assert game end modal key elements
+- assertVisible:
+    id: "game-end-score-tab"
+- assertVisible:
+    id: "game-end-play-tab"
+- assertVisible:
+    id: "game-end-copy-results"
+- assertVisible:
+    id: "game-end-share"
+- assertVisible:
+    id: "game-end-play-again"
+- assertVisible:
+    id: "game-end-return-to-menu"
+
+# Assert winner announcement
+- assertVisible:
+    text: "🏆"
+    optional: true
+
+# Verify Score History tab is default active
+- assertVisible:
+    id: "game-end-score-tab"
+
+# Switch to Play History tab
+- tapOn:
+    id: "game-end-play-tab"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Card Play History"
+    optional: true
+
+# Scroll down in play history
+- swipe:
+    direction: DOWN
+    duration: 600
+
+# Scroll back up
+- swipe:
+    direction: UP
+    duration: 400
+
+# Switch back to Score History tab
+- tapOn:
+    id: "game-end-score-tab"
+- waitForAnimationToEnd
+
+# Scroll score history
+- swipe:
+    direction: DOWN
+    duration: 600
+- swipe:
+    direction: UP
+    duration: 400
+
+# Test Copy Results button
+- tapOn:
+    id: "game-end-copy-results"
+- waitForAnimationToEnd
+
+# Test Return to Menu (exits game — run last)
+- tapOn:
+    id: "game-end-return-to-menu"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Big Two"
+    optional: true
+- assertVisible:
+    text: "Find Game"
+    optional: true

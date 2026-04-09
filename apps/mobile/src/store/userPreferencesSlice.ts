@@ -148,6 +148,27 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       // migration/clear-cache code.
       name: SETTINGS_KEYS.AUDIO_SETTINGS_PERSIST,
       storage: createJSONStorage(() => AsyncStorage),
+      // Schema version — increment when adding/removing persisted fields (M30).
+      // The migrate function handles upgrading stored data from older schema
+      // versions so existing users don't lose their preferences after an update.
+      version: 1,
+      migrate: (persistedState: unknown, version: number): UserPreferencesState => {
+        // Guard against null/undefined/corrupted AsyncStorage — return an empty
+        // object so Zustand merges it with the store's initial defaults rather
+        // than crashing on a bad cast.
+        const safe =
+          typeof persistedState === 'object' && persistedState !== null
+            ? (persistedState as Partial<UserPreferencesState>)
+            : {};
+        if (version === 0) {
+          // v0 → v1: no structural changes yet; merge persisted data over defaults.
+          // Double-cast via unknown makes the intentional partial→full type coercion
+          // explicit: Zustand merges this partial with the in-memory state (keeping
+          // action functions from the default store).
+          return safe as unknown as UserPreferencesState;
+        }
+        return safe as unknown as UserPreferencesState;
+      },
       // Only persist the data fields, not the action functions.
       // soundEnabled/vibrationEnabled are excluded: they're owned by the
       // soundManager/hapticManager singletons (which have their own

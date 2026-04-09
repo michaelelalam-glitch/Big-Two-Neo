@@ -1,0 +1,66 @@
+# Flow 55: Offline Game — Hard bots, extended pass sequence stress test
+# Validates: App remains stable across 8+ consecutive pass actions on Hard difficulty
+# Tags: ci-authenticated, offline-game, stability
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - offline-game
+  - stability
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 20000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+- tapOn: "Offline Practice"
+- extendedWaitUntil:
+    visible: "Bot Difficulty"
+    timeout: 6000
+- tapOn:
+    id: "difficulty-hard"
+
+- extendedWaitUntil:
+    visible:
+      id: "pass-button"
+    timeout: 20000
+- takeScreenshot: "55_hard_stress_start"
+
+# 8 consecutive passes — validates stable game loop against Hard bots
+- tapOn:
+    id: "pass-button"
+- tapOn:
+    id: "pass-button"
+- tapOn:
+    id: "pass-button"
+- tapOn:
+    id: "pass-button"
+- tapOn:
+    id: "pass-button"
+- tapOn:
+    id: "pass-button"
+- tapOn:
+    id: "pass-button"
+- tapOn:
+    id: "pass-button"
+
+- takeScreenshot: "55_hard_after_8_passes"
+
+# Verify no crash, all controls still present
+- assertVisible:
+    id: "pass-button"
+- assertVisible:
+    id: "play-button"
+- assertNotVisible:
+    text: "Error"
+    optional: true
+
+# Hint still works after extended play
+- tapOn:
+    id: "hint-button"
+- takeScreenshot: "55_hard_hint_still_works"

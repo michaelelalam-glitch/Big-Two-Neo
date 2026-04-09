@@ -1,0 +1,33 @@
+appId: com.big2mobile.app
+tags:
+  - game-room-e2e
+  - friends
+  - leaderboard
+---
+# Flow 84: Add Friend from Leaderboard screen
+
+# Navigate to Leaderboard
+- tapOn:
+    id: "leaderboard-tab"
+    optional: true
+- tapOn:
+    text: "Leaderboard"
+    optional: true
+- waitForAnimationToEnd
+
+# Verify leaderboard screen loaded
+- assertVisible:
+    id: "leaderboard-screen"
+
+# Tap Add Friend button next to any leaderboard entry
+- tapOn:
+    id: "add-friend-button"
+- waitForAnimationToEnd
+
+# Verify button state changed to pending/sent
+- assertVisible:
+    text: "Request Sent"
+    optional: true
+- assertVisible:
+    text: "Sent"
+    optional: true

@@ -1,0 +1,61 @@
+# Flow 29: Lobby Screen
+# Validates: Lobby screen is accessible after creating a room
+# Tags: rooms, auth-required
+#
+# Prerequisites: User is authenticated and on the Home screen
+# Source: LobbyScreen.tsx — testID="lobby-screen"
+
+appId: com.big2mobile.app
+tags:
+  - rooms
+  - auth-required
+---
+# Step 1: Launch and navigate to Home
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 8000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Step 2: Navigate to Create Room
+- tapOn: "Create Room"
+- extendedWaitUntil:
+    visible: "Create Room"
+    timeout: 10000
+
+# Step 3: Submit (create a room with defaults)
+- tapOn:
+    id: "create-room-submit-button"
+- extendedWaitUntil:
+    visible:
+      id: "lobby-screen"
+    timeout: 15000
+
+# Step 4: Verify Lobby screen loaded
+- assertVisible: "Game Lobby"
+- takeScreenshot: "29_lobby_screen"
+
+# Step 5: Verify room code is displayed
+- assertVisible: "Room Code"
+
+# Step 6: Verify Players section
+- assertVisible: "Players"
+
+# Step 7: Verify "Empty Slot" placeholders
+- assertVisible: "Empty Slot"
+
+# Step 8: Verify Leave Room button
+- assertVisible: "Leave Room"
+
+# Step 9: Take final screenshot
+- takeScreenshot: "29_lobby_full"
+
+# Step 10: Leave the room
+- tapOn: "Leave Room"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 15000

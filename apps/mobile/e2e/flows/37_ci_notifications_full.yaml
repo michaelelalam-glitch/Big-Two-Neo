@@ -1,0 +1,43 @@
+# Flow 37: Notifications Screen — Full walk-through
+# Validates: Notifications screen loads, displays list, handles empty state
+# Tags: ci-authenticated, navigation, notifications
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - navigation
+  - notifications
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 20000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Open Notifications
+- tapOn:
+    id: "home-notifications-button"
+- extendedWaitUntil:
+    visible:
+      id: "notifications-screen"
+    timeout: 8000
+- takeScreenshot: "37_notifications_screen"
+
+# Scroll through notifications
+- swipe:
+    direction: DOWN
+    duration: 800
+- takeScreenshot: "37_notifications_bottom"
+- swipe:
+    direction: UP
+    duration: 800
+
+# Navigate back
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 8000

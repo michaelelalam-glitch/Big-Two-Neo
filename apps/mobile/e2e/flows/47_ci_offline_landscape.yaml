@@ -1,0 +1,53 @@
+# Flow 47: Offline Game — Landscape orientation (Easy bots)
+# Validates: Game works in landscape, landscape-specific UI components render
+# Tags: ci-authenticated, offline-game, orientation
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - offline-game
+  - orientation
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 20000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+- tapOn: "Offline Practice"
+- extendedWaitUntil:
+    visible: "Bot Difficulty"
+    timeout: 6000
+- tapOn:
+    id: "difficulty-easy"
+
+- extendedWaitUntil:
+    visible:
+      id: "pass-button"
+    timeout: 20000
+
+# Rotate to landscape
+- setOrientation: LANDSCAPE_LEFT
+- takeScreenshot: "47_game_landscape"
+
+# Verify landscape-specific oval table component
+- assertVisible:
+    id: "oval-table-container"
+
+# Interact in landscape
+- tapOn:
+    id: "sort-button"
+- takeScreenshot: "47_landscape_sorted"
+- tapOn:
+    id: "pass-button"
+- takeScreenshot: "47_landscape_after_pass"
+
+# Rotate back to portrait
+- setOrientation: portrait
+- takeScreenshot: "47_game_portrait_restored"
+- assertVisible:
+    id: "pass-button"

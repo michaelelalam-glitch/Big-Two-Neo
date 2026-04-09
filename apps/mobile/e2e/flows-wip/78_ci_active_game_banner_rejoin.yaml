@@ -1,0 +1,47 @@
+appId: com.big2mobile.app
+tags:
+  - game-room-e2e
+  - banner
+  - offline
+---
+# Flow 78: ActiveGameBanner — start offline game, go home, rejoin via banner
+
+# Navigate to offline game setup
+- tapOn:
+    id: "offline-game-button"
+- waitForAnimationToEnd
+
+# Start 1v1 or 2-player game (use whatever solo/offline mode is available)
+- tapOn:
+    text: "Solo Practice"
+    optional: true
+- tapOn:
+    text: "1v3 Bots"
+    optional: true
+- waitForAnimationToEnd
+
+# Back-navigate to home — suspend the game
+- tapOn:
+    text: "Settings"
+    optional: true
+- tapOn:
+    id: "game-settings-leave-button"
+    optional: true
+# Fallback: use hardware back
+- back
+- waitForAnimationToEnd
+
+# Should be on HomeScreen with ActiveGameBanner visible
+- assertVisible:
+    id: "rejoin-game-button"
+
+# Tap rejoin — should navigate back into the game
+- tapOn:
+    id: "rejoin-game-button"
+- waitForAnimationToEnd
+
+# Verify game view is active
+- assertVisible:
+    id: "play-button"
+- assertVisible:
+    id: "pass-button"

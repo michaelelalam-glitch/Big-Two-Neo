@@ -572,6 +572,7 @@ const TabInterface: React.FC<TabInterfaceProps> = ({
           style={[styles.tabButton, activeTab === 'score' && styles.tabButtonActive]}
           onPress={() => onTabChange('score')}
           activeOpacity={0.7}
+          testID="game-end-score-tab"
         >
           <Text style={[styles.tabButtonText, activeTab === 'score' && styles.tabButtonTextActive]}>
             {i18n.t('gameEnd.scoreHistory')}
@@ -582,6 +583,7 @@ const TabInterface: React.FC<TabInterfaceProps> = ({
           style={[styles.tabButton, activeTab === 'play' && styles.tabButtonActive]}
           onPress={() => onTabChange('play')}
           activeOpacity={0.7}
+          testID="game-end-play-tab"
         >
           <Text style={[styles.tabButtonText, activeTab === 'play' && styles.tabButtonTextActive]}>
             {i18n.t('gameEnd.playHistory')}
@@ -1079,6 +1081,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
           style={[styles.actionButton, styles.copyButton, { flex: 1, marginRight: 4 }]}
           onPress={onCopyResults}
           activeOpacity={0.8}
+          testID="game-end-copy-results"
         >
           <Text style={styles.actionButtonText}>📋 {i18n.t('gameEnd.copyResults')}</Text>
         </TouchableOpacity>
@@ -1087,6 +1090,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
           style={[styles.actionButton, styles.shareButton, { flex: 1, marginLeft: 4 }]}
           onPress={onShare}
           activeOpacity={0.8}
+          testID="game-end-share"
         >
           <Text style={styles.actionButtonText}>📤 {i18n.t('gameEnd.shareResults')}</Text>
         </TouchableOpacity>
@@ -1096,6 +1100,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         style={[styles.actionButton, styles.playAgainButton]}
         onPress={onPlayAgain}
         activeOpacity={0.8}
+        testID="game-end-play-again"
       >
         <Text style={styles.actionButtonText}>🔄 {i18n.t('gameEnd.playAgain')}</Text>
       </TouchableOpacity>
@@ -1104,6 +1109,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         style={[styles.actionButton, styles.menuButton]}
         onPress={onReturnToMenu}
         activeOpacity={0.8}
+        testID="game-end-return-to-menu"
       >
         <Text style={styles.actionButtonText}>🏠 {i18n.t('gameEnd.returnToMenu')}</Text>
       </TouchableOpacity>

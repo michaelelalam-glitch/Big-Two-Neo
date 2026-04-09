@@ -302,7 +302,7 @@ export default function SettingsScreen() {
   const buildNumber = Application.nativeBuildVersion || '1';
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} testID="settings-screen">
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Text style={styles.backButtonText}>← {t('common.back')}</Text>

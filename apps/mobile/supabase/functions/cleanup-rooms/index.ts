@@ -3,11 +3,9 @@
  * cleanup-rooms Edge Function (Task #523)
  *
  * Calls the cleanup_abandoned_rooms() Postgres RPC to:
- *   - Delete empty waiting rooms older than 2 hours
- *   - Delete stuck "starting" rooms older than 1 minute
+ *   - Delete empty waiting rooms (status = 'waiting', no players) older than 2 hours
  *   - Delete completed/cancelled rooms older than 30 days
  *
- * Invocation:
  *   - Periodic cleanup in this project is handled by pg_cron calling the
  *     cleanup_abandoned_rooms() SQL function directly (no HTTP).
  *   - This Edge Function is intended for manual or external HTTP-triggered
@@ -23,11 +21,13 @@
  */
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { checkMinimumVersion } from '../_shared/versionCheck.ts';
+// M12: CORS origin controlled by ALLOWED_ORIGIN env var
+import { buildCorsHeaders } from '../_shared/cors.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-app-version',
-};
+const corsHeaders = buildCorsHeaders();
+
+
+
 
 // ==================== HELPERS ====================
 

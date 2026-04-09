@@ -67,7 +67,6 @@ import type {
   GameState as MultiplayerGameState,
   Player as MultiplayerPlayer,
 } from '../types/multiplayer';
-import type { ScoreHistory } from '../types/scoreboard';
 import { parsePersistedScoreHistory } from '../utils/parsePersistedScoreHistory';
 import { RejoinModal } from '../components/game/RejoinModal';
 import { GameContextProvider } from '../contexts/GameContext';

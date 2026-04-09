@@ -1,0 +1,42 @@
+appId: com.big2mobile.app
+tags:
+  - game-room-e2e
+  - play-history
+  - landscape
+---
+# Flow 73: Play history modal in landscape mode
+
+- runFlow: ./88_ci_landscape_mode_game.yaml
+
+# Open play history in landscape
+- tapOn:
+    text: "📜"
+    optional: true
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Play History"
+    optional: true
+
+# Scroll through history
+- swipe:
+    direction: DOWN
+    duration: 600
+- swipe:
+    direction: UP
+    duration: 300
+
+# Close
+- tapOn:
+    text: "Close"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "✕"
+    optional: true
+- waitForAnimationToEnd
+
+# Return to portrait
+- tapOn:
+    id: "orientation-toggle-button"
+    optional: true
+- waitForAnimationToEnd

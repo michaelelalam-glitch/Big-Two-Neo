@@ -207,32 +207,21 @@ describe('useRoomLobby', () => {
     it('joins room by code and broadcasts', async () => {
       const room = makeRoom();
 
-      // Track table->method calls
+      // Room lookup chain (read-only, no concurrency risk)
       const roomSelectChain: Record<string, jest.Mock> = {};
       roomSelectChain.select = jest.fn().mockReturnValue(roomSelectChain);
       roomSelectChain.eq = jest.fn().mockReturnValue(roomSelectChain);
       roomSelectChain.single = jest.fn().mockResolvedValue({ data: room, error: null });
-      roomSelectChain.order = jest.fn().mockResolvedValue({ data: [], error: null });
 
-      // Count query returns 1 player
-      const countChain: Record<string, jest.Mock> = {};
-      countChain.select = jest.fn().mockReturnValue(countChain);
-      countChain.eq = jest.fn().mockImplementation(() => {
-        // First eq after select = room_id match for count
-        return { ...countChain, then: (res: (v: unknown) => void) => res({ count: 1 }) };
-      });
-
-      let fromCallIndex = 0;
       mockFrom.mockImplementation((table: string) => {
         if (table === 'rooms') return roomSelectChain;
-        if (table === 'room_players') {
-          fromCallIndex++;
-          // 1st = count, 2nd = existing players, 3rd = insert
-          if (fromCallIndex === 1) return countChain;
-          if (fromCallIndex === 2) return roomSelectChain;
-          return chainMock({ data: null, error: null });
-        }
         return chainMock({ data: null, error: null });
+      });
+
+      // M28: atomic join RPC returns player_index
+      mockRpc.mockResolvedValue({
+        data: { room_id: ROOM_ID, player_index: 1, is_host: false, already_joined: false },
+        error: null,
       });
 
       const opts = makeOptions();
@@ -242,6 +231,11 @@ describe('useRoomLobby', () => {
         await result.current.joinRoom('abcd12');
       });
 
+      expect(mockRpc).toHaveBeenCalledWith('join_room_atomic', {
+        p_room_code: 'ABCD12',
+        p_user_id: USER_ID,
+        p_username: 'TestUser',
+      });
       expect(opts.setRoom).toHaveBeenCalledWith(room);
       expect(opts.joinChannel).toHaveBeenCalled();
       expect(opts.broadcastMessage).toHaveBeenCalledWith(

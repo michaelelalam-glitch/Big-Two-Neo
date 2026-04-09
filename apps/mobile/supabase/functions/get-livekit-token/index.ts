@@ -19,16 +19,14 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { checkMinimumVersion } from '../_shared/versionCheck.ts';
+// M12: CORS origin controlled by ALLOWED_ORIGIN env var
+import { buildCorsHeaders } from '../_shared/cors.ts';
 
 const LIVEKIT_API_KEY    = Deno.env.get('LIVEKIT_API_KEY')    ?? '';
 const LIVEKIT_API_SECRET = Deno.env.get('LIVEKIT_API_SECRET') ?? '';
 const LIVEKIT_URL        = Deno.env.get('LIVEKIT_URL')        ?? '';
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-app-version',
-} as const;
+const CORS_HEADERS = buildCorsHeaders();
 
 // ---------------------------------------------------------------------------
 // JWT helpers

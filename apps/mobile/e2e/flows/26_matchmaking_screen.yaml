@@ -1,0 +1,57 @@
+# Flow 26: Matchmaking Screen
+# Validates: Matchmaking screen launches and cancel button works
+# Tags: navigation, auth-required
+#
+# Prerequisites: User is authenticated and on the Home screen
+# Source: MatchmakingScreen.tsx — testID="matchmaking-screen"
+
+appId: com.big2mobile.app
+tags:
+  - navigation
+  - auth-required
+---
+# Step 1: Launch and navigate to Home
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 8000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Step 2: Open "Find a Game" modal and select Casual
+- tapOn: "Find a Game"
+- extendedWaitUntil:
+    visible: "Choose your game mode"
+    timeout: 5000
+- tapOn: "Casual Match"
+- extendedWaitUntil:
+    visible:
+      id: "matchmaking-screen"
+    timeout: 10000
+
+# Step 3: Verify matchmaking screen title
+- assertVisible: "Find Match"
+- takeScreenshot: "26_matchmaking_screen"
+
+# Step 4: Verify searching state text is shown
+- assertVisible: "Searching for players"
+
+# Step 5: Verify queue status indicator
+- assertVisible: "players in queue"
+
+# Step 6: Verify cancel button is present
+- assertVisible:
+    id: "cancel-matchmaking-button"
+
+# Step 7: Take final screenshot before cancel
+- takeScreenshot: "26_matchmaking_active"
+
+# Step 8: Cancel matchmaking and return
+- tapOn:
+    id: "cancel-matchmaking-button"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000

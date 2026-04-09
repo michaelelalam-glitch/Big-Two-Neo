@@ -5,6 +5,8 @@ import { parseCards } from '../_shared/parseCards.ts';
 import { checkRateLimit, rateLimitResponse } from '../_shared/rateLimiter.ts';
 import { concurrentModificationResponse } from '../_shared/responses.ts';
 import { checkMinimumVersion } from '../_shared/versionCheck.ts';
+// M12: CORS origin controlled by ALLOWED_ORIGIN env var
+import { buildCorsHeaders } from '../_shared/cors.ts';
 
 // Rate-limit config for player-pass: same budget as play-cards.
 // A player physically cannot pass more than once per turn, so 10/10s is very generous.
@@ -18,10 +20,10 @@ const PLAYER_PASS_RATE_LIMIT_WINDOW = 10; // seconds
 const SERVICE_ROLE_RATE_LIMIT_MAX    = 30;
 const SERVICE_ROLE_RATE_LIMIT_WINDOW = 30; // seconds
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-app-version',
-};
+const corsHeaders = buildCorsHeaders();
+
+
+
 
 // ==================== TRAINING DATA HELPER ====================
 /**

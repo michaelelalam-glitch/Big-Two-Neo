@@ -1,0 +1,63 @@
+# Flow 28: Notification Settings Screen
+# Validates: Notification Settings screen is accessible from Settings
+# Tags: navigation, auth-required
+#
+# Prerequisites: User is authenticated and on the Home screen
+# Source: NotificationSettingsScreen.tsx — testID="notification-settings-screen"
+
+appId: com.big2mobile.app
+tags:
+  - navigation
+  - auth-required
+---
+# Step 1: Launch and navigate to Home
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 8000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Step 2: Navigate to Settings screen
+- tapOn:
+    id: "home-settings-button"
+- extendedWaitUntil:
+    visible:
+      id: "settings-screen"
+    timeout: 10000
+
+# Step 3: Verify Settings loaded
+- assertVisible: "Settings"
+- takeScreenshot: "28_settings_screen"
+
+# Step 4: Navigate to Notification Settings section
+# Settings screen has a "Notifications" link row in the settings list
+- tapOn: "Notifications"
+- extendedWaitUntil:
+    visible:
+      id: "notification-settings-screen"
+    timeout: 10000
+
+# Step 5: Verify Notification Settings screen content
+- assertVisible: "Push Notifications"
+- assertVisible: "Enable Notifications"
+- takeScreenshot: "28_notification_settings_screen"
+
+# Step 6: Take final screenshot
+- takeScreenshot: "28_notification_settings_full"
+
+# Step 7: Go back to Settings
+- back
+- extendedWaitUntil:
+    visible:
+      id: "settings-screen"
+    timeout: 10000
+
+# Step 8: Go back to Home
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000

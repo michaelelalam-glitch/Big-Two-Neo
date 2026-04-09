@@ -22,11 +22,10 @@ import { BotAI, type BotDifficulty } from '../_shared/botAI.ts';
 import { parseCards } from '../_shared/parseCards.ts';
 import type { Card } from '../_shared/gameEngine.ts';
 import { checkMinimumVersion } from '../_shared/versionCheck.ts';
+// M12: CORS origin controlled by ALLOWED_ORIGIN env var
+import { buildCorsHeaders } from '../_shared/cors.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-app-version',
-};
+const corsHeaders = buildCorsHeaders();
 
 /**
  * Delay between bot moves (ms).

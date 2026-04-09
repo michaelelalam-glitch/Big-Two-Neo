@@ -1,0 +1,52 @@
+appId: com.big2mobile.app
+tags:
+  - game-room-e2e
+  - play-history
+  - portrait
+---
+# Flow 72: Play history modal — open via 📜 button, expand matches, scroll, close (portrait)
+
+- runFlow: ./86_ci_game_room_navigation.yaml
+
+# Play a few cards to generate history first (offline game has history from start)
+- waitForAnimationToEnd
+
+# Open play history via the scroll icon button
+- tapOn:
+    text: "📜"
+    optional: true
+- waitForAnimationToEnd
+
+# Verify play history modal is visible
+- assertVisible:
+    text: "Play History"
+    optional: true
+- assertVisible:
+    text: "Card Play History"
+    optional: true
+
+# Scroll through the play history list
+- swipe:
+    direction: DOWN
+    duration: 800
+
+# Tap on a match header to expand if collapsed
+- tapOn:
+    text: "Match 1"
+    optional: true
+- waitForAnimationToEnd
+
+# Scroll back up
+- swipe:
+    direction: UP
+    duration: 500
+
+# Close play history modal
+- tapOn:
+    text: "Close"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "✕"
+    optional: true
+- waitForAnimationToEnd

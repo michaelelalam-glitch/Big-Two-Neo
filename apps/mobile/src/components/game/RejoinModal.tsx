@@ -152,6 +152,7 @@ export function RejoinModal({
                 disabled={isReclaiming}
                 accessibilityRole="button"
                 accessibilityLabel={i18n.t('game.reclaimMySeat')}
+                testID="reclaim-seat-button"
               >
                 {isReclaiming ? (
                   <ActivityIndicator color={COLORS.white} size="small" />
@@ -168,6 +169,7 @@ export function RejoinModal({
                   disabled={isReclaiming}
                   accessibilityRole="button"
                   accessibilityLabel={i18n.t('game.watchGame')}
+                  testID="rejoin-watch-button"
                 >
                   <Text style={styles.dismissButtonText}>{i18n.t('game.watchGame')}</Text>
                 </TouchableOpacity>
@@ -181,6 +183,7 @@ export function RejoinModal({
                   disabled={isReclaiming}
                   accessibilityRole="button"
                   accessibilityLabel={i18n.t('game.leaveRoom')}
+                  testID="rejoin-leave-button"
                 >
                   <Text style={styles.leaveButtonText}>{i18n.t('game.leaveRoom')}</Text>
                 </TouchableOpacity>

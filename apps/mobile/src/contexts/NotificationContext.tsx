@@ -7,7 +7,7 @@ import React, {
   useRef,
   useCallback,
 } from 'react';
-import { Linking } from 'react-native';
+import { Alert, Linking } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import * as Notifications from 'expo-notifications';
@@ -299,26 +299,55 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       // Covers backgrounded/closed-app cases that bypass addNotificationReceivedListener.
       addStoredNotification(response.notification);
 
-      if (data.type === 'game_invite' && data.roomCode) {
-        navigation.navigate('Lobby', { roomCode: data.roomCode as string, joining: true });
-      } else if (data.type === 'your_turn' && data.roomCode) {
-        navigation.navigate('Game', { roomCode: data.roomCode as string });
-      } else if (data.type === 'game_started' && data.roomCode) {
-        navigation.navigate('Game', { roomCode: data.roomCode as string });
-      } else if (data.type === 'friend_request' || data.type === 'friend_accepted') {
-        // Don't yank user out of an active Lobby/Game session for friend
-        // notifications — navigate to Notifications instead so they can see
-        // the update without losing their current game context.
-        const state = navigation.getState();
-        const routes = state?.routes;
-        const idx = typeof state?.index === 'number' ? state.index : 0;
-        const currentRoute =
-          routes && idx >= 0 && idx < routes.length ? routes[idx]?.name : undefined;
-        if (currentRoute === 'Lobby' || currentRoute === 'Game') {
-          navigation.navigate('Notifications');
-        } else {
-          navigation.navigate('Profile');
+      // L16: If the user is actively in a Game, confirm before deep-linking them away.
+      const navState = navigation.getState();
+      const navRoutes = navState?.routes;
+      const navIdx = typeof navState?.index === 'number' ? navState.index : 0;
+      const activeRoute =
+        navRoutes && navIdx >= 0 && navIdx < navRoutes.length ? navRoutes[navIdx]?.name : undefined;
+      const isInGame = activeRoute === 'Game';
+
+      const doNavigate = () => {
+        if (data.type === 'game_invite' && data.roomCode) {
+          navigation.navigate('Lobby', { roomCode: data.roomCode as string, joining: true });
+        } else if (data.type === 'your_turn' && data.roomCode) {
+          navigation.navigate('Game', { roomCode: data.roomCode as string });
+        } else if (data.type === 'game_started' && data.roomCode) {
+          navigation.navigate('Game', { roomCode: data.roomCode as string });
+        } else if (data.type === 'friend_request' || data.type === 'friend_accepted') {
+          // Don't yank user out of an active Lobby/Game session for friend
+          // notifications — navigate to Notifications instead so they can see
+          // the update without losing their current game context.
+          const state = navigation.getState();
+          const routes = state?.routes;
+          const idx = typeof state?.index === 'number' ? state.index : 0;
+          const currentRoute =
+            routes && idx >= 0 && idx < routes.length ? routes[idx]?.name : undefined;
+          if (currentRoute === 'Lobby' || currentRoute === 'Game') {
+            navigation.navigate('Notifications');
+          } else {
+            navigation.navigate('Profile');
+          }
         }
+      };
+
+      // For navigations that would move the user to a different game/lobby, confirm
+      // if they are currently mid-game; social notifications navigate within app, no confirm.
+      const requiresConfirm =
+        isInGame &&
+        (data.type === 'game_invite' || data.type === 'your_turn' || data.type === 'game_started');
+
+      if (requiresConfirm) {
+        Alert.alert(
+          'Leave current game?',
+          'You have a notification that would navigate you away from your active game. Leave now?',
+          [
+            { text: 'Stay', style: 'cancel' },
+            { text: 'Leave', style: 'destructive', onPress: doNavigate },
+          ]
+        );
+      } else {
+        doNavigate();
       }
     },
     [navigation, addStoredNotification, isLoggedIn]

@@ -10,7 +10,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { format } from 'date-fns';
+import { format } from 'date-fns/format'; // M25: path import for tree-shaking
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { FriendsList } from '../components/friends';
 import { RankBadge, Rank } from '../components/RankBadge';
@@ -70,7 +70,7 @@ const ProfileScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} testID="profile-screen">
       <ScrollView
         style={styles.scrollView}
         refreshControl={

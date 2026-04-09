@@ -1,11 +1,13 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { checkMinimumVersion } from '../_shared/versionCheck.ts';
+// M12: CORS origin controlled by ALLOWED_ORIGIN env var
+import { buildCorsHeaders } from '../_shared/cors.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-app-version',
-};
+const corsHeaders = buildCorsHeaders();
+
+
+
 
 // ==================== MAIN HANDLER ====================
 
@@ -47,9 +49,9 @@ Deno.serve(async (req) => {
 
     const userId = user.id;
 
-    console.log('🗑️ [delete-account] Request received:', {
-      user_id: userId.substring(0, 8),
-    });
+
+
+
 
     // H5 Fix: Delete user data FIRST so that if any cleanup step fails, the auth
     // user still exists and the user can retry account deletion. Previously the

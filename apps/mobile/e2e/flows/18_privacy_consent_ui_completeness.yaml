@@ -1,0 +1,73 @@
+# Flow 18: Privacy Consent Modal UI Completeness
+# Validates: Both accept and decline buttons are present on the privacy consent
+#   modal; modal renders the correct set of interactive elements; neither button
+#   tap crashes the app.
+# Tags: smoke
+#
+# CI-safe: no authentication required.
+# This flow exercises modal button existence directly — distinct from flows 01/13
+# which focus on what happens AFTER a button is tapped.
+
+appId: com.big2mobile.app
+tags:
+  - smoke
+
+---
+# ── Part A: Verify both buttons are present on cold launch ───────────────
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible:
+      id: "privacy-consent-decline"
+    timeout: 30000
+
+# Both buttons must be visible simultaneously
+- assertVisible:
+    id: "privacy-consent-accept"
+- assertVisible:
+    id: "privacy-consent-decline"
+
+- takeScreenshot: "18_consent_modal_both_buttons"
+
+# ── Part B: Decline path — sign-in screen appears ─────────────────────────
+- tapOn:
+    id: "privacy-consent-decline"
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 120000
+
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "18_after_decline"
+
+# ── Part C: Clear state, verify modal reappears (decline does not persist) ─
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible:
+      id: "privacy-consent-decline"
+    timeout: 30000
+
+- assertVisible:
+    id: "privacy-consent-accept"
+- assertVisible:
+    id: "privacy-consent-decline"
+
+- takeScreenshot: "18_consent_modal_reappears_after_clear"
+
+# ── Part D: Accept path — sign-in screen appears ──────────────────────────
+- tapOn:
+    id: "privacy-consent-accept"
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 120000
+
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "18_after_accept"

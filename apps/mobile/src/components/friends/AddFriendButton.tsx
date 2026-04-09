@@ -58,6 +58,7 @@ export function AddFriendButton({ targetUserId, compact = false }: AddFriendButt
       onPress={handlePress}
       disabled={isPendingOrFriend || busy}
       accessibilityLabel={label}
+      testID="add-friend-button"
     >
       {busy ? (
         <ActivityIndicator size="small" color={COLORS.white} />

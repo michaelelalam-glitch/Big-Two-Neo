@@ -308,6 +308,7 @@ function ChatDrawerComponent({
           onPress={onToggle}
           accessibilityRole="button"
           accessibilityLabel={i18n.t('common.close')}
+          testID="chat-drawer-header"
         >
           <View style={styles.dragHandle} />
           <Text style={styles.headerTitle}>{i18n.t('chat.title')}</Text>
@@ -353,6 +354,7 @@ function ChatDrawerComponent({
             onSubmitEditing={handleSubmitEditing}
             returnKeyType="send"
             blurOnSubmit={false}
+            testID="chat-input"
           />
           <Pressable
             style={[
@@ -363,6 +365,7 @@ function ChatDrawerComponent({
             disabled={isCooldown || !inputText.trim()}
             accessibilityRole="button"
             accessibilityLabel={i18n.t('chat.send')}
+            testID="chat-send-button"
           >
             <Text style={styles.sendButtonText}>{i18n.t('chat.send')}</Text>
           </Pressable>
