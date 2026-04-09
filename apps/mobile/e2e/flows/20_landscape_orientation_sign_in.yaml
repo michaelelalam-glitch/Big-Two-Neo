@@ -30,7 +30,7 @@ tags:
 - takeScreenshot: "20_consent_portrait"
 
 # ── Step 2: Rotate to landscape while modal is visible ───────────────────
-- setOrientation: landscape_left
+- setOrientation: LANDSCAPE_LEFT
 
 - waitForAnimationToEnd
 

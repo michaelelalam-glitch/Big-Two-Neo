@@ -50,7 +50,7 @@ BEGIN
   -- state for > 5 minutes back to 'waiting'.
   PERFORM cron.schedule(
     'cleanup_stale_matched_queue_entries',
-    '* * * * *',
+    '0 * * * *',
     $$
       UPDATE public.waiting_room
       SET
