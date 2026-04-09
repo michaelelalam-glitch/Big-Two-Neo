@@ -34,11 +34,12 @@ tags:
 # ── Step 2: Background the app ────────────────────────────────────────────
 - pressKey: Home
 
-# Brief pause simulating real-world background time
+# Brief pause simulating real-world background time.
+# Multiple waitForAnimationToEnd calls compound to give XCUITest's
+# AXServer enough teardown time on iOS (Maestro has no sleep command).
 - waitForAnimationToEnd
-# Allow XCUITest's AXServer to fully tear down before re-launch.
-# Without this sleep, iOS CI sees NSPOSIXErrorDomain code=3 (ESRCH) crashes.
-- sleep: 3000
+- waitForAnimationToEnd
+- waitForAnimationToEnd
 
 # ── Step 3: Bring app back to foreground ─────────────────────────────────
 - launchApp
@@ -63,8 +64,8 @@ tags:
 # ── Step 5: Second background → foreground cycle ──────────────────────────
 - pressKey: Home
 - waitForAnimationToEnd
-# Allow XCUITest's AXServer to fully tear down before re-launch.
-- sleep: 3000
+- waitForAnimationToEnd
+- waitForAnimationToEnd
 - launchApp
 
 - extendedWaitUntil:

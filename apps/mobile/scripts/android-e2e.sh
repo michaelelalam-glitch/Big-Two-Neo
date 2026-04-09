@@ -48,8 +48,11 @@ adb root || echo "::warning::adb root unavailable — sqlite3 injection may fail
 sleep 3
 adb wait-for-device
 
-# Ensure the databases directory exists (clearState may have wiped it)
-adb shell "mkdir -p /data/data/com.big2mobile.app/databases" || true
+# NOTE: Do NOT mkdir the databases directory here.
+# If created while adb is root the directory is owned by root:root (mode 755)
+# and the app (uid u0_aXXX) cannot write into it, so Room never creates the
+# AsyncStorage DB file.  Room's database builder creates the directory
+# automatically with correct ownership when it first runs.
 
 # ── Launch app + wait for Room to initialise AsyncStorage DB ──────────────────
 # clearState:true (used by smoke flows) wipes all app data.  Room lazily
