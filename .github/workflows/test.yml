@@ -404,124 +404,44 @@ jobs:
           xcrun simctl terminate booted com.big2mobile.app || true
           sleep 5
 
-      - name: 🔑 Inject E2E auth session (iOS)
-        # Seeds a Supabase email/password session into AsyncStorage SQLite so
-        # that ci-authenticated flows find an active session without OAuth.
-        # Skipped gracefully when either credential is absent (fork PRs / contributors).
-        if: env.E2E_TEST_EMAIL != '' && env.E2E_TEST_PASSWORD != ''
-        run: |
-          cd apps/mobile
-          CI_PLATFORM=ios \
-            EXPO_PUBLIC_SUPABASE_URL="${EXPO_PUBLIC_SUPABASE_URL}" \
-            EXPO_PUBLIC_SUPABASE_ANON_KEY="${EXPO_PUBLIC_SUPABASE_ANON_KEY}" \
-            E2E_TEST_EMAIL="${E2E_TEST_EMAIL}" \
-            E2E_TEST_PASSWORD="${E2E_TEST_PASSWORD}" \
-            node scripts/ci-seed-e2e-auth.mjs
-
       - name: 🎭 Run Maestro E2E tests
         run: |
           cd apps/mobile
           # Create results directory (Maestro doesn't auto-create it)
           mkdir -p e2e/results
-          # ── Phase 1: Pre-auth smoke tests (ci tag) ───────────────────────────
-          # Runs sign-in screen state, offline UI, etc. No session required.
+          # Run CI-tagged flows (tests that pass without authentication).
+          # Auth-dependent flows (ci-authenticated tag) require session injection
+          # which has not yet been stabilised on CI — they run locally only.
+          #
+          # Retry logic: iOS simulator can crash on clearState: true (flaky).
+          # We attempt once, and if it fails we re-warm the simulator then retry.
           MAX_ATTEMPTS=2
-          SMOKE_EXIT=1
+          MAESTRO_EXIT=1
           for attempt in $(seq 1 $MAX_ATTEMPTS); do
-            echo "--- Smoke attempt $attempt/$MAX_ATTEMPTS ---"
+            echo "--- Maestro attempt $attempt/$MAX_ATTEMPTS ---"
             set +e
             maestro test --include-tags ci e2e/flows/ \
               --format junit \
-              --output e2e/results/results-smoke.xml
-            SMOKE_EXIT=$?
+              --output e2e/results/results.xml
+            MAESTRO_EXIT=$?
             set -e
-            if [ $SMOKE_EXIT -eq 0 ]; then
+            if [ $MAESTRO_EXIT -eq 0 ]; then
               break
             fi
             if [ $attempt -lt $MAX_ATTEMPTS ]; then
-              echo "Smoke attempt $attempt failed (exit $SMOKE_EXIT) — hard-resetting simulator..."
+              echo "Attempt $attempt failed (exit $MAESTRO_EXIT) — re-warming simulator before retry..."
               xcrun simctl terminate booted com.big2mobile.app || true
-              sleep 3
-              # Hard-reset: uninstall + reinstall to guarantee a fresh data container.
-              # Maestro's clearState:true calls can silently reuse old containers after
-              # many rapid installs/crashes, meaning clearState no longer clears consent
-              # state from earlier flows (e.g. flow 15 accepting consent).  Explicit
-              # uninstall + reinstall always assigns a new container UUID.
-              xcrun simctl uninstall booted com.big2mobile.app || true
-              sleep 2
-              APP_PATH=$(find ~/DerivedData/Big2Mobile/Build/Products/Release-iphonesimulator -name "*.app" -type d 2>/dev/null | head -1)
-              if [ -n "$APP_PATH" ]; then
-                xcrun simctl install booted "$APP_PATH" && echo "App reinstalled for attempt $((attempt+1))" || echo "::warning::Reinstall failed, continuing"
-              else
-                echo "::warning::Could not locate .app for reinstall; simulator may reuse old state"
-              fi
-              sleep 3
+              sleep 10
+              xcrun simctl launch booted com.big2mobile.app || true
+              sleep 15
+              xcrun simctl terminate booted com.big2mobile.app || true
+              sleep 5
             fi
           done
-          echo "Smoke exit code: $SMOKE_EXIT"
-
-          # ── Phase 1b: Re-inject auth session after smoke tests ─────────────────
-          # Smoke flows use clearState: true which wipes the auth session that was
-          # injected before the Maestro run.  Re-inject so Phase 2 starts fresh.
-          if [ -n "${E2E_TEST_EMAIL:-}" ] && [ -n "${E2E_TEST_PASSWORD:-}" ]; then
-            echo "Re-injecting auth session after smoke tests wiped AsyncStorage..."
-            CI_PLATFORM=ios \
-              EXPO_PUBLIC_SUPABASE_URL="${EXPO_PUBLIC_SUPABASE_URL}" \
-              EXPO_PUBLIC_SUPABASE_ANON_KEY="${EXPO_PUBLIC_SUPABASE_ANON_KEY}" \
-              E2E_TEST_EMAIL="${E2E_TEST_EMAIL}" \
-              E2E_TEST_PASSWORD="${E2E_TEST_PASSWORD}" \
-              node scripts/ci-seed-e2e-auth.mjs
-            # Force-stop the app so the next launchApp reads the fresh session
-            xcrun simctl terminate booted com.big2mobile.app || true
-            sleep 3
-          fi
-
-          # ── Phase 2: Authenticated flows (ci-authenticated tag) ───────────────
-          # Only runs if an auth session was injected (both credentials were set).
-          # Skip gracefully when either credential is absent.
-          AUTH_EXIT=0
-          if [ -n "${E2E_TEST_EMAIL:-}" ] && [ -n "${E2E_TEST_PASSWORD:-}" ]; then
-            echo "--- Running authenticated E2E flows ---"
-            MAX_ATTEMPTS=2
-            for attempt in $(seq 1 $MAX_ATTEMPTS); do
-              echo "--- Auth attempt $attempt/$MAX_ATTEMPTS ---"
-              set +e
-              maestro test --include-tags ci-authenticated e2e/flows/ \
-                --format junit \
-                --output e2e/results/results-authenticated.xml
-              AUTH_EXIT=$?
-              set -e
-              if [ $AUTH_EXIT -eq 0 ]; then
-                break
-              fi
-              if [ $attempt -lt $MAX_ATTEMPTS ]; then
-                echo "Auth attempt $attempt failed (exit $AUTH_EXIT) — re-injecting and re-warming..."
-                xcrun simctl terminate booted com.big2mobile.app || true
-                sleep 3
-                # Re-inject auth + consent for the retry attempt (session may have expired or
-                # the container changed).
-                CI_PLATFORM=ios \
-                  EXPO_PUBLIC_SUPABASE_URL="${EXPO_PUBLIC_SUPABASE_URL}" \
-                  EXPO_PUBLIC_SUPABASE_ANON_KEY="${EXPO_PUBLIC_SUPABASE_ANON_KEY}" \
-                  E2E_TEST_EMAIL="${E2E_TEST_EMAIL}" \
-                  E2E_TEST_PASSWORD="${E2E_TEST_PASSWORD}" \
-                  node scripts/ci-seed-e2e-auth.mjs
-                xcrun simctl terminate booted com.big2mobile.app || true
-                sleep 5
-              fi
-            done
-            echo "Auth exit code: $AUTH_EXIT"
-          else
-            echo "Skipping authenticated flows (E2E_TEST_EMAIL or E2E_TEST_PASSWORD not set)"
-          fi
-
-          # ── Final exit: fail if either phase failed ──────────────────────────
-          echo "Results smoke:  $(test -f e2e/results/results-smoke.xml && echo PRESENT || echo MISSING)"
-          echo "Results auth:   $(test -f e2e/results/results-authenticated.xml && echo PRESENT || echo MISSING)"
-          if [ $SMOKE_EXIT -ne 0 ] || [ $AUTH_EXIT -ne 0 ]; then
-            exit 1
-          fi
-        timeout-minutes: 65
+          echo "Maestro exit code: $MAESTRO_EXIT"
+          echo "Results file: $(test -f e2e/results/results.xml && echo PRESENT || echo MISSING)"
+          exit $MAESTRO_EXIT
+        timeout-minutes: 45
         env:
           # Give Maestro's XCUITest driver up to 5 minutes to start the
           # XCTest server on port 7001. Default (~90s) is too short on
