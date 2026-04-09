@@ -105,6 +105,22 @@ if (platform === 'android') {
   injectIOS(STORAGE_KEY, sessionJson);
 }
 
+// ─── Step 3: Also inject the analytics consent bypass ────────────────────────
+// clearState: true in smoke flows wipes AsyncStorage, including any previously
+// stored consent decision.  Without a consent value, App.tsx shows the consent
+// modal which blocks authenticated flows from reaching "Choose a game to play".
+// Injecting '@big2_analytics_consent'='false' (declined) lets the app skip the
+// modal on the next launch, regardless of whether clearState was last used.
+const CONSENT_KEY = '@big2_analytics_consent';
+const CONSENT_VALUE = 'false';
+console.log(`[ci-seed-auth] Injecting analytics consent bypass (${CONSENT_KEY}=false)...`);
+if (platform === 'android') {
+  injectAndroid(CONSENT_KEY, CONSENT_VALUE);
+} else {
+  injectIOS(CONSENT_KEY, CONSENT_VALUE);
+}
+console.log('[ci-seed-auth] ✅ Consent bypass injected.');
+
 // ─── Android injection via adb + sqlite3 ─────────────────────────────────────
 // async-storage v2 uses an "AsyncStorage" database with a "Storage" table
 // that Room created during app startup.  We inject ONLY via INSERT OR REPLACE to
@@ -240,15 +256,50 @@ function injectIOS(key, value) {
   }
 }
 
-/** Find existing RCTAsyncLocalStorage_V1 directory in simulator sandbox. */
+/** Find existing RCTAsyncLocalStorage_V1 directory in simulator sandbox.
+ *
+ * Priority: use `xcrun simctl get_app_container` to get the CURRENT active
+ * data container (avoids the old-UUID problem where clearState:true creates a
+ * new container UUID and a `find` glob returns a stale orphaned container).
+ */
 function findIOSStorageV2() {
+  // ── Primary: ask the simulator for the live data container ──────────────
+  try {
+    const container = execSync(
+      `xcrun simctl get_app_container booted ${APP_ID} data 2>/dev/null`,
+      { encoding: 'utf8', timeout: 10000 },
+    ).trim();
+    if (container) {
+      const storageDir = join(container, 'Library', 'Application Support', APP_ID, 'RCTAsyncLocalStorage_V1');
+      if (existsSync(storageDir)) {
+        return storageDir;
+      }
+      // Directory doesn't exist yet — return the parent so we can create it
+      return null; // fall through to findOrCreateIOSStorageV2 which also uses get_app_container
+    }
+  } catch {
+    // simctl not available or app not installed — fall back to find
+  }
+
+  // ── Fallback: filesystem search (less reliable when multiple UUIDs exist) ─
   try {
     const result = execSync(
       `find ~/Library/Developer/CoreSimulator/Devices -path "*/${APP_ID}/RCTAsyncLocalStorage_V1" -type d 2>/dev/null`,
       { encoding: 'utf8', timeout: 15000 },
     );
     const lines = result.trim().split('\n').filter(Boolean);
-    return lines[0] || null;
+    // Prefer the most recently modified directory to avoid stale containers
+    if (lines.length === 0) return null;
+    if (lines.length === 1) return lines[0];
+    // Sort by mtime descending and return newest
+    const sorted = lines.sort((a, b) => {
+      try {
+        const { mtimeMs: ma } = require('fs').statSync(join(a, 'manifest.json'));
+        const { mtimeMs: mb } = require('fs').statSync(join(b, 'manifest.json'));
+        return mb - ma;
+      } catch { return 0; }
+    });
+    return sorted[0];
   } catch {
     return null;
   }
@@ -258,8 +309,27 @@ function findIOSStorageV2() {
  * Find the app's Application Support directory and create
  * RCTAsyncLocalStorage_V1 inside it (app sandbox exists but storage dir
  * not yet initialised by the library).
+ *
+ * Uses `xcrun simctl get_app_container` first for accuracy, then falls back
+ * to a filesystem search.
  */
 function findOrCreateIOSStorageV2() {
+  // ── Primary: use simctl to get the live container ──────────────────────
+  try {
+    const container = execSync(
+      `xcrun simctl get_app_container booted ${APP_ID} data 2>/dev/null`,
+      { encoding: 'utf8', timeout: 10000 },
+    ).trim();
+    if (container) {
+      const storageDir = join(container, 'Library', 'Application Support', APP_ID, 'RCTAsyncLocalStorage_V1');
+      mkdirSync(storageDir, { recursive: true });
+      return storageDir;
+    }
+  } catch {
+    // fall through to filesystem search
+  }
+
+  // ── Fallback: filesystem search ────────────────────────────────────────
   try {
     const result = execSync(
       `find ~/Library/Developer/CoreSimulator/Devices -path "*/Library/Application Support/${APP_ID}" -type d 2>/dev/null`,
@@ -267,7 +337,14 @@ function findOrCreateIOSStorageV2() {
     );
     const lines = result.trim().split('\n').filter(Boolean);
     if (lines.length === 0) return null;
-    const storageDir = join(lines[0], 'RCTAsyncLocalStorage_V1');
+    // Use the most recently accessed container directory
+    const sorted = lines.sort((a, b) => {
+      try {
+        const fs = require('fs');
+        return fs.statSync(b).atimeMs - fs.statSync(a).atimeMs;
+      } catch { return 0; }
+    });
+    const storageDir = join(sorted[0], 'RCTAsyncLocalStorage_V1');
     mkdirSync(storageDir, { recursive: true });
     return storageDir;
   } catch {

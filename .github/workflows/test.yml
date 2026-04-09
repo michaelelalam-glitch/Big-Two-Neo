@@ -439,13 +439,23 @@ jobs:
               break
             fi
             if [ $attempt -lt $MAX_ATTEMPTS ]; then
-              echo "Smoke attempt $attempt failed (exit $SMOKE_EXIT) — re-warming simulator..."
+              echo "Smoke attempt $attempt failed (exit $SMOKE_EXIT) — hard-resetting simulator..."
               xcrun simctl terminate booted com.big2mobile.app || true
-              sleep 10
-              xcrun simctl launch booted com.big2mobile.app || true
-              sleep 15
-              xcrun simctl terminate booted com.big2mobile.app || true
-              sleep 5
+              sleep 3
+              # Hard-reset: uninstall + reinstall to guarantee a fresh data container.
+              # Maestro's clearState:true calls can silently reuse old containers after
+              # many rapid installs/crashes, meaning clearState no longer clears consent
+              # state from earlier flows (e.g. flow 15 accepting consent).  Explicit
+              # uninstall + reinstall always assigns a new container UUID.
+              xcrun simctl uninstall booted com.big2mobile.app || true
+              sleep 2
+              APP_PATH=$(find ~/DerivedData/Big2Mobile/Build/Products/Release-iphonesimulator -name "*.app" -type d 2>/dev/null | head -1)
+              if [ -n "$APP_PATH" ]; then
+                xcrun simctl install booted "$APP_PATH" && echo "App reinstalled for attempt $((attempt+1))" || echo "::warning::Reinstall failed, continuing"
+              else
+                echo "::warning::Could not locate .app for reinstall; simulator may reuse old state"
+              fi
+              sleep 3
             fi
           done
           echo "Smoke exit code: $SMOKE_EXIT"
@@ -485,11 +495,17 @@ jobs:
                 break
               fi
               if [ $attempt -lt $MAX_ATTEMPTS ]; then
-                echo "Auth attempt $attempt failed (exit $AUTH_EXIT) — re-warming simulator..."
+                echo "Auth attempt $attempt failed (exit $AUTH_EXIT) — re-injecting and re-warming..."
                 xcrun simctl terminate booted com.big2mobile.app || true
-                sleep 10
-                xcrun simctl launch booted com.big2mobile.app || true
-                sleep 15
+                sleep 3
+                # Re-inject auth + consent for the retry attempt (session may have expired or
+                # the container changed).
+                CI_PLATFORM=ios \
+                  EXPO_PUBLIC_SUPABASE_URL="${EXPO_PUBLIC_SUPABASE_URL}" \
+                  EXPO_PUBLIC_SUPABASE_ANON_KEY="${EXPO_PUBLIC_SUPABASE_ANON_KEY}" \
+                  E2E_TEST_EMAIL="${E2E_TEST_EMAIL}" \
+                  E2E_TEST_PASSWORD="${E2E_TEST_PASSWORD}" \
+                  node scripts/ci-seed-e2e-auth.mjs
                 xcrun simctl terminate booted com.big2mobile.app || true
                 sleep 5
               fi
