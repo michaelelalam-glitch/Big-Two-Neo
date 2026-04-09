@@ -36,6 +36,9 @@ tags:
 
 # Brief pause simulating real-world background time
 - waitForAnimationToEnd
+# Allow XCUITest's AXServer to fully tear down before re-launch.
+# Without this sleep, iOS CI sees NSPOSIXErrorDomain code=3 (ESRCH) crashes.
+- sleep: 3000
 
 # ── Step 3: Bring app back to foreground ─────────────────────────────────
 - launchApp
@@ -60,6 +63,8 @@ tags:
 # ── Step 5: Second background → foreground cycle ──────────────────────────
 - pressKey: Home
 - waitForAnimationToEnd
+# Allow XCUITest's AXServer to fully tear down before re-launch.
+- sleep: 3000
 - launchApp
 
 - extendedWaitUntil:

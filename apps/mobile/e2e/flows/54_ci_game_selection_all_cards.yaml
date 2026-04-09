@@ -12,7 +12,7 @@ tags:
 # Game Selection Screen
 - extendedWaitUntil:
     visible: "Choose a game to play"
-    timeout: 15000
+    timeout: 8000
 - takeScreenshot: "54_game_selection_screen"
 
 # Verify both game cards

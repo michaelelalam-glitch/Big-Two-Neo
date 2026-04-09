@@ -6,7 +6,7 @@ tags:
 ---
 # Flow 69: Throwables — open picker and send in landscape mode
 
-- runFlow: ./62_ci_landscape_mode_game.yaml
+- runFlow: ./88_ci_landscape_mode_game.yaml
 
 # Open throwable picker in landscape
 - tapOn:

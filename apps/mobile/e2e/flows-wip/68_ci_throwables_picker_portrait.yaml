@@ -7,7 +7,7 @@ tags:
 # Flow 68: Throwables — open picker, select each type, dismiss (portrait)
 # Opens the throwable picker via the throw button and cycles through all 4 options
 
-- runFlow: ./48_ci_game_room_navigation.yaml
+- runFlow: ./86_ci_game_room_navigation.yaml
 
 # Open throwable picker
 - tapOn:

@@ -6,7 +6,7 @@ tags:
 ---
 # Flow 67: Chat — open drawer, send message, close (landscape orientation)
 
-- runFlow: ./62_ci_landscape_mode_game.yaml
+- runFlow: ./88_ci_landscape_mode_game.yaml
 
 # Rotate to landscape then open chat
 - setLocation:

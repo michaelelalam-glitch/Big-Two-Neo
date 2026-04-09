@@ -6,7 +6,7 @@ tags:
 ---
 # Flow 71: Expanded scoreboard — open, scroll, close in landscape
 
-- runFlow: ./62_ci_landscape_mode_game.yaml
+- runFlow: ./88_ci_landscape_mode_game.yaml
 
 # Open the expanded scoreboard in landscape
 - tapOn:

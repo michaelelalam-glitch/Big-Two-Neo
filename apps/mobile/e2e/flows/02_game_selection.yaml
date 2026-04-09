@@ -19,7 +19,7 @@ tags:
 # Step 2: Wait for game selection screen
 - extendedWaitUntil:
     visible: "Choose a game to play"
-    timeout: 15000
+    timeout: 8000
 
 # Step 3: Verify game selection screen elements
 - assertVisible: "Choose a game to play"

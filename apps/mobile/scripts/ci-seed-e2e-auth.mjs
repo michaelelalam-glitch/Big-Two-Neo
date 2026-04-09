@@ -106,65 +106,74 @@ if (platform === 'android') {
 }
 
 // ─── Android injection via adb + sqlite3 ─────────────────────────────────────
-// async-storage v2 uses an "AsyncStorage" database with a "Storage" table.
-// Fall back to the old "RKStorage"/"catalystLocalStorage" schema for v1 installs.
+// async-storage v2 uses an "AsyncStorage" database with a "Storage" table
+// that Room created during app startup.  We inject ONLY via INSERT OR REPLACE to
+// avoid touching Room's room_master_table schema hash — if we run CREATE TABLE
+// the hash becomes invalid and Room wipes the entire database on next open.
+// The android-e2e.sh caller must ensure Room has already initialised the DB
+// (Storage table exists) before calling this function.
 function injectAndroid(key, value) {
   const NEW_DB = `/data/data/${APP_ID}/databases/AsyncStorage`;
   const OLD_DB = `/data/data/${APP_ID}/databases/RKStorage`;
 
-  const tmpSql = join(tmpdir(), 'e2e_auth_inject.sql');
   const escapedValue = value.replace(/'/g, "''");
 
-  // v2 schema (async-storage >= 2.0)
-  // Only INSERT into the existing Room database — do NOT touch room_master_table
-  // or PRAGMA user_version.  The database (with correct Room metadata) is already
-  // created when the app launched during smoke tests.  CREATE TABLE IF NOT EXISTS
-  // is harmless on an existing table.
-  const newSql = [
-    `CREATE TABLE IF NOT EXISTS "Storage" ("key" TEXT NOT NULL, "value" TEXT, PRIMARY KEY("key"));`,
-    `INSERT OR REPLACE INTO "Storage" ("key", "value") VALUES ('${key}', '${escapedValue}');`,
-  ].join('\n');
+  // v2 schema: INSERT OR REPLACE into the Room-owned Storage table.
+  // No CREATE TABLE — Room must have already initialised the DB.
+  const newSql = `INSERT OR REPLACE INTO "Storage" ("key", "value") VALUES ('${key}', '${escapedValue}');`;
 
-  // v1 legacy schema
+  // v1 legacy schema fallback
   const oldSql =
     `CREATE TABLE IF NOT EXISTS catalystLocalStorage ` +
     `(key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '');\n` +
     `INSERT OR REPLACE INTO catalystLocalStorage (key, value) ` +
     `VALUES ('${key}', '${escapedValue}');`;
 
-  writeFileSync(tmpSql, newSql, 'utf8');
-  try {
-    run(`adb push "${tmpSql}" /data/local/tmp/e2e_auth.sql`);
-    // Try v2 AsyncStorage db first (sqlite3 creates it if it doesn't exist yet)
-    const result = spawnSync(
-      `adb shell "sqlite3 ${NEW_DB} < /data/local/tmp/e2e_auth.sql"`,
-      { shell: true, stdio: 'pipe' },
-    );
-    if (result.stdout && result.stdout.length > 0) {
-      console.log(`[ci-seed-auth] sqlite3 stdout: ${result.stdout.toString().trim()}`);
+  // Pipe SQL via stdin instead of file redirection to avoid shell-escaping and
+  // temp-file-on-device issues.  `adb shell sqlite3 /path` reads from stdin
+  // when no SQL arguments are given and stdin is piped.
+  const resultNew = spawnSync('adb', ['shell', `sqlite3 "${NEW_DB}"`], {
+    input: newSql,
+    encoding: 'utf8',
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+
+  if (resultNew.stdout && resultNew.stdout.trim().length > 0) {
+    console.log(`[ci-seed-auth] sqlite3 stdout: ${resultNew.stdout.trim()}`);
+  }
+  if (resultNew.stderr && resultNew.stderr.trim().length > 0) {
+    console.log(`[ci-seed-auth] sqlite3 stderr: ${resultNew.stderr.trim()}`);
+  }
+
+  if (resultNew.status !== 0) {
+    // v2 db not available (table missing or sqlite3 failed) — try legacy RKStorage
+    console.log(`[ci-seed-auth] AsyncStorage db failed (exit ${resultNew.status}) — trying legacy RKStorage...`);
+    const resultOld = spawnSync('adb', ['shell', `sqlite3 "${OLD_DB}"`], {
+      input: oldSql,
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    if (resultOld.status !== 0) {
+      console.error(`[ci-seed-auth] ❌ Legacy RKStorage injection also failed (exit ${resultOld.status})`);
+      if (resultOld.stderr) console.error(resultOld.stderr.trim());
+      process.exit(resultOld.status ?? 1);
     }
-    if (result.stderr && result.stderr.length > 0) {
-      console.log(`[ci-seed-auth] sqlite3 stderr: ${result.stderr.toString().trim()}`);
-    }
-    if (result.status !== 0) {
-      // v2 db not available — fall back to legacy RKStorage
-      console.log(`[ci-seed-auth] AsyncStorage db failed (exit ${result.status}) — trying legacy RKStorage...`);
-      writeFileSync(tmpSql, oldSql, 'utf8');
-      run(`adb push "${tmpSql}" /data/local/tmp/e2e_auth.sql`);
-      run(`adb shell "sqlite3 ${OLD_DB} < /data/local/tmp/e2e_auth.sql"`);
-    }
-    // Inline verification — confirm the row is actually in the database
-    const verify = spawnSync(
-      `adb shell "sqlite3 ${NEW_DB} \\"SELECT length(value) FROM Storage WHERE key = '${key}';\\"" `,
-      { shell: true, stdio: 'pipe' },
-    );
+    console.log('[ci-seed-auth] ✅ Session injected into Android RKStorage (v1 fallback)');
+  } else {
+    // Verify the row was actually written — hard-fail if missing
+    const verify = spawnSync('adb', ['shell', `sqlite3 "${NEW_DB}" "SELECT length(value) FROM Storage WHERE key = '${key}';"`], {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
     const verifyOut = (verify.stdout || '').toString().trim();
     console.log(`[ci-seed-auth] Verify SELECT length: ${verifyOut || '(empty)'}`);
-
-    run(`adb shell rm /data/local/tmp/e2e_auth.sql`);
+    if (!verifyOut || verifyOut === '0') {
+      console.error(`[ci-seed-auth] ❌ Verify failed — row not written to AsyncStorage (length=${verifyOut || 'empty'})`);
+      console.error('[ci-seed-auth] This usually means the Storage table was not yet created by Room before injection.');
+      console.error('[ci-seed-auth] Check the android-e2e.sh polling logic and ensure Room has initialised.');
+      process.exit(1);
+    }
     console.log('[ci-seed-auth] ✅ Session injected into Android AsyncStorage');
-  } finally {
-    try { unlinkSync(tmpSql); } catch { /* ignore */ }
   }
 }
 

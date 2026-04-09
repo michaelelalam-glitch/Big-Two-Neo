@@ -6,7 +6,7 @@ tags:
 ---
 # Flow 72: Play history modal — open via 📜 button, expand matches, scroll, close (portrait)
 
-- runFlow: ./48_ci_game_room_navigation.yaml
+- runFlow: ./86_ci_game_room_navigation.yaml
 
 # Play a few cards to generate history first (offline game has history from start)
 - waitForAnimationToEnd

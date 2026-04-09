@@ -17,7 +17,7 @@ tags:
 - launchApp
 - extendedWaitUntil:
     visible: "Choose a game to play"
-    timeout: 15000
+    timeout: 8000
 - tapOn:
     id: "chinese-poker-card"
 - extendedWaitUntil:

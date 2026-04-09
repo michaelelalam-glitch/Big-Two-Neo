@@ -7,7 +7,7 @@ tags:
 # Flow 83: Add Friend from inside the game room
 
 # Enter a multiplayer game (need actual opponents, not bots)
-- runFlow: ./55_ci_online_join_existing.yaml
+- runFlow: ./87_ci_online_join_existing.yaml
 
 # Wait for all players to be visible
 - waitForAnimationToEnd

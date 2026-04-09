@@ -7,7 +7,7 @@ tags:
 # Flow 66: Chat — open drawer, send a message, verify it appears, close drawer (portrait)
 # Requires an active multiplayer game room session (authenticated)
 
-- runFlow: ./48_ci_game_room_navigation.yaml
+- runFlow: ./86_ci_game_room_navigation.yaml
 
 # Open the chat drawer via the chat icon button
 - tapOn:

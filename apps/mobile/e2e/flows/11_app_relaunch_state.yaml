@@ -44,6 +44,9 @@ tags:
 # restarts the app without a separate stopApp call.  This avoids the
 # XCUITest AXServer race condition that can crash iOS simulators in CI
 # when an explicit stopApp is followed immediately by launchApp.
+# The 3s sleep gives XCUITest's AXServer time to fully tear down;
+# without it iOS CI sees NSPOSIXErrorDomain code=3 (ESRCH) crashes.
+- sleep: 3000
 - launchApp
 
 # Step 4: App should return to sign-in screen (no authenticated session exists)

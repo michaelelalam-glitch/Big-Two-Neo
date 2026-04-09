@@ -6,7 +6,7 @@ tags:
 ---
 # Flow 73: Play history modal in landscape mode
 
-- runFlow: ./62_ci_landscape_mode_game.yaml
+- runFlow: ./88_ci_landscape_mode_game.yaml
 
 # Open play history in landscape
 - tapOn:

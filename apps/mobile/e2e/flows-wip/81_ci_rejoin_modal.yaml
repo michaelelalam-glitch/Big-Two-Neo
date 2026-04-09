@@ -8,7 +8,7 @@ tags:
 
 # Enter a multiplayer game and wait for bot-replacement event
 # (simulated by navigating away for an extended idle period)
-- runFlow: ./55_ci_online_join_existing.yaml
+- runFlow: ./87_ci_online_join_existing.yaml
 
 # Navigate away to trigger bot replacement
 - tapOn:

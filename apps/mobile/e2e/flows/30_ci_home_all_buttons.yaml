@@ -15,7 +15,7 @@ tags:
 # Step 2: Navigate past game selection to Home
 - extendedWaitUntil:
     visible: "Choose a game to play"
-    timeout: 15000
+    timeout: 8000
 - tapOn:
     id: "chinese-poker-card"
 - extendedWaitUntil:

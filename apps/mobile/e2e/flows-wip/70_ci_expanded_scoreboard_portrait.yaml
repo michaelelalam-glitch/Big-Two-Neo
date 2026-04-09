@@ -6,7 +6,7 @@ tags:
 ---
 # Flow 70: Expanded scoreboard — open, scroll, verify players, close (portrait)
 
-- runFlow: ./48_ci_game_room_navigation.yaml
+- runFlow: ./86_ci_game_room_navigation.yaml
 
 # Open the expanded scoreboard via the expand button
 - tapOn:

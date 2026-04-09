@@ -7,7 +7,7 @@ tags:
 # Flow 82: Disconnect / Reconnect — background app during active game, foreground, verify game resumes
 
 # Enter an active multiplayer game
-- runFlow: ./55_ci_online_join_existing.yaml
+- runFlow: ./87_ci_online_join_existing.yaml
 
 # Background the app (simulates real-world disconnect)
 - pressKey: Home
