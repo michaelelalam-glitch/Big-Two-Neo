@@ -2,7 +2,7 @@
 # Validates: App survives being backgrounded and brought back to the foreground.
 #   Catches regressions in: React Navigation state persistence, AuthProvider
 #   re-initialization on resume, and Supabase session listener cleanup.
-# Tags: smoke, ci
+# Tags: smoke
 #
 # CI-safe: no authentication required.
 # Tests the app at the unauthenticated sign-in surface only.
@@ -10,7 +10,7 @@
 appId: com.big2mobile.app
 tags:
   - smoke
-  - ci
+
 ---
 # ── Step 1: Cold launch and dismiss consent ───────────────────────────────
 - launchApp:

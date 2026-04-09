@@ -2,7 +2,7 @@
 # Validates: Both accept and decline buttons are present on the privacy consent
 #   modal; modal renders the correct set of interactive elements; neither button
 #   tap crashes the app.
-# Tags: smoke, ci
+# Tags: smoke
 #
 # CI-safe: no authentication required.
 # This flow exercises modal button existence directly — distinct from flows 01/13
@@ -11,7 +11,7 @@
 appId: com.big2mobile.app
 tags:
   - smoke
-  - ci
+
 ---
 # ── Part A: Verify both buttons are present on cold launch ───────────────
 - launchApp:

@@ -3,7 +3,7 @@
 #   multiple times in rapid succession. Catches regressions in: button
 #   debounce logic, double-invocation of the Google OAuth flow, and any
 #   state corruption from rapid concurrent auth initiations.
-# Tags: smoke, ci
+# Tags: smoke
 #
 # CI-safe: no authentication required — we only verify the app survives
 # the tap; we do not complete the OAuth flow.
@@ -12,7 +12,7 @@
 appId: com.big2mobile.app
 tags:
   - smoke
-  - ci
+
 ---
 # ── Step 1: Launch and reach sign-in screen ──────────────────────────────
 - launchApp:

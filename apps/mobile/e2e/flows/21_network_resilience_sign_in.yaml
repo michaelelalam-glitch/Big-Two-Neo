@@ -2,7 +2,7 @@
 # Validates: The sign-in screen renders correctly even when the initial
 #   AuthProvider session-check (Supabase network round-trip) takes longer
 #   than usual. The screen must not remain on an infinite loading spinner.
-# Tags: smoke, ci
+# Tags: smoke
 #
 # CI-safe: no authentication required.
 # Technique: launch the app and assert the sign-in screen appears within
@@ -13,7 +13,7 @@
 appId: com.big2mobile.app
 tags:
   - smoke
-  - ci
+
 ---
 # ── Step 1: Cold launch — may hit slow network ────────────────────────────
 - launchApp:

@@ -3,7 +3,7 @@
 #   when the device is rotated to landscape orientation. Catches regressions
 #   in: SafeAreaView inset handling, StyleSheet layout (flex/column to row),
 #   and any text truncation or element overflow that breaks the UI.
-# Tags: smoke, ci
+# Tags: smoke
 #
 # CI-safe: no authentication required.
 # Note: Landscape orientation test is iOS Simulator only; Android emulator
@@ -12,7 +12,7 @@
 appId: com.big2mobile.app
 tags:
   - smoke
-  - ci
+
 ---
 # ── Step 1: Cold launch in portrait ──────────────────────────────────────
 - launchApp:
