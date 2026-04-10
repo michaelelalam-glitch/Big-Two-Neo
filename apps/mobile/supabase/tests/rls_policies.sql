@@ -142,7 +142,7 @@ SELECT throws_ok(
     INSERT INTO public.profiles (id, username, created_at, updated_at)
     VALUES ('dddddddd-0000-0000-0000-000000000004'::uuid, 'anon_hacker', now(), now())
   $inner$,
-  'new row violates row-level security policy for table "profiles"',
+  '42501',
   'anon: INSERT into profiles is blocked by RLS'
 );
 RESET ROLE;
@@ -197,7 +197,7 @@ SELECT throws_ok(
     INSERT INTO public.rooms (code, host_id, status)
     VALUES ('PGTAPX', 'aaaaaaaa-0000-0000-0000-000000000001'::uuid, 'waiting')
   $inner$,
-  'new row violates row-level security policy for table "rooms"',
+  '42501',
   'anon: INSERT into rooms is blocked by RLS'
 );
 RESET ROLE;
@@ -280,7 +280,7 @@ SELECT throws_ok(
       'test-action', now(), 1
     )
   $inner$,
-  'new row violates row-level security policy for table "rate_limit_tracking"',
+  '42501',
   'anon: INSERT into rate_limit_tracking is blocked by RLS'
 );
 RESET ROLE;

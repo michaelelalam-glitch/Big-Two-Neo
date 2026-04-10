@@ -135,7 +135,7 @@
 
 - [x] **#22 🟠 P14-2** — No RLS policy tests in CI — a migration mistake could silently expose player data.  
   **Fix:** Add `supabase db test` or `pgTAP` tests covering each table's RLS policies (select, insert, update, delete).  
-  CI pipeline · Absent
+  CI pipeline · Present (gated on `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD`)
   > ✅ Fixed in PR (Tier 4) — pgTAP is provided by the Supabase test runner (`supabase test db`) as a built-in extension; no custom migration is required. SQL test file created at `apps/mobile/supabase/tests/rls_policies.sql` with 26 assertions covering 9 tables: `profiles`, `rooms`, `room_players`, `player_stats`, `rate_limit_tracking`, `blocked_users`, `game_history`, `waiting_room`, `bot_coordinator_locks`. (`push_tokens` and `friendships` excluded — not present in CLI-managed migrations.) CI step added to `.github/workflows/test.yml` (gated on both `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` secrets; fails CI when both are present so RLS regressions are caught).
 
 - [x] **#23 🟠 P14-3** — No multiplayer concurrency/load tests — race conditions in CAS and matchmaking may only manifest under simultaneous load.  
