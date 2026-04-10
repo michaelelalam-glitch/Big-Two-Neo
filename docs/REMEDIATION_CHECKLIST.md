@@ -90,11 +90,11 @@
 
 - [x] **#14 🟠 P3-4** — `InactivityCountdownRing.onExpired` fires on an **unmounted component** — causes memory leak and potential setState-after-unmount crash.  
   **Fix:** Add `isMounted` ref guard; clear the timeout in `useEffect` cleanup.  
-  `apps/mobile/src/components/InactivityCountdownRing.tsx` · L269–274
+  `apps/mobile/src/components/game/InactivityCountdownRing.tsx` · L269–274
 
 - [x] **#15 🟠 P3-1** — `AutoPassTimer` has an `isSynced` dependency that causes a **snapshot jump + ring mismatch** the moment NTP completes mid-countdown.  
   **Fix:** Capture the drift at timer start (snapshot it into a ref) and don't react to subsequent `isSynced` changes.  
-  `apps/mobile/src/components/AutoPassTimer.tsx` · L109–124
+  `apps/mobile/src/components/game/AutoPassTimer.tsx` · L109–124
 
 - [x] **#16 🟠 P3-2** — `useAutoPassTimer` recalculates `timeRemaining` using live NTP offset — an NTP sync completing mid-countdown **jumps the remaining time**.  
   **Fix:** Same fix as P3-1 — snapshot `clockDrift` at timer start into a local ref.  
@@ -105,16 +105,17 @@
   `apps/mobile/src/hooks/useTurnInactivityTimer.ts` · L294–303
 
 - [x] **#18 🟠 P2-1** — Auto-play-turn and bot-replacement can both fire at the exact 60-second boundary — a **race condition** where the bot plays the human's card before the human is actually replaced.  
-  **Fix:** Add a `status='disconnected'` pre-check in `auto-play-turn` EF before executing any play.  
-  `apps/mobile/src/hooks/useTurnInactivityTimer.ts` · L250
+  **Fix:** Re-fetch the current player's `connection_status`/`is_bot` after the fresh-state re-validation in the `auto-play-turn` EF; skip execution if player is disconnected or already replaced by a bot.  
+  `apps/mobile/supabase/functions/auto-play-turn/index.ts` · L280–325
 
-- [x] **#19 🟠 P5-3** — `find-match` rollback UPDATEs are missing `.eq('status', 'processing')` — a concurrent invocation can **reset legitimately-matched players** already in `matched` status.  
-  **Fix:** Add `.eq('status', 'processing')` to all rollback UPDATE calls in the error handler.  
+- [x] **#19 🟠 P5-3** — `find-match` rollback UPDATEs are missing a status predicate — a concurrent invocation can **reset legitimately-matched players** already in `matched` status.  
+  **Fix:** Add `.eq('status', 'matched')` to the rollback UPDATE calls in the error handler so only rows still in the `matched` state are reverted.  
   `apps/mobile/supabase/functions/find-match/index.ts` · L381–442
 
 - [x] **#20 🟠 P12-1** — `handleNotificationData()` is a **stub — tapping any push notification does nothing**. The game/lobby deep link is never navigated to.  
-  **Fix:** Implement the handler: parse `notification.request.content.data`, route to game room or lobby based on `notification_type`.  
-  `apps/mobile/src/services/notificationService.ts` · L243
+  **Fix:** The live deep-link handler is `handleNotificationResponse` in `NotificationContext.tsx` (already wired as the `addNotificationResponseReceivedListener`). A new `navigationService.ts` singleton (`setNavigator`/`navigate`) was added to allow navigation from non-React code; `setNavigator` is wired in `AppNavigator.onReady`. The orphaned `setupNotificationListeners`/`handleNotificationData` stubs in `notificationService.ts` were removed to avoid duplicate listeners.  
+  `apps/mobile/src/contexts/NotificationContext.tsx` · `handleNotificationResponse`  
+  `apps/mobile/src/services/navigationService.ts` *(new)*
 
 ---
 

@@ -5,7 +5,6 @@ import * as Notifications from 'expo-notifications';
 import { notificationLogger } from '../utils/logger';
 import { useUserPreferencesStore } from '../store/userPreferencesSlice';
 import { supabase } from './supabase';
-import { navigate } from './navigationService';
 
 // Configure notification handler - determines how notifications appear when app is in foreground
 // CRITICAL FIX: Removed deprecated shouldShowAlert - use shouldShowBanner and shouldShowList instead
@@ -203,76 +202,6 @@ export async function removePushTokenFromDatabase(userId: string): Promise<boole
       error instanceof Error ? error.message : String(error)
     );
     return false;
-  }
-}
-
-/**
- * Sets up notification listeners for handling incoming notifications
- */
-export function setupNotificationListeners() {
-  // Listener for notifications received while app is in foreground
-  const notificationListener = Notifications.addNotificationReceivedListener(notification => {
-    // Log only essential fields to avoid exposing sensitive user data
-    const { title, body } = notification.request.content;
-    const type = notification.request.content.data?.type;
-    notificationLogger.info('📱 Notification received:', { title, body, type });
-    // You can add custom handling here (e.g., show in-app alert)
-  });
-
-  // Listener for when user taps on notification
-  const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
-    // Log only essential fields to avoid exposing sensitive user data
-    const title = response?.notification?.request?.content?.title;
-    const type = response?.notification?.request?.content?.data?.type;
-    const notifId = response?.notification?.request?.identifier;
-    notificationLogger.info('👆 Notification tapped:', { title, type, id: notifId });
-    const data = response.notification.request.content.data;
-
-    // Handle deep linking based on notification data
-    handleNotificationData(data);
-  });
-
-  return {
-    notificationListener,
-    responseListener,
-  };
-}
-
-/**
- * Handles deep linking from notification data.
- * P12-1 FIX: Previously a stub — now routes to the correct screen based on
- * `data.type`.  Navigates to:
- *   - Lobby  for 'game_invite' and 'game_started' (players need to join/confirm)
- *   - Game   for 'your_turn' and 'game_ended'     (rejoin and see result)
- * Falls back to Home for unknown types; no-ops if roomCode is absent.
- */
-function handleNotificationData(data: Record<string, unknown>) {
-  notificationLogger.info('Handling notification data:', data);
-
-  const type = data.type as string | undefined;
-  const roomCode = data.roomCode as string | undefined;
-
-  if (!roomCode) {
-    // Non-game notifications (friend requests, etc.) don't need deep linking
-    notificationLogger.debug('[handleNotificationData] No roomCode — skipping navigation');
-    return;
-  }
-
-  switch (type) {
-    case 'game_invite':
-    case 'game_started':
-      navigate('Lobby', { roomCode, joining: true });
-      break;
-    case 'your_turn':
-    case 'game_ended':
-      navigate('Game', { roomCode });
-      break;
-    default:
-      notificationLogger.warn(
-        `[handleNotificationData] Unknown notification type "${type ?? 'undefined'}" — navigating to Home`
-      );
-      navigate('Home', undefined);
-      break;
   }
 }
 

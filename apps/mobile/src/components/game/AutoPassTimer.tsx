@@ -102,18 +102,20 @@ function AutoPassTimerComponent({
   getCorrectedNowRef.current = getCorrectedNow;
 
   // P3-1 FIX: Snapshot getCorrectedNow() once at the moment the timer activates.
-  // Storing it in a ref and using it for all remaining-ms calculations in this
-  // component prevents the "snapshot jump" that occurred when isSynced transitioned
-  // false→true mid-countdown: previously isSyncedEffective was a dep of initialSnapshot
-  // which caused a recompute → setDisplaySeconds jump.  The ring animation was already
-  // positioned correctly (it uses getCorrectedNowRef live), so the text and ring
-  // disagreed for one render.  Snapshotting at activation ensures both the initial
-  // snapshot and the ring animation start from the SAME "corrected now" anchor.
-  // If isSynced hasn't resolved by timer start, the snapshot uses an uncorrected clock;
-  // this is at most 10s × drift_fraction error — acceptable vs. a visible mid-countdown
-  // jump.  The setInterval tick (which uses getCorrectedNowRef) naturally converges to
-  // the correct value within the first tick after NTP resolves, so the displayed seconds
-  // stay accurate for the remainder of the timer.
+  // Storing the getCorrectedNow function reference in a ref and using it for
+  // initial-snapshot calculations prevents the "snapshot jump" that occurred when
+  // isSynced transitioned false→true mid-countdown: previously isSyncedEffective was a
+  // dep of initialSnapshot, which caused a recompute → setDisplaySeconds jump.
+  //
+  // Important: this snapshot stabilises the initial text/timer anchor for a given timer
+  // run, but it does NOT mean the ring is kept in sync with the live NTP clock.
+  // The ring progress is scheduled once via `withTiming` and is not re-anchored on
+  // subsequent NTP sync events.  The text-display interval reads getCorrectedNowRef on
+  // every 200ms tick, so text will drift slightly from the ring if NTP sync completes
+  // after timer start.  This is an accepted trade-off: the snapshot avoids a visible
+  // mid-countdown jump at the cost of a possible small one-tick text/ring desync on
+  // first sync.  If isSynced hasn't resolved by timer start the snapshot uses an
+  // uncorrected clock, which can introduce at most 10s × drift_fraction error.
   const snapshotCorrectedNowRef = useRef<(() => number) | null>(null);
 
   // Capture the clock function once when the timer identity changes (new active timer
