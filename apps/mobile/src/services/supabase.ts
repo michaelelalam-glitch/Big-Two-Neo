@@ -67,10 +67,19 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
       // Try single SecureStore key
       const value = await SecureStore.getItemAsync(key);
       if (value !== null) return value;
-      // Fall back to AsyncStorage (for values migrated from previous storage)
-      return AsyncStorage.getItem(key);
+      // Migration fallback: read auth sessions stored by pre-P10-1 builds.
+      // Immediately queue a re-write to SecureStore so the plaintext copy is
+      // erased and future reads no longer fall back to AsyncStorage.
+      const legacyValue = await AsyncStorage.getItem(key);
+      if (legacyValue !== null) {
+        Promise.resolve(SecureStoreAdapter.setItem(key, legacyValue)).catch(() => {
+          // Migration write failed; AsyncStorage copy remains until next launch.
+        });
+      }
+      return legacyValue;
     } catch {
-      // SecureStore can fail on some devices; fall back gracefully
+      // SecureStore is unavailable on this device; best-effort read from
+      // AsyncStorage (cannot migrate since SecureStore itself is failing).
       return AsyncStorage.getItem(key);
     }
   },

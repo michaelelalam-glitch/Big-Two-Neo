@@ -9,12 +9,12 @@
  *
  * For local development the variable is typically left unset so '*' is used.
  */
-// P5-5 Fix: Warn once per isolate when ALLOWED_ORIGIN is not configured in production.
-// Gate on APP_ENV=production so local dev (where wildcard CORS is expected) stays quiet.
-// To enable: supabase secrets set APP_ENV=production ALLOWED_ORIGIN=https://your-app.com
+// P5-5 Fix: Warn once per isolate (at module load time) when ALLOWED_ORIGIN is not set.
+// Fires at most once per isolate restart, so log volume is negligible even in dev.
+// To silence: supabase secrets set ALLOWED_ORIGIN=https://your-app.com
 const _corsOrigin = Deno.env.get('ALLOWED_ORIGIN');
-if (!_corsOrigin && Deno.env.get('APP_ENV') === 'production') {
-  console.warn('[cors] ALLOWED_ORIGIN env var not set in production — defaulting to wildcard (*). Set it via: supabase secrets set ALLOWED_ORIGIN=https://your-app.com');
+if (!_corsOrigin) {
+  console.warn('[cors] ALLOWED_ORIGIN env var not set — defaulting to wildcard CORS (*). Set ALLOWED_ORIGIN via: supabase secrets set ALLOWED_ORIGIN=https://your-app.com');
 }
 
 export function buildCorsHeaders(): Record<string, string> {

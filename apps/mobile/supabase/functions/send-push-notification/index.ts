@@ -259,9 +259,11 @@ Deno.serve(async (req) => {
   }
 
     // C3: Enforce minimum app version
-    // Do not pass allowMissingHeader=true here: this function is called by the
-    // mobile client and must enforce the version gate. Service-role callers are
-    // still allowed through via isServiceRoleRequest auto-detection (default).
+    // Do not pass allowMissingHeader=true here: this function was previously
+    // accessible to mobile clients and required the version gate. Since P5-1 now
+    // restricts it to service-role / internal callers only, mobile client requests
+    // are rejected below before reaching game logic; the version check is kept as
+    // defense-in-depth for any legitimate versioned callers.
     const versionError = checkMinimumVersion(req, corsHeaders);
     if (versionError) return versionError;
 
@@ -273,6 +275,10 @@ Deno.serve(async (req) => {
   const botAuthHeader = req.headers.get('x-bot-auth') ?? '';
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
   const internalBotKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
+  // Service-role callers: pass SUPABASE_SERVICE_ROLE_KEY via Authorization: Bearer <key>
+  // or via the apikey header (standard Supabase client behaviour).
+  // Internal bot callers: pass INTERNAL_BOT_AUTH_KEY via the x-bot-auth header.
+  // These are two distinct auth paths; x-bot-auth does NOT accept the service-role key.
   const isAuthorizedInternalCaller =
     (serviceKey !== '' && authHeader === `Bearer ${serviceKey}`) ||
     (serviceKey !== '' && apiKeyHeader === serviceKey) ||
