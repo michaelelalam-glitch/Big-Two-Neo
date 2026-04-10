@@ -167,16 +167,16 @@ export const GameEndProvider: React.FC<GameEndProviderProps> = ({ children }) =>
         playHistCount: playHist.length,
       });
 
-      // Hard block: a missing winner name causes GameEndModal to show a perpetual
-      // loading spinner (it gates on !gameWinnerName). Reject early rather than
-      // showing a stuck screen. Player names and scores have fallbacks below.
+      // P4-3 fix: winnerName can be falsy if the server sends winner data before
+      // the player profile is loaded. Use a fallback instead of rejecting entirely —
+      // the modal should still show the end screen with placeholder name rather than
+      // leaving the user stuck on the game board.
+      const resolvedWinnerName = winnerName || 'Player';
       if (!winnerName) {
-        gameLogger.error('❌ [GameEndContext] Invalid data — no winner name; cannot open modal:', {
-          hasWinner: !!winnerName,
-          scoresCount: scores.length,
-          namesCount: names.length,
-        });
-        return;
+        gameLogger.warn(
+          '⚠️ [GameEndContext] winnerName is falsy — using fallback name:',
+          resolvedWinnerName
+        );
       }
 
       // Build fallback scores when they are missing so the modal always opens.
@@ -208,7 +208,7 @@ export const GameEndProvider: React.FC<GameEndProviderProps> = ({ children }) =>
         );
       }
 
-      setGameWinnerName(winnerName);
+      setGameWinnerName(resolvedWinnerName);
       setGameWinnerIndex(winnerIndex);
       setFinalScores(resolvedScores);
       setPlayerNames(names);

@@ -19,22 +19,21 @@ import { MultiplayerGame } from './MultiplayerGame';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 
-function GameScreenRouter() {
+// P4-4 fix: ScoreboardProvider now receives enableLocalPersistence so it only
+// writes score/play history to AsyncStorage in local-AI games.  Multiplayer
+// games use the DB (game_state.scores_history / play_history) as the single
+// source of truth to avoid stale-data race conditions on rejoin.
+export default function GameScreen() {
   const route = useRoute<GameScreenRouteProp>();
   const { roomCode } = route.params;
   const isLocalAIGame = roomCode === 'LOCAL_AI_GAME';
 
   return (
-    <GameErrorBoundary>{isLocalAIGame ? <LocalAIGame /> : <MultiplayerGame />}</GameErrorBoundary>
-  );
-}
-
-// Wrapper component with ScoreboardProvider and GameEndProvider
-export default function GameScreen() {
-  return (
     <GameEndProvider>
-      <ScoreboardProvider>
-        <GameScreenRouter />
+      <ScoreboardProvider enableLocalPersistence={isLocalAIGame}>
+        <GameErrorBoundary>
+          {isLocalAIGame ? <LocalAIGame /> : <MultiplayerGame />}
+        </GameErrorBoundary>
       </ScoreboardProvider>
     </GameEndProvider>
   );

@@ -83,6 +83,12 @@ interface LandscapeOpponentProps {
   /** Server-to-client clock offset (ms) from useClockSync — passed to InactivityCountdownRing
    * so elapsed time is computed against the corrected server clock, not raw Date.now(). */
   clockOffsetMs?: number;
+  /**
+   * When true (multiplayer/online game), the red/orange active-turn avatar border is
+   * suppressed. The yellow InactivityCountdownRing is the sole active-turn indicator
+   * in online mode. Defaults to false so offline opponents keep the border.
+   */
+  isOnlineGame?: boolean;
 }
 
 // ============================================================================
@@ -109,6 +115,7 @@ export function LandscapeOpponent({
   isVideoChatConnecting,
   videoStreamSlot,
   clockOffsetMs = 0,
+  isOnlineGame = false,
 }: LandscapeOpponentProps) {
   // Profile photo size preference (mirrors PlayerInfo scaling)
   const profilePhotoSize = useUserPreferencesStore(s => s.profilePhotoSize);
@@ -164,7 +171,7 @@ export function LandscapeOpponent({
               height: avatarScale.size,
               borderRadius: avatarScale.borderRadius,
             },
-            isActive && !showRing && styles.avatarContainerActive,
+            isActive && !showRing && !isOnlineGame && styles.avatarContainerActive,
           ]}
         >
           <View
@@ -284,7 +291,7 @@ export function LandscapeOpponent({
         <View
           style={[
             styles.nameBadge,
-            isActive && styles.nameBadgeActive,
+            isActive && !isOnlineGame && styles.nameBadgeActive,
             isDisconnected && styles.nameBadgeDisconnected,
           ]}
         >

@@ -16,8 +16,10 @@
 
 import React from 'react';
 import { renderHook, act } from '@testing-library/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScoreboardProvider, useScoreboard } from '../ScoreboardContext';
-import { ScoreHistory, PlayHistoryMatch, Card } from '../../types/scoreboard';
+import { ScoreHistory, PlayHistoryMatch } from '../../types/scoreboard';
+import type { Card } from '../../game/types';
 
 // ============================================================================
 // MOCK DATA
@@ -103,19 +105,17 @@ describe('ScoreboardContext', () => {
     });
 
     it('should accept custom initial expanded state', () => {
-      const { result } = renderHook(
-        () => useScoreboard(),
-        { wrapper: wrapperWithInitialState({ initialExpanded: true }) }
-      );
+      const { result } = renderHook(() => useScoreboard(), {
+        wrapper: wrapperWithInitialState({ initialExpanded: true }),
+      });
 
       expect(result.current.isScoreboardExpanded).toBe(true);
     });
 
     it('should accept custom initial play history open state', () => {
-      const { result } = renderHook(
-        () => useScoreboard(),
-        { wrapper: wrapperWithInitialState({ initialPlayHistoryOpen: true }) }
-      );
+      const { result } = renderHook(() => useScoreboard(), {
+        wrapper: wrapperWithInitialState({ initialPlayHistoryOpen: true }),
+      });
 
       expect(result.current.isPlayHistoryOpen).toBe(true);
     });
@@ -447,7 +447,12 @@ describe('ScoreboardContext', () => {
         matchNumber: 2,
         hands: [
           { by: 1, type: 'pair', count: 2, cards: [mockCard('5', 'H'), mockCard('5', 'C')] },
-          { by: 2, type: 'triple', count: 3, cards: [mockCard('7', 'S'), mockCard('7', 'H'), mockCard('7', 'D')] },
+          {
+            by: 2,
+            type: 'triple',
+            count: 3,
+            cards: [mockCard('7', 'S'), mockCard('7', 'H'), mockCard('7', 'D')],
+          },
         ],
       };
 
@@ -578,17 +583,17 @@ describe('ScoreboardContext', () => {
       act(() => {
         // Expand scoreboard
         result.current.setIsScoreboardExpanded(true);
-        
+
         // Add some history
         result.current.addScoreHistory({ ...mockScoreHistory, matchNumber: 1 });
         result.current.addPlayHistory({ ...mockPlayHistory, matchNumber: 1 });
-        
+
         // Collapse match 1
         result.current.toggleMatchCollapse(1);
-        
+
         // Open play history
         result.current.setIsPlayHistoryOpen(true);
-        
+
         // Add more history
         result.current.addScoreHistory({ ...mockScoreHistory, matchNumber: 2 });
         result.current.addPlayHistory({ ...mockPlayHistory, matchNumber: 2 });
@@ -605,7 +610,7 @@ describe('ScoreboardContext', () => {
       const { result } = renderHook(() => useScoreboard(), { wrapper });
 
       const updates = 100;
-      
+
       act(() => {
         for (let i = 1; i <= updates; i++) {
           result.current.addScoreHistory({ ...mockScoreHistory, matchNumber: i });
@@ -668,6 +673,121 @@ describe('ScoreboardContext', () => {
 
       expect(result.current.isScoreboardExpanded).toBe(false);
       expect(result.current.isPlayHistoryOpen).toBe(true);
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // enableLocalPersistence Tests (P4-4 / P4-5)
+  // --------------------------------------------------------------------------
+
+  describe('enableLocalPersistence', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    const localWrapper = ({ children }: { children: React.ReactNode }) => (
+      <ScoreboardProvider enableLocalPersistence={true}>{children}</ScoreboardProvider>
+    );
+
+    const multiplayerWrapper = ({ children }: { children: React.ReactNode }) => (
+      <ScoreboardProvider enableLocalPersistence={false}>{children}</ScoreboardProvider>
+    );
+
+    it('should NOT write scoreHistory to AsyncStorage when enableLocalPersistence=false', async () => {
+      const { result } = renderHook(() => useScoreboard(), { wrapper: multiplayerWrapper });
+
+      await act(async () => {
+        result.current.addScoreHistory(mockScoreHistory);
+      });
+
+      expect(AsyncStorage.setItem).not.toHaveBeenCalledWith(
+        '@big2_score_history',
+        expect.any(String)
+      );
+    });
+
+    it('should NOT write playHistory to AsyncStorage when enableLocalPersistence=false', async () => {
+      const { result } = renderHook(() => useScoreboard(), { wrapper: multiplayerWrapper });
+
+      await act(async () => {
+        result.current.addPlayHistory(mockPlayHistory);
+      });
+
+      expect(AsyncStorage.setItem).not.toHaveBeenCalledWith(
+        '@big2_play_history',
+        expect.any(String)
+      );
+    });
+
+    it('should write scoreHistory to AsyncStorage when enableLocalPersistence=true', async () => {
+      const { result } = renderHook(() => useScoreboard(), { wrapper: localWrapper });
+
+      await act(async () => {
+        result.current.addScoreHistory(mockScoreHistory);
+      });
+
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith('@big2_score_history', expect.any(String));
+    });
+
+    it('should NOT remove AsyncStorage keys on clearHistory when enableLocalPersistence=false', async () => {
+      const { result } = renderHook(() => useScoreboard(), { wrapper: multiplayerWrapper });
+
+      await act(async () => {
+        result.current.addScoreHistory(mockScoreHistory);
+        result.current.clearHistory();
+      });
+
+      expect(AsyncStorage.removeItem).not.toHaveBeenCalledWith('@big2_score_history');
+      expect(AsyncStorage.removeItem).not.toHaveBeenCalledWith('@big2_play_history');
+    });
+
+    it('should remove AsyncStorage keys on clearHistory when enableLocalPersistence=true', async () => {
+      const { result } = renderHook(() => useScoreboard(), { wrapper: localWrapper });
+
+      await act(async () => {
+        result.current.addScoreHistory(mockScoreHistory);
+        result.current.clearHistory();
+      });
+
+      expect(AsyncStorage.removeItem).toHaveBeenCalledWith('@big2_score_history');
+      expect(AsyncStorage.removeItem).toHaveBeenCalledWith('@big2_play_history');
+    });
+
+    it('should restore playHistory via restorePlayHistory', () => {
+      const { result } = renderHook(() => useScoreboard(), { wrapper: localWrapper });
+
+      const history: PlayHistoryMatch[] = [mockPlayHistory, { ...mockPlayHistory, matchNumber: 2 }];
+
+      act(() => {
+        result.current.restorePlayHistory(history);
+      });
+
+      expect(result.current.playHistoryByMatch).toHaveLength(2);
+      expect(result.current.playHistoryByMatch[0].matchNumber).toBe(1);
+      expect(result.current.playHistoryByMatch[1].matchNumber).toBe(2);
+    });
+
+    it('should overwrite playHistoryByMatch on restorePlayHistory', () => {
+      const { result } = renderHook(() => useScoreboard(), { wrapper: localWrapper });
+
+      act(() => {
+        result.current.addPlayHistory(mockPlayHistory);
+      });
+
+      expect(result.current.playHistoryByMatch).toHaveLength(1);
+
+      const restored: PlayHistoryMatch[] = [
+        { ...mockPlayHistory, matchNumber: 5 },
+        { ...mockPlayHistory, matchNumber: 6 },
+        { ...mockPlayHistory, matchNumber: 7 },
+      ];
+
+      act(() => {
+        result.current.restorePlayHistory(restored);
+      });
+
+      expect(result.current.playHistoryByMatch).toHaveLength(3);
+      expect(result.current.playHistoryByMatch[0].matchNumber).toBe(5);
     });
   });
 });

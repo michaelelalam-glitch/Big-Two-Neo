@@ -60,6 +60,7 @@ export function LocalAIGame() {
   const {
     addScoreHistory,
     restoreScoreHistory,
+    restorePlayHistory,
     scoreHistory,
     playHistoryByMatch,
     clearHistory,
@@ -125,6 +126,7 @@ export function LocalAIGame() {
     botDifficulty,
     addScoreHistory,
     restoreScoreHistory,
+    restorePlayHistory,
     openGameEndModal: (
       winnerName: string,
       winnerPosition: number,
