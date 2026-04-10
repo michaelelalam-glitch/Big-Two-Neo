@@ -122,17 +122,24 @@
 ## TIER 4 — High Quality: Fix During Beta
 > Important quality issues that affect player experience under real conditions.
 
-- [ ] **#21 🟠 P14-1** — No live Edge Function integration tests — `play-cards`, `player-pass`, and `complete-game` are all mocked in CI.  
+- [x] **#21 🟠 P14-1** — No live Edge Function integration tests — `play-cards`, `player-pass`, and `complete-game` are all mocked in CI.  
   **Fix:** Add a test Supabase project; write integration tests that hit real EFs with test JWT tokens.  
   `apps/mobile/__tests__/` · Absent
+  > ✅ Fixed in PR (Tier 4) — Added integration tests for all 3 EFs in `apps/mobile/src/__tests__/integration/edge-functions/`:
+  > - `play-cards.integration.test.ts` — 4 suites covering 401/400/403/non-existent room
+  > - `player-pass.integration.test.ts` — 4 suites covering 401/400/403/non-existent room
+  > - `complete-game.integration.test.ts` — 4 suites covering 401/LOCAL rejection/invalid game_type/non-existent winner
+  > Tests skip gracefully (`.todo`) when Supabase credentials are absent.
 
-- [ ] **#22 🟠 P14-2** — No RLS policy tests in CI — a migration mistake could silently expose player data.  
+- [x] **#22 🟠 P14-2** — No RLS policy tests in CI — a migration mistake could silently expose player data.  
   **Fix:** Add `supabase db test` or `pgTAP` tests covering each table's RLS policies (select, insert, update, delete).  
   CI pipeline · Absent
+  > ✅ Fixed in PR (Tier 4) — pgTAP extension enabled via migration `enable_pgtap_extension`. SQL test file created at `apps/mobile/supabase/tests/rls_policies.sql` with 34 assertions covering: `profiles`, `push_tokens`, `rooms`, `room_players`, `player_stats`, `rate_limit_tracking`, `friendships`, `blocked_users`, `game_history`, `waiting_room`, `bot_coordinator_locks`. CI step added to `.github/workflows/test.yml` (gated on `SUPABASE_ACCESS_TOKEN` secret, non-blocking warning if absent).
 
-- [ ] **#23 🟠 P14-3** — No multiplayer concurrency/load tests — race conditions in CAS and matchmaking may only manifest under simultaneous load.  
+- [x] **#23 🟠 P14-3** — No multiplayer concurrency/load tests — race conditions in CAS and matchmaking may only manifest under simultaneous load.  
   **Fix:** Add k6 or Artillery load tests targeting `play-cards`, `find-match`, and `start_new_match` with concurrent users.  
   Absent
+  > ✅ Fixed in PR (Tier 4) — k6 script at `apps/mobile/e2e/load/k6-load-test.js` with 3 scenarios (auth-error flood, play-cards load, find-match concurrency) and p95<2s / 5xx<10% thresholds. Artillery config at `apps/mobile/e2e/load/artillery.config.yml` as npm-based alternative. CI `load_test` job added (triggered via `workflow_dispatch` only to avoid per-PR costs; `continue-on-error: true` so it never blocks releases).
 
 ---
 
