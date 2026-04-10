@@ -81,7 +81,7 @@ function AutoPassTimerComponent({
   // prevents the bug where a positive NTP drift (device clock behind server)
   // incorrectly fast-forwards a LOCAL-clock-based end_timestamp, making the
   // timer jump from 10s → 3s as soon as the NTP ping resolves.
-  const { isSynced, getCorrectedNow: getCorrectedNowNTP } = useClockSync(
+  const { getCorrectedNow: getCorrectedNowNTP } = useClockSync(
     clockOffsetMs === undefined ? timerState : null,
     undefined,
     clockOffsetMs === undefined // enabled=false when caller provides their own clock offset
@@ -93,7 +93,8 @@ function AutoPassTimerComponent({
     [clockOffsetMs]
   );
   const getCorrectedNow = clockOffsetMs !== undefined ? getCorrectedNowLocal : getCorrectedNowNTP;
-  const isSyncedEffective = clockOffsetMs !== undefined ? true : isSynced;
+  // isSyncedEffective removed (P3-1 fix) — snapshot is now frozen at timer activation time;
+  // the isSynced gate is no longer needed for initial-snapshot or display-gating.
 
   // ── Stable clock-sync ref — keeps latest getCorrectedNow without triggering effects ──
   // useEffect deps intentionally exclude getCorrectedNow to avoid restarting the interval
@@ -148,7 +149,7 @@ function AutoPassTimerComponent({
       seconds: Math.ceil(remaining / 1000),
       progress: remaining / durationMs,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- getCorrectedNowForSnapshot is stable per timer identity (captured in ref); isSyncedEffective intentionally removed (P3-1 fix)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- getCorrectedNowForSnapshot is stable per timer identity (captured in ref); isSynced/isSyncedEffective removed from deps (P3-1 fix)
   }, [
     timerState?.active,
     timerState?.end_timestamp,

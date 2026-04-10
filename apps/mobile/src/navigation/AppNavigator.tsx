@@ -8,7 +8,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
 import { FriendsProvider } from '../contexts/FriendsContext';
 import { trackScreenView, screenTimeStart, screenTimeEnd } from '../services/analytics';
-import { setNavigator } from '../services/navigationService';
 import CreateRoomScreen from '../screens/CreateRoomScreen';
 import GameScreen from '../screens/GameScreen';
 import GameSelectionScreen from '../screens/GameSelectionScreen';
@@ -250,8 +249,6 @@ export default function AppNavigator() {
         ref={navigationRef}
         linking={isLoggedIn ? linking : loggedOutLinking}
         onReady={() => {
-          // P12-1: Register with navigationService so notification deep links can navigate
-          setNavigator(navigationRef.current);
           const initialRoute = navigationRef.current?.getCurrentRoute()?.name;
           routeNameRef.current = initialRoute;
           if (initialRoute) {

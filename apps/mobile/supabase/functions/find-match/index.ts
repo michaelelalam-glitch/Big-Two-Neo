@@ -515,7 +515,8 @@ Deno.serve(async (req) => {
           .from('waiting_room')
           .update({ status: 'waiting', matched_room_id: null, matched_at: null, processing_started_at: null })
           .in('user_id', lockedIds)
-          .eq('status', 'matched'); // Only revert rows still in matched state
+          .eq('status', 'matched') // Only revert rows still in matched state (P5-3)
+          .eq('matched_room_id', roomId); // Tie rollback to this invocation's room — prevents resetting a row matched to a different concurrent room
         
         return new Response(
           JSON.stringify({ success: false, error: 'Failed to start game' }),
