@@ -108,6 +108,33 @@ export const ScoreboardProvider: React.FC<ScoreboardProviderProps> = ({
   // window is flushed to AsyncStorage.
   const isFirstPlayRenderRef = useRef(true);
   const playHistoryDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Refs track the latest values so the unmount-flush effect (empty deps) can
+  // read them without a stale-closure problem.
+  const playHistoryFlushRef = useRef<PlayHistoryMatch[]>(playHistoryByMatch);
+  const enableLocalPersistenceFlushRef = useRef<boolean>(enableLocalPersistence);
+
+  // Keep flush refs in sync with the latest rendered values.
+  useEffect(() => {
+    playHistoryFlushRef.current = playHistoryByMatch;
+    enableLocalPersistenceFlushRef.current = enableLocalPersistence;
+  }, [playHistoryByMatch, enableLocalPersistence]);
+
+  // Flush the latest play history to AsyncStorage on unmount only — prevents
+  // data loss when the user backgrounds or navigates away mid-debounce window.
+  // Uses refs (not deps) so this effect runs exactly once and always reads the
+  // most-recent values rather than a stale snapshot.
+  useEffect(() => {
+    return () => {
+      if (enableLocalPersistenceFlushRef.current && playHistoryFlushRef.current.length > 0) {
+        AsyncStorage.setItem(PLAY_HISTORY_KEY, JSON.stringify(playHistoryFlushRef.current)).catch(
+          () => {}
+        );
+      }
+    };
+  }, []); // empty deps — unmount only
+
+  // Debounced write: batches rapid play-history updates (e.g. bot games) so
+  // only the last update in a 500 ms window is written to AsyncStorage.
   useEffect(() => {
     if (isFirstPlayRenderRef.current) {
       isFirstPlayRenderRef.current = false;
@@ -128,19 +155,8 @@ export const ScoreboardProvider: React.FC<ScoreboardProviderProps> = ({
       }, 500);
     }
     return () => {
-      if (playHistoryDebounceRef.current) {
-        clearTimeout(playHistoryDebounceRef.current);
-        playHistoryDebounceRef.current = null;
-        // Flush immediately so data is not lost when the component unmounts
-        // (e.g. app backgrounds or user navigates away) mid-debounce window.
-        AsyncStorage.setItem(PLAY_HISTORY_KEY, JSON.stringify(playHistoryByMatch)).catch(err => {
-          gameLogger.error(
-            '[ScoreboardContext] Failed to flush playHistoryByMatch on unmount:',
-            err?.message || String(err)
-          );
-        });
-      }
-    };
+      if (playHistoryDebounceRef.current) clearTimeout(playHistoryDebounceRef.current);
+    }; // only cancel — unmount flush handled by the dedicated effect above
   }, [playHistoryByMatch, enableLocalPersistence]);
 
   // -------------------------------------------------------------------------
