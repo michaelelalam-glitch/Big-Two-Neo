@@ -41,6 +41,7 @@ export function parsePersistedPlayHistory(
       entry !== null &&
       typeof entry === 'object' &&
       typeof (entry as Record<string, unknown>).matchNumber === 'number' &&
+      Number.isFinite((entry as Record<string, unknown>).matchNumber as number) &&
       Array.isArray((entry as Record<string, unknown>).hands)
   );
 

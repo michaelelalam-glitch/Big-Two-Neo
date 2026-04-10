@@ -178,5 +178,22 @@ describe('parsePersistedPlayHistory', () => {
       expect(result.entries).toBeNull();
       expect(result.shouldRemove).toBe(true);
     });
+
+    it('returns shouldRemove=true when matchNumber is Infinity (1e309)', () => {
+      // JSON.parse('{"matchNumber":1e309,"hands":[]}') produces Infinity for matchNumber.
+      // typeof Infinity === 'number' is true, so without isFinite the payload would pass.
+      const raw = '[{"matchNumber":1e309,"hands":[]}]';
+      const result = parsePersistedPlayHistory(raw);
+      expect(result.entries).toBeNull();
+      expect(result.shouldRemove).toBe(true);
+    });
+
+    it('returns shouldRemove=true when matchNumber is null (NaN-equivalent)', () => {
+      // matchNumber: null has typeof 'object', not 'number' — should be rejected
+      const raw = '[{"matchNumber":null,"hands":[]}]';
+      const result = parsePersistedPlayHistory(raw);
+      expect(result.entries).toBeNull();
+      expect(result.shouldRemove).toBe(true);
+    });
   });
 });

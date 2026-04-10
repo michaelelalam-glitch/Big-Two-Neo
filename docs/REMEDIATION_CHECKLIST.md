@@ -1,7 +1,7 @@
 # Big Two Neo — Remediation Checklist
 
 > Generated from Production Audit v3 (April 10, 2026)  
-> **58 findings** — ordered by most logical fix sequence (security → integrity → reliability → quality → polish)  
+> **72 findings** — ordered by most logical fix sequence (security → integrity → reliability → quality → polish)  
 > Checkbox each item as you complete it.
 
 ---
@@ -58,25 +58,30 @@
 ## TIER 2 — Critical State & Integrity: Fix Before Any Multiplayer Session
 > These cause data corruption or broken game state for real players.
 
-- [ ] **#9 🔴 P4-1** — `resetSession()` is defined in `gameSessionSlice.ts` but **is never called**. Stale players, scores, and state from the previous game carry over into the next game.  
+- [x] **#9 🔴 P4-1** — `resetSession()` is defined in `gameSessionSlice.ts` but **is never called**. Stale players, scores, and state from the previous game carry over into the next game.  
   **Fix:** Call `resetSession()` at the start of every new game (on navigation to game screen or on `start_new_match` success).  
   `apps/mobile/src/store/gameSessionSlice.ts` · L130
+  > ✅ Fixed in PR #230 — `useGameCleanup.ts` calls `resetSession()` via `useLayoutEffect` on mount and unmount.
 
-- [ ] **#10 🔴 P4-2** — The "lost response" recovery path in `realtimeActions.ts` calls `start_new_match` with **fire-and-forget** (`void` / no await) — a failed call leaves the match in a permanently broken state.  
+- [x] **#10 🔴 P4-2** — The "lost response" recovery path in `realtimeActions.ts` calls `start_new_match` with **fire-and-forget** (`void` / no await) — a failed call leaves the match in a permanently broken state.  
   **Fix:** Await the call, handle errors, surface failure to the user or retry with exponential backoff.  
   `apps/mobile/src/realtime/realtimeActions.ts` · L85–98
+  > ✅ Fixed in PR #230 — both `start_new_match` call sites now await and call `showError()` on failure.
 
-- [ ] **#11 🟠 P4-4** — Score history is **dual-persisted** to both AsyncStorage AND the DB `scores_history` table. On rejoin, a race condition can show stale local scores instead of server scores.  
+- [x] **#11 🟠 P4-4** — Score history is **dual-persisted** to both AsyncStorage AND the DB `scores_history` table. On rejoin, a race condition can show stale local scores instead of server scores.  
   **Fix:** Make DB the single source of truth; remove AsyncStorage persistence for scores. Read from DB on rejoin.  
   `apps/mobile/src/hooks/useGameStateManager.ts` · L239 / `apps/mobile/src/contexts/ScoreboardContext.tsx` · L127
+  > ✅ Fixed in PR #230 — `ScoreboardProvider` accepts `enableLocalPersistence` prop; multiplayer passes `false` so AsyncStorage writes are skipped.
 
-- [ ] **#12 🟠 P4-5** — Play history is **in-memory only** inside `ScoreboardContext` — lost whenever the app is closed or when a player rejoins.  
+- [x] **#12 🟠 P4-5** — Play history is **in-memory only** inside `ScoreboardContext` — lost whenever the app is closed or when a player rejoins.  
   **Fix:** Persist play history to DB `game_state.play_history` column (it already exists server-side) and rehydrate on rejoin.  
   `apps/mobile/src/contexts/ScoreboardContext.tsx` · L44
+  > ✅ Fixed in PR #230 — play history is debounce-persisted to AsyncStorage for local AI games; restored via `restorePlayHistory` on mount using `parsePersistedPlayHistory` utility.
 
-- [ ] **#13 🟠 P4-3** — `openGameEndModal()` **silently fails and never opens** if `winnerName` is falsy. The game end screen never shows.  
+- [x] **#13 🟠 P4-3** — `openGameEndModal()` **silently fails and never opens** if `winnerName` is falsy. The game end screen never shows.  
   **Fix:** Add a fallback winner name (e.g., "Player 1") or surface an error boundary rather than silently returning.  i think a good fix would be to block anyone from having that name in the first place
   `apps/mobile/src/contexts/GameEndContext.tsx` · L139–146
+  > ✅ Fixed in PR #230 — uses `resolvedWinnerName = winnerName || 'Player'` fallback; warns to logger if name was missing.
 
 ---
 
