@@ -56,6 +56,10 @@ Deno.serve(async (req) => {
     console.error('[analytics-proxy] SUPABASE_URL or SUPABASE_ANON_KEY not configured');
     return errorResponse(500, 'Server misconfigured', corsHeaders, 'INTERNAL_ERROR', requestId);
   }
+  if (!supabaseServiceKey) {
+    console.error('[analytics-proxy] SUPABASE_SERVICE_ROLE_KEY not configured — rate limiting cannot be enforced');
+    return errorResponse(500, 'Server misconfigured', corsHeaders, 'INTERNAL_ERROR', requestId);
+  }
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
     auth: { autoRefreshToken: false, persistSession: false },

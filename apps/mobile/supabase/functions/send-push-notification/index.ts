@@ -273,12 +273,12 @@ Deno.serve(async (req) => {
   const botAuthHeader = req.headers.get('x-bot-auth') ?? '';
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
   const internalBotKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
-  const isServiceRole =
+  const isAuthorizedInternalCaller =
     (serviceKey !== '' && authHeader === `Bearer ${serviceKey}`) ||
     (serviceKey !== '' && apiKeyHeader === serviceKey) ||
     (internalBotKey !== '' && botAuthHeader === internalBotKey);
 
-  if (!isServiceRole) {
+  if (!isAuthorizedInternalCaller) {
     return new Response(
       JSON.stringify({ error: 'Forbidden: this endpoint requires service-role authorization' }),
       { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

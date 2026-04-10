@@ -364,7 +364,7 @@ async function _sendEventsImmediate(
     console.log('[Analytics] Sending events:', events.map(e => e.name).join(', '));
   }
 
-  if (__DEV__ && !process.env.JEST_WORKER_ID) {
+  if (__DEV__ && !process.env.JEST_WORKER_ID && !USE_PROXY) {
     // Hit the validation endpoint and log any issues GA4 reports.
     // Skipped in Jest (JEST_WORKER_ID is set) to avoid a second fetch call
     // that would break toHaveBeenCalledTimes(1) assertions.

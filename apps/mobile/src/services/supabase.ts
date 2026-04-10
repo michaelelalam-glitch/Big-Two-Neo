@@ -129,10 +129,21 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
         await AsyncStorage.removeItem(key).catch(() => {});
       }
     } catch {
-      // SecureStore write failed entirely — fall back to AsyncStorage as last resort.
-      await AsyncStorage.setItem(key, value);
-      await SecureStore.deleteItemAsync(key).catch(() => {});
+      // SecureStore write failed entirely — try to clean up any partial state before
+      // falling back to AsyncStorage as last resort.
+      const prevCountOnError = await SecureStore.getItemAsync(`${key}${CHUNK_COUNT_SUFFIX}`)
+        .then(s => (s !== null ? parseInt(s, 10) : NaN))
+        .catch(() => NaN);
       await SecureStore.deleteItemAsync(`${key}${CHUNK_COUNT_SUFFIX}`).catch(() => {});
+      if (Number.isFinite(prevCountOnError) && prevCountOnError > 0) {
+        await Promise.allSettled(
+          Array.from({ length: prevCountOnError }, (_, i) =>
+            SecureStore.deleteItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`).catch(() => {})
+          )
+        );
+      }
+      await SecureStore.deleteItemAsync(key).catch(() => {});
+      await AsyncStorage.setItem(key, value);
     }
   },
   removeItem: async (key: string): Promise<void> => {
@@ -151,10 +162,13 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
     ];
     if (chunkCountStr !== null) {
       const count = parseInt(chunkCountStr, 10);
-      for (let i = 0; i < count; i++) {
-        deleteOps.push(
-          SecureStore.deleteItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`).catch(() => {})
-        );
+      // Validate count before iterating — corrupt/NaN/negative would leave chunk keys behind
+      if (Number.isFinite(count) && count > 0) {
+        for (let i = 0; i < count; i++) {
+          deleteOps.push(
+            SecureStore.deleteItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`).catch(() => {})
+          );
+        }
       }
     }
     await Promise.allSettled(deleteOps);

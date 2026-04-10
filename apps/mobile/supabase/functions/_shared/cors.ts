@@ -9,13 +9,12 @@
  *
  * For local development the variable is typically left unset so '*' is used.
  */
-// P5-5 Fix: Warn once per isolate when ALLOWED_ORIGIN is not configured so the wildcard
-// default is visible in Edge Function logs. Use a module-level flag to avoid flooding
-// logs on every request. Set ALLOWED_ORIGIN in production:
-//   supabase secrets set ALLOWED_ORIGIN=https://your-app-domain.com
+// P5-5 Fix: Warn once per isolate when ALLOWED_ORIGIN is not configured in production.
+// Gate on APP_ENV=production so local dev (where wildcard CORS is expected) stays quiet.
+// To enable: supabase secrets set APP_ENV=production ALLOWED_ORIGIN=https://your-app.com
 const _corsOrigin = Deno.env.get('ALLOWED_ORIGIN');
-if (!_corsOrigin) {
-  console.warn('[cors] ALLOWED_ORIGIN env var not set — defaulting to wildcard (*). Set it in production.');
+if (!_corsOrigin && Deno.env.get('APP_ENV') === 'production') {
+  console.warn('[cors] ALLOWED_ORIGIN env var not set in production — defaulting to wildcard (*). Set it via: supabase secrets set ALLOWED_ORIGIN=https://your-app.com');
 }
 
 export function buildCorsHeaders(): Record<string, string> {
