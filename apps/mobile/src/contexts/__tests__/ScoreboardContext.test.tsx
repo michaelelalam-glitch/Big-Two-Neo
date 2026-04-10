@@ -18,7 +18,8 @@ import React from 'react';
 import { renderHook, act } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScoreboardProvider, useScoreboard } from '../ScoreboardContext';
-import { ScoreHistory, PlayHistoryMatch, Card } from '../../types/scoreboard';
+import { ScoreHistory, PlayHistoryMatch } from '../../types/scoreboard';
+import type { Card } from '../../game/types';
 
 // ============================================================================
 // MOCK DATA

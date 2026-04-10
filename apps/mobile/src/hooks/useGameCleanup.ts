@@ -212,7 +212,7 @@ export function useGameCleanup({
   // before the first paint — preventing a visible flash of stale session data
   // (e.g. wrong room code, previous player names) when GameView reads the store
   // during its initial render.
-  // The unmount cleanup stays as a plain useEffect return to keep teardown async.
+  // The unmount cleanup is returned from the same useLayoutEffect so it also runs synchronously before paint.
   useLayoutEffect(() => {
     useGameSessionStore.getState().resetSession(); // P4-1: clear stale state on new game
     return () => useGameSessionStore.getState().resetSession(); // cleanup on unmount

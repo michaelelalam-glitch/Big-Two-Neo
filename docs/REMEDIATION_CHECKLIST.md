@@ -347,16 +347,16 @@
 |------|-------|--------|
 | 1 — Security (pre-production) | 8 | ☐ |
 | 2 — Critical state & integrity | 5 | ☐ |
-| 3 — High reliability | 6 | ☐ |
+| 3 — High reliability | 7 | ☐ |
 | 4 — High quality (beta) | 3 | ☐ |
 | 5 — Medium backend quality | 9 | ☐ |
 | 6 — Medium client reliability | 11 | ☐ |
 | 7 — Medium observability & performance | 7 | ☐ |
 | 8 — Medium security hardening | 7 | ☐ |
 | 9 — Low priority polish | 15 | ☐ |
-| **TOTAL** | **71** | |
+| **TOTAL** | **72** | |
 
-> Note: The audit report's summary table shows 58 findings (5C+14H+27M+12L). The full enumeration above is 71 because Phase 4's 3 HIGH findings (P4-3/4/5) and some LOW items were omitted from the summary count, and P7-1 is a cross-reference of P5-2 (counted once here). The 71-item list above is the definitive ground truth.
+> Note: The audit report's summary table shows 58 findings (5C+14H+27M+12L). The full enumeration above is 72 because Phase 4's 3 HIGH findings (P4-3/4/5) and some LOW items were omitted from the summary count, and P7-1 is a cross-reference of P5-2 (counted once here). The 72-item list above is the definitive ground truth.
 
 ---
 
