@@ -102,7 +102,12 @@ export const ScoreboardProvider: React.FC<ScoreboardProviderProps> = ({
   // Persist playHistoryByMatch to AsyncStorage for local games (P4-5 fix).
   // Skipped in multiplayer mode where game_state.play_history (DB) is the
   // source of truth and is synced by useMultiplayerPlayHistory.
+  //
+  // Copilot review: debounce writes so rapid successive hands (e.g. bot games)
+  // don't each trigger a separate disk write — only the last write in a 500 ms
+  // window is flushed to AsyncStorage.
   const isFirstPlayRenderRef = useRef(true);
+  const playHistoryDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (isFirstPlayRenderRef.current) {
       isFirstPlayRenderRef.current = false;
@@ -110,13 +115,23 @@ export const ScoreboardProvider: React.FC<ScoreboardProviderProps> = ({
     }
     if (!enableLocalPersistence) return;
     if (playHistoryByMatch.length > 0) {
-      AsyncStorage.setItem(PLAY_HISTORY_KEY, JSON.stringify(playHistoryByMatch)).catch(err => {
-        gameLogger.error(
-          '[ScoreboardContext] Failed to persist playHistoryByMatch:',
-          err?.message || String(err)
-        );
-      });
+      if (playHistoryDebounceRef.current) {
+        clearTimeout(playHistoryDebounceRef.current);
+      }
+      playHistoryDebounceRef.current = setTimeout(() => {
+        AsyncStorage.setItem(PLAY_HISTORY_KEY, JSON.stringify(playHistoryByMatch)).catch(err => {
+          gameLogger.error(
+            '[ScoreboardContext] Failed to persist playHistoryByMatch:',
+            err?.message || String(err)
+          );
+        });
+      }, 500);
     }
+    return () => {
+      if (playHistoryDebounceRef.current) {
+        clearTimeout(playHistoryDebounceRef.current);
+      }
+    };
   }, [playHistoryByMatch, enableLocalPersistence]);
 
   // -------------------------------------------------------------------------

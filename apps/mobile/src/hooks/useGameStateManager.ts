@@ -227,15 +227,42 @@ export function useGameStateManager({
           // P4-5 fix: Restore playHistoryByMatch from AsyncStorage on rejoin.
           // Play history is persisted by ScoreboardContext whenever addPlayHistory
           // is called (local games only), so it survives app close and restarts.
+          //
+          // Copilot review: validate element shape (matchNumber:number + hands:array)
+          // before injecting into state; remove the key when the payload is invalid,
+          // mirroring the parsePersistedScoreHistory behaviour.
           try {
             const persistedPlayHistory = await AsyncStorage.getItem(PLAY_HISTORY_KEY);
             if (persistedPlayHistory) {
-              const parsed = JSON.parse(persistedPlayHistory) as PlayHistoryMatch[];
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                gameLogger.info(
-                  `📊 [useGameStateManager] Restored ${parsed.length} play history entries from AsyncStorage`
+              let parsed: unknown;
+              try {
+                parsed = JSON.parse(persistedPlayHistory);
+              } catch {
+                gameLogger.warn(
+                  '[useGameStateManager] Persisted playHistory is not valid JSON — removing'
                 );
-                restorePlayHistory(parsed);
+                await AsyncStorage.removeItem(PLAY_HISTORY_KEY);
+                parsed = null;
+              }
+              if (parsed !== null && Array.isArray(parsed) && parsed.length > 0) {
+                const isValidShape = (parsed as unknown[]).every(
+                  (entry): entry is PlayHistoryMatch =>
+                    typeof entry === 'object' &&
+                    entry !== null &&
+                    typeof (entry as Record<string, unknown>).matchNumber === 'number' &&
+                    Array.isArray((entry as Record<string, unknown>).hands)
+                );
+                if (isValidShape) {
+                  gameLogger.info(
+                    `📊 [useGameStateManager] Restored ${(parsed as PlayHistoryMatch[]).length} play history entries from AsyncStorage`
+                  );
+                  restorePlayHistory(parsed as PlayHistoryMatch[]);
+                } else {
+                  gameLogger.warn(
+                    '[useGameStateManager] Persisted playHistory has unexpected shape — removing'
+                  );
+                  await AsyncStorage.removeItem(PLAY_HISTORY_KEY);
+                }
               }
             }
           } catch (err) {
