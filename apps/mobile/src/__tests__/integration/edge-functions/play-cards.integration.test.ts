@@ -16,7 +16,7 @@
  *     All DB-backed suites clean up test data in afterAll, even on failure.
  */
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 
 // ---------------------------------------------------------------------------
 // Env / credential flags
@@ -129,32 +129,40 @@ describe('Suite 2 — play-cards: body validation', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Suite 3 — Identity / body validation with real JWT (requires ANON_KEY)
+// Suite 3 — Identity / body validation with real JWT (requires SERVICE_ROLE_KEY)
 // ---------------------------------------------------------------------------
 describe('Suite 3 — play-cards: identity + body validation (live JWT)', () => {
-  if (!hasAnonKey) {
-    it.todo('skipped — EXPO_PUBLIC_SUPABASE_ANON_KEY not configured');
+  if (!hasServiceRole) {
+    it.todo('skipped — SUPABASE_SERVICE_ROLE_KEY not configured');
     return;
   }
 
-  let adminClient: SupabaseClient;
   let userToken: string;
   let testUserId: string;
-  const testEmail = `ci-play-cards-${Date.now()}@test.invalid`;
+  const testEmail = `ci-play-cards-s3-${Date.now()}@test.invalid`;
   const testPass = `Ci-T3st-${uuid().slice(0, 8)}!`;
 
   beforeAll(async () => {
-    adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE || SUPABASE_ANON_KEY);
+    // Use admin.createUser so the account is email-confirmed immediately
+    const srClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { data, error } = await srClient.auth.admin.createUser({
+      email: testEmail,
+      password: testPass,
+      email_confirm: true,
+    });
+    if (error) throw new Error(`Test setup failed (createUser): ${error.message}`);
+    testUserId = data.user?.id ?? '';
 
-    // Sign up with anon client so we don't need service role for this suite
+    // Sign in via anon client to obtain a JWT
     const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const { data, error } = await anonClient.auth.signUp({
+    const { data: signInData, error: signInError } = await anonClient.auth.signInWithPassword({
       email: testEmail,
       password: testPass,
     });
-    if (error) throw new Error(`Test setup failed (signUp): ${error.message}`);
-    userToken = data.session?.access_token ?? '';
-    testUserId = data.user?.id ?? '';
+    if (signInError) throw new Error(`Sign-in failed: ${signInError.message}`);
+    userToken = signInData.session?.access_token ?? '';
     if (!userToken) throw new Error('Test setup failed: no access token returned');
   }, 30_000);
 
