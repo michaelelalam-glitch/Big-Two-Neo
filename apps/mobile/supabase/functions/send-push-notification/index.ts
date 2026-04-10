@@ -326,16 +326,20 @@ Deno.serve(async (req) => {
     }
 
     // Peek at the body (clone preserves the stream for the main handler).
-    let peekBody: { data?: { roomCode?: string }; user_ids?: string[] } | null = null;
+    let peekBody: { data?: { roomCode?: unknown }; user_ids?: unknown } | null = null;
     try {
       peekBody = await req.clone().json();
     } catch {
-      // Malformed body — fall through; main handler will return 400.
+      // Malformed JSON body — return 400 immediately; do not mask as auth failure.
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // User-JWT callers must supply a roomCode so targets can be constrained.
-    const roomCode = peekBody?.data?.roomCode as string | undefined;
-    if (!roomCode) {
+    const roomCode = peekBody?.data?.roomCode;
+    if (typeof roomCode !== 'string' || !roomCode) {
       return new Response(
         JSON.stringify({ error: 'Forbidden: user callers must supply data.roomCode' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -347,13 +351,20 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Resolve room by code.
-    const { data: room } = await adminClient
+    // Resolve room by code — distinguish DB errors (500) from not-found (403).
+    const { data: room, error: roomError } = await adminClient
       .from('rooms')
       .select('id')
       .eq('code', roomCode)
       .maybeSingle();
 
+    if (roomError) {
+      console.error('[send-push-notification] Room lookup failed:', roomError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to verify room' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     if (!room) {
       return new Response(
         JSON.stringify({ error: 'Forbidden: invalid room code' }),
@@ -361,14 +372,21 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Caller must be a member of that room.
-    const { data: callerMembership } = await adminClient
+    // Caller must be a member of that room — distinguish DB errors (500) from non-member (403).
+    const { data: callerMembership, error: callerMembershipError } = await adminClient
       .from('room_players')
       .select('id')
       .eq('room_id', room.id)
       .eq('user_id', callerUser.id)
       .maybeSingle();
 
+    if (callerMembershipError) {
+      console.error('[send-push-notification] Caller membership check failed:', callerMembershipError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to verify room membership' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     if (!callerMembership) {
       return new Response(
         JSON.stringify({ error: 'Forbidden: caller is not a member of the specified room' }),
@@ -377,20 +395,31 @@ Deno.serve(async (req) => {
     }
 
     // All target user_ids must also be members of the same room.
-    const targetIds: string[] = peekBody?.user_ids ?? [];
-    if (targetIds.length > 0) {
-      const { data: memberRows } = await adminClient
-        .from('room_players')
-        .select('user_id')
-        .eq('room_id', room.id)
-        .in('user_id', targetIds);
-      const memberSet = new Set((memberRows ?? []).map((r: { user_id: string }) => r.user_id));
-      const nonMembers = targetIds.filter((id: string) => !memberSet.has(id));
-      if (nonMembers.length > 0) {
-        return new Response(
-          JSON.stringify({ error: 'Forbidden: some target users are not members of the room' }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+    // Validate that user_ids is an array of strings before using it in a DB query.
+    const rawIds = peekBody?.user_ids;
+    if (Array.isArray(rawIds) && rawIds.length > 0) {
+      const targetIds = rawIds.filter((id): id is string => typeof id === 'string');
+      if (targetIds.length > 0) {
+        const { data: memberRows, error: memberCheckError } = await adminClient
+          .from('room_players')
+          .select('user_id')
+          .eq('room_id', room.id)
+          .in('user_id', targetIds);
+        if (memberCheckError) {
+          console.error('[send-push-notification] Target membership check failed:', memberCheckError);
+          return new Response(
+            JSON.stringify({ error: 'Failed to verify target membership' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        const memberSet = new Set((memberRows ?? []).map((r: { user_id: string }) => r.user_id));
+        const nonMembers = targetIds.filter((id: string) => !memberSet.has(id));
+        if (nonMembers.length > 0) {
+          return new Response(
+            JSON.stringify({ error: 'Forbidden: some target users are not members of the room' }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
     }
   }
