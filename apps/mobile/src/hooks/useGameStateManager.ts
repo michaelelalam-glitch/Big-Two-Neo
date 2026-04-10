@@ -13,6 +13,7 @@ import { buildFinalPlayHistoryFromState } from '../utils/playHistoryUtils';
 import type { FinalScore } from '../types/gameEnd';
 import type { ScoreHistory, PlayHistoryMatch } from '../types/scoreboard';
 import { parsePersistedScoreHistory } from '../utils/parsePersistedScoreHistory';
+import { parsePersistedPlayHistory } from '../utils/parsePersistedPlayHistory';
 
 const SCORE_HISTORY_KEY = '@big2_score_history';
 const PLAY_HISTORY_KEY = '@big2_play_history';
@@ -227,43 +228,20 @@ export function useGameStateManager({
           // P4-5 fix: Restore playHistoryByMatch from AsyncStorage on rejoin.
           // Play history is persisted by ScoreboardContext whenever addPlayHistory
           // is called (local games only), so it survives app close and restarts.
-          //
-          // Copilot review: validate element shape (matchNumber:number + hands:array)
-          // before injecting into state; remove the key when the payload is invalid,
-          // mirroring the parsePersistedScoreHistory behaviour.
+          // Uses parsePersistedPlayHistory which validates shape and returns a
+          // shouldRemove flag when the payload is corrupted/invalid.
           try {
             const persistedPlayHistory = await AsyncStorage.getItem(PLAY_HISTORY_KEY);
-            if (persistedPlayHistory) {
-              let parsed: unknown;
-              try {
-                parsed = JSON.parse(persistedPlayHistory);
-              } catch {
-                gameLogger.warn(
-                  '[useGameStateManager] Persisted playHistory is not valid JSON — removing'
-                );
-                await AsyncStorage.removeItem(PLAY_HISTORY_KEY);
-                parsed = null;
-              }
-              if (parsed !== null && Array.isArray(parsed) && parsed.length > 0) {
-                const isValidShape = (parsed as unknown[]).every(
-                  (entry): entry is PlayHistoryMatch =>
-                    typeof entry === 'object' &&
-                    entry !== null &&
-                    typeof (entry as Record<string, unknown>).matchNumber === 'number' &&
-                    Array.isArray((entry as Record<string, unknown>).hands)
-                );
-                if (isValidShape) {
-                  gameLogger.info(
-                    `📊 [useGameStateManager] Restored ${(parsed as PlayHistoryMatch[]).length} play history entries from AsyncStorage`
-                  );
-                  restorePlayHistory(parsed as PlayHistoryMatch[]);
-                } else {
-                  gameLogger.warn(
-                    '[useGameStateManager] Persisted playHistory has unexpected shape — removing'
-                  );
-                  await AsyncStorage.removeItem(PLAY_HISTORY_KEY);
-                }
-              }
+            const { entries: playEntries, shouldRemove: shouldRemovePlay } =
+              parsePersistedPlayHistory(persistedPlayHistory);
+            if (playEntries) {
+              gameLogger.info(
+                `📊 [useGameStateManager] Restored ${playEntries.length} play history entries from AsyncStorage`
+              );
+              restorePlayHistory(playEntries);
+            } else if (shouldRemovePlay) {
+              gameLogger.warn('[useGameStateManager] Persisted playHistory is invalid — removing');
+              await AsyncStorage.removeItem(PLAY_HISTORY_KEY);
             }
           } catch (err) {
             gameLogger.error(
