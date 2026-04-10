@@ -283,10 +283,9 @@ export function useAutoPassTimer({
 
       if (typeof endTimestamp === 'number') {
         const correctedNow = snapshotNow();
-        remaining = Math.max(0, endTimestamp - correctedNow);
-        // Cap at duration_ms: if drift snapshot=0 and device clock is behind server the
-        // raw endTimestamp - correctedNow can exceed duration_ms, stalling the timer.
-        remaining = Math.min(remaining, timerState.duration_ms);
+        // Clamp to [0, duration_ms]: Math.max prevents negative, Math.min prevents
+        // over-duration when drift snapshot=0 and device clock is behind server.
+        remaining = Math.min(Math.max(0, endTimestamp - correctedNow), timerState.duration_ms);
         // Log once per whole-second transition
         if (
           remaining > 0 &&
@@ -298,9 +297,8 @@ export function useAutoPassTimer({
         const startedAt = new Date(timerState.started_at).getTime();
         const correctedNow = snapshotNow();
         const elapsed = correctedNow - startedAt;
-        remaining = Math.max(0, timerState.duration_ms - elapsed);
-        // Cap at duration_ms for the same reason as the end_timestamp path above.
-        remaining = Math.min(remaining, timerState.duration_ms);
+        // Same [0, duration_ms] clamp: elapsed can be negative if device clock lags.
+        remaining = Math.min(Math.max(0, timerState.duration_ms - elapsed), timerState.duration_ms);
       }
 
       // Timer expired → trigger one self-pass (server cascades the rest)
