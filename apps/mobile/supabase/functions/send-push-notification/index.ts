@@ -258,9 +258,12 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  // P5-1 Fix: Only service-role callers (other Edge Functions, server-side processes)
-  // may send push notifications. Reject user-JWT calls to prevent any client from
-  // delivering arbitrary notifications to any user_ids.
+  // P5-1 Fix: Reject unauthenticated callers.  Three accepted auth paths:
+  //   1. Service-role key   — other Edge Functions / server-side processes.
+  //   2. Internal-bot key   — background bot via x-bot-auth header.
+  //   3. Authenticated user JWT — mobile app (supabase.functions.invoke sends the
+  //      session JWT automatically).  Verified via getUser() so expired/tampered
+  //      tokens are rejected.
   // Auth check runs BEFORE the version check so unauthorized callers receive 403
   // rather than 426 (which would leak minimum_version information).
   const authHeader = req.headers.get('Authorization') ?? '';
@@ -290,10 +293,26 @@ Deno.serve(async (req) => {
     (internalBotKey !== '' && botAuthHeader === internalBotKey);
 
   if (!isAuthorizedInternalCaller) {
-    return new Response(
-      JSON.stringify({ error: 'Forbidden: this endpoint requires service-role authorization' }),
-      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    // Check for a valid user JWT (mobile app callers).
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    if (!authHeader.startsWith('Bearer ') || !supabaseUrl || !supabaseAnonKey) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: authorization required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { error: authError } = await userClient.auth.getUser();
+    if (authError) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: invalid or expired authorization' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
   }
 
     // C3: Enforce minimum app version (after auth — only authorized callers reach here).

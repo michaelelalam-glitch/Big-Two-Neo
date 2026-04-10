@@ -116,6 +116,14 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
         for (let i = 0; i < value.length; i += SECURE_STORE_CHUNK_SIZE) {
           chunks.push(value.slice(i, i + SECURE_STORE_CHUNK_SIZE));
         }
+        // Guard: abort if the value would require more chunks than MAX_CHUNKS to prevent
+        // unbounded SecureStore writes and storage exhaustion from corrupted/oversized tokens.
+        if (chunks.length > MAX_CHUNKS) {
+          console.error(
+            `[supabase:storage] Value too large to chunk (${chunks.length} chunks > MAX_CHUNKS ${MAX_CHUNKS}); auth token NOT persisted.`
+          );
+          return;
+        }
         // Read previous chunk count so we can delete any surplus chunk keys
         // (handles the case where new value has fewer chunks than the old one).
         const prevCountStr = await SecureStore.getItemAsync(`${key}${CHUNK_COUNT_SUFFIX}`).catch(
@@ -148,8 +156,7 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
         }
       }
     } catch {
-      // SecureStore write failed entirely — try to clean up any partial state before
-      // falling back to AsyncStorage as last resort.
+      // SecureStore write failed entirely — clean up any partial SecureStore state.
       const prevCountOnError = await SecureStore.getItemAsync(`${key}${CHUNK_COUNT_SUFFIX}`)
         .then(s => (s !== null ? parseInt(s, 10) : NaN))
         .catch(() => NaN);
