@@ -29,6 +29,9 @@ jobs:
       EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
       EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      # Defined at job level so `if: env.SUPABASE_ACCESS_TOKEN != ''` in steps evaluates correctly.
+      # Step-level env is not visible to that step's own `if:` condition.
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
     strategy:
       matrix:
@@ -150,28 +153,20 @@ jobs:
           CI: true
 
       # ── Task #22 (Tier 4) — RLS pgTAP policy tests ──────────────────────────
-      # Requires SUPABASE_ACCESS_TOKEN secret.  Skipped (non-blocking warning) if
-      # the secret is absent so the CI suite keeps passing in forks / new repos.
-      - name: ⚠️ RLS pgTAP tests skipped (no SUPABASE_ACCESS_TOKEN)
-        if: env.SUPABASE_ACCESS_TOKEN == ''
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: |
-          echo "::warning::RLS pgTAP tests skipped — add SUPABASE_ACCESS_TOKEN secret to enable."
-
+      # Skipped when SUPABASE_ACCESS_TOKEN is absent (forks, new repos).
+      # continue-on-error: true keeps CI green when the pgTAP suite finds
+      # failures — the failure is surfaced in the step output, not masked.
       - name: 🔒 Run RLS policy tests (pgTAP)
         if: env.SUPABASE_ACCESS_TOKEN != ''
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        continue-on-error: true
         run: |
           cd apps/mobile
-          # Install Supabase CLI (pinned for reproducibility)
-          npm install -g supabase@1
-          # Run pgTAP tests from supabase/tests/ against the linked project
+          # Pin the Supabase CLI to a specific version for reproducibility.
+          # Update this pin when bumping the Supabase platform version.
+          npm install -g supabase@1.218.3
           supabase test db \
             --project-ref dppybucldqufbqhwnkxu \
-            --db-url "postgresql://postgres:${{ secrets.SUPABASE_DB_PASSWORD }}@db.dppybucldqufbqhwnkxu.supabase.co:5432/postgres" \
-            2>&1 || echo "::warning::pgTAP tests failed — review output above"
+            --db-url "postgresql://postgres:${{ secrets.SUPABASE_DB_PASSWORD }}@db.dppybucldqufbqhwnkxu.supabase.co:5432/postgres"
         timeout-minutes: 5
       # ────────────────────────────────────────────────────────────────────────
 
