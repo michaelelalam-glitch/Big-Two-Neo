@@ -186,7 +186,7 @@ export function authErrorFlood() {
   const res = http.post(
     `${SUPABASE_URL}/functions/v1/play-cards`,
     JSON.stringify({ room_code: 'LOAD01', player_id: 'fake', cards: [] }),
-    { headers: { 'Content-Type': 'application/json', 'x-app-version': '1.0.0' } },
+    { headers: { 'Content-Type': 'application/json', 'x-app-version': '999.99.99' } },
   );
 
   errorRate.add(res.status >= 500);
@@ -217,7 +217,7 @@ export function playCardsLoad(data) {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
-        'x-app-version': '1.0.0',
+        'x-app-version': '999.99.99',
       },
     },
   );
@@ -249,7 +249,7 @@ export function findMatchLoad(data) {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
-        'x-app-version': '1.0.0',
+        'x-app-version': '999.99.99',
       },
     },
   );

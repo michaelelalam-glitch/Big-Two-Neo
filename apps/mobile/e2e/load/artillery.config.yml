@@ -39,7 +39,7 @@ config:
   defaults:
     headers:
       Content-Type: "application/json"
-      x-app-version: "1.0.0"
+      x-app-version: "999.0.0"
 
 scenarios:
   # ──────────────────────────────────────────────────────────────────
