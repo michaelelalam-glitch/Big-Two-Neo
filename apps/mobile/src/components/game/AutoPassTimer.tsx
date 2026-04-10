@@ -101,35 +101,38 @@ function AutoPassTimerComponent({
   const getCorrectedNowRef = useRef(getCorrectedNow);
   getCorrectedNowRef.current = getCorrectedNow;
 
-  // P3-1 FIX: Snapshot getCorrectedNow() once at the moment the timer activates.
-  // Storing the getCorrectedNow function reference in a ref and using it for
-  // initial-snapshot calculations prevents the "snapshot jump" that occurred when
-  // isSynced transitioned false→true mid-countdown: previously isSyncedEffective was a
-  // dep of initialSnapshot, which caused a recompute → setDisplaySeconds jump.
+  // P3-1 FIX: Snapshot the NTP drift VALUE (not the function reference) once at the moment
+  // the timer activates, so subsequent drift changes by NTP sync cannot alter the initial
+  // remaining-ms calculation for this countdown run.
   //
-  // Important: this snapshot stabilises the initial text/timer anchor for a given timer
-  // run, but it does NOT mean the ring is kept in sync with the live NTP clock.
-  // The ring progress is scheduled once via `withTiming` and is not re-anchored on
-  // subsequent NTP sync events.  The text-display interval reads getCorrectedNowRef on
-  // every 200ms tick, so text will drift slightly from the ring if NTP sync completes
-  // after timer start.  This is an accepted trade-off: the snapshot avoids a visible
-  // mid-countdown jump at the cost of a possible small one-tick text/ring desync on
-  // first sync.  If isSynced hasn't resolved by timer start the snapshot uses an
-  // uncorrected clock, which can introduce at most 10s × drift_fraction error.
-  const snapshotCorrectedNowRef = useRef<(() => number) | null>(null);
+  // getCorrectedNow is a stable useCallback that always reads driftRef.current internally.
+  // Snapshotting the function reference is therefore a no-op — we must snapshot the
+  // numeric offset (drift) at activation: `frozenDrift = getCorrectedNow() - Date.now()`.
+  // Then `correctedNow = Date.now() + frozenDrift` is frozen for this timer run.
+  //
+  // Important: this only stabilises the initial-snapshot calculation.  The
+  // text-display interval (200ms) still reads getCorrectedNowRef (live NTP), so the
+  // displayed seconds naturally converge after the first tick following NTP sync.
+  // The ring animation is scheduled once with withTiming and is not re-anchored.
+  // This is an accepted trade-off: the snapshot prevents a visible mid-countdown jump
+  // at the cost of minor text/ring drift if NTP resolves after timer start.
+  const snapshotDriftRef = useRef<number | null>(null);
 
-  // Capture the clock function once when the timer identity changes (new active timer
-  // starts).  Subsequent isSynced / getCorrectedNow changes are intentionally ignored
-  // for initial-snapshot purposes while this timer is running.
+  // Capture the drift NUMBER once when the timer identity changes (new active timer
+  // starts).  Subsequent isSynced / NTP changes are intentionally ignored for the
+  // initial-snapshot purposes while this timer is running.
   const snapshotTimerKeyRef = useRef<string | null>(null);
   const snapshotTimerKey = timerState?.active
     ? `${timerState.end_timestamp ?? timerState.started_at}:${timerState.duration_ms}`
     : null;
   if (snapshotTimerKey !== null && snapshotTimerKey !== snapshotTimerKeyRef.current) {
     snapshotTimerKeyRef.current = snapshotTimerKey;
-    snapshotCorrectedNowRef.current = getCorrectedNow; // capture NOW at activation
+    snapshotDriftRef.current = getCorrectedNow() - Date.now(); // freeze the NTP drift at activation
   }
-  const getCorrectedNowForSnapshot = snapshotCorrectedNowRef.current ?? getCorrectedNow;
+  const getCorrectedNowForSnapshot: () => number =
+    snapshotDriftRef.current !== null
+      ? () => Date.now() + snapshotDriftRef.current! // uses frozen drift, immune to NTP updates
+      : getCorrectedNow;
 
   // ── Initial snapshot (computed once per timerState activation) ─────────────
   // P3-1 FIX: isSyncedEffective removed from deps. The snapshot is stable once the
