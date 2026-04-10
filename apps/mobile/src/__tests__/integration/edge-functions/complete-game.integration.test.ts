@@ -88,7 +88,7 @@ async function callEF(
 ): Promise<{ status: number; body: unknown }> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'x-app-version': '1.0.0',
+    'x-app-version': '999.99.99',
   };
   if (authToken !== undefined) headers['Authorization'] = `Bearer ${authToken}`;
 

@@ -29,10 +29,8 @@ jobs:
       EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
       EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      # Defined at job level so `if: env.SUPABASE_ACCESS_TOKEN != ''` in steps evaluates correctly.
-      # Step-level env is not visible to that step's own `if:` condition.
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      # Also exposed at job level so the pgTAP step can gate on its presence.
+      # Exposed at job level so the pgTAP step if: can evaluate it correctly.
+      # Step-level env is not visible to that step's own if: condition.
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
     strategy:

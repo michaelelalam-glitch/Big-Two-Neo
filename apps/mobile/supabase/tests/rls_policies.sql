@@ -34,39 +34,53 @@ SELECT plan(26);
 
 DO $$
 BEGIN
-  INSERT INTO auth.users (
-    id, instance_id, aud, role, email,
-    encrypted_password, email_confirmed_at,
-    created_at, updated_at, raw_app_meta_data, raw_user_meta_data
-  )
-  VALUES (
-    'aaaaaaaa-0000-0000-0000-000000000001'::uuid,
-    '00000000-0000-0000-0000-000000000000'::uuid,
-    'authenticated', 'authenticated',
-    'pgtap-owner@test.invalid',
-    crypt('test-password', gen_salt('bf')),
-    now(), now(), now(),
-    '{"provider":"email","providers":["email"]}'::jsonb,
-    '{}'::jsonb
-  )
-  ON CONFLICT (id) DO NOTHING;
+  -- Disable the on_auth_user_created trigger so that inserting into auth.users
+  -- does NOT auto-create rows in public.profiles. The profiles are inserted
+  -- manually below with deterministic usernames, and the collision guard further
+  -- below relies on profiles being absent at this point.
+  ALTER TABLE auth.users DISABLE TRIGGER on_auth_user_created;
 
-  INSERT INTO auth.users (
-    id, instance_id, aud, role, email,
-    encrypted_password, email_confirmed_at,
-    created_at, updated_at, raw_app_meta_data, raw_user_meta_data
-  )
-  VALUES (
-    'bbbbbbbb-0000-0000-0000-000000000002'::uuid,
-    '00000000-0000-0000-0000-000000000000'::uuid,
-    'authenticated', 'authenticated',
-    'pgtap-other@test.invalid',
-    crypt('test-password', gen_salt('bf')),
-    now(), now(), now(),
-    '{"provider":"email","providers":["email"]}'::jsonb,
-    '{}'::jsonb
-  )
-  ON CONFLICT (id) DO NOTHING;
+  BEGIN
+    INSERT INTO auth.users (
+      id, instance_id, aud, role, email,
+      encrypted_password, email_confirmed_at,
+      created_at, updated_at, raw_app_meta_data, raw_user_meta_data
+    )
+    VALUES (
+      'aaaaaaaa-0000-0000-0000-000000000001'::uuid,
+      '00000000-0000-0000-0000-000000000000'::uuid,
+      'authenticated', 'authenticated',
+      'pgtap-owner@test.invalid',
+      crypt('test-password', gen_salt('bf')),
+      now(), now(), now(),
+      '{"provider":"email","providers":["email"]}'::jsonb,
+      '{}'::jsonb
+    )
+    ON CONFLICT (id) DO NOTHING;
+
+    INSERT INTO auth.users (
+      id, instance_id, aud, role, email,
+      encrypted_password, email_confirmed_at,
+      created_at, updated_at, raw_app_meta_data, raw_user_meta_data
+    )
+    VALUES (
+      'bbbbbbbb-0000-0000-0000-000000000002'::uuid,
+      '00000000-0000-0000-0000-000000000000'::uuid,
+      'authenticated', 'authenticated',
+      'pgtap-other@test.invalid',
+      crypt('test-password', gen_salt('bf')),
+      now(), now(), now(),
+      '{"provider":"email","providers":["email"]}'::jsonb,
+      '{}'::jsonb
+    )
+    ON CONFLICT (id) DO NOTHING;
+  EXCEPTION
+    WHEN OTHERS THEN
+      ALTER TABLE auth.users ENABLE TRIGGER on_auth_user_created;
+      RAISE;
+  END;
+
+  ALTER TABLE auth.users ENABLE TRIGGER on_auth_user_created;
 END;
 $$;
 
@@ -135,8 +149,9 @@ ON CONFLICT DO NOTHING;
 -- ============================================================================
 
 SET LOCAL ROLE anon;
-SELECT ok(
-  (SELECT count(*)::int FROM public.profiles) >= 1,
+SELECT is(
+  (SELECT count(*)::int FROM public.profiles WHERE id = 'aaaaaaaa-0000-0000-0000-000000000001'::uuid),
+  1,
   'anon: can SELECT profiles (USING true -- public viewable)'
 );
 SELECT throws_ok(
@@ -166,8 +181,10 @@ SELECT ok(
 RESET ROLE;
 
 SET LOCAL ROLE service_role;
-SELECT ok(
-  (SELECT count(*)::int FROM public.profiles) >= 2,
+SELECT is(
+  (SELECT count(*)::int FROM public.profiles
+    WHERE id IN ('aaaaaaaa-0000-0000-0000-000000000001'::uuid, 'bbbbbbbb-0000-0000-0000-000000000002'::uuid)),
+  2,
   'service-role: can read all profiles'
 );
 RESET ROLE;
@@ -344,8 +361,9 @@ RESET ROLE;
 -- ============================================================================
 
 SET LOCAL ROLE anon;
-SELECT ok(
-  (SELECT count(*)::int FROM public.game_history) >= 1,
+SELECT is(
+  (SELECT count(*)::int FROM public.game_history WHERE room_code = 'PGTAP1'),
+  1,
   'anon: can SELECT game_history (USING true)'
 );
 RESET ROLE;
@@ -355,8 +373,9 @@ RESET ROLE;
 -- ============================================================================
 
 SET LOCAL ROLE anon;
-SELECT ok(
-  (SELECT count(*)::int FROM public.waiting_room) >= 1,
+SELECT is(
+  (SELECT count(*)::int FROM public.waiting_room WHERE user_id = 'aaaaaaaa-0000-0000-0000-000000000001'::uuid),
+  1,
   'anon: can SELECT waiting_room (USING true)'
 );
 RESET ROLE;
@@ -365,8 +384,9 @@ SET LOCAL ROLE authenticated;
 SET LOCAL "request.jwt.claims" TO '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated"}';
 SET LOCAL "request.jwt.claim.sub" TO 'aaaaaaaa-0000-0000-0000-000000000001';
 SET LOCAL "request.jwt.claim.role" TO 'authenticated';
-SELECT ok(
-  (SELECT count(*)::int FROM public.waiting_room) >= 1,
+SELECT is(
+  (SELECT count(*)::int FROM public.waiting_room WHERE user_id = 'aaaaaaaa-0000-0000-0000-000000000001'::uuid),
+  1,
   'authenticated: can query waiting_room (USING true)'
 );
 RESET ROLE;
