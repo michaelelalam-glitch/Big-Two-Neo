@@ -258,12 +258,13 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  // P5-1 Fix: Reject unauthenticated callers.  Three accepted auth paths:
+  // P5-1 Fix: Reject unauthenticated callers.  Two explicitly trusted paths:
   //   1. Service-role key   — other Edge Functions / server-side processes.
   //   2. Internal-bot key   — background bot via x-bot-auth header.
-  //   3. Authenticated user JWT — mobile app (supabase.functions.invoke sends the
-  //      session JWT automatically).  Verified via getUser() so expired/tampered
-  //      tokens are rejected.
+  // Mobile-app callers (user JWT) are accepted only after verifying that the
+  // caller AND all target user_ids are members of the same room (data.roomCode).
+  // This prevents any authenticated user from sending arbitrary notifications
+  // to users outside their room.
   // Auth check runs BEFORE the version check so unauthorized callers receive 403
   // rather than 426 (which would leak minimum_version information).
   const authHeader = req.headers.get('Authorization') ?? '';
@@ -293,7 +294,8 @@ Deno.serve(async (req) => {
     (internalBotKey !== '' && botAuthHeader === internalBotKey);
 
   if (!isAuthorizedInternalCaller) {
-    // Check for a valid user JWT (mobile app callers).
+    // User-JWT path: verify the token, then enforce room-membership constraints
+    // so the caller can only notify users who belong to the same room.
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
     if (!authHeader.startsWith('Bearer ') || !supabaseUrl || !supabaseAnonKey) {
@@ -306,12 +308,81 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
       auth: { autoRefreshToken: false, persistSession: false },
     });
-    const { error: authError } = await userClient.auth.getUser();
-    if (authError) {
+    const { data: { user: callerUser }, error: authError } = await userClient.auth.getUser();
+    if (authError || !callerUser) {
       return new Response(
         JSON.stringify({ error: 'Forbidden: invalid or expired authorization' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Peek at the body (clone preserves the stream for the main handler).
+    let peekBody: { data?: { roomCode?: string }; user_ids?: string[] } | null = null;
+    try {
+      peekBody = await req.clone().json();
+    } catch {
+      // Malformed body — fall through; main handler will return 400.
+    }
+
+    // User-JWT callers must supply a roomCode so targets can be constrained.
+    const roomCode = peekBody?.data?.roomCode as string | undefined;
+    if (!roomCode) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: user callers must supply data.roomCode' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Use the service-role key for DB authorization checks (bypasses RLS).
+    const adminClient = createClient(supabaseUrl, serviceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    // Resolve room by code.
+    const { data: room } = await adminClient
+      .from('rooms')
+      .select('id')
+      .eq('code', roomCode)
+      .maybeSingle();
+
+    if (!room) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: invalid room code' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Caller must be a member of that room.
+    const { data: callerMembership } = await adminClient
+      .from('room_players')
+      .select('id')
+      .eq('room_id', room.id)
+      .eq('user_id', callerUser.id)
+      .maybeSingle();
+
+    if (!callerMembership) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: caller is not a member of the specified room' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // All target user_ids must also be members of the same room.
+    const targetIds: string[] = peekBody?.user_ids ?? [];
+    if (targetIds.length > 0) {
+      const { data: memberRows } = await adminClient
+        .from('room_players')
+        .select('user_id')
+        .eq('room_id', room.id)
+        .in('user_id', targetIds);
+      const memberSet = new Set((memberRows ?? []).map((r: { user_id: string }) => r.user_id));
+      const nonMembers = targetIds.filter((id: string) => !memberSet.has(id));
+      if (nonMembers.length > 0) {
+        return new Response(
+          JSON.stringify({ error: 'Forbidden: some target users are not members of the room' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
   }
 

@@ -59,7 +59,7 @@ supabase.auth
 
 // ─── Configuration ─────────────────────────────────────────────────────────── //
 
-/** Firebase Measurement Protocol v2 endpoint (fallback for dev validation) */
+/** Firebase Measurement Protocol v2 endpoint (used in Jest unit tests for direct GA4 assertions). */
 const MP_ENDPOINT = 'https://www.google-analytics.com/mp/collect';
 
 const MEASUREMENT_ID = process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID ?? '';
@@ -300,13 +300,13 @@ async function _sendEventsImmediate(
   events: { name: string; params?: AnalyticsEventParams }[]
 ): Promise<void> {
   if (!USE_PROXY && !MEASUREMENT_ID) {
-    // Direct-to-GA4 (dev) mode requires a client-side MEASUREMENT_ID.
-    // In proxy mode (production) the Edge Function supplies it server-side.
+    // Jest/test mode: direct-to-GA4 requires a client-side MEASUREMENT_ID.
+    // In proxy mode (dev + production) the Edge Function supplies it server-side.
     return;
   }
-  // In proxy mode (production), API_SECRET lives server-side in the Edge
-  // Function so it's not required on the client. In dev mode, it's needed
-  // for direct GA4 validation.
+  // In proxy mode (dev + production), API_SECRET lives server-side in the Edge
+  // Function so it's not required on the client. In Jest/test mode, it's needed
+  // for direct GA4 assertions.
   if (!USE_PROXY && !API_SECRET) {
     return;
   }
@@ -379,7 +379,8 @@ async function _sendEventsImmediate(
       // Edge Function returns { status: number }
       return;
     } else {
-      // Development: hit GA4 directly for validation feedback
+      // Jest/tests only: hit GA4 directly so unit tests can assert on fetch() calls
+      // without needing to mock supabase.functions.invoke.
       response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -139,6 +139,18 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
         await SecureStore.deleteItemAsync(`${key}${CHUNK_COUNT_SUFFIX}`).catch(() => {});
         await SecureStore.deleteItemAsync(key).catch(() => {});
         await AsyncStorage.removeItem(key).catch(() => {});
+        // If there was no previous count key (prevCountStr === null), a prior write
+        // may have been interrupted after deleting the count key but before completing.
+        // That leaves orphaned chunk keys (0..N-1) with no count metadata pointing to
+        // them. Do a bounded best-effort sweep to evict any such orphans before writing
+        // new chunks so they cannot accumulate over time.
+        if (prevCountStr === null) {
+          await Promise.allSettled(
+            Array.from({ length: MAX_CHUNKS }, (_, i) =>
+              SecureStore.deleteItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`).catch(() => {})
+            )
+          );
+        }
         // Write chunk data, then commit the new count key last.
         for (let i = 0; i < chunks.length; i++) {
           await SecureStore.setItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`, chunks[i]);
