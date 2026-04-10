@@ -110,10 +110,12 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
           () => null
         );
         const prevCount = prevCountStr !== null ? parseInt(prevCountStr, 10) : NaN;
-        await SecureStore.setItemAsync(`${key}${CHUNK_COUNT_SUFFIX}`, String(chunks.length));
+        // Write chunk keys FIRST, count key LAST: a concurrent getItem must not
+        // observe a non-null chunk count before all chunk data has been persisted.
         for (let i = 0; i < chunks.length; i++) {
           await SecureStore.setItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`, chunks[i]);
         }
+        await SecureStore.setItemAsync(`${key}${CHUNK_COUNT_SUFFIX}`, String(chunks.length));
         // Delete any surplus chunk keys from a previous (longer) value
         if (Number.isFinite(prevCount) && prevCount > chunks.length) {
           await Promise.allSettled(
@@ -143,7 +145,10 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
         );
       }
       await SecureStore.deleteItemAsync(key).catch(() => {});
-      await AsyncStorage.setItem(key, value);
+      // Do NOT fall back to AsyncStorage — storing an auth token in plaintext
+      // violates the P10-1 security requirement. The caller detects session
+      // loss on next launch and prompts the user to re-authenticate.
+      console.error('[supabase:storage] SecureStore write failed; auth token NOT persisted.');
     }
   },
   removeItem: async (key: string): Promise<void> => {

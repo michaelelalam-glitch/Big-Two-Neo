@@ -328,7 +328,6 @@ async function _sendEventsImmediate(
   // You can also inspect live traffic via:
   //   GA4 → Reports → Realtime → "Event count in last 30 min by Event name"
   const url = `${MP_ENDPOINT}?measurement_id=${encodeURIComponent(MEASUREMENT_ID)}&api_secret=${encodeURIComponent(API_SECRET)}`;
-  const validationUrl = `https://www.google-analytics.com/debug/mp/collect?measurement_id=${encodeURIComponent(MEASUREMENT_ID)}&api_secret=${encodeURIComponent(API_SECRET)}`;
 
   const body: Record<string, unknown> = {
     client_id: getClientId(),
@@ -362,33 +361,6 @@ async function _sendEventsImmediate(
   if (__DEV__) {
     // eslint-disable-next-line no-console
     console.log('[Analytics] Sending events:', events.map(e => e.name).join(', '));
-  }
-
-  if (__DEV__ && !process.env.JEST_WORKER_ID && !USE_PROXY) {
-    // Hit the validation endpoint and log any issues GA4 reports.
-    // Skipped in Jest (JEST_WORKER_ID is set) to avoid a second fetch call
-    // that would break toHaveBeenCalledTimes(1) assertions.
-    fetch(validationUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-      .then(r => r.json())
-      .then(json => {
-        const issues = json?.validationMessages ?? [];
-        if (issues.length > 0) {
-          // eslint-disable-next-line no-console
-          console.warn('[Analytics] GA4 validation issues:', JSON.stringify(issues, null, 2));
-        } else {
-          // eslint-disable-next-line no-console
-          console.log(
-            '[Analytics] GA4 validation: ✅ all events valid — check GA4 → Reports → Realtime'
-          );
-        }
-      })
-      .catch(() => {
-        /* ignore validation network errors */
-      });
   }
 
   try {
