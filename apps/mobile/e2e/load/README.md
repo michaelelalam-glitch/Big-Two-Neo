@@ -68,4 +68,4 @@ cd apps/mobile && pnpm add -D artillery
 | p95 response time | < 2 s |
 | 5xx error rate | < 10 % |
 
-401 responses are expected (unauthenticated scenarios) and are **not** counted as errors.
+`401` responses are expected for unauthenticated scenarios and are **not** counted as errors. Requests that omit the required `x-app-version` header may return `426` (update required) from the edge-function version gate instead of `401`; both are expected and not counted as errors.

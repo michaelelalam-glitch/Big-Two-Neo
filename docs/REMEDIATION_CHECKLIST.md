@@ -139,7 +139,7 @@
   > ✅ Fixed in PR (Tier 4) — pgTAP is provided by the Supabase test runner (`supabase test db`) as a built-in extension; no custom migration is required. SQL test file created at `apps/mobile/supabase/tests/rls_policies.sql` with 26 assertions covering 9 tables: `profiles`, `rooms`, `room_players`, `player_stats`, `rate_limit_tracking`, `blocked_users`, `game_history`, `waiting_room`, `bot_coordinator_locks`. (`push_tokens` and `friendships` excluded — not present in CLI-managed migrations.) CI step added to `.github/workflows/test.yml` (gated on both `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` secrets; fails CI when both are present so RLS regressions are caught).
 
 - [x] **#23 🟠 P14-3** — No multiplayer concurrency/load tests — race conditions in CAS and matchmaking may only manifest under simultaneous load.  
-  **Fix:** Add k6 or Artillery load tests targeting `play-cards`, `find-match`, and `start_new_match` with concurrent users.
+  **Fix:** Add k6 or Artillery load tests targeting `play-cards`, `find-match`, and `complete-game` with concurrent users.
   > ✅ Fixed in PR (Tier 4) — k6 script at `apps/mobile/e2e/load/k6-load-test.js` with 3 scenarios (auth-error flood, play-cards load, find-match concurrency) and p95<2s / 5xx<10% thresholds. Artillery config at `apps/mobile/e2e/load/artillery.config.yml` as npm-based alternative. CI `load_test` job added (triggered via `workflow_dispatch` only to avoid per-PR costs; `continue-on-error: true` so it never blocks releases).
 
 ---
