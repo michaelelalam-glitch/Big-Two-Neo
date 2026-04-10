@@ -115,7 +115,10 @@ describe('Suite 1 — complete-game: authentication', () => {
   it('returns 401 when Authorization header is absent', async () => {
     const result = await callEF(buildMinimalBody());
     expect(result.status).toBe(401);
-    expect((result.body as Record<string, unknown>)?.error).toBeTruthy();
+    // Gateway may return { message } (verify_jwt=true) or function may return
+    // { error } (verify_jwt=false); either is a valid non-empty error body.
+    const body = result.body as Record<string, unknown>;
+    expect(body?.error ?? body?.message).toBeTruthy();
   }, 15_000);
 
   it('returns 401 when Authorization header is not a valid JWT', async () => {
