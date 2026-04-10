@@ -51,15 +51,18 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
       const chunkCountStr = await SecureStore.getItemAsync(`${key}${CHUNK_COUNT_SUFFIX}`);
       if (chunkCountStr !== null) {
         const count = parseInt(chunkCountStr, 10);
-        const parts = await Promise.all(
-          Array.from({ length: count }, (_, i) =>
-            SecureStore.getItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`)
-          )
-        );
-        if (parts.every(p => p !== null)) {
-          return parts.join('');
+        // Validate count before using it — corrupt/empty/NaN would cause wrong behaviour
+        if (Number.isFinite(count) && count > 0) {
+          const parts = await Promise.all(
+            Array.from({ length: count }, (_, i) =>
+              SecureStore.getItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`)
+            )
+          );
+          if (parts.every(p => p !== null)) {
+            return parts.join('');
+          }
         }
-        // Incomplete chunks — fall through to other storage
+        // Corrupt/incomplete chunks — ignore chunk metadata and fall through
       }
       // Try single SecureStore key
       const value = await SecureStore.getItemAsync(key);
@@ -79,9 +82,21 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
     try {
       if (value.length <= SECURE_STORE_CHUNK_SIZE) {
         await SecureStore.setItemAsync(key, value);
-        // Remove any stale copies from previous storage strategies
+        // Remove any stale copies from previous storage strategies.
+        // Also delete any pre-existing chunk keys (downgrade from chunked → single).
         await AsyncStorage.removeItem(key).catch(() => {});
+        const prevCountStr = await SecureStore.getItemAsync(`${key}${CHUNK_COUNT_SUFFIX}`).catch(
+          () => null
+        );
+        const prevCount = prevCountStr !== null ? parseInt(prevCountStr, 10) : NaN;
         await SecureStore.deleteItemAsync(`${key}${CHUNK_COUNT_SUFFIX}`).catch(() => {});
+        if (Number.isFinite(prevCount) && prevCount > 0) {
+          await Promise.allSettled(
+            Array.from({ length: prevCount }, (_, i) =>
+              SecureStore.deleteItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`).catch(() => {})
+            )
+          );
+        }
       } else {
         // P10-1 Fix: Chunk large values across multiple SecureStore keys
         // so ALL auth tokens stay encrypted, with no plaintext AsyncStorage fallback.
@@ -89,9 +104,25 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
         for (let i = 0; i < value.length; i += SECURE_STORE_CHUNK_SIZE) {
           chunks.push(value.slice(i, i + SECURE_STORE_CHUNK_SIZE));
         }
+        // Read previous chunk count so we can delete any surplus chunk keys
+        // (handles the case where new value has fewer chunks than the old one).
+        const prevCountStr = await SecureStore.getItemAsync(`${key}${CHUNK_COUNT_SUFFIX}`).catch(
+          () => null
+        );
+        const prevCount = prevCountStr !== null ? parseInt(prevCountStr, 10) : NaN;
         await SecureStore.setItemAsync(`${key}${CHUNK_COUNT_SUFFIX}`, String(chunks.length));
         for (let i = 0; i < chunks.length; i++) {
           await SecureStore.setItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`, chunks[i]);
+        }
+        // Delete any surplus chunk keys from a previous (longer) value
+        if (Number.isFinite(prevCount) && prevCount > chunks.length) {
+          await Promise.allSettled(
+            Array.from({ length: prevCount - chunks.length }, (_, i) =>
+              SecureStore.deleteItemAsync(`${key}${CHUNK_KEY_SUFFIX}${chunks.length + i}`).catch(
+                () => {}
+              )
+            )
+          );
         }
         // Clean up any stale non-chunked copies
         await SecureStore.deleteItemAsync(key).catch(() => {});

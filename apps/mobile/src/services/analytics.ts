@@ -69,8 +69,10 @@ const MEASUREMENT_ID = process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID ?? '';
 const API_SECRET = process.env.JEST_WORKER_ID
   ? (process.env.EXPO_PUBLIC_FIREBASE_API_SECRET ?? '')
   : ''; // intentionally empty in production — proxy supplies the secret server-side
-/** Use the Supabase Edge Function proxy in production so API_SECRET stays off the client.
- * In Jest environments, disable the proxy so unit tests can assert directly on fetch() calls.
+/** Use the Supabase Edge Function proxy in all non-Jest environments (dev + production)
+ * so API_SECRET stays off the client at all times.
+ * In Jest (JEST_WORKER_ID is set), disable the proxy so unit tests can assert directly
+ * on fetch() calls without needing to mock supabase.functions.invoke.
  */
 const USE_PROXY = !process.env.JEST_WORKER_ID;
 

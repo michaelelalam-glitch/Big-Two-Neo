@@ -15,7 +15,7 @@ import { buildCorsHeaders } from '../_shared/cors.ts';
 // L5: Request ID tracing + L4: standardized error responses
 import { errorResponse, getRequestId } from '../_shared/responses.ts';
 // P5-7 Fix: DB-backed rate limiter shared across all isolates (replaces in-memory Map).
-import { checkRateLimit } from '../_shared/rateLimiter.ts';
+import { checkRateLimit, rateLimitResponse } from '../_shared/rateLimiter.ts';
 
 const GA4_API_SECRET = Deno.env.get('GA4_API_SECRET') ?? '';
 const GA4_MEASUREMENT_ID = Deno.env.get('GA4_MEASUREMENT_ID') ?? '';
@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
   if (!authHeader?.startsWith('Bearer ')) {
     return errorResponse(401, 'Unauthorized', corsHeaders, 'UNAUTHORIZED', requestId);
   }
-  const token = authHeader.replace('Bearer ', '');
+  const token = authHeader.slice(7);
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
   const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
   });
   const rl = await checkRateLimit(supabaseAdmin, user.id, 'analytics_proxy', 60, 60);
   if (!rl.allowed) {
-    return errorResponse(429, 'Too many requests', corsHeaders, 'RATE_LIMITED', requestId);
+    return rateLimitResponse(rl.retryAfterMs, { ...corsHeaders, 'X-Request-ID': requestId });
   }
 
   if (!GA4_API_SECRET || !GA4_MEASUREMENT_ID) {
