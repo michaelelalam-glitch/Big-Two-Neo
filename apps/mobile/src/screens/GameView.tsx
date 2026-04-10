@@ -608,6 +608,7 @@ function GameViewComponent() {
               opponentPlayerIds={isMultiplayerGame ? remotePlayerIds : undefined}
               throwableActiveEffects={throwableActiveEffects}
               clockOffsetMs={turnClockOffsetMs}
+              isOnlineGame={isMultiplayerGame}
             />
 
             {/* PlayerInfo - INDEPENDENT ABSOLUTE POSITIONING */}
@@ -633,6 +634,7 @@ function GameViewComponent() {
                 isVideoChatConnecting={isMultiplayerGame ? isVideoChatConnecting : false}
                 videoStreamSlot={localVideoSlot}
                 onMicToggle={isMultiplayerGame ? toggleMic : undefined}
+                isOnlineGame={isMultiplayerGame}
               />
               {/* Throwable effect overlay for local player (display index 0) */}
               {throwableActiveEffects?.[0] != null && (

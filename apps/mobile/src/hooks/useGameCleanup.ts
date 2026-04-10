@@ -201,10 +201,17 @@ export function useGameCleanup({
     };
   }, [userId, roomCode, navigation, orientationAvailable]);
 
-  // M5 Audit fix: reset Zustand game-session state on unmount only.
-  // Placed in a separate unmount-only effect (empty dep array) so it never
-  // fires mid-session when userId/roomCode/navigation deps change.
-  useEffect(() => () => useGameSessionStore.getState().resetSession(), []);
+  // P4-1 + M5 Audit fix: reset Zustand game-session state on BOTH mount (new
+  // game start) and unmount (cleanup).  Resetting on mount ensures that stale
+  // players, scores, and matchNumber from any previous game session are cleared
+  // before the new game's state is populated.  Resetting on unmount ensures a
+  // clean store for whatever screen comes next.
+  // Placed in a separate effect (empty dep array) so it never fires mid-session
+  // when userId/roomCode/navigation deps change.
+  useEffect(() => {
+    useGameSessionStore.getState().resetSession(); // P4-1: clear stale state on new game
+    return () => useGameSessionStore.getState().resetSession(); // cleanup on unmount
+  }, []);
 
   return { isMountedRef };
 }

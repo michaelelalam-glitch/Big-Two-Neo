@@ -15,6 +15,7 @@ import type { ScoreHistory, PlayHistoryMatch } from '../types/scoreboard';
 import { parsePersistedScoreHistory } from '../utils/parsePersistedScoreHistory';
 
 const SCORE_HISTORY_KEY = '@big2_score_history';
+const PLAY_HISTORY_KEY = '@big2_play_history';
 
 interface UseGameStateManagerProps {
   roomCode: string;
@@ -24,6 +25,7 @@ interface UseGameStateManagerProps {
   botDifficulty?: 'easy' | 'medium' | 'hard'; // Bot difficulty for local games (Task #596)
   addScoreHistory: (history: ScoreHistory) => void;
   restoreScoreHistory: (history: ScoreHistory[]) => void;
+  restorePlayHistory: (history: PlayHistoryMatch[]) => void; // P4-5: restore play history on rejoin
   openGameEndModal: (
     winnerName: string,
     winnerPosition: number,
@@ -79,6 +81,7 @@ export function useGameStateManager({
   botDifficulty = 'medium', // Default medium for backwards compatibility (Task #596)
   addScoreHistory,
   restoreScoreHistory,
+  restorePlayHistory,
   openGameEndModal,
   scoreHistory,
   playHistoryByMatch,
@@ -162,8 +165,9 @@ export function useGameStateManager({
             '🧹 [useGameStateManager] Clearing saved game state (forceNewGame=true)...'
           );
           await manager.clearState();
-          // Also clear persisted scoreHistory
+          // Also clear persisted scoreHistory and playHistory
           await AsyncStorage.removeItem(SCORE_HISTORY_KEY).catch(() => {});
+          await AsyncStorage.removeItem(PLAY_HISTORY_KEY).catch(() => {});
           gameLogger.info('✅ [useGameStateManager] Saved state cleared - starting fresh game');
         }
 
@@ -216,6 +220,27 @@ export function useGameStateManager({
           } catch (err) {
             gameLogger.error(
               '[useGameStateManager] Failed to load persisted scoreHistory:',
+              err instanceof Error ? err.message : String(err)
+            );
+          }
+
+          // P4-5 fix: Restore playHistoryByMatch from AsyncStorage on rejoin.
+          // Play history is persisted by ScoreboardContext whenever addPlayHistory
+          // is called (local games only), so it survives app close and restarts.
+          try {
+            const persistedPlayHistory = await AsyncStorage.getItem(PLAY_HISTORY_KEY);
+            if (persistedPlayHistory) {
+              const parsed = JSON.parse(persistedPlayHistory) as PlayHistoryMatch[];
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                gameLogger.info(
+                  `📊 [useGameStateManager] Restored ${parsed.length} play history entries from AsyncStorage`
+                );
+                restorePlayHistory(parsed);
+              }
+            }
+          } catch (err) {
+            gameLogger.error(
+              '[useGameStateManager] Failed to load persisted playHistory:',
               err instanceof Error ? err.message : String(err)
             );
           }
