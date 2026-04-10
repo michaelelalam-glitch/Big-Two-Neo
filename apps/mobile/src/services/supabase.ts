@@ -40,6 +40,8 @@ const CHUNK_COUNT_SUFFIX = '__chunks';
 const CHUNK_KEY_SUFFIX = '__chunk_';
 /** SecureStore hard limit on iOS/Android. */
 const SECURE_STORE_CHUNK_SIZE = 2000; // conservative margin below 2048
+/** Upper bound on chunk count — guards against corrupted metadata creating unbounded work. */
+const MAX_CHUNKS = 50; // 50 × 2000 bytes = 100 KB, well above any real auth token size
 
 const SecureStoreAdapter: SupabaseAuthStorage = {
   getItem: async (key: string): Promise<string | null> => {
@@ -51,8 +53,8 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
       const chunkCountStr = await SecureStore.getItemAsync(`${key}${CHUNK_COUNT_SUFFIX}`);
       if (chunkCountStr !== null) {
         const count = parseInt(chunkCountStr, 10);
-        // Validate count before using it — corrupt/empty/NaN would cause wrong behaviour
-        if (Number.isFinite(count) && count > 0) {
+        // Validate count before using it — corrupt/empty/NaN/huge would cause wrong behaviour
+        if (Number.isFinite(count) && count > 0 && count <= MAX_CHUNKS) {
           const parts = await Promise.all(
             Array.from({ length: count }, (_, i) =>
               SecureStore.getItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`)
@@ -99,7 +101,7 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
         );
         const prevCount = prevCountStr !== null ? parseInt(prevCountStr, 10) : NaN;
         await SecureStore.deleteItemAsync(`${key}${CHUNK_COUNT_SUFFIX}`).catch(() => {});
-        if (Number.isFinite(prevCount) && prevCount > 0) {
+        if (Number.isFinite(prevCount) && prevCount > 0 && prevCount <= MAX_CHUNKS) {
           await Promise.allSettled(
             Array.from({ length: prevCount }, (_, i) =>
               SecureStore.deleteItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`).catch(() => {})
@@ -128,7 +130,7 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
         }
         await SecureStore.setItemAsync(`${key}${CHUNK_COUNT_SUFFIX}`, String(chunks.length));
         // Delete any surplus chunk keys from a previous (longer) value
-        if (Number.isFinite(prevCount) && prevCount > chunks.length) {
+        if (Number.isFinite(prevCount) && prevCount > chunks.length && prevCount <= MAX_CHUNKS) {
           await Promise.allSettled(
             Array.from({ length: prevCount - chunks.length }, (_, i) =>
               SecureStore.deleteItemAsync(`${key}${CHUNK_KEY_SUFFIX}${chunks.length + i}`).catch(
@@ -148,7 +150,11 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
         .then(s => (s !== null ? parseInt(s, 10) : NaN))
         .catch(() => NaN);
       await SecureStore.deleteItemAsync(`${key}${CHUNK_COUNT_SUFFIX}`).catch(() => {});
-      if (Number.isFinite(prevCountOnError) && prevCountOnError > 0) {
+      if (
+        Number.isFinite(prevCountOnError) &&
+        prevCountOnError > 0 &&
+        prevCountOnError <= MAX_CHUNKS
+      ) {
         await Promise.allSettled(
           Array.from({ length: prevCountOnError }, (_, i) =>
             SecureStore.deleteItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`).catch(() => {})
@@ -178,8 +184,8 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
     ];
     if (chunkCountStr !== null) {
       const count = parseInt(chunkCountStr, 10);
-      // Validate count before iterating — corrupt/NaN/negative would leave chunk keys behind
-      if (Number.isFinite(count) && count > 0) {
+      // Validate count before iterating — corrupt/NaN/negative/huge would leave chunk keys behind
+      if (Number.isFinite(count) && count > 0 && count <= MAX_CHUNKS) {
         for (let i = 0; i < count; i++) {
           deleteOps.push(
             SecureStore.deleteItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`).catch(() => {})
