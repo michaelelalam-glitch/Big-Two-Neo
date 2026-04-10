@@ -284,6 +284,9 @@ export function useAutoPassTimer({
       if (typeof endTimestamp === 'number') {
         const correctedNow = snapshotNow();
         remaining = Math.max(0, endTimestamp - correctedNow);
+        // Cap at duration_ms: if drift snapshot=0 and device clock is behind server the
+        // raw endTimestamp - correctedNow can exceed duration_ms, stalling the timer.
+        remaining = Math.min(remaining, timerState.duration_ms);
         // Log once per whole-second transition
         if (
           remaining > 0 &&

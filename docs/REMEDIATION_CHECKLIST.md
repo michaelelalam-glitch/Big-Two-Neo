@@ -89,7 +89,7 @@
 > Timer races, reconnect edge cases, and critical functional gaps.
 
 - [x] **#14 🟠 P3-4** — `InactivityCountdownRing.onExpired` fires on an **unmounted component** — causes memory leak and potential setState-after-unmount crash.  
-  **Fix:** Add `isMounted` ref guard; clear the timeout in `useEffect` cleanup.  
+  **Fix:** Added `isMountedRef` guard; `handleExpired` (a Reanimated `runOnJS` callback driven by `withTiming`) returns early if the component is already unmounted. `cancelAnimation(animationProgress)` is called in the `useEffect` cleanup to abort any in-flight animation.  
   `apps/mobile/src/components/game/InactivityCountdownRing.tsx` · L269–274
 
 - [x] **#15 🟠 P3-1** — `AutoPassTimer` has an `isSynced` dependency that causes a **snapshot jump + ring mismatch** the moment NTP completes mid-countdown.  

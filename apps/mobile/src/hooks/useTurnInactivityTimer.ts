@@ -197,7 +197,8 @@ export function useTurnInactivityTimer({
 
       const { data: result, error } = await invokeWithRetry<{
         success: boolean;
-        action: 'play' | 'pass';
+        action: 'play' | 'pass' | 'skipped';
+        reason?: string;
         cards?: Card[];
         replaced_by_bot?: boolean;
         error?: string;
@@ -219,8 +220,9 @@ export function useTurnInactivityTimer({
 
       // The server always replaces the inactive player with a bot (65s spec).
       // The Realtime subscription will surface the RejoinModal automatically.
-      // Call onAutoPlay for logging/observability.
-      if (onAutoPlayRef.current) {
+      // Only call onAutoPlay when the EF actually played/passed — 'skipped' means the
+      // player was already disconnected/replaced by bot and there is nothing to show.
+      if (onAutoPlayRef.current && result.action !== 'skipped') {
         onAutoPlayRef.current(result.cards || null, result.action);
       }
 
