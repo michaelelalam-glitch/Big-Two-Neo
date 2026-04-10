@@ -431,6 +431,8 @@ jobs:
           # let the XCUITest AXServer fully initialize. Without this, Maestro's
           # XCUITest driver times out connecting to port 7001 on the first run.
           # Also launch + terminate the app once so SpringBoard caches it.
+          # Kill any lingering Safari/OAuth sessions from previous runs first.
+          xcrun simctl terminate booted com.apple.mobilesafari || true
           xcrun simctl launch booted com.big2mobile.app || true
           sleep 15
           xcrun simctl terminate booted com.big2mobile.app || true
@@ -462,6 +464,9 @@ jobs:
             fi
             if [ $attempt -lt $MAX_ATTEMPTS ]; then
               echo "Attempt $attempt failed (exit $MAESTRO_EXIT) — re-warming simulator before retry..."
+              # Kill any lingering native dialogs (e.g., Google OAuth Safari window)
+              # that clearState: true cannot dismiss on its own.
+              xcrun simctl terminate booted com.apple.mobilesafari || true
               xcrun simctl terminate booted com.big2mobile.app || true
               sleep 10
               xcrun simctl launch booted com.big2mobile.app || true
