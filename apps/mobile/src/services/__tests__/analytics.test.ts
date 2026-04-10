@@ -51,12 +51,14 @@ jest.mock('react-native', () => ({
 
 function setEnv(measurementId: string, apiSecret: string) {
   process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID = measurementId;
-  process.env.EXPO_PUBLIC_FIREBASE_API_SECRET = apiSecret;
+  // analytics.ts reads FIREBASE_TEST_API_SECRET (non-EXPO_PUBLIC_) in Jest so the
+  // real secret never appears in the client bundle (P10-2 fix).
+  process.env.FIREBASE_TEST_API_SECRET = apiSecret;
 }
 
 function clearEnv() {
   delete process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID;
-  delete process.env.EXPO_PUBLIC_FIREBASE_API_SECRET;
+  delete process.env.FIREBASE_TEST_API_SECRET;
 }
 
 // ─── Setup ────────────────────────────────────────────────────────────────── //
