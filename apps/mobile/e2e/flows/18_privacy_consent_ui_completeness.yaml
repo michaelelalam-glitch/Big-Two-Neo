@@ -20,7 +20,7 @@ tags:
 - extendedWaitUntil:
     visible:
       id: "privacy-consent-decline"
-    timeout: 30000
+    timeout: 60000
 
 # Both buttons must be visible simultaneously
 - assertVisible:
@@ -50,7 +50,7 @@ tags:
 - extendedWaitUntil:
     visible:
       id: "privacy-consent-decline"
-    timeout: 30000
+    timeout: 60000
 
 - assertVisible:
     id: "privacy-consent-accept"

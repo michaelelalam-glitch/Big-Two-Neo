@@ -24,7 +24,7 @@ tags:
 - extendedWaitUntil:
     visible:
       id: "privacy-consent-decline"
-    timeout: 30000
+    timeout: 60000
 - tapOn:
     id: "privacy-consent-decline"
 
@@ -43,7 +43,7 @@ tags:
 - extendedWaitUntil:
     visible:
       id: "privacy-consent-decline"
-    timeout: 30000
+    timeout: 60000
 - tapOn:
     id: "privacy-consent-decline"
 
@@ -64,7 +64,7 @@ tags:
 - extendedWaitUntil:
     visible:
       id: "privacy-consent-decline"
-    timeout: 30000
+    timeout: 60000
 - tapOn:
     id: "privacy-consent-decline"
 

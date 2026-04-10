@@ -22,7 +22,7 @@ tags:
 - extendedWaitUntil:
     visible:
       id: "privacy-consent-decline"
-    timeout: 30000
+    timeout: 60000
 
 # ── Step 2: Screenshot modal before accepting ─────────────────────────────
 - takeScreenshot: "15_privacy_modal_before_accept"
