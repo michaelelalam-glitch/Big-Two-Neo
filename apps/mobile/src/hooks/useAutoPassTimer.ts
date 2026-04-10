@@ -78,6 +78,13 @@ export function useAutoPassTimer({
   const lastSelfPassAttemptRef = useRef<number>(0);
   /** Track which timer sequence_id the interval is handling to detect new timers. */
   const activeTimerSequenceRef = useRef<string | null>(null);
+  /**
+   * P3-2 FIX: Snapshot of getCorrectedNow captured at the moment a new timer
+   * sequence is detected.  Using the live ref mid-countdown risks a jump when NTP
+   * sync completes and getCorrectedNowRef.current updates; snapshotting here locks
+   * the clock reference for the full duration of this timer.
+   */
+  const timerSnapshotNowFnRef = useRef<typeof getCorrectedNow | null>(null);
 
   // ── Keep refs in sync with props (cheap, no interval recreation) ────────
   useEffect(() => {
@@ -257,16 +264,25 @@ export function useAutoPassTimer({
         activeTimerSequenceRef.current = seqId;
         hasExpiredRef.current = false;
         lastSelfPassAttemptRef.current = 0;
+        // P3-2 FIX: Snapshot getCorrectedNow at the moment this timer sequence starts.
+        // Using getCorrectedNowRef.current() live means a mid-countdown NTP sync
+        // (offset changing from 0 → real_offset) would jump the computed remaining-ms
+        // and potentially trigger a premature expiry or delayed pass.  Snapshotting here
+        // ensures the full timer lifecycle uses the SAME clock reference.
+        timerSnapshotNowFnRef.current = getCorrectedNowRef.current;
         networkLogger.debug('⏰ [Timer] Tracking new timer sequence:', seqId);
       }
 
-      // Calculate remaining milliseconds using clock-sync corrected time
+      // Calculate remaining milliseconds using the snapshotted clock function.
+      // Falls back to getCorrectedNowRef.current() for legacy invocations where
+      // no new sequence was detected (timerSnapshotNowFnRef is still null on first run).
+      const snapshotNow = timerSnapshotNowFnRef.current ?? getCorrectedNowRef.current;
       let remaining: number;
       const endTimestamp = (timerState as AutoPassTimerState & { end_timestamp?: number })
         .end_timestamp;
 
       if (typeof endTimestamp === 'number') {
-        const correctedNow = getCorrectedNowRef.current();
+        const correctedNow = snapshotNow();
         remaining = Math.max(0, endTimestamp - correctedNow);
         // Log once per whole-second transition
         if (
@@ -277,7 +293,7 @@ export function useAutoPassTimer({
         }
       } else {
         const startedAt = new Date(timerState.started_at).getTime();
-        const correctedNow = getCorrectedNowRef.current();
+        const correctedNow = snapshotNow();
         const elapsed = correctedNow - startedAt;
         remaining = Math.max(0, timerState.duration_ms - elapsed);
       }
@@ -301,6 +317,7 @@ export function useAutoPassTimer({
       networkLogger.debug('⏰ [DEBUG] Cleaning up stable timer polling interval');
       clearInterval(interval);
       activeTimerSequenceRef.current = null;
+      timerSnapshotNowFnRef.current = null;
     };
   }, [room?.id, tryAutoPassSelf]); // Only recreate when room changes
 

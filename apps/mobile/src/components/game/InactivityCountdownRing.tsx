@@ -222,11 +222,28 @@ export default function InactivityCountdownRing({
   // flag avoids keeping the entire render tree alive after expiry.
   const [visible, setVisible] = useState(initialProgress > 0);
 
+  // P3-4 FIX: Guard against calling setState/onExpired on an unmounted component.
+  // The withTiming completion callback fires via runOnJS asynchronously; if the
+  // component unmounts (e.g. game ends) between animation completion and callback
+  // execution, calling setVisible/onExpired would be a no-op in React 18 but still
+  // pollutes LogBox with "Can't perform a React state update on an unmounted component"
+  // and can trigger unexpected effects in the parent if onExpired navigates.
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   // Dispatched to JS when withTiming finishes — hides component and fires onExpired.
   // Stable (deps=[]) — reads type from typeRef so it does not create a closure over
   // the `type` prop, which would force the scheduling effect to re-run on type changes
   // and restart the animation.
   const handleExpired = useCallback(() => {
+    // Guard: if the component unmounted between animation completion and this
+    // runOnJS callback, skip all state updates and callbacks.
+    if (!isMountedRef.current) return;
     // Expiry is part of the normal ring lifecycle, so log at info level to avoid
     // noisy production log files for non-actionable timer completions. All rings
     // now receive a required onExpired prop (5.5), so warn level here would flood
@@ -235,7 +252,7 @@ export default function InactivityCountdownRing({
     setVisible(false);
     onExpiredRef.current();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // intentionally stable — type read from typeRef, onExpired read from onExpiredRef
+  }, []); // intentionally stable — type read from typeRef, onExpired read from onExpiredRef, isMounted read from isMountedRef
 
   // Schedule (or reschedule) the depletion animation whenever startedAt changes.
   // Uses the memoised startTimeMs so resolveStartTimeMs() is not invoked a second

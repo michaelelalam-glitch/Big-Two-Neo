@@ -276,6 +276,25 @@ Deno.serve(async (req) => {
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
+
+    // P2-1 FIX: Check if the current player is already disconnected or replaced.
+    // At the exact 60-second boundary, both this auto-play-turn invocation AND the
+    // server-side pg_cron process_disconnected_players() can fire concurrently.
+    // If the pg_cron sweep already replaced the player with a bot (connection_status ∈
+    // ['replaced_by_bot', 'disconnected']), executing auto-play-turn will create a
+    // race where two actors try to make a play for the same slot — risking duplicate
+    // plays or conflicting DB writes.  Detecting disconnected/replaced status here
+    // allows the server's bot-replacement mechanism to win without contention.
+    const freshPlayerStatus = (currentPlayer as any).connection_status as string | undefined;
+    if (freshPlayerStatus === 'disconnected' || freshPlayerStatus === 'replaced_by_bot') {
+      console.log(
+        `[auto-play-turn] Player ${currentPlayer.player_index} connection_status="${freshPlayerStatus}" — deferring to server bot-replacement (P2-1)`,
+      );
+      return new Response(
+        JSON.stringify({ success: true, action: 'skipped', reason: 'player_disconnected' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
     // ─────────────────────────────────────────────────────────────────────────
 
     // ── Use BotAI to find best play (hard difficulty = highest cards) ──

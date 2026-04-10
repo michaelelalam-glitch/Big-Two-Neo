@@ -148,6 +148,29 @@ export function useTurnInactivityTimer({
     onAutoPlayRef.current = onAutoPlay;
   }, [onAutoPlay]);
 
+  // P3-3 FIX: Reset throttle refs when the player reconnects mid-turn.
+  // The stable polling interval only resets hasExpiredRef/lastAutoPlayAttemptRef when
+  // it detects a NEW turn sequence (different turn_started_at).  If the player
+  // disconnects and reconnects during the SAME turn, these refs retain stale values:
+  // - hasExpiredRef=true suppresses the "EXPIRED" log
+  // - lastAutoPlayAttemptRef retains the last attempt timestamp, potentially blocking
+  //   auto-play for up to 1 second after reconnect on a nearly-expired turn
+  // Resetting on transition → 'connected' ensures auto-play fires promptly once
+  // the player is back online.  autoPlayExecutionGuard is NOT reset — the in-flight
+  // tryAutoPlayTurn call (if any) will clear it in its own `finally` block.
+  const prevConnectionStatusRef = useRef<ConnectionStatus | undefined>(connectionStatus);
+  useEffect(() => {
+    const prev = prevConnectionStatusRef.current;
+    prevConnectionStatusRef.current = connectionStatus;
+    if (connectionStatus === 'connected' && (prev === 'reconnecting' || prev === 'disconnected')) {
+      networkLogger.info(
+        '⏰ [TurnTimer] Reconnected mid-turn — resetting throttle refs so auto-play can fire'
+      );
+      hasExpiredRef.current = false;
+      lastAutoPlayAttemptRef.current = 0;
+    }
+  }, [connectionStatus]);
+
   // ── Stable auto-play function ───────────────────────────────────────────
   const tryAutoPlayTurn = useCallback(async () => {
     const currentRoom = roomRef.current;

@@ -101,28 +101,54 @@ function AutoPassTimerComponent({
   const getCorrectedNowRef = useRef(getCorrectedNow);
   getCorrectedNowRef.current = getCorrectedNow;
 
-  // ── Initial snapshot (computed once per timerState activation or when clock sync completes) ──
-  // Recomputes when timerState identity changes (active/end_timestamp/started_at/duration_ms)
-  // AND when isSynced transitions false→true (clock sync established). Without the isSynced
-  // dep (5.3 fix), the snapshot was anchored on isSynced=false (full clamped duration) and
-  // never updated once sync arrived, leaving the ring and tick counter on the wrong remaining-ms.
+  // P3-1 FIX: Snapshot getCorrectedNow() once at the moment the timer activates.
+  // Storing it in a ref and using it for all remaining-ms calculations in this
+  // component prevents the "snapshot jump" that occurred when isSynced transitioned
+  // false→true mid-countdown: previously isSyncedEffective was a dep of initialSnapshot
+  // which caused a recompute → setDisplaySeconds jump.  The ring animation was already
+  // positioned correctly (it uses getCorrectedNowRef live), so the text and ring
+  // disagreed for one render.  Snapshotting at activation ensures both the initial
+  // snapshot and the ring animation start from the SAME "corrected now" anchor.
+  // If isSynced hasn't resolved by timer start, the snapshot uses an uncorrected clock;
+  // this is at most 10s × drift_fraction error — acceptable vs. a visible mid-countdown
+  // jump.  The setInterval tick (which uses getCorrectedNowRef) naturally converges to
+  // the correct value within the first tick after NTP resolves, so the displayed seconds
+  // stay accurate for the remainder of the timer.
+  const snapshotCorrectedNowRef = useRef<(() => number) | null>(null);
+
+  // Capture the clock function once when the timer identity changes (new active timer
+  // starts).  Subsequent isSynced / getCorrectedNow changes are intentionally ignored
+  // for initial-snapshot purposes while this timer is running.
+  const snapshotTimerKeyRef = useRef<string | null>(null);
+  const snapshotTimerKey = timerState?.active
+    ? `${timerState.end_timestamp ?? timerState.started_at}:${timerState.duration_ms}`
+    : null;
+  if (snapshotTimerKey !== null && snapshotTimerKey !== snapshotTimerKeyRef.current) {
+    snapshotTimerKeyRef.current = snapshotTimerKey;
+    snapshotCorrectedNowRef.current = getCorrectedNow; // capture NOW at activation
+  }
+  const getCorrectedNowForSnapshot = snapshotCorrectedNowRef.current ?? getCorrectedNow;
+
+  // ── Initial snapshot (computed once per timerState activation) ─────────────
+  // P3-1 FIX: isSyncedEffective removed from deps. The snapshot is stable once the
+  // timer identity is captured above.  getCorrectedNowForSnapshot is also excluded
+  // from deps because it intentionally doesn't change after the first activation
+  // (stored in a ref); including it would re-introduce the jump via useMemo deps.
   const initialSnapshot = useMemo(() => {
     if (!timerState || !timerState.active) return { remainingMs: 0, seconds: 0, progress: 0 };
-    const remaining = computeRemainingMs(timerState, getCorrectedNow);
+    const remaining = computeRemainingMs(timerState, getCorrectedNowForSnapshot);
     const durationMs = timerState.duration_ms || 10000;
     return {
       remainingMs: remaining,
       seconds: Math.ceil(remaining / 1000),
       progress: remaining / durationMs,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- timerState is covered granularly; getCorrectedNow is stable (useCallback([clockOffsetMs]) in offset path, stable NTP hook ref in sync path)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- getCorrectedNowForSnapshot is stable per timer identity (captured in ref); isSyncedEffective intentionally removed (P3-1 fix)
   }, [
     timerState?.active,
     timerState?.end_timestamp,
     timerState?.started_at,
     timerState?.duration_ms,
-    isSyncedEffective,
-    getCorrectedNow,
   ]);
 
   // ── Reanimated shared value for the ring arc — runs on UI thread (0 JS re-renders) ──

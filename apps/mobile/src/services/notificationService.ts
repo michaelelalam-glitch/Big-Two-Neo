@@ -5,6 +5,7 @@ import * as Notifications from 'expo-notifications';
 import { notificationLogger } from '../utils/logger';
 import { useUserPreferencesStore } from '../store/userPreferencesSlice';
 import { supabase } from './supabase';
+import { navigate } from './navigationService';
 
 // Configure notification handler - determines how notifications appear when app is in foreground
 // CRITICAL FIX: Removed deprecated shouldShowAlert - use shouldShowBanner and shouldShowList instead
@@ -238,18 +239,41 @@ export function setupNotificationListeners() {
 }
 
 /**
- * Handles deep linking from notification data
+ * Handles deep linking from notification data.
+ * P12-1 FIX: Previously a stub — now routes to the correct screen based on
+ * `data.type`.  Navigates to:
+ *   - Lobby  for 'game_invite' and 'game_started' (players need to join/confirm)
+ *   - Game   for 'your_turn' and 'game_ended'     (rejoin and see result)
+ * Falls back to Home for unknown types; no-ops if roomCode is absent.
  */
 function handleNotificationData(data: Record<string, unknown>) {
   notificationLogger.info('Handling notification data:', data);
 
-  // You can implement navigation logic here
-  // For example:
-  // if (data.type === 'game_invite') {
-  //   navigation.navigate('Lobby', { roomCode: data.roomCode });
-  // } else if (data.type === 'your_turn') {
-  //   navigation.navigate('Game', { roomCode: data.roomCode });
-  // }
+  const type = data.type as string | undefined;
+  const roomCode = data.roomCode as string | undefined;
+
+  if (!roomCode) {
+    // Non-game notifications (friend requests, etc.) don't need deep linking
+    notificationLogger.debug('[handleNotificationData] No roomCode — skipping navigation');
+    return;
+  }
+
+  switch (type) {
+    case 'game_invite':
+    case 'game_started':
+      navigate('Lobby', { roomCode, joining: true });
+      break;
+    case 'your_turn':
+    case 'game_ended':
+      navigate('Game', { roomCode });
+      break;
+    default:
+      notificationLogger.warn(
+        `[handleNotificationData] Unknown notification type "${type ?? 'undefined'}" — navigating to Home`
+      );
+      navigate('Home', undefined);
+      break;
+  }
 }
 
 /**

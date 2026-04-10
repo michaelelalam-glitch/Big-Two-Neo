@@ -88,31 +88,31 @@
 ## TIER 3 — High Reliability: Fix Before Soft Launch
 > Timer races, reconnect edge cases, and critical functional gaps.
 
-- [ ] **#14 🟠 P3-4** — `InactivityCountdownRing.onExpired` fires on an **unmounted component** — causes memory leak and potential setState-after-unmount crash.  
+- [x] **#14 🟠 P3-4** — `InactivityCountdownRing.onExpired` fires on an **unmounted component** — causes memory leak and potential setState-after-unmount crash.  
   **Fix:** Add `isMounted` ref guard; clear the timeout in `useEffect` cleanup.  
   `apps/mobile/src/components/InactivityCountdownRing.tsx` · L269–274
 
-- [ ] **#15 🟠 P3-1** — `AutoPassTimer` has an `isSynced` dependency that causes a **snapshot jump + ring mismatch** the moment NTP completes mid-countdown.  
+- [x] **#15 🟠 P3-1** — `AutoPassTimer` has an `isSynced` dependency that causes a **snapshot jump + ring mismatch** the moment NTP completes mid-countdown.  
   **Fix:** Capture the drift at timer start (snapshot it into a ref) and don't react to subsequent `isSynced` changes.  
   `apps/mobile/src/components/AutoPassTimer.tsx` · L109–124
 
-- [ ] **#16 🟠 P3-2** — `useAutoPassTimer` recalculates `timeRemaining` using live NTP offset — an NTP sync completing mid-countdown **jumps the remaining time**.  
+- [x] **#16 🟠 P3-2** — `useAutoPassTimer` recalculates `timeRemaining` using live NTP offset — an NTP sync completing mid-countdown **jumps the remaining time**.  
   **Fix:** Same fix as P3-1 — snapshot `clockDrift` at timer start into a local ref.  
   `apps/mobile/src/hooks/useAutoPassTimer.ts` · L194
 
-- [ ] **#17 🟠 P3-3** — `useTurnInactivityTimer` throttle lock is set on first fire and **never cleared on reconnect** — players who reconnect mid-timer see a frozen/stuck timer.  
+- [x] **#17 🟠 P3-3** — `useTurnInactivityTimer` throttle lock is set on first fire and **never cleared on reconnect** — players who reconnect mid-timer see a frozen/stuck timer.  
   **Fix:** Reset the throttle ref whenever the `playerId` or `roomId` changes (add to `useEffect` deps).  
   `apps/mobile/src/hooks/useTurnInactivityTimer.ts` · L294–303
 
-- [ ] **#18 🟠 P2-1** — Auto-play-turn and bot-replacement can both fire at the exact 60-second boundary — a **race condition** where the bot plays the human's card before the human is actually replaced.  
+- [x] **#18 🟠 P2-1** — Auto-play-turn and bot-replacement can both fire at the exact 60-second boundary — a **race condition** where the bot plays the human's card before the human is actually replaced.  
   **Fix:** Add a `status='disconnected'` pre-check in `auto-play-turn` EF before executing any play.  
   `apps/mobile/src/hooks/useTurnInactivityTimer.ts` · L250
 
-- [ ] **#19 🟠 P5-3** — `find-match` rollback UPDATEs are missing `.eq('status', 'processing')` — a concurrent invocation can **reset legitimately-matched players** already in `matched` status.  
+- [x] **#19 🟠 P5-3** — `find-match` rollback UPDATEs are missing `.eq('status', 'processing')` — a concurrent invocation can **reset legitimately-matched players** already in `matched` status.  
   **Fix:** Add `.eq('status', 'processing')` to all rollback UPDATE calls in the error handler.  
   `apps/mobile/supabase/functions/find-match/index.ts` · L381–442
 
-- [ ] **#20 🟠 P12-1** — `handleNotificationData()` is a **stub — tapping any push notification does nothing**. The game/lobby deep link is never navigated to.  
+- [x] **#20 🟠 P12-1** — `handleNotificationData()` is a **stub — tapping any push notification does nothing**. The game/lobby deep link is never navigated to.  
   **Fix:** Implement the handler: parse `notification.request.content.data`, route to game room or lobby based on `notification_type`.  
   `apps/mobile/src/services/notificationService.ts` · L243
 
