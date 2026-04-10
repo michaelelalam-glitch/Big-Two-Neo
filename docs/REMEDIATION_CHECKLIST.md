@@ -65,7 +65,7 @@
 
 - [x] **#10 🔴 P4-2** — The "lost response" recovery path in `realtimeActions.ts` calls `start_new_match` with **fire-and-forget** (`void` / no await) — a failed call leaves the match in a permanently broken state.  
   **Fix:** Await the call, handle errors, surface failure to the user or retry with exponential backoff.  
-  `apps/mobile/src/realtime/realtimeActions.ts` · L85–98
+  `apps/mobile/src/hooks/realtimeActions.ts` · L85–98
   > ✅ Fixed in PR #230 — both `start_new_match` call sites now await and call `showError()` on failure.
 
 - [x] **#11 🟠 P4-4** — Score history is **dual-persisted** to both AsyncStorage AND the DB `scores_history` table. On rejoin, a race condition can show stale local scores instead of server scores.  
@@ -76,7 +76,7 @@
 - [x] **#12 🟠 P4-5** — Play history is **in-memory only** inside `ScoreboardContext` — lost whenever the app is closed or when a player rejoins.  
   **Fix:** Persist play history to DB `game_state.play_history` column (it already exists server-side) and rehydrate on rejoin.  
   `apps/mobile/src/contexts/ScoreboardContext.tsx` · L44
-  > ✅ Fixed in PR #230 — play history is debounce-persisted to AsyncStorage for local AI games; restored via `restorePlayHistory` on mount using `parsePersistedPlayHistory` utility.
+  > ✅ Partially fixed in PR #230 — play history is debounce-persisted to AsyncStorage for local AI games (debounce flushes immediately on unmount to prevent data loss); restored via `restorePlayHistory` on mount using `parsePersistedPlayHistory` utility. DB persistence to `game_state.play_history` remains a future task.
 
 - [x] **#13 🟠 P4-3** — `openGameEndModal()` **silently fails and never opens** if `winnerName` is falsy. The game end screen never shows.  
   **Fix:** Add a fallback winner name (e.g., "Player 1") or surface an error boundary rather than silently returning.  i think a good fix would be to block anyone from having that name in the first place

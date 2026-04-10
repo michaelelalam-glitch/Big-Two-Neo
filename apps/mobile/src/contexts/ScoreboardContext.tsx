@@ -130,6 +130,15 @@ export const ScoreboardProvider: React.FC<ScoreboardProviderProps> = ({
     return () => {
       if (playHistoryDebounceRef.current) {
         clearTimeout(playHistoryDebounceRef.current);
+        playHistoryDebounceRef.current = null;
+        // Flush immediately so data is not lost when the component unmounts
+        // (e.g. app backgrounds or user navigates away) mid-debounce window.
+        AsyncStorage.setItem(PLAY_HISTORY_KEY, JSON.stringify(playHistoryByMatch)).catch(err => {
+          gameLogger.error(
+            '[ScoreboardContext] Failed to flush playHistoryByMatch on unmount:',
+            err?.message || String(err)
+          );
+        });
       }
     };
   }, [playHistoryByMatch, enableLocalPersistence]);
