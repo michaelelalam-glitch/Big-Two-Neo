@@ -284,6 +284,7 @@ describe('Suite 4 — play-cards: non-existent room (live DB lookup)', () => {
     });
     if (signInError) throw new Error(`Sign-in failed: ${signInError.message}`);
     userToken = signInData.session?.access_token ?? '';
+    if (!userToken) throw new Error('Test setup failed: sign-in returned no access token');
   }, 30_000);
 
   afterAll(async () => {
@@ -295,16 +296,18 @@ describe('Suite 4 — play-cards: non-existent room (live DB lookup)', () => {
     }
   }, 15_000);
 
-  it('returns an error (not a 500 crash) for a room_code that does not exist', async () => {
+  it('returns 404 (not a 500 crash) for a room_code that does not exist', async () => {
+    // Use a random per-run code to prevent collision with any real room
+    const nonExistentRoomCode = `TST${uuid().slice(0, 5).toUpperCase()}`;
     const result = await callEF(
       {
-        room_code: 'XXXXXX', // guaranteed non-existent
+        room_code: nonExistentRoomCode,
         player_id: testUserId,
         cards: [VALID_CARD],
       },
       userToken
     );
-    // EF should respond with a 4xx error, not a 500 server crash
+    expect(result.status).not.toBe(401); // confirms auth token was accepted
     expect(result.status).toBeGreaterThanOrEqual(400);
     expect(result.status).toBeLessThan(500);
     expect(result.body).toBeTruthy();
