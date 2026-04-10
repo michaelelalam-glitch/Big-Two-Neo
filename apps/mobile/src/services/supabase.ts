@@ -25,15 +25,14 @@ const supabaseUrl = API.SUPABASE_URL;
 const supabaseAnonKey = API.SUPABASE_ANON_KEY;
 
 /**
- * C4 Fix: Secure storage adapter for Supabase Auth tokens.
+ * C4/P10-1 Fix: Secure storage adapter for Supabase Auth tokens.
  *
  * Uses expo-secure-store (Keychain on iOS, EncryptedSharedPreferences on Android)
- * for values that fit within the 2048-byte limit. Falls back to AsyncStorage for
- * larger values (e.g. OAuth sessions with long JWT payloads) since SecureStore
- * rejects writes > 2048 bytes on iOS.
+ * for ALL values. Values that exceed the 2048-byte SecureStore limit are split
+ * into chunks and stored under sequentially-numbered keys.
  *
- * On web (if ever used), falls back to AsyncStorage entirely since SecureStore
- * is not available.
+ * AsyncStorage is used only on web (no SecureStore) and as a migration read path
+ * for pre-P10-1 builds. No new plaintext writes to AsyncStorage are ever made.
  */
 /** P10-1 Fix: Chunk count key suffix for oversized SecureStore values. */
 const CHUNK_COUNT_SUFFIX = '__chunks';
@@ -80,9 +79,11 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
       }
       return legacyValue;
     } catch {
-      // SecureStore is unavailable on this device; best-effort read from
-      // AsyncStorage (cannot migrate since SecureStore itself is failing).
-      return AsyncStorage.getItem(key);
+      // SecureStore is unavailable on this device. Clear any legacy plaintext
+      // copy from pre-P10-1 builds and return null to force re-auth rather than
+      // reading an unencrypted token.
+      await AsyncStorage.removeItem(key).catch(() => {});
+      return null;
     }
   },
   setItem: async (key: string, value: string): Promise<void> => {
@@ -165,6 +166,9 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
         );
       }
       await SecureStore.deleteItemAsync(key).catch(() => {});
+      // Remove any legacy plaintext copy that may exist from pre-P10-1 builds
+      // so it cannot be read after this failed write.
+      await AsyncStorage.removeItem(key).catch(() => {});
       // Do NOT fall back to AsyncStorage — storing an auth token in plaintext
       // violates the P10-1 security requirement. The caller detects session
       // loss on next launch and prompts the user to re-authenticate.
