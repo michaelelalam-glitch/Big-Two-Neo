@@ -155,21 +155,19 @@ jobs:
           CI: true
 
       # ── Task #22 (Tier 4) — RLS pgTAP policy tests ──────────────────────────
-      # Skipped when either secret is absent (forks, new repos, or DB password not configured).
-      # Both SUPABASE_ACCESS_TOKEN (Supabase CLI auth) and SUPABASE_DB_PASSWORD (direct DB
-      # connection) are required.  When both are present the step must pass — a pgTAP failure
-      # means RLS is broken and should block the merge.
+      # Runs against a local ephemeral Supabase stack in CI so tests do not
+      # connect to or interact with a hosted project database.
+      # A pgTAP failure still blocks the merge, but execution is isolated from
+      # production/staging data and avoids direct postgres access to Supabase Cloud.
       - name: 🔒 Run RLS policy tests (pgTAP)
-        if: env.SUPABASE_ACCESS_TOKEN != '' && env.SUPABASE_DB_PASSWORD != ''
         run: |
           cd apps/mobile
           # Pin the Supabase CLI to a specific version for reproducibility.
           # Update this pin when bumping the Supabase platform version.
           npm install -g supabase@1.218.3
-          supabase test db \
-            --project-ref dppybucldqufbqhwnkxu \
-            --db-url "postgresql://postgres:${{ secrets.SUPABASE_DB_PASSWORD }}@db.dppybucldqufbqhwnkxu.supabase.co:5432/postgres"
-        timeout-minutes: 5
+          supabase start
+          supabase test db
+        timeout-minutes: 15
       # ────────────────────────────────────────────────────────────────────────
 
       - name: 📊 Upload test coverage

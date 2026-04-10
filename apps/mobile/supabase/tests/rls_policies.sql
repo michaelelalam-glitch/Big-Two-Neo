@@ -70,34 +70,36 @@ BEGIN
 END;
 $$;
 
-INSERT INTO public.profiles (id, username, created_at, updated_at)
-VALUES ('aaaaaaaa-0000-0000-0000-000000000001'::uuid, 'pgtap_owner', now(), now())
-ON CONFLICT (id) DO UPDATE SET username = EXCLUDED.username;
-
-INSERT INTO public.profiles (id, username, created_at, updated_at)
-VALUES ('bbbbbbbb-0000-0000-0000-000000000002'::uuid, 'pgtap_other', now(), now())
-ON CONFLICT (id) DO UPDATE SET username = EXCLUDED.username;
-
 DO $$
 DECLARE
-  v_room_id uuid := 'cccccccc-0000-0000-0000-000000000003'::uuid;
+  v_owner_id uuid := 'aaaaaaaa-0000-0000-0000-000000000001'::uuid;
+  v_other_id uuid := 'bbbbbbbb-0000-0000-0000-000000000002'::uuid;
+  v_room_id  uuid := 'cccccccc-0000-0000-0000-000000000003'::uuid;
 BEGIN
+  -- Abort early if test UUIDs already exist to avoid touching real rows / firing triggers.
+  IF EXISTS (SELECT 1 FROM public.profiles WHERE id IN (v_owner_id, v_other_id)) THEN
+    RAISE EXCEPTION
+      'Refusing to run RLS pgTAP seed: test profile UUIDs already exist in public.profiles';
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM public.rooms WHERE id = v_room_id) THEN
+    RAISE EXCEPTION
+      'Refusing to run RLS pgTAP seed: test room UUID already exists in public.rooms';
+  END IF;
+
+  INSERT INTO public.profiles (id, username, created_at, updated_at)
+  VALUES (v_owner_id, 'pgtap_owner', now(), now());
+
+  INSERT INTO public.profiles (id, username, created_at, updated_at)
+  VALUES (v_other_id, 'pgtap_other', now(), now());
+
   INSERT INTO public.rooms (id, code, host_id, status, created_at, updated_at)
-  VALUES (
-    v_room_id, 'PGTAP1', 'aaaaaaaa-0000-0000-0000-000000000001'::uuid,
-    'waiting', now(), now()
-  )
-  ON CONFLICT (id) DO NOTHING;
+  VALUES (v_room_id, 'PGTAP1', v_owner_id, 'waiting', now(), now());
 
   INSERT INTO public.room_players (
     room_id, user_id, player_index, is_host, is_ready, is_bot, joined_at
   )
-  VALUES (
-    v_room_id,
-    'aaaaaaaa-0000-0000-0000-000000000001'::uuid,
-    0, true, false, false, now()
-  )
-  ON CONFLICT (room_id, user_id) DO NOTHING;
+  VALUES (v_room_id, v_owner_id, 0, true, false, false, now());
 END;
 $$;
 
