@@ -124,7 +124,9 @@
 
 - [x] **#21 🟠 P14-1** — No live Edge Function integration tests — `play-cards`, `player-pass`, and `complete-game` are all mocked in CI.  
   **Fix:** Add a test Supabase project; write integration tests that hit real EFs with test JWT tokens.  
-  `apps/mobile/src/__tests__/integration/edge-functions/` · Absent
+  `apps/mobile/src/__tests__/integration/edge-functions/play-cards.integration.test.ts`  
+  `apps/mobile/src/__tests__/integration/edge-functions/player-pass.integration.test.ts`  
+  `apps/mobile/src/__tests__/integration/edge-functions/complete-game.integration.test.ts`
   > ✅ Fixed in PR (Tier 4) — Added integration tests for all 3 EFs in `apps/mobile/src/__tests__/integration/edge-functions/`:
   > - `play-cards.integration.test.ts` — 4 suites covering 401/400/403/non-existent room
   > - `player-pass.integration.test.ts` — 4 suites covering 401/400/403/non-existent room
@@ -134,11 +136,10 @@
 - [x] **#22 🟠 P14-2** — No RLS policy tests in CI — a migration mistake could silently expose player data.  
   **Fix:** Add `supabase db test` or `pgTAP` tests covering each table's RLS policies (select, insert, update, delete).  
   CI pipeline · Absent
-  > ✅ Fixed in PR (Tier 4) — pgTAP extension enabled via migration `enable_pgtap_extension`. SQL test file created at `apps/mobile/supabase/tests/rls_policies.sql` with 21 assertions covering 9 tables: `profiles`, `rooms`, `room_players`, `player_stats`, `rate_limit_tracking`, `blocked_users`, `game_history`, `waiting_room`, `bot_coordinator_locks`. (`push_tokens` and `friendships` excluded — not present in CLI-managed migrations.) CI step added to `.github/workflows/test.yml` (gated on `SUPABASE_ACCESS_TOKEN` secret; fails CI when token is present so RLS regressions are caught).
+  > ✅ Fixed in PR (Tier 4) — pgTAP extension enabled via migration `enable_pgtap_extension`. SQL test file created at `apps/mobile/supabase/tests/rls_policies.sql` with 26 assertions covering 9 tables: `profiles`, `rooms`, `room_players`, `player_stats`, `rate_limit_tracking`, `blocked_users`, `game_history`, `waiting_room`, `bot_coordinator_locks`. (`push_tokens` and `friendships` excluded — not present in CLI-managed migrations.) CI step added to `.github/workflows/test.yml` (gated on `SUPABASE_ACCESS_TOKEN` secret; fails CI when token is present so RLS regressions are caught).
 
 - [x] **#23 🟠 P14-3** — No multiplayer concurrency/load tests — race conditions in CAS and matchmaking may only manifest under simultaneous load.  
-  **Fix:** Add k6 or Artillery load tests targeting `play-cards`, `find-match`, and `start_new_match` with concurrent users.  
-  Absent
+  **Fix:** Add k6 or Artillery load tests targeting `play-cards`, `find-match`, and `start_new_match` with concurrent users.
   > ✅ Fixed in PR (Tier 4) — k6 script at `apps/mobile/e2e/load/k6-load-test.js` with 3 scenarios (auth-error flood, play-cards load, find-match concurrency) and p95<2s / 5xx<10% thresholds. Artillery config at `apps/mobile/e2e/load/artillery.config.yml` as npm-based alternative. CI `load_test` job added (triggered via `workflow_dispatch` only to avoid per-PR costs; `continue-on-error: true` so it never blocks releases).
 
 ---

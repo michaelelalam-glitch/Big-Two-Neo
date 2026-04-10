@@ -212,9 +212,13 @@ describe('Suite 3 — complete-game: input validation (live JWT)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Suite 4 — Non-existent winner_id DB lookup (requires SERVICE_ROLE_KEY)
+// Suite 4 — winner validation with live JWT (authenticated caller in 4-player payload)
 // ---------------------------------------------------------------------------
-describe('Suite 4 — complete-game: non-existent winner lookup (live DB)', () => {
+// Tests that the EF correctly returns 400 when all auth and structural
+// validations pass but winner_id is not one of the players — confirming the
+// test actually reaches the validation layer, not just the auth layer.
+// ---------------------------------------------------------------------------
+describe('Suite 4 — complete-game: winner validation (live DB)', () => {
   if (!hasServiceRole) {
     it.todo('skipped — SUPABASE_SERVICE_ROLE_KEY not configured');
     return;
@@ -236,6 +240,7 @@ describe('Suite 4 — complete-game: non-existent winner lookup (live DB)', () =
     });
     if (error) throw new Error(`Test setup failed: ${error.message}`);
     testUserId = data.user?.id ?? '';
+    if (!testUserId) throw new Error('Test setup failed: created user has no ID');
 
     const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const { data: signInData, error: signInError } = await anonClient.auth.signInWithPassword({
@@ -244,6 +249,7 @@ describe('Suite 4 — complete-game: non-existent winner lookup (live DB)', () =
     });
     if (signInError) throw new Error(`Sign-in failed: ${signInError.message}`);
     userToken = signInData.session?.access_token ?? '';
+    if (!userToken) throw new Error('Test setup failed: sign-in returned no access token');
   }, 30_000);
 
   afterAll(async () => {
@@ -255,14 +261,75 @@ describe('Suite 4 — complete-game: non-existent winner lookup (live DB)', () =
     }
   }, 15_000);
 
-  it('returns a 4xx error (not 5xx) when winner_id is a non-existent UUID', async () => {
+  it('returns 400 when winner_id is not in the players array', async () => {
+    // Build a fully valid 4-player payload (caller + 3 bots) so all structural
+    // validations pass. Set winner_id to a random UUID that is NOT in the
+    // players array — EF must return 400 "Invalid winner_id".
+    const nonExistentWinner = uuid();
+    const makeCombos = () => ({
+      singles: 0,
+      pairs: 0,
+      triples: 0,
+      straights: 0,
+      flushes: 0,
+      full_houses: 0,
+      four_of_a_kinds: 0,
+      straight_flushes: 0,
+      royal_flushes: 0,
+    });
     const body = buildMinimalBody({
-      room_code: 'NOROOM',
-      winner_id: uuid(), // a random UUID that doesn't exist in profiles
+      room_code: `TST${uuid().slice(0, 5).toUpperCase()}`,
+      players: [
+        {
+          user_id: testUserId,
+          username: 'TestPlayer',
+          score: 100,
+          finish_position: 1,
+          cards_left: 0,
+          was_bot: false,
+          disconnected: false,
+          original_username: null,
+          combos_played: makeCombos(),
+        },
+        {
+          user_id: 'bot_player-1',
+          username: 'Bot 1',
+          score: 50,
+          finish_position: 2,
+          cards_left: 3,
+          was_bot: true,
+          disconnected: false,
+          original_username: null,
+          combos_played: makeCombos(),
+        },
+        {
+          user_id: 'bot_player-2',
+          username: 'Bot 2',
+          score: 25,
+          finish_position: 3,
+          cards_left: 6,
+          was_bot: true,
+          disconnected: false,
+          original_username: null,
+          combos_played: makeCombos(),
+        },
+        {
+          user_id: 'bot_player-3',
+          username: 'Bot 3',
+          score: 10,
+          finish_position: 4,
+          cards_left: 9,
+          was_bot: true,
+          disconnected: false,
+          original_username: null,
+          combos_played: makeCombos(),
+        },
+      ],
+      winner_id: nonExistentWinner,
     });
     const result = await callEF(body, userToken);
-    // Should return a controlled 4xx, not a 500 crash
-    expect(result.status).toBeGreaterThanOrEqual(400);
-    expect(result.status).toBeLessThan(500);
+    expect(result.status).not.toBe(401); // confirms auth token was accepted
+    expect(result.status).not.toBe(403); // confirms caller IS in players list
+    expect(result.status).toBe(400); // EF validates winner must be in players
   }, 15_000);
 });

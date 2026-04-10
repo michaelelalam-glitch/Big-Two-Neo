@@ -211,6 +211,7 @@ describe('Suite 4 — player-pass: non-existent room (live DB lookup)', () => {
     });
     if (signInError) throw new Error(`Sign-in failed: ${signInError.message}`);
     userToken = signInData.session?.access_token ?? '';
+    if (!userToken) throw new Error('Test setup failed: sign-in returned no access token');
   }, 30_000);
 
   afterAll(async () => {
@@ -222,8 +223,14 @@ describe('Suite 4 — player-pass: non-existent room (live DB lookup)', () => {
     }
   }, 15_000);
 
-  it('returns a 4xx error (not 5xx) when room_code does not exist', async () => {
-    const result = await callEF({ room_code: 'ZZZZZZ', player_id: testUserId }, userToken);
+  it('returns 404 (not 5xx) when room_code does not exist', async () => {
+    // Use a random per-run code to prevent collision with any real room
+    const nonExistentRoomCode = `TST${uuid().slice(0, 5).toUpperCase()}`;
+    const result = await callEF(
+      { room_code: nonExistentRoomCode, player_id: testUserId },
+      userToken
+    );
+    expect(result.status).not.toBe(401); // confirms auth token was accepted
     expect(result.status).toBeGreaterThanOrEqual(400);
     expect(result.status).toBeLessThan(500);
   }, 15_000);
