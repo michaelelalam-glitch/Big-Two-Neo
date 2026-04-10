@@ -104,43 +104,42 @@ function AutoPassTimerComponent({
 
   // P3-1 FIX: Snapshot the NTP drift VALUE (not the function reference) once at the moment
   // the timer activates, so subsequent drift changes by NTP sync cannot alter ANY remaining-ms
-  // calculation for this countdown run — including the initial snapshot, the 200ms tick,
-  // render gating, and the ring animation.
+  // calculation for this countdown run — tick, render gating, and ring animation.
   //
   // getCorrectedNow is a stable useCallback that reads driftRef.current internally.
-  // Snapshotting the function reference is therefore a no-op — we must snapshot the
-  // numeric offset (drift) at activation: `frozenDrift = getCorrectedNow() - Date.now()`.
+  // We snapshot the numeric offset at activation: `frozenDrift = getCorrectedNow() - Date.now()`.
   // All remaining-time calculations then use `Date.now() + frozenDrift`, immune to mid-run
   // NTP updates.
-  const snapshotDriftRef = useRef<number | null>(null);
 
-  // getTimerNowRef: holds the frozen getCorrectedNow closure for the active timer run.
-  // Set to a frozen-drift closure at activation; falls back to the live clock when no
-  // timer is active.  All computeRemainingMs calls use this ref.
+  // getTimerNowRef: frozen getCorrectedNow closure for the active timer run.
+  // Updated in the freeze effect below; falls back to the live clock when inactive.
   const getTimerNowRef = useRef<() => number>(getCorrectedNow);
-
-  // Capture the drift NUMBER once when the timer identity changes (new active timer
-  // starts).  All remaining-ms calculations (snapshot, tick, render gating, ring) use
-  // getTimerNowRef.current for the duration of the run.
   const snapshotTimerKeyRef = useRef<string | null>(null);
   const snapshotTimerKey = timerState?.active
     ? `${timerState.end_timestamp ?? timerState.started_at}:${timerState.duration_ms}`
     : null;
-  if (snapshotTimerKey !== null && snapshotTimerKey !== snapshotTimerKeyRef.current) {
-    snapshotTimerKeyRef.current = snapshotTimerKey;
-    const frozenDrift = getCorrectedNow() - Date.now(); // freeze at activation
-    snapshotDriftRef.current = frozenDrift;
-    // Freeze the clock for the entire timer run (snapshot + tick + render gating + ring).
-    getTimerNowRef.current = () => Date.now() + frozenDrift;
-  } else if (snapshotTimerKey === null) {
-    // No active timer — keep getTimerNowRef tracking the live clock.
-    getTimerNowRef.current = getCorrectedNowRef.current;
-  }
+
+  // Freeze the drift in an effect so the render phase stays pure.
+  // All computeRemainingMs calls (tick, ring, remainingMs gate) read getTimerNowRef.current,
+  // which is frozen for the life of this timer run and reset to the live clock on deactivation.
+  useEffect(() => {
+    if (snapshotTimerKey === null) {
+      snapshotTimerKeyRef.current = null;
+      getTimerNowRef.current = getCorrectedNowRef.current;
+      return;
+    }
+    if (snapshotTimerKey !== snapshotTimerKeyRef.current) {
+      snapshotTimerKeyRef.current = snapshotTimerKey;
+      const frozenDrift = getCorrectedNow() - Date.now(); // freeze at activation
+      // Freeze for the entire timer run: tick, ring, and render gating.
+      getTimerNowRef.current = () => Date.now() + frozenDrift;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- getCorrectedNowRef is a mutable ref sync-read on effect entry; intentionally excluded from deps
+  }, [snapshotTimerKey, getCorrectedNow]);
 
   // ── Initial snapshot (computed once per timerState activation) ─────────────
-  // P3-1 FIX: isSyncedEffective removed from deps. getTimerNowRef.current is frozen at
-  // activation above (via snapshotDriftRef), so it neither triggers re-computation nor
-  // introduces a mid-countdown jump.
+  // P3-1 FIX: isSyncedEffective removed from deps. getTimerNowRef.current is frozen by
+  // the effect above; it neither triggers re-computation nor introduces a mid-countdown jump.
   const initialSnapshot = useMemo(() => {
     if (!timerState || !timerState.active) return { remainingMs: 0, seconds: 0, progress: 0 };
     const remaining = computeRemainingMs(timerState, getTimerNowRef.current);
