@@ -395,31 +395,36 @@ Deno.serve(async (req) => {
     }
 
     // All target user_ids must also be members of the same room.
-    // Validate that user_ids is an array of strings before using it in a DB query.
+    // Reject (400) if user_ids is not an array of strings — non-string elements
+    // would bypass the membership check and reach the main handler unchecked.
     const rawIds = peekBody?.user_ids;
     if (Array.isArray(rawIds) && rawIds.length > 0) {
-      const targetIds = rawIds.filter((id): id is string => typeof id === 'string');
-      if (targetIds.length > 0) {
-        const { data: memberRows, error: memberCheckError } = await adminClient
-          .from('room_players')
-          .select('user_id')
-          .eq('room_id', room.id)
-          .in('user_id', targetIds);
-        if (memberCheckError) {
-          console.error('[send-push-notification] Target membership check failed:', memberCheckError);
-          return new Response(
-            JSON.stringify({ error: 'Failed to verify target membership' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-        const memberSet = new Set((memberRows ?? []).map((r: { user_id: string }) => r.user_id));
-        const nonMembers = targetIds.filter((id: string) => !memberSet.has(id));
-        if (nonMembers.length > 0) {
-          return new Response(
-            JSON.stringify({ error: 'Forbidden: some target users are not members of the room' }),
-            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
+      if (!rawIds.every((id): id is string => typeof id === 'string')) {
+        return new Response(
+          JSON.stringify({ error: 'user_ids must be an array of strings' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      const targetIds = rawIds as string[];
+      const { data: memberRows, error: memberCheckError } = await adminClient
+        .from('room_players')
+        .select('user_id')
+        .eq('room_id', room.id)
+        .in('user_id', targetIds);
+      if (memberCheckError) {
+        console.error('[send-push-notification] Target membership check failed:', memberCheckError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to verify target membership' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      const memberSet = new Set((memberRows ?? []).map((r: { user_id: string }) => r.user_id));
+      const nonMembers = targetIds.filter((id: string) => !memberSet.has(id));
+      if (nonMembers.length > 0) {
+        return new Response(
+          JSON.stringify({ error: 'Forbidden: some target users are not members of the room' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
     }
   }

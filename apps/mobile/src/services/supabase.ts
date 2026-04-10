@@ -168,23 +168,17 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
         }
       }
     } catch {
-      // SecureStore write failed entirely — clean up any partial SecureStore state.
-      const prevCountOnError = await SecureStore.getItemAsync(`${key}${CHUNK_COUNT_SUFFIX}`)
-        .then(s => (s !== null ? parseInt(s, 10) : NaN))
-        .catch(() => NaN);
+      // SecureStore write failed — do a bounded sweep of all possible chunk slots
+      // to clean up both pre-existing chunks (from the previous stored value) AND
+      // any partial chunks written before the failure. A sweep up to MAX_CHUNKS is
+      // correct regardless of how far the write loop progressed before throwing.
       await SecureStore.deleteItemAsync(`${key}${CHUNK_COUNT_SUFFIX}`).catch(() => {});
-      if (
-        Number.isFinite(prevCountOnError) &&
-        prevCountOnError > 0 &&
-        prevCountOnError <= MAX_CHUNKS
-      ) {
-        await Promise.allSettled(
-          Array.from({ length: prevCountOnError }, (_, i) =>
-            SecureStore.deleteItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`).catch(() => {})
-          )
-        );
-      }
       await SecureStore.deleteItemAsync(key).catch(() => {});
+      await Promise.allSettled(
+        Array.from({ length: MAX_CHUNKS }, (_, i) =>
+          SecureStore.deleteItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`).catch(() => {})
+        )
+      );
       // Remove any legacy plaintext copy that may exist from pre-P10-1 builds
       // so it cannot be read after this failed write.
       await AsyncStorage.removeItem(key).catch(() => {});
