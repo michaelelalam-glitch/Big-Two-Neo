@@ -7,10 +7,15 @@
  *
  * Configuration (add to .env.local / EAS secrets):
  *   EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXXX
- *   EXPO_PUBLIC_FIREBASE_API_SECRET=your_api_secret
  *
- * MEASUREMENT_ID and API_SECRET are found in Firebase Console → Analytics
- * → Data Streams → Web Stream details → Measurement Protocol API secrets.
+ * P10-2: EXPO_PUBLIC_FIREBASE_API_SECRET is NOT used in production.
+ * The api_secret is supplied server-side by the analytics-proxy Edge Function.
+ * In Jest unit tests FIREBASE_TEST_API_SECRET is used (non-EXPO_PUBLIC_ so
+ * Metro never inlines it into a production bundle).
+ *
+ * MEASUREMENT_ID is found in Firebase Console → Analytics → Data Streams
+ * → Web Stream details. The Measurement Protocol API secret is configured as
+ * a Supabase Edge Function secret (not a client-side env var).
  * Note: firebase_app_id is intentionally omitted from payloads to avoid
  * VALUE_INVALID errors when using a web-stream measurement ID.
  *

@@ -108,6 +108,15 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
               SecureStore.deleteItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`).catch(() => {})
             )
           );
+        } else if (prevCountStr === null) {
+          // prevCountStr is null: a previous chunked write may have been interrupted
+          // after deleting the count key but before completing (leaving orphaned chunk
+          // keys). Do a bounded sweep to clean them up.
+          await Promise.allSettled(
+            Array.from({ length: MAX_CHUNKS }, (_, i) =>
+              SecureStore.deleteItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`).catch(() => {})
+            )
+          );
         }
       } else {
         // P10-1 Fix: Chunk large values across multiple SecureStore keys
