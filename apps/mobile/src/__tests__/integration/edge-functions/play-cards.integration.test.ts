@@ -81,7 +81,14 @@ describe('Suite 1 — play-cards: authentication', () => {
   it('returns 401 when Authorization header is absent', async () => {
     const result = await callEF({ room_code: 'ABCDEF', player_id: uuid(), cards: [VALID_CARD] });
     expect(result.status).toBe(401);
-    expect((result.body as Record<string, unknown>)?.success).toBe(false);
+    const body = (result.body as Record<string, unknown> | null) ?? {};
+    const errorText =
+      typeof body.error === 'string'
+        ? body.error
+        : typeof body.message === 'string'
+          ? body.message
+          : '';
+    expect(errorText).not.toHaveLength(0);
   }, 15_000);
 
   it('returns 401 when Authorization header is an empty string', async () => {
