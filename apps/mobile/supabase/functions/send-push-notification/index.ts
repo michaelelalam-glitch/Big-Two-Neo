@@ -258,10 +258,182 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-    // C3: Enforce minimum app version
-    // Do not pass allowMissingHeader=true here: this function is called by the
-    // mobile client and must enforce the version gate. Service-role callers are
-    // still allowed through via isServiceRoleRequest auto-detection (default).
+  // P5-1 Fix: Reject unauthenticated callers.  Two explicitly trusted paths:
+  //   1. Service-role key   — other Edge Functions / server-side processes.
+  //   2. Internal-bot key   — background bot via x-bot-auth header.
+  // Mobile-app callers (user JWT) are accepted only after verifying that the
+  // caller AND all target user_ids are members of the same room (data.roomCode).
+  // This prevents any authenticated user from sending arbitrary notifications
+  // to users outside their room.
+  // Auth check runs BEFORE the version check so unauthorized callers receive 403
+  // rather than 426 (which would leak minimum_version information).
+  const authHeader = req.headers.get('Authorization') ?? '';
+  const apiKeyHeader = req.headers.get('apikey') ?? '';
+  const botAuthHeader = req.headers.get('x-bot-auth') ?? '';
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  const internalBotKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
+
+  // Fail-fast: SUPABASE_SERVICE_ROLE_KEY is required — both for auth comparison below
+  // and for the Supabase admin client created later. A missing key means misconfiguration,
+  // not an unauthorized caller; return 500 so operators can distinguish the two cases.
+  if (!serviceKey) {
+    console.error('[send-push-notification] SUPABASE_SERVICE_ROLE_KEY is not configured');
+    return new Response(
+      JSON.stringify({ error: 'Server misconfigured' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  // Service-role callers: pass SUPABASE_SERVICE_ROLE_KEY via Authorization: Bearer <key>
+  // or via the apikey header (standard Supabase client behaviour).
+  // Internal bot callers: pass INTERNAL_BOT_AUTH_KEY via the x-bot-auth header.
+  // These are two distinct auth paths; x-bot-auth does NOT accept the service-role key.
+  const isAuthorizedInternalCaller =
+    (serviceKey !== '' && authHeader === `Bearer ${serviceKey}`) ||
+    (serviceKey !== '' && apiKeyHeader === serviceKey) ||
+    (internalBotKey !== '' && botAuthHeader === internalBotKey);
+
+  if (!isAuthorizedInternalCaller) {
+    // User-JWT path: verify the token, then enforce room-membership constraints
+    // so the caller can only notify users who belong to the same room.
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    // Missing env vars are a server misconfiguration — surface as 500 so operators
+    // can distinguish config errors from auth failures.
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error('[send-push-notification] SUPABASE_URL or SUPABASE_ANON_KEY is not configured');
+      return new Response(
+        JSON.stringify({ error: 'Server misconfigured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    if (!authHeader.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: authorization required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { data: { user: callerUser }, error: authError } = await userClient.auth.getUser();
+    if (authError || !callerUser) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: invalid or expired authorization' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Peek at the body (clone preserves the stream for the main handler).
+    let peekBody: { data?: { roomCode?: unknown }; user_ids?: unknown } | null = null;
+    try {
+      peekBody = await req.clone().json();
+    } catch {
+      // Malformed JSON body — return 400 immediately; do not mask as auth failure.
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // User-JWT callers must supply a roomCode so targets can be constrained.
+    const roomCode = peekBody?.data?.roomCode;
+    if (typeof roomCode !== 'string' || !roomCode) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: user callers must supply data.roomCode' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Use the service-role key for DB authorization checks (bypasses RLS).
+    const adminClient = createClient(supabaseUrl, serviceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    // Resolve room by code — distinguish DB errors (500) from not-found (403).
+    const { data: room, error: roomError } = await adminClient
+      .from('rooms')
+      .select('id')
+      .eq('code', roomCode)
+      .maybeSingle();
+
+    if (roomError) {
+      console.error('[send-push-notification] Room lookup failed:', roomError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to verify room' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    if (!room) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: invalid room code' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Caller must be a member of that room — distinguish DB errors (500) from non-member (403).
+    const { data: callerMembership, error: callerMembershipError } = await adminClient
+      .from('room_players')
+      .select('id')
+      .eq('room_id', room.id)
+      .eq('user_id', callerUser.id)
+      .maybeSingle();
+
+    if (callerMembershipError) {
+      console.error('[send-push-notification] Caller membership check failed:', callerMembershipError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to verify room membership' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    if (!callerMembership) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: caller is not a member of the specified room' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate and check membership for all target user_ids.
+    // Any malformed user_ids (non-array or array with non-string elements) must be
+    // rejected here so the membership gate cannot be bypassed and the main handler
+    // cannot crash on unexpected types.
+    const rawIds = peekBody?.user_ids;
+    if (rawIds !== undefined && rawIds !== null) {
+      if (!Array.isArray(rawIds) || !rawIds.every((id): id is string => typeof id === 'string')) {
+        return new Response(
+          JSON.stringify({ error: 'user_ids must be an array of strings' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      const targetIds = rawIds as string[];
+      if (targetIds.length > 0) {
+        const { data: memberRows, error: memberCheckError } = await adminClient
+          .from('room_players')
+          .select('user_id')
+          .eq('room_id', room.id)
+          .in('user_id', targetIds);
+        if (memberCheckError) {
+          console.error('[send-push-notification] Target membership check failed:', memberCheckError);
+          return new Response(
+            JSON.stringify({ error: 'Failed to verify target membership' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        const memberSet = new Set((memberRows ?? []).map((r: { user_id: string }) => r.user_id));
+        const nonMembers = targetIds.filter((id: string) => !memberSet.has(id));
+        if (nonMembers.length > 0) {
+          return new Response(
+            JSON.stringify({ error: 'Forbidden: some target users are not members of the room' }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+    }
+  }
+
+    // C3: Enforce minimum app version (after auth — only authorized callers reach here).
+    // Kept as defense-in-depth for any versioned internal callers.
     const versionError = checkMinimumVersion(req, corsHeaders);
     if (versionError) return versionError;
 

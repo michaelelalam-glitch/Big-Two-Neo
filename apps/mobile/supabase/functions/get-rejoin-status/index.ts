@@ -44,7 +44,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const token = authHeader.replace('Bearer ', '');
+    // Get user from JWT
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
 
     if (authError || !user) {
@@ -70,6 +71,30 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ success: false, error: 'Missing room_id' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // P5-4 Fix: Verify the requesting user is actually a member of the room
+    // before returning any status. Prevents information disclosure to non-members.
+    const { data: membership, error: membershipError } = await supabaseClient
+      .from('room_players')
+      .select('id')
+      .eq('room_id', room_id)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (membershipError) {
+      console.error('❌ [get-rejoin-status] Membership check error:', membershipError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to verify room membership' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!membership) {
+      return new Response(
+        JSON.stringify({ success: true, status: 'not_in_room' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

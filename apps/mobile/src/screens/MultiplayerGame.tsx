@@ -1060,6 +1060,7 @@ export function MultiplayerGame() {
     isMountedRef,
     getMultiplayerValidationState,
     onAlert: showInGameAlert,
+    showInGameAlert,
     gameMode: roomInfo ? getGameModeForAnalytics(roomInfo) : undefined,
     humanCount: effectiveMultiplayerPlayers.filter(p => !p.is_bot).length,
     botCount: effectiveMultiplayerPlayers.filter(p => p.is_bot).length,
