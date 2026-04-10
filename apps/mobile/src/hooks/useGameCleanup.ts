@@ -10,7 +10,7 @@
  * - Provides isMountedRef for async safety
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -201,10 +201,24 @@ export function useGameCleanup({
     };
   }, [userId, roomCode, navigation, orientationAvailable]);
 
-  // M5 Audit fix: reset Zustand game-session state on unmount only.
-  // Placed in a separate unmount-only effect (empty dep array) so it never
-  // fires mid-session when userId/roomCode/navigation deps change.
-  useEffect(() => () => useGameSessionStore.getState().resetSession(), []);
+  // P4-1 + M5 Audit fix: reset Zustand game-session state on BOTH mount (new
+  // game start) and unmount (cleanup).  Resetting on mount ensures that stale
+  // players, scores, and matchNumber from any previous game session are cleared
+  // before the new game's state is populated.  Resetting on unmount ensures a
+  // clean store for whatever screen comes next.
+  // Placed in a separate effect (empty dep array) so it never fires mid-session
+  // when userId/roomCode/navigation deps change.
+  // Copilot review: use useLayoutEffect so the store is cleared synchronously
+  // before the first paint — preventing a visible flash of stale session data
+  // (e.g. wrong room code, previous player names) when GameView reads the store
+  // during its initial render.
+  // The unmount cleanup is returned from the same useLayoutEffect — it runs
+  // synchronously during the unmount commit phase (no subsequent paint occurs
+  // for the unmounting component itself).
+  useLayoutEffect(() => {
+    useGameSessionStore.getState().resetSession(); // P4-1: clear stale state on new game
+    return () => useGameSessionStore.getState().resetSession(); // cleanup on unmount
+  }, []);
 
   return { isMountedRef };
 }

@@ -27,7 +27,7 @@ import {
   isExpectedTurnRaceError,
 } from '../utils/edgeFunctionErrors';
 import { gameLogger } from '../utils/logger';
-import { soundManager, SoundType } from '../utils';
+import { soundManager, SoundType, showError } from '../utils';
 
 // Alias for internal use
 type PlayerMatchScoreDetail = MultiplayerMatchScoreDetail;
@@ -198,6 +198,9 @@ export async function executePlayCards({
             '[useRealtime] start_new_match (lost-response recovery) failed:',
             snmError
           );
+          // P4-2 fix: surface failure so the user knows they need to rejoin
+          // rather than being stuck silently on a frozen screen.
+          showError('The match failed to advance. Please return to the lobby and rejoin the game.');
         } else {
           gameLogger.info('[useRealtime] ✅ start_new_match (lost-response recovery):', snmData);
         }
@@ -324,6 +327,11 @@ export async function executePlayCards({
 
           if (newMatchError || !newMatchData) {
             gameLogger.error('[useRealtime] ❌ Failed to start new match:', newMatchError);
+            // P4-2 fix: surface failure so the user can take action (rejoin)
+            // instead of sitting on a permanently frozen between-match screen.
+            showError(
+              'Failed to start the next match. Please return to the lobby and rejoin the game.'
+            );
           } else if (newMatchData.game_over || newMatchData.already_advanced) {
             // start_new_match safety guard:
             //   - If game_over is true, the game_over phase will be delivered via Realtime

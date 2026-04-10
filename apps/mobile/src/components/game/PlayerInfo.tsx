@@ -51,6 +51,13 @@ interface PlayerInfoProps {
   /** Server-to-client clock offset (ms) from useClockSync — passed to InactivityCountdownRing
    * so elapsed time is computed against the corrected server clock, not raw Date.now(). */
   clockOffsetMs?: number;
+  /**
+   * Whether this player tile is inside an online multiplayer game.
+   * When true, the red/orange active-turn border is suppressed — the yellow
+   * InactivityCountdownRing is the sole active-turn indicator in online mode.
+   * In offline (LocalAI) mode this defaults to false and the border shows normally.
+   */
+  isOnlineGame?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -138,6 +145,7 @@ function PlayerInfoComponent({
   onNameLongPress,
   onMicToggle,
   clockOffsetMs = 0,
+  isOnlineGame = false,
 }: PlayerInfoProps) {
   // Profile photo size preference
   const profilePhotoSize = useUserPreferencesStore(s => s.profilePhotoSize);
@@ -192,7 +200,7 @@ function PlayerInfoComponent({
             height: avatarScale.size,
             borderRadius: avatarScale.borderRadius,
           },
-          isActive && !showRing && styles.activeAvatar,
+          isActive && !showRing && !isOnlineGame && styles.activeAvatar,
         ]}
       >
         {/* Avatar body — video feed replaces profile photo when camera is on */}

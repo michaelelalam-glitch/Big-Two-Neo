@@ -430,6 +430,7 @@ export const LandscapeGameLayout = React.memo(function LandscapeGameLayout({
             isVideoChatConnecting={isVideoChatConnectings?.[1]}
             videoStreamSlot={videoStreamSlots?.[1]}
             clockOffsetMs={turnClockOffsetMs}
+            isOnlineGame={isMultiplayer}
           />
           {throwableActiveEffects?.[1] != null && (
             <View
@@ -472,6 +473,7 @@ export const LandscapeGameLayout = React.memo(function LandscapeGameLayout({
             isVideoChatConnecting={isVideoChatConnectings?.[2]}
             videoStreamSlot={videoStreamSlots?.[2]}
             clockOffsetMs={turnClockOffsetMs}
+            isOnlineGame={isMultiplayer}
           />
           {throwableActiveEffects?.[2] != null && (
             <View
@@ -512,6 +514,7 @@ export const LandscapeGameLayout = React.memo(function LandscapeGameLayout({
             isVideoChatConnecting={isVideoChatConnectings?.[3]}
             videoStreamSlot={videoStreamSlots?.[3]}
             clockOffsetMs={turnClockOffsetMs}
+            isOnlineGame={isMultiplayer}
           />
           {throwableActiveEffects?.[3] != null && (
             <View
@@ -618,6 +621,7 @@ export const LandscapeGameLayout = React.memo(function LandscapeGameLayout({
             isVideoChatConnecting={isVideoChatConnectings?.[0]}
             videoStreamSlot={videoStreamSlots?.[0]}
             clockOffsetMs={turnClockOffsetMs}
+            isOnlineGame={isMultiplayer}
           />
           {throwableActiveEffects?.[0] != null && (
             <ThrowablePlayerEffect

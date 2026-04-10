@@ -64,6 +64,12 @@ interface GameLayoutProps {
   /** Server-to-client clock offset (ms) from useClockSync — forwarded to each PlayerInfo
    * so InactivityCountdownRing computes elapsed time against the corrected server clock. */
   clockOffsetMs?: number;
+  /**
+   * When true (multiplayer/online game), the red/orange active-turn border on player
+   * avatars is suppressed. The yellow InactivityCountdownRing is the only active-turn
+   * indicator in online mode. Defaults to false (offline/LocalAI keeps the border).
+   */
+  isOnlineGame?: boolean;
 }
 
 /**
@@ -92,6 +98,7 @@ function GameLayoutComponent({
   opponentPlayerIds,
   throwableActiveEffects,
   clockOffsetMs = 0,
+  isOnlineGame = false,
 }: GameLayoutProps) {
   const profilePhotoSize = useUserPreferencesStore(s => s.profilePhotoSize);
   const throwableClipSize = useMemo(() => {
@@ -191,6 +198,7 @@ function GameLayoutComponent({
               : undefined
           }
           clockOffsetMs={clockOffsetMs}
+          isOnlineGame={isOnlineGame}
         />
         {throwableActiveEffects?.[1] != null && (
           <View
@@ -248,6 +256,7 @@ function GameLayoutComponent({
                   : undefined
               }
               clockOffsetMs={clockOffsetMs}
+              isOnlineGame={isOnlineGame}
             />
             {throwableActiveEffects?.[2] != null && (
               <View
@@ -312,6 +321,7 @@ function GameLayoutComponent({
                   : undefined
               }
               clockOffsetMs={clockOffsetMs}
+              isOnlineGame={isOnlineGame}
             />
             {throwableActiveEffects?.[3] != null && (
               <View

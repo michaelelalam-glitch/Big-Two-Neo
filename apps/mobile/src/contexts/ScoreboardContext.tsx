@@ -1,27 +1,32 @@
 /**
  * ScoreboardContext - State management for scoreboard system
- * 
+ *
  * Manages:
  * - Scoreboard expand/collapse state
  * - Play history modal open/close state
  * - Match collapse state in play history
  * - Score history tracking
  * - Play history tracking
- * 
+ *
  * Created as part of Task #342: ScoreboardContext provider
  * Date: December 12, 2025
  */
 
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  ReactNode,
+} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  ScoreboardContextState,
-  ScoreHistory,
-  PlayHistoryMatch,
-} from '../types/scoreboard';
+import { ScoreboardContextState, ScoreHistory, PlayHistoryMatch } from '../types/scoreboard';
 import { gameLogger } from '../utils/logger';
 
 const SCORE_HISTORY_KEY = '@big2_score_history';
+const PLAY_HISTORY_KEY = '@big2_play_history';
 
 // ============================================================================
 // CONTEXT DEFINITION
@@ -35,8 +40,16 @@ const ScoreboardContext = createContext<ScoreboardContextState | undefined>(unde
 
 interface ScoreboardProviderProps {
   children: ReactNode;
-  initialExpanded?: boolean;      // Initial expanded state
+  initialExpanded?: boolean; // Initial expanded state
   initialPlayHistoryOpen?: boolean; // Initial play history open state
+  /**
+   * When true (local AI games), score and play history are persisted to
+   * AsyncStorage so they survive app close and device restarts.
+   * When false (multiplayer), the DB is the single source of truth and
+   * AsyncStorage writes are skipped to prevent stale-data race conditions
+   * (P4-4 fix).
+   */
+  enableLocalPersistence?: boolean;
 }
 
 // ============================================================================
@@ -47,11 +60,12 @@ export const ScoreboardProvider: React.FC<ScoreboardProviderProps> = ({
   children,
   initialExpanded = false,
   initialPlayHistoryOpen = false,
+  enableLocalPersistence = true,
 }) => {
   // -------------------------------------------------------------------------
   // STATE - UI Controls
   // -------------------------------------------------------------------------
-  
+
   const [isScoreboardExpanded, setIsScoreboardExpanded] = useState<boolean>(initialExpanded);
   const [isPlayHistoryOpen, setIsPlayHistoryOpen] = useState<boolean>(initialPlayHistoryOpen);
   const [collapsedMatches, setCollapsedMatches] = useState<Set<number>>(new Set());
@@ -59,31 +73,98 @@ export const ScoreboardProvider: React.FC<ScoreboardProviderProps> = ({
   // -------------------------------------------------------------------------
   // STATE - History Tracking
   // -------------------------------------------------------------------------
-  
+
   const [scoreHistory, setScoreHistory] = useState<ScoreHistory[]>([]);
   const [playHistoryByMatch, setPlayHistoryByMatch] = useState<PlayHistoryMatch[]>([]);
 
-  // Persist scoreHistory to AsyncStorage whenever it changes (skip initial empty state)
+  // Persist scoreHistory to AsyncStorage whenever it changes (skip initial empty state).
+  // Gated on enableLocalPersistence — multiplayer games use the DB as source of
+  // truth and must NOT write to AsyncStorage to avoid stale-data race conditions
+  // when a player rejoins (P4-4 fix).
   const isFirstRenderRef = useRef(true);
   useEffect(() => {
     if (isFirstRenderRef.current) {
       isFirstRenderRef.current = false;
       return;
     }
+    if (!enableLocalPersistence) return;
     // Only persist non-empty scoreHistory (clearing is handled by clearHistory)
     if (scoreHistory.length > 0) {
-      AsyncStorage.setItem(SCORE_HISTORY_KEY, JSON.stringify(scoreHistory)).catch((err) => {
-        gameLogger.error('[ScoreboardContext] Failed to persist scoreHistory:', err?.message || String(err));
+      AsyncStorage.setItem(SCORE_HISTORY_KEY, JSON.stringify(scoreHistory)).catch(err => {
+        gameLogger.error(
+          '[ScoreboardContext] Failed to persist scoreHistory:',
+          err?.message || String(err)
+        );
       });
     }
-  }, [scoreHistory]);
+  }, [scoreHistory, enableLocalPersistence]);
+
+  // Persist playHistoryByMatch to AsyncStorage for local games (P4-5 fix).
+  // Skipped in multiplayer mode where game_state.play_history (DB) is the
+  // source of truth and is synced by useMultiplayerPlayHistory.
+  //
+  // Copilot review: debounce writes so rapid successive hands (e.g. bot games)
+  // don't each trigger a separate disk write — only the last write in a 500 ms
+  // window is flushed to AsyncStorage.
+  const isFirstPlayRenderRef = useRef(true);
+  const playHistoryDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Refs track the latest values so the unmount-flush effect (empty deps) can
+  // read them without a stale-closure problem.
+  const playHistoryFlushRef = useRef<PlayHistoryMatch[]>(playHistoryByMatch);
+  const enableLocalPersistenceFlushRef = useRef<boolean>(enableLocalPersistence);
+
+  // Keep flush refs in sync with the latest rendered values.
+  useEffect(() => {
+    playHistoryFlushRef.current = playHistoryByMatch;
+    enableLocalPersistenceFlushRef.current = enableLocalPersistence;
+  }, [playHistoryByMatch, enableLocalPersistence]);
+
+  // Flush the latest play history to AsyncStorage on unmount only — prevents
+  // data loss when the user backgrounds or navigates away mid-debounce window.
+  // Uses refs (not deps) so this effect runs exactly once and always reads the
+  // most-recent values rather than a stale snapshot.
+  useEffect(() => {
+    return () => {
+      if (enableLocalPersistenceFlushRef.current && playHistoryFlushRef.current.length > 0) {
+        AsyncStorage.setItem(PLAY_HISTORY_KEY, JSON.stringify(playHistoryFlushRef.current)).catch(
+          () => {}
+        );
+      }
+    };
+  }, []); // empty deps — unmount only
+
+  // Debounced write: batches rapid play-history updates (e.g. bot games) so
+  // only the last update in a 500 ms window is written to AsyncStorage.
+  useEffect(() => {
+    if (isFirstPlayRenderRef.current) {
+      isFirstPlayRenderRef.current = false;
+      return;
+    }
+    if (!enableLocalPersistence) return;
+    if (playHistoryByMatch.length > 0) {
+      if (playHistoryDebounceRef.current) {
+        clearTimeout(playHistoryDebounceRef.current);
+      }
+      playHistoryDebounceRef.current = setTimeout(() => {
+        AsyncStorage.setItem(PLAY_HISTORY_KEY, JSON.stringify(playHistoryByMatch)).catch(err => {
+          gameLogger.error(
+            '[ScoreboardContext] Failed to persist playHistoryByMatch:',
+            err?.message || String(err)
+          );
+        });
+      }, 500);
+    }
+    return () => {
+      if (playHistoryDebounceRef.current) clearTimeout(playHistoryDebounceRef.current);
+    }; // only cancel — unmount flush handled by the dedicated effect above
+  }, [playHistoryByMatch, enableLocalPersistence]);
 
   // -------------------------------------------------------------------------
   // HANDLERS - Match Collapse
   // -------------------------------------------------------------------------
 
   const toggleMatchCollapse = useCallback((matchNumber: number) => {
-    setCollapsedMatches((prev) => {
+    setCollapsedMatches(prev => {
       const newSet = new Set(prev);
       if (newSet.has(matchNumber)) {
         newSet.delete(matchNumber);
@@ -100,10 +181,10 @@ export const ScoreboardProvider: React.FC<ScoreboardProviderProps> = ({
 
   const addScoreHistory = useCallback((history: ScoreHistory) => {
     gameLogger.info('🔍 [ScoreboardContext] addScoreHistory called, match:', history.matchNumber);
-    setScoreHistory((prev) => {
+    setScoreHistory(prev => {
       // Check if this match already exists
-      const existingIndex = prev.findIndex((h) => h.matchNumber === history.matchNumber);
-      
+      const existingIndex = prev.findIndex(h => h.matchNumber === history.matchNumber);
+
       if (existingIndex >= 0) {
         // Update existing match
         const updated = [...prev];
@@ -124,10 +205,10 @@ export const ScoreboardProvider: React.FC<ScoreboardProviderProps> = ({
   // -------------------------------------------------------------------------
 
   const addPlayHistory = useCallback((history: PlayHistoryMatch) => {
-    setPlayHistoryByMatch((prev) => {
+    setPlayHistoryByMatch(prev => {
       // Check if this match already exists
-      const existingIndex = prev.findIndex((h) => h.matchNumber === history.matchNumber);
-      
+      const existingIndex = prev.findIndex(h => h.matchNumber === history.matchNumber);
+
       if (existingIndex >= 0) {
         // Update existing match
         const updated = [...prev];
@@ -149,8 +230,21 @@ export const ScoreboardProvider: React.FC<ScoreboardProviderProps> = ({
    * Replaces the entire scoreHistory state in one shot.
    */
   const restoreScoreHistory = useCallback((history: ScoreHistory[]) => {
-    gameLogger.info(`🔍 [ScoreboardContext] restoreScoreHistory called with ${history.length} entries`);
+    gameLogger.info(
+      `🔍 [ScoreboardContext] restoreScoreHistory called with ${history.length} entries`
+    );
     setScoreHistory(history);
+  }, []);
+
+  /**
+   * Restore playHistoryByMatch from a persisted array (e.g. from AsyncStorage on rejoin).
+   * Replaces the entire playHistoryByMatch state in one shot (P4-5 fix).
+   */
+  const restorePlayHistory = useCallback((history: PlayHistoryMatch[]) => {
+    gameLogger.info(
+      `🔍 [ScoreboardContext] restorePlayHistory called with ${history.length} entries`
+    );
+    setPlayHistoryByMatch(history);
   }, []);
 
   const clearHistory = useCallback(() => {
@@ -159,11 +253,22 @@ export const ScoreboardProvider: React.FC<ScoreboardProviderProps> = ({
     setCollapsedMatches(new Set());
     setIsScoreboardExpanded(false);
     setIsPlayHistoryOpen(false);
-    // Also clear persisted scoreHistory
-    AsyncStorage.removeItem(SCORE_HISTORY_KEY).catch((err) => {
-      gameLogger.error('[ScoreboardContext] Failed to clear persisted scoreHistory:', err?.message || String(err));
-    });
-  }, []);
+    // Clear persisted history (no-op in multiplayer where AsyncStorage is unused)
+    if (enableLocalPersistence) {
+      AsyncStorage.removeItem(SCORE_HISTORY_KEY).catch(err => {
+        gameLogger.error(
+          '[ScoreboardContext] Failed to clear persisted scoreHistory:',
+          err?.message || String(err)
+        );
+      });
+      AsyncStorage.removeItem(PLAY_HISTORY_KEY).catch(err => {
+        gameLogger.error(
+          '[ScoreboardContext] Failed to clear persisted playHistory:',
+          err?.message || String(err)
+        );
+      });
+    }
+  }, [enableLocalPersistence]);
 
   // -------------------------------------------------------------------------
   // CONTEXT VALUE
@@ -177,21 +282,18 @@ export const ScoreboardProvider: React.FC<ScoreboardProviderProps> = ({
     setIsPlayHistoryOpen,
     collapsedMatches,
     toggleMatchCollapse,
-    
+
     // History
     scoreHistory,
     addScoreHistory,
     restoreScoreHistory,
     playHistoryByMatch,
     addPlayHistory,
+    restorePlayHistory,
     clearHistory,
   };
 
-  return (
-    <ScoreboardContext.Provider value={contextValue}>
-      {children}
-    </ScoreboardContext.Provider>
-  );
+  return <ScoreboardContext.Provider value={contextValue}>{children}</ScoreboardContext.Provider>;
 };
 
 // ============================================================================
@@ -204,11 +306,11 @@ export const ScoreboardProvider: React.FC<ScoreboardProviderProps> = ({
  */
 export const useScoreboard = (): ScoreboardContextState => {
   const context = useContext(ScoreboardContext);
-  
+
   if (context === undefined) {
     throw new Error('useScoreboard must be used within a ScoreboardProvider');
   }
-  
+
   return context;
 };
 
