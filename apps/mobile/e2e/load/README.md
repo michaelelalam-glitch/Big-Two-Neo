@@ -2,9 +2,12 @@
 
 Task #23 (Tier 4 — P14-3)
 
-Tests targeting `play-cards`, `find-match`, and `complete-game` edge functions under concurrent load.
+Load tests for the `play-cards`, `find-match`, and `complete-game` edge functions under concurrent load.
 
-Two equivalent options are provided:
+Two load-testing options are provided:
+
+- **k6** covers `play-cards` and `find-match`.
+- **Artillery** covers `play-cards`, `find-match`, and `complete-game`.
 
 ---
 
