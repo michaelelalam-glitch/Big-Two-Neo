@@ -78,6 +78,14 @@ export function useAutoPassTimer({
   const lastSelfPassAttemptRef = useRef<number>(0);
   /** Track which timer sequence_id the interval is handling to detect new timers. */
   const activeTimerSequenceRef = useRef<string | null>(null);
+  /**
+   * P3-2 FIX: Numeric NTP drift snapshotted at the moment a new timer sequence is
+   * detected.  getCorrectedNow is a stable callback reading a mutable driftRef, so
+   * snapshotting the function reference is a no-op.  We must snapshot the numeric
+   * offset (`getCorrectedNow() - Date.now()`) so mid-countdown NTP sync cannot change
+   * computed remaining-ms for the current sequence.
+   */
+  const timerSnapshotDriftRef = useRef<number | null>(null);
 
   // ── Keep refs in sync with props (cheap, no interval recreation) ────────
   useEffect(() => {
@@ -257,17 +265,27 @@ export function useAutoPassTimer({
         activeTimerSequenceRef.current = seqId;
         hasExpiredRef.current = false;
         lastSelfPassAttemptRef.current = 0;
+        // P3-2 FIX: Snapshot the numeric drift at sequence activation (not the function
+        // reference, which would still read the mutable driftRef on every call).
+        timerSnapshotDriftRef.current = getCorrectedNowRef.current() - Date.now();
         networkLogger.debug('⏰ [Timer] Tracking new timer sequence:', seqId);
       }
 
-      // Calculate remaining milliseconds using clock-sync corrected time
+      // Calculate corrected-now using the frozen drift from sequence activation.
+      // Falls back to live getCorrectedNow when no sequence snapshot exists.
+      const snapshotNow =
+        timerSnapshotDriftRef.current !== null
+          ? () => Date.now() + timerSnapshotDriftRef.current! // frozen drift, immune to NTP updates
+          : getCorrectedNowRef.current;
       let remaining: number;
       const endTimestamp = (timerState as AutoPassTimerState & { end_timestamp?: number })
         .end_timestamp;
 
       if (typeof endTimestamp === 'number') {
-        const correctedNow = getCorrectedNowRef.current();
-        remaining = Math.max(0, endTimestamp - correctedNow);
+        const correctedNow = snapshotNow();
+        // Clamp to [0, duration_ms]: Math.max prevents negative, Math.min prevents
+        // over-duration when drift snapshot=0 and device clock is behind server.
+        remaining = Math.min(Math.max(0, endTimestamp - correctedNow), timerState.duration_ms);
         // Log once per whole-second transition
         if (
           remaining > 0 &&
@@ -277,9 +295,10 @@ export function useAutoPassTimer({
         }
       } else {
         const startedAt = new Date(timerState.started_at).getTime();
-        const correctedNow = getCorrectedNowRef.current();
+        const correctedNow = snapshotNow();
         const elapsed = correctedNow - startedAt;
-        remaining = Math.max(0, timerState.duration_ms - elapsed);
+        // Same [0, duration_ms] clamp: elapsed can be negative if device clock lags.
+        remaining = Math.min(Math.max(0, timerState.duration_ms - elapsed), timerState.duration_ms);
       }
 
       // Timer expired → trigger one self-pass (server cascades the rest)
@@ -301,6 +320,7 @@ export function useAutoPassTimer({
       networkLogger.debug('⏰ [DEBUG] Cleaning up stable timer polling interval');
       clearInterval(interval);
       activeTimerSequenceRef.current = null;
+      timerSnapshotDriftRef.current = null;
     };
   }, [room?.id, tryAutoPassSelf]); // Only recreate when room changes
 

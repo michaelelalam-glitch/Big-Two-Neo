@@ -81,7 +81,7 @@ function AutoPassTimerComponent({
   // prevents the bug where a positive NTP drift (device clock behind server)
   // incorrectly fast-forwards a LOCAL-clock-based end_timestamp, making the
   // timer jump from 10s → 3s as soon as the NTP ping resolves.
-  const { isSynced, getCorrectedNow: getCorrectedNowNTP } = useClockSync(
+  const { getCorrectedNow: getCorrectedNowNTP } = useClockSync(
     clockOffsetMs === undefined ? timerState : null,
     undefined,
     clockOffsetMs === undefined // enabled=false when caller provides their own clock offset
@@ -93,7 +93,8 @@ function AutoPassTimerComponent({
     [clockOffsetMs]
   );
   const getCorrectedNow = clockOffsetMs !== undefined ? getCorrectedNowLocal : getCorrectedNowNTP;
-  const isSyncedEffective = clockOffsetMs !== undefined ? true : isSynced;
+  // isSyncedEffective removed (P3-1 fix) — snapshot is now frozen at timer activation time;
+  // the isSynced gate is no longer needed for initial-snapshot or display-gating.
 
   // ── Stable clock-sync ref — keeps latest getCorrectedNow without triggering effects ──
   // useEffect deps intentionally exclude getCorrectedNow to avoid restarting the interval
@@ -101,28 +102,59 @@ function AutoPassTimerComponent({
   const getCorrectedNowRef = useRef(getCorrectedNow);
   getCorrectedNowRef.current = getCorrectedNow;
 
-  // ── Initial snapshot (computed once per timerState activation or when clock sync completes) ──
-  // Recomputes when timerState identity changes (active/end_timestamp/started_at/duration_ms)
-  // AND when isSynced transitions false→true (clock sync established). Without the isSynced
-  // dep (5.3 fix), the snapshot was anchored on isSynced=false (full clamped duration) and
-  // never updated once sync arrived, leaving the ring and tick counter on the wrong remaining-ms.
+  // P3-1 FIX: Snapshot the NTP drift VALUE (not the function reference) once at the moment
+  // the timer activates, so subsequent drift changes by NTP sync cannot alter ANY remaining-ms
+  // calculation for this countdown run — tick, render gating, and ring animation.
+  //
+  // getCorrectedNow is a stable useCallback that reads driftRef.current internally.
+  // We snapshot the numeric offset at activation: `frozenDrift = getCorrectedNow() - Date.now()`.
+  // All remaining-time calculations then use `Date.now() + frozenDrift`, immune to mid-run
+  // NTP updates.
+
+  // getTimerNowRef: frozen getCorrectedNow closure for the active timer run.
+  // Updated in the freeze effect below; falls back to the live clock when inactive.
+  const getTimerNowRef = useRef<() => number>(getCorrectedNow);
+  const snapshotTimerKeyRef = useRef<string | null>(null);
+  const snapshotTimerKey = timerState?.active
+    ? `${timerState.end_timestamp ?? timerState.started_at}:${timerState.duration_ms}`
+    : null;
+
+  // Freeze the drift in an effect so the render phase stays pure.
+  // All computeRemainingMs calls (tick, ring, remainingMs gate) read getTimerNowRef.current,
+  // which is frozen for the life of this timer run and reset to the live clock on deactivation.
+  useEffect(() => {
+    if (snapshotTimerKey === null) {
+      snapshotTimerKeyRef.current = null;
+      getTimerNowRef.current = getCorrectedNowRef.current;
+      return;
+    }
+    if (snapshotTimerKey !== snapshotTimerKeyRef.current) {
+      snapshotTimerKeyRef.current = snapshotTimerKey;
+      const frozenDrift = getCorrectedNow() - Date.now(); // freeze at activation
+      // Freeze for the entire timer run: tick, ring, and render gating.
+      getTimerNowRef.current = () => Date.now() + frozenDrift;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- getCorrectedNowRef is a mutable ref sync-read on effect entry; intentionally excluded from deps
+  }, [snapshotTimerKey, getCorrectedNow]);
+
+  // ── Initial snapshot (computed once per timerState activation) ─────────────
+  // P3-1 FIX: isSyncedEffective removed from deps. getTimerNowRef.current is frozen by
+  // the effect above; it neither triggers re-computation nor introduces a mid-countdown jump.
   const initialSnapshot = useMemo(() => {
     if (!timerState || !timerState.active) return { remainingMs: 0, seconds: 0, progress: 0 };
-    const remaining = computeRemainingMs(timerState, getCorrectedNow);
+    const remaining = computeRemainingMs(timerState, getTimerNowRef.current);
     const durationMs = timerState.duration_ms || 10000;
     return {
       remainingMs: remaining,
       seconds: Math.ceil(remaining / 1000),
       progress: remaining / durationMs,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- timerState is covered granularly; getCorrectedNow is stable (useCallback([clockOffsetMs]) in offset path, stable NTP hook ref in sync path)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- getTimerNowRef.current is stable per timer identity (frozen in ref); isSynced/isSyncedEffective removed from deps (P3-1 fix)
   }, [
     timerState?.active,
     timerState?.end_timestamp,
     timerState?.started_at,
     timerState?.duration_ms,
-    isSyncedEffective,
-    getCorrectedNow,
   ]);
 
   // ── Reanimated shared value for the ring arc — runs on UI thread (0 JS re-renders) ──
@@ -139,14 +171,15 @@ function AutoPassTimerComponent({
   // ── Schedule the ring animation whenever the timer activates / resets ───────
   // NOTE: getCorrectedNow excluded from deps so clock-sync status changes after reconnect
   // do NOT restart the ring animation (which would flash a full ring).
-  // The animation uses getCorrectedNowRef for accurate positioning without re-scheduling.
+  // The animation uses getTimerNowRef (frozen drift) for accurate positioning, consistent
+  // with the tick and render-gating clock.
   useEffect(() => {
     if (!timerState?.active) {
       cancelAnimation(progressAnim);
       progressAnim.value = 0;
       return;
     }
-    const remaining = computeRemainingMs(timerState, getCorrectedNowRef.current);
+    const remaining = computeRemainingMs(timerState, getTimerNowRef.current);
     const durationMs = timerState.duration_ms || 10000;
     const initial = remaining / durationMs;
     progressAnim.value = initial;
@@ -196,7 +229,7 @@ function AutoPassTimerComponent({
     if (!timerState?.active) return;
 
     const tick = () => {
-      const remaining = computeRemainingMs(timerState, getCorrectedNowRef.current);
+      const remaining = computeRemainingMs(timerState, getTimerNowRef.current);
       const secs = Math.ceil(remaining / 1000);
 
       // Log once per whole-second transition
@@ -226,9 +259,11 @@ function AutoPassTimerComponent({
     timerState?.duration_ms,
   ]);
 
-  // Compute directly (cheap) — avoids stale value when getCorrectedNow
-  // changes after the initial render (useMemo deps were incomplete).
-  const remainingMs = timerState?.active ? computeRemainingMs(timerState, getCorrectedNow) : 0;
+  // Compute directly (cheap) — uses frozen getTimerNowRef (consistent with tick/ring)
+  // so NTP drift changes cannot flip the remainingMs <= 0 gate mid-countdown.
+  const remainingMs = timerState?.active
+    ? computeRemainingMs(timerState, getTimerNowRef.current)
+    : 0;
 
   // Keep a ref so the pulse effect can read the latest value without being
   // in its dependency array — avoids stop/start of Animated.loop every 200ms

@@ -503,14 +503,20 @@ Deno.serve(async (req) => {
         console.error('❌ [find-match] Failed to auto-start game:', startError || startResult);
         
         // Rollback: Delete room, room_players, and release optimistic lock.
-        // matched-status update succeeded above, so lockedIds rows are in 'matched' state;
-        // no status predicate needed — lockedIds already scopes to only rows this invocation locked.
+        // matched-status update succeeded above, so lockedIds rows are in 'matched' state.
+        // P5-3 FIX: Add .eq('status', 'matched') guard so a concurrent invocation that
+        // may have already re-matched (and re-transitioned) one of these users is not
+        // accidentally reset back to 'waiting'.  Without the guard, a concurrent
+        // find-match that picks up one of these users between the matched update and this
+        // rollback would have its legitimately-matched row wiped.
         await supabaseClient.from('rooms').delete().eq('id', roomId);
         await supabaseClient.from('room_players').delete().eq('room_id', roomId);
         await supabaseClient
           .from('waiting_room')
           .update({ status: 'waiting', matched_room_id: null, matched_at: null, processing_started_at: null })
-          .in('user_id', lockedIds);
+          .in('user_id', lockedIds)
+          .eq('status', 'matched') // Only revert rows still in matched state (P5-3)
+          .eq('matched_room_id', roomId); // Tie rollback to this invocation's room — prevents resetting a row matched to a different concurrent room
         
         return new Response(
           JSON.stringify({ success: false, error: 'Failed to start game' }),

@@ -206,53 +206,6 @@ export async function removePushTokenFromDatabase(userId: string): Promise<boole
 }
 
 /**
- * Sets up notification listeners for handling incoming notifications
- */
-export function setupNotificationListeners() {
-  // Listener for notifications received while app is in foreground
-  const notificationListener = Notifications.addNotificationReceivedListener(notification => {
-    // Log only essential fields to avoid exposing sensitive user data
-    const { title, body } = notification.request.content;
-    const type = notification.request.content.data?.type;
-    notificationLogger.info('📱 Notification received:', { title, body, type });
-    // You can add custom handling here (e.g., show in-app alert)
-  });
-
-  // Listener for when user taps on notification
-  const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
-    // Log only essential fields to avoid exposing sensitive user data
-    const title = response?.notification?.request?.content?.title;
-    const type = response?.notification?.request?.content?.data?.type;
-    const notifId = response?.notification?.request?.identifier;
-    notificationLogger.info('👆 Notification tapped:', { title, type, id: notifId });
-    const data = response.notification.request.content.data;
-
-    // Handle deep linking based on notification data
-    handleNotificationData(data);
-  });
-
-  return {
-    notificationListener,
-    responseListener,
-  };
-}
-
-/**
- * Handles deep linking from notification data
- */
-function handleNotificationData(data: Record<string, unknown>) {
-  notificationLogger.info('Handling notification data:', data);
-
-  // You can implement navigation logic here
-  // For example:
-  // if (data.type === 'game_invite') {
-  //   navigation.navigate('Lobby', { roomCode: data.roomCode });
-  // } else if (data.type === 'your_turn') {
-  //   navigation.navigate('Game', { roomCode: data.roomCode });
-  // }
-}
-
-/**
  * Schedules a local notification (for testing purposes)
  */
 export async function scheduleLocalNotification(

@@ -276,6 +276,50 @@ Deno.serve(async (req) => {
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
+
+    // P2-1 FIX: Re-fetch the current player's row before deciding whether to continue.
+    // At the exact 60-second boundary, both this auto-play-turn invocation AND the
+    // server-side pg_cron process_disconnected_players() can fire concurrently.
+    // Using `currentPlayer` (fetched at function start) is stale — the pg_cron sweep
+    // may have already set connection_status='disconnected'/'replaced_by_bot' or
+    // set is_bot=true in the milliseconds between the initial fetch and here.
+    // Re-fetching here ensures we read the freshest state available.
+    const { data: freshCurrentPlayer, error: freshCurrentPlayerError } = await supabaseClient
+      .from('room_players')
+      .select('connection_status, is_bot')
+      .eq('room_id', room.id)
+      .eq('player_index', currentPlayer.player_index)
+      .maybeSingle();
+
+    if (freshCurrentPlayerError) {
+      throw freshCurrentPlayerError;
+    }
+
+    if (!freshCurrentPlayer) {
+      console.log(
+        `[auto-play-turn] Player ${currentPlayer.player_index} no longer exists in room_players — skipping`,
+      );
+      return new Response(
+        JSON.stringify({ success: true, action: 'skipped', reason: 'player_missing' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    const freshPlayerStatus = (freshCurrentPlayer as any).connection_status as string | undefined;
+    const freshPlayerIsBot = Boolean((freshCurrentPlayer as any).is_bot);
+    if (
+      freshPlayerIsBot ||
+      freshPlayerStatus === 'disconnected' ||
+      freshPlayerStatus === 'replaced_by_bot'
+    ) {
+      console.log(
+        `[auto-play-turn] Player ${currentPlayer.player_index} fresh state is_bot=${freshPlayerIsBot} connection_status="${freshPlayerStatus}" — deferring to server bot-replacement (P2-1)`,
+      );
+      return new Response(
+        JSON.stringify({ success: true, action: 'skipped', reason: 'player_disconnected' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
     // ─────────────────────────────────────────────────────────────────────────
 
     // ── Use BotAI to find best play (hard difficulty = highest cards) ──
