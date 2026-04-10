@@ -7,10 +7,15 @@
  *
  * Configuration (add to .env.local / EAS secrets):
  *   EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXXX
- *   EXPO_PUBLIC_FIREBASE_API_SECRET=your_api_secret
  *
- * MEASUREMENT_ID and API_SECRET are found in Firebase Console → Analytics
- * → Data Streams → Web Stream details → Measurement Protocol API secrets.
+ * P10-2: EXPO_PUBLIC_FIREBASE_API_SECRET is NOT used in production.
+ * The api_secret is supplied server-side by the analytics-proxy Edge Function.
+ * In Jest unit tests FIREBASE_TEST_API_SECRET is used (non-EXPO_PUBLIC_ so
+ * Metro never inlines it into a production bundle).
+ *
+ * MEASUREMENT_ID is found in Firebase Console → Analytics → Data Streams
+ * → Web Stream details. The Measurement Protocol API secret is configured as
+ * a Supabase Edge Function secret (not a client-side env var).
  * Note: firebase_app_id is intentionally omitted from payloads to avoid
  * VALUE_INVALID errors when using a web-stream measurement ID.
  *
@@ -59,16 +64,22 @@ supabase.auth
 
 // ─── Configuration ─────────────────────────────────────────────────────────── //
 
-/** Firebase Measurement Protocol v2 endpoint (fallback for dev validation) */
+/** Firebase Measurement Protocol v2 endpoint (used in Jest unit tests for direct GA4 assertions). */
 const MP_ENDPOINT = 'https://www.google-analytics.com/mp/collect';
 
 const MEASUREMENT_ID = process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID ?? '';
-// API_SECRET is now stored server-side in Supabase secrets.
-// The client routes events through the analytics-proxy Edge Function.
-// Keep the client-side fallback for dev validation only.
-const API_SECRET = process.env.EXPO_PUBLIC_FIREBASE_API_SECRET ?? '';
-/** When true, use the Supabase Edge Function proxy instead of direct GA4. */
-const USE_PROXY = !__DEV__;
+// P10-2 Fix: In production, API_SECRET must never appear in the client bundle.
+// The client always routes events through the analytics-proxy Edge Function (server supplies the secret).
+// In Jest (JEST_WORKER_ID is set), allow the test-only env var so unit tests can assert fetch() calls.
+// IMPORTANT: Use a non-EXPO_PUBLIC_ var (FIREBASE_TEST_API_SECRET) so Metro never inlines it during
+// a production bundle even if the variable is inadvertently set in the EAS build environment.
+const API_SECRET = process.env.JEST_WORKER_ID ? (process.env.FIREBASE_TEST_API_SECRET ?? '') : ''; // intentionally empty in production — proxy supplies the secret server-side
+/** Use the Supabase Edge Function proxy in all non-Jest environments (dev + production)
+ * so API_SECRET stays off the client at all times.
+ * In Jest (JEST_WORKER_ID is set), disable the proxy so unit tests can assert directly
+ * on fetch() calls without needing to mock supabase.functions.invoke.
+ */
+const USE_PROXY = !process.env.JEST_WORKER_ID;
 
 /**
  * Tracks whether the user has consented to analytics.
@@ -294,13 +305,13 @@ async function _sendEventsImmediate(
   events: { name: string; params?: AnalyticsEventParams }[]
 ): Promise<void> {
   if (!USE_PROXY && !MEASUREMENT_ID) {
-    // Direct-to-GA4 (dev) mode requires a client-side MEASUREMENT_ID.
-    // In proxy mode (production) the Edge Function supplies it server-side.
+    // Jest/test mode: direct-to-GA4 requires a client-side MEASUREMENT_ID.
+    // In proxy mode (dev + production) the Edge Function supplies it server-side.
     return;
   }
-  // In proxy mode (production), API_SECRET lives server-side in the Edge
-  // Function so it's not required on the client. In dev mode, it's needed
-  // for direct GA4 validation.
+  // In proxy mode (dev + production), API_SECRET lives server-side in the Edge
+  // Function so it's not required on the client. In Jest/test mode, it's needed
+  // for direct GA4 assertions.
   if (!USE_PROXY && !API_SECRET) {
     return;
   }
@@ -309,11 +320,6 @@ async function _sendEventsImmediate(
     return;
   }
 
-  // In dev, POST to the validation endpoint first so GA4 validation errors
-  // are printed to the console. The validation endpoint returns 200 with a
-  // JSON body describing any issues — it does NOT ingest the event.
-  // Then always POST to the real endpoint so events actually land in GA4.
-  //
   // NOTE: GA4 DebugView with the Measurement Protocol requires sending
   // `debug_mode: 1` at the TOP LEVEL of the request body (not inside event
   // params). This service does NOT set `debug_mode` — all events land in
@@ -322,7 +328,6 @@ async function _sendEventsImmediate(
   // You can also inspect live traffic via:
   //   GA4 → Reports → Realtime → "Event count in last 30 min by Event name"
   const url = `${MP_ENDPOINT}?measurement_id=${encodeURIComponent(MEASUREMENT_ID)}&api_secret=${encodeURIComponent(API_SECRET)}`;
-  const validationUrl = `https://www.google-analytics.com/debug/mp/collect?measurement_id=${encodeURIComponent(MEASUREMENT_ID)}&api_secret=${encodeURIComponent(API_SECRET)}`;
 
   const body: Record<string, unknown> = {
     client_id: getClientId(),
@@ -358,33 +363,6 @@ async function _sendEventsImmediate(
     console.log('[Analytics] Sending events:', events.map(e => e.name).join(', '));
   }
 
-  if (__DEV__ && !process.env.JEST_WORKER_ID) {
-    // Hit the validation endpoint and log any issues GA4 reports.
-    // Skipped in Jest (JEST_WORKER_ID is set) to avoid a second fetch call
-    // that would break toHaveBeenCalledTimes(1) assertions.
-    fetch(validationUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-      .then(r => r.json())
-      .then(json => {
-        const issues = json?.validationMessages ?? [];
-        if (issues.length > 0) {
-          // eslint-disable-next-line no-console
-          console.warn('[Analytics] GA4 validation issues:', JSON.stringify(issues, null, 2));
-        } else {
-          // eslint-disable-next-line no-console
-          console.log(
-            '[Analytics] GA4 validation: ✅ all events valid — check GA4 → Reports → Realtime'
-          );
-        }
-      })
-      .catch(() => {
-        /* ignore validation network errors */
-      });
-  }
-
   try {
     let response: Response;
     if (USE_PROXY) {
@@ -406,7 +384,8 @@ async function _sendEventsImmediate(
       // Edge Function returns { status: number }
       return;
     } else {
-      // Development: hit GA4 directly for validation feedback
+      // Jest/tests only: hit GA4 directly so unit tests can assert on fetch() calls
+      // without needing to mock supabase.functions.invoke.
       response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

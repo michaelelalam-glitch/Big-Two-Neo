@@ -3,6 +3,8 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { checkMinimumVersion } from '../_shared/versionCheck.ts';
 // M12: CORS origin controlled by ALLOWED_ORIGIN env var
 import { buildCorsHeaders } from '../_shared/cors.ts';
+// P5-2 Fix: DB-backed rate limiter — enforced globally across all isolates.
+import { checkRateLimit, rateLimitResponse } from '../_shared/rateLimiter.ts';
 
 
 
@@ -53,7 +55,7 @@ Deno.serve(async (req) => {
     }
 
     // Get user from JWT
-    const token = authHeader.replace('Bearer ', '');
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
     
     if (authError || !user) {
@@ -62,6 +64,12 @@ Deno.serve(async (req) => {
         JSON.stringify({ success: false, error: 'Not authenticated' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // P5-2 Fix: Rate limit find-match to prevent matchmaking abuse (10 req/60s per user).
+    const rl = await checkRateLimit(supabaseClient, user.id, 'find_match', 10, 60);
+    if (!rl.allowed) {
+      return rateLimitResponse(rl.retryAfterMs, corsHeaders);
     }
 
     const { username, skill_rating = 1000, region = 'global', match_type = 'casual' }: FindMatchRequest = await req.json();
