@@ -36,7 +36,10 @@ const EF_URL = `${SUPABASE_URL}/functions/v1/play-cards`;
 // ---------------------------------------------------------------------------
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const nodeCrypto = require('crypto') as { randomUUID: () => string };
-const uuid = (): string => (globalThis as any).crypto?.randomUUID?.() ?? nodeCrypto.randomUUID();
+const uuid = (): string => {
+  const g = globalThis as { crypto?: { randomUUID?: () => string } };
+  return g.crypto?.randomUUID?.() ?? nodeCrypto.randomUUID();
+};
 
 /** Minimal valid card object used across test cases */
 const VALID_CARD = { id: 'D3', suit: 'D' as const, rank: '3' as const };
@@ -75,7 +78,7 @@ describe('Suite 1 — play-cards: authentication', () => {
   it('returns 401 when Authorization header is absent', async () => {
     const result = await callEF({ room_code: 'ABCDEF', player_id: uuid(), cards: [VALID_CARD] });
     expect(result.status).toBe(401);
-    expect((result.body as any)?.success).toBe(false);
+    expect((result.body as Record<string, unknown>)?.success).toBe(false);
   }, 15_000);
 
   it('returns 401 when Authorization header is an empty string', async () => {
@@ -179,7 +182,7 @@ describe('Suite 3 — play-cards: identity + body validation (live JWT)', () => 
   it('returns 400 when room_code is missing', async () => {
     const result = await callEF({ player_id: testUserId, cards: [VALID_CARD] }, userToken);
     expect(result.status).toBe(400);
-    expect((result.body as any)?.success).toBe(false);
+    expect((result.body as Record<string, unknown>)?.success).toBe(false);
   }, 15_000);
 
   it('returns 400 when player_id is missing', async () => {

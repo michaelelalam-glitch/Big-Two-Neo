@@ -35,7 +35,10 @@ const EF_URL = `${SUPABASE_URL}/functions/v1/complete-game`;
 // ---------------------------------------------------------------------------
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const nodeCrypto = require('crypto') as { randomUUID: () => string };
-const uuid = (): string => (globalThis as any).crypto?.randomUUID?.() ?? nodeCrypto.randomUUID();
+const uuid = (): string => {
+  const g = globalThis as { crypto?: { randomUUID?: () => string } };
+  return g.crypto?.randomUUID?.() ?? nodeCrypto.randomUUID();
+};
 
 const now = new Date().toISOString();
 
@@ -112,7 +115,7 @@ describe('Suite 1 — complete-game: authentication', () => {
   it('returns 401 when Authorization header is absent', async () => {
     const result = await callEF(buildMinimalBody());
     expect(result.status).toBe(401);
-    expect((result.body as any)?.error).toBeTruthy();
+    expect((result.body as Record<string, unknown>)?.error).toBeTruthy();
   }, 15_000);
 
   it('returns 401 when Authorization header is not a valid JWT', async () => {
@@ -188,7 +191,7 @@ describe('Suite 3 — complete-game: input validation (live JWT)', () => {
   it('returns 400 with LOCAL_GAME_REJECTED when room_code is LOCAL', async () => {
     const result = await callEF(buildMinimalBody({ room_code: 'LOCAL' }), userToken);
     expect(result.status).toBe(400);
-    expect((result.body as any)?.code).toBe('LOCAL_GAME_REJECTED');
+    expect((result.body as Record<string, unknown>)?.code).toBe('LOCAL_GAME_REJECTED');
   }, 15_000);
 
   it('returns 400 for invalid game_type', async () => {

@@ -31,7 +31,10 @@ const EF_URL = `${SUPABASE_URL}/functions/v1/player-pass`;
 // ---------------------------------------------------------------------------
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const nodeCrypto = require('crypto') as { randomUUID: () => string };
-const uuid = (): string => (globalThis as any).crypto?.randomUUID?.() ?? nodeCrypto.randomUUID();
+const uuid = (): string => {
+  const g = globalThis as { crypto?: { randomUUID?: () => string } };
+  return g.crypto?.randomUUID?.() ?? nodeCrypto.randomUUID();
+};
 
 async function callEF(
   body: unknown,
