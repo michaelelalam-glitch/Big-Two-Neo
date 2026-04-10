@@ -298,7 +298,16 @@ Deno.serve(async (req) => {
     // so the caller can only notify users who belong to the same room.
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-    if (!authHeader.startsWith('Bearer ') || !supabaseUrl || !supabaseAnonKey) {
+    // Missing env vars are a server misconfiguration — surface as 500 so operators
+    // can distinguish config errors from auth failures.
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error('[send-push-notification] SUPABASE_URL or SUPABASE_ANON_KEY is not configured');
+      return new Response(
+        JSON.stringify({ error: 'Server misconfigured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    if (!authHeader.startsWith('Bearer ')) {
       return new Response(
         JSON.stringify({ error: 'Forbidden: authorization required' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
