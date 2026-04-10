@@ -258,18 +258,11 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-    // C3: Enforce minimum app version
-    // Do not pass allowMissingHeader=true here: this function was previously
-    // accessible to mobile clients and required the version gate. Since P5-1 now
-    // restricts it to service-role / internal callers only, mobile client requests
-    // are rejected below before reaching game logic; the version check is kept as
-    // defense-in-depth for any legitimate versioned callers.
-    const versionError = checkMinimumVersion(req, corsHeaders);
-    if (versionError) return versionError;
-
   // P5-1 Fix: Only service-role callers (other Edge Functions, server-side processes)
   // may send push notifications. Reject user-JWT calls to prevent any client from
   // delivering arbitrary notifications to any user_ids.
+  // Auth check runs BEFORE the version check so unauthorized callers receive 403
+  // rather than 426 (which would leak minimum_version information).
   const authHeader = req.headers.get('Authorization') ?? '';
   const apiKeyHeader = req.headers.get('apikey') ?? '';
   const botAuthHeader = req.headers.get('x-bot-auth') ?? '';
@@ -290,6 +283,11 @@ Deno.serve(async (req) => {
       { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
+
+    // C3: Enforce minimum app version (after auth — only authorized callers reach here).
+    // Kept as defense-in-depth for any versioned internal callers.
+    const versionError = checkMinimumVersion(req, corsHeaders);
+    if (versionError) return versionError;
 
   try {
     // Create Supabase client

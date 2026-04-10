@@ -119,8 +119,10 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
           () => null
         );
         const prevCount = prevCountStr !== null ? parseInt(prevCountStr, 10) : NaN;
-        // Write chunk keys FIRST, count key LAST: a concurrent getItem must not
-        // observe a non-null chunk count before all chunk data has been persisted.
+        // Delete old count key FIRST so concurrent getItem calls observe no valid
+        // chunk count during the write window, preventing mixed old/new data reads.
+        await SecureStore.deleteItemAsync(`${key}${CHUNK_COUNT_SUFFIX}`).catch(() => {});
+        // Write chunk data, then commit the new count key last.
         for (let i = 0; i < chunks.length; i++) {
           await SecureStore.setItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`, chunks[i]);
         }
