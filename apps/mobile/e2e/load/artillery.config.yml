@@ -1,0 +1,95 @@
+# Artillery Load Test Config — Big Two Neo Edge Functions
+# Task #23 (Tier 4 — P14-3)
+#
+# Alternative to k6 using Artillery (npm-based, zero binary install required).
+#
+# Usage:
+#   SUPABASE_URL=https://xxx.supabase.co \
+#   ANON_KEY=eyJ... \
+#   npx artillery run apps/mobile/e2e/load/artillery.config.yml
+#
+# Or via npm script (add to package.json):
+#   "load:artillery": "artillery run apps/mobile/e2e/load/artillery.config.yml"
+
+config:
+  target: "{{ $env.SUPABASE_URL }}"
+  http:
+    timeout: 10         # seconds
+    maxSockets: 50      # max concurrent connections
+  phases:
+    # Ramp-up to 10 concurrent users over 20 s, hold for 40 s, ramp down
+    - duration: 20
+      arrivalRate: 1
+      rampTo: 10
+      name: "Ramp up"
+    - duration: 40
+      arrivalRate: 10
+      name: "Sustained load"
+    - duration: 10
+      arrivalRate: 10
+      rampTo: 1
+      name: "Ramp down"
+
+  # Baseline thresholds — Artillery reports these in the summary
+  ensure:
+    p99: 3000         # 99th percentile < 3 s
+    maxErrorRate: 10  # max 10 % 5xx errors
+
+  # Reusable request defaults
+  defaults:
+    headers:
+      Content-Type: "application/json"
+
+scenarios:
+  # ──────────────────────────────────────────────────────────────────
+  # Scenario 1 — play-cards: unauthenticated → confirm 401 at scale
+  # ──────────────────────────────────────────────────────────────────
+  - name: "play-cards unauthenticated flood"
+    weight: 40
+    flow:
+      - post:
+          url: "/functions/v1/play-cards"
+          json:
+            room_code: "LOAD01"
+            player_id: "load-test-fake-id"
+            cards:
+              - id: "D3"
+                suit: "D"
+                rank: "3"
+          expect:
+            - statusCode: 401
+
+  # ──────────────────────────────────────────────────────────────────
+  # Scenario 2 — find-match: unauthenticated → confirm 401 at scale
+  # ──────────────────────────────────────────────────────────────────
+  - name: "find-match unauthenticated flood"
+    weight: 30
+    flow:
+      - post:
+          url: "/functions/v1/find-match"
+          json:
+            match_type: "casual"
+            skill_rating: 1000
+          expect:
+            - statusCode: 401
+
+  # ──────────────────────────────────────────────────────────────────
+  # Scenario 3 — complete-game: unauthenticated → confirm 401 at scale
+  # ──────────────────────────────────────────────────────────────────
+  - name: "complete-game unauthenticated flood"
+    weight: 30
+    flow:
+      - post:
+          url: "/functions/v1/complete-game"
+          json:
+            room_id: null
+            room_code: "LOAD01"
+            game_type: "casual"
+            players: []
+            winner_id: "00000000-0000-0000-0000-000000000000"
+            game_duration_seconds: 60
+            started_at: "2026-01-01T00:00:00Z"
+            finished_at: "2026-01-01T00:01:00Z"
+            game_completed: true
+          expect:
+            - statusCode: 401

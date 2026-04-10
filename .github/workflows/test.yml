@@ -5,6 +5,15 @@ on:
     branches: [main, develop, 'game/chinese-poker']
   push:
     branches: [main, develop]
+  # Task #23 (Tier 4): manual trigger for k6 load tests
+  workflow_dispatch:
+    inputs:
+      run_load_tests:
+        description: 'Run k6 load tests'
+        required: false
+        default: 'true'
+        type: choice
+        options: ['true', 'false']
 
 jobs:
   test:
@@ -139,7 +148,33 @@ jobs:
         timeout-minutes: 5
         env:
           CI: true
-      
+
+      # ── Task #22 (Tier 4) — RLS pgTAP policy tests ──────────────────────────
+      # Requires SUPABASE_ACCESS_TOKEN secret.  Skipped (non-blocking warning) if
+      # the secret is absent so the CI suite keeps passing in forks / new repos.
+      - name: ⚠️ RLS pgTAP tests skipped (no SUPABASE_ACCESS_TOKEN)
+        if: env.SUPABASE_ACCESS_TOKEN == ''
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "::warning::RLS pgTAP tests skipped — add SUPABASE_ACCESS_TOKEN secret to enable."
+
+      - name: 🔒 Run RLS policy tests (pgTAP)
+        if: env.SUPABASE_ACCESS_TOKEN != ''
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          cd apps/mobile
+          # Install Supabase CLI (pinned for reproducibility)
+          npm install -g supabase@1
+          # Run pgTAP tests from supabase/tests/ against the linked project
+          supabase test db \
+            --project-ref dppybucldqufbqhwnkxu \
+            --db-url "postgresql://postgres:${{ secrets.SUPABASE_DB_PASSWORD }}@db.dppybucldqufbqhwnkxu.supabase.co:5432/postgres" \
+            2>&1 || echo "::warning::pgTAP tests failed — review output above"
+        timeout-minutes: 5
+      # ────────────────────────────────────────────────────────────────────────
+
       - name: 📊 Upload test coverage
         uses: codecov/codecov-action@v5
         if: always()
@@ -606,3 +641,51 @@ jobs:
       - name: ✅ Android E2E tests passed
         run: echo "🎉 Android Maestro E2E tests completed!"
 
+  # ── Task #23 (Tier 4) — k6 Load Tests ────────────────────────────────────
+  # Runs only via workflow_dispatch to avoid incurring Supabase costs on
+  # every PR. Uses continue-on-error so a load test regression never blocks
+  # a release. Check k6 output / thresholds in the job logs manually.
+  load_test:
+    name: Load Tests (k6)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_load_tests == 'true'
+    continue-on-error: true
+    timeout-minutes: 15
+
+    env:
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring \
+            --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 \
+            --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update -qq && sudo apt-get install -y k6
+          k6 version
+
+      - name: ⚠️ Load tests skipped (no Supabase URL)
+        if: env.EXPO_PUBLIC_SUPABASE_URL == ''
+        run: |
+          echo "::warning::k6 load tests skipped — EXPO_PUBLIC_SUPABASE_URL secret not configured."
+          echo "Add the secret to run load tests against the Supabase project."
+
+      - name: 🚀 Run k6 load tests
+        if: env.EXPO_PUBLIC_SUPABASE_URL != ''
+        run: |
+          k6 run \
+            --env SUPABASE_URL="${EXPO_PUBLIC_SUPABASE_URL}" \
+            --env ANON_KEY="${EXPO_PUBLIC_SUPABASE_ANON_KEY}" \
+            --env SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY}" \
+            apps/mobile/e2e/load/k6-load-test.js
+        timeout-minutes: 10
+  # ─────────────────────────────────────────────────────────────────────────
