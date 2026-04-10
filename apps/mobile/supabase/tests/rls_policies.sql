@@ -26,7 +26,7 @@
 
 BEGIN;
 
-SELECT plan(21);
+SELECT plan(26);
 
 -- ============================================================================
 -- HELPERS
@@ -100,6 +100,33 @@ BEGIN
   ON CONFLICT (room_id, user_id) DO NOTHING;
 END;
 $$;
+
+-- Seed rate_limit_tracking for user A (Section 5 data-driven assertions)
+INSERT INTO public.rate_limit_tracking (user_id, action_type, window_start, attempts)
+VALUES ('aaaaaaaa-0000-0000-0000-000000000001'::uuid, 'pgtap-test', date_trunc('hour', now()), 1)
+ON CONFLICT (user_id, action_type, window_start) DO NOTHING;
+
+-- Seed blocked_users: user A blocks user B AND user B blocks user A (Section 6)
+INSERT INTO public.blocked_users (blocker_id, blocked_id)
+VALUES ('aaaaaaaa-0000-0000-0000-000000000001'::uuid, 'bbbbbbbb-0000-0000-0000-000000000002'::uuid)
+ON CONFLICT (blocker_id, blocked_id) DO NOTHING;
+INSERT INTO public.blocked_users (blocker_id, blocked_id)
+VALUES ('bbbbbbbb-0000-0000-0000-000000000002'::uuid, 'aaaaaaaa-0000-0000-0000-000000000001'::uuid)
+ON CONFLICT (blocker_id, blocked_id) DO NOTHING;
+
+-- Seed game_history row (Section 7 data-driven assertions)
+INSERT INTO public.game_history (room_code, started_at, finished_at)
+VALUES ('PGTAP1', now(), now());
+
+-- Seed waiting_room row for user A (Section 8 data-driven assertions)
+INSERT INTO public.waiting_room (user_id, username)
+VALUES ('aaaaaaaa-0000-0000-0000-000000000001'::uuid, 'pgtap_owner')
+ON CONFLICT (user_id) DO NOTHING;
+
+-- Seed bot_coordinator_locks row (Section 9 data-driven assertions)
+INSERT INTO public.bot_coordinator_locks (room_code, coordinator_id, expires_at)
+VALUES ('PGTAP1', 'aaaaaaaa-0000-0000-0000-000000000001', now() + interval '5 minutes')
+ON CONFLICT DO NOTHING;
 
 -- ============================================================================
 -- SECTION 1 -- profiles (SELECT USING true)
@@ -258,6 +285,28 @@ SELECT throws_ok(
 );
 RESET ROLE;
 
+SET LOCAL ROLE authenticated;
+SET LOCAL "request.jwt.claims" TO '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated"}';
+SET LOCAL "request.jwt.claim.sub" TO 'aaaaaaaa-0000-0000-0000-000000000001';
+SET LOCAL "request.jwt.claim.role" TO 'authenticated';
+SELECT ok(
+  (SELECT count(*)::int FROM public.rate_limit_tracking
+    WHERE user_id = 'aaaaaaaa-0000-0000-0000-000000000001'::uuid) >= 1,
+  'authenticated owner: can read own rate_limit_tracking rows'
+);
+RESET ROLE;
+
+SET LOCAL ROLE authenticated;
+SET LOCAL "request.jwt.claims" TO '{"sub":"bbbbbbbb-0000-0000-0000-000000000002","role":"authenticated"}';
+SET LOCAL "request.jwt.claim.sub" TO 'bbbbbbbb-0000-0000-0000-000000000002';
+SET LOCAL "request.jwt.claim.role" TO 'authenticated';
+SELECT is(
+  (SELECT count(*)::int FROM public.rate_limit_tracking),
+  0,
+  'authenticated other: cannot see another user rate_limit_tracking rows'
+);
+RESET ROLE;
+
 -- ============================================================================
 -- SECTION 6 -- blocked_users (SELECT USING blocker_id = auth.uid())
 -- Columns: blocker_id, blocked_id (not user_id)
@@ -275,6 +324,11 @@ SET LOCAL ROLE authenticated;
 SET LOCAL "request.jwt.claims" TO '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated"}';
 SET LOCAL "request.jwt.claim.sub" TO 'aaaaaaaa-0000-0000-0000-000000000001';
 SET LOCAL "request.jwt.claim.role" TO 'authenticated';
+SELECT ok(
+  (SELECT count(*)::int FROM public.blocked_users
+    WHERE blocker_id = 'aaaaaaaa-0000-0000-0000-000000000001'::uuid) >= 1,
+  'authenticated blocker: can see own blocked_users rows'
+);
 SELECT is(
   (SELECT count(*)::int FROM public.blocked_users
     WHERE blocker_id <> 'aaaaaaaa-0000-0000-0000-000000000001'::uuid),
@@ -289,7 +343,7 @@ RESET ROLE;
 
 SET LOCAL ROLE anon;
 SELECT ok(
-  (SELECT count(*)::int FROM public.game_history) >= 0,
+  (SELECT count(*)::int FROM public.game_history) >= 1,
   'anon: can SELECT game_history (USING true)'
 );
 RESET ROLE;
@@ -300,7 +354,7 @@ RESET ROLE;
 
 SET LOCAL ROLE anon;
 SELECT ok(
-  (SELECT count(*)::int FROM public.waiting_room) >= 0,
+  (SELECT count(*)::int FROM public.waiting_room) >= 1,
   'anon: can SELECT waiting_room (USING true)'
 );
 RESET ROLE;
@@ -310,8 +364,8 @@ SET LOCAL "request.jwt.claims" TO '{"sub":"aaaaaaaa-0000-0000-0000-000000000001"
 SET LOCAL "request.jwt.claim.sub" TO 'aaaaaaaa-0000-0000-0000-000000000001';
 SET LOCAL "request.jwt.claim.role" TO 'authenticated';
 SELECT ok(
-  (SELECT count(*)::int FROM public.waiting_room) >= 0,
-  'authenticated: can query waiting_room without error'
+  (SELECT count(*)::int FROM public.waiting_room) >= 1,
+  'authenticated: can query waiting_room (USING true)'
 );
 RESET ROLE;
 
@@ -324,6 +378,24 @@ SELECT is(
   (SELECT count(*)::int FROM public.bot_coordinator_locks),
   0,
   'anon: cannot read bot_coordinator_locks (no SELECT policy -- deny by default)'
+);
+RESET ROLE;
+
+SET LOCAL ROLE authenticated;
+SET LOCAL "request.jwt.claims" TO '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated"}';
+SET LOCAL "request.jwt.claim.sub" TO 'aaaaaaaa-0000-0000-0000-000000000001';
+SET LOCAL "request.jwt.claim.role" TO 'authenticated';
+SELECT is(
+  (SELECT count(*)::int FROM public.bot_coordinator_locks),
+  0,
+  'authenticated: cannot read bot_coordinator_locks (no SELECT policy -- deny by default)'
+);
+RESET ROLE;
+
+SET LOCAL ROLE service_role;
+SELECT ok(
+  (SELECT count(*)::int FROM public.bot_coordinator_locks) >= 1,
+  'service-role: can read bot_coordinator_locks (bypasses RLS)'
 );
 RESET ROLE;
 
