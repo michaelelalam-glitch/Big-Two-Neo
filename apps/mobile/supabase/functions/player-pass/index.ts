@@ -4,6 +4,9 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { parseCards } from '../_shared/parseCards.ts';
 import { checkRateLimit, rateLimitResponse } from '../_shared/rateLimiter.ts';
 import { concurrentModificationResponse } from '../_shared/responses.ts';
+import { checkMinimumVersion } from '../_shared/versionCheck.ts';
+// M12: CORS origin controlled by ALLOWED_ORIGIN env var
+import { buildCorsHeaders } from '../_shared/cors.ts';
 
 // Rate-limit config for player-pass: same budget as play-cards.
 // A player physically cannot pass more than once per turn, so 10/10s is very generous.
@@ -17,10 +20,10 @@ const PLAYER_PASS_RATE_LIMIT_WINDOW = 10; // seconds
 const SERVICE_ROLE_RATE_LIMIT_MAX    = 30;
 const SERVICE_ROLE_RATE_LIMIT_WINDOW = 30; // seconds
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const corsHeaders = buildCorsHeaders();
+
+
+
 
 // ==================== TRAINING DATA HELPER ====================
 /**
@@ -246,6 +249,10 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+    // C3: Enforce minimum app version (service-role callers auto-detected)
+    const versionError = checkMinimumVersion(req, corsHeaders);
+    if (versionError) return versionError;
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
@@ -476,7 +483,32 @@ Deno.serve(async (req) => {
     }
 
     // 4a. Reject passes when game is already finished/game_over
+    // H3 Fix: Idempotency guard — if the game recently ended (within 60s), return
+    // a graceful success instead of a hard 400 so retried pass requests (e.g. lost
+    // HTTP response) don't block the client from transitioning to results.
     if (gameState.game_phase === 'finished' || gameState.game_phase === 'game_over') {
+      const matchEndedAt = gameState.match_ended_at ? new Date(gameState.match_ended_at as string).getTime() : 0;
+      const isRecentEnd  = (Date.now() - matchEndedAt) < 60_000;
+
+      if (isRecentEnd) {
+        console.log(
+          `[player-pass] ✅ Idempotency: pass retry after match ended — player ${player.player_index}. ` +
+          `Returning already_passed=true.`
+        );
+        return new Response(
+          JSON.stringify({
+            success: true,
+            already_passed: true,
+            next_turn: gameState.current_turn,
+            passes: gameState.passes ?? 0,
+            trick_cleared: false,
+            timer_preserved: false,
+            auto_pass_timer: gameState.auto_pass_timer,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       console.log('❌ [player-pass] Game already ended:', { game_phase: gameState.game_phase });
       return new Response(
         JSON.stringify({

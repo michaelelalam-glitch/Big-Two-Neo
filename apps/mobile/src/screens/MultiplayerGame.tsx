@@ -29,7 +29,7 @@ import type { InGameAlertHandle, InGameAlertOptions } from '../components/game/I
 import { useAuth } from '../contexts/AuthContext';
 import { useGameEnd } from '../contexts/GameEndContext';
 import { useScoreboard } from '../contexts/ScoreboardContext';
-import { supabase } from '../services/supabase';
+import { supabase, APP_VERSION } from '../services/supabase';
 import { API } from '../constants';
 import type { FinalScore } from '../types/gameEnd';
 import { useConnectionManager } from '../hooks/useConnectionManager';
@@ -67,11 +67,11 @@ import type {
   GameState as MultiplayerGameState,
   Player as MultiplayerPlayer,
 } from '../types/multiplayer';
-import type { ScoreHistory } from '../types/scoreboard';
 import { parsePersistedScoreHistory } from '../utils/parsePersistedScoreHistory';
 import { RejoinModal } from '../components/game/RejoinModal';
 import { GameContextProvider } from '../contexts/GameContext';
 import type { GameContextType } from '../contexts/GameContext';
+import { useGameSessionStore } from '../store';
 import { useVideoChat, StubVideoChatAdapter } from '../hooks/useVideoChat';
 import { useGameChat } from '../hooks/useGameChat';
 import { useThrowables } from '../hooks/useThrowables';
@@ -582,6 +582,7 @@ export function MultiplayerGame() {
     rejoinStatus,
     forceSweep,
     stopHeartbeats,
+    connectionStatus,
   } = useConnectionManager({
     roomId: roomInfo?.id ?? '',
     playerId: myRoomPlayerId ?? '',
@@ -1098,6 +1099,9 @@ export function MultiplayerGame() {
     // (once added to UseRealtimeReturn) when turn_auto_played needs to reach other clients.
     getCorrectedNow: getTurnCorrectedNow,
     currentUserId: user?.id,
+    // H1: Pass connectionStatus so the hook can skip auto-play while disconnected
+    // and avoid racing with the server's pg_cron bot-replacement logic.
+    connectionStatus,
     onAutoPlay: (cards, action) => {
       // auto-play-turn edge function replaces the player with a bot immediately
       // (65s spec). Stop heartbeats (without calling mark-disconnected) so they
@@ -1233,6 +1237,29 @@ export function MultiplayerGame() {
     () => localPlayerIsActive && !!multiplayerGameState,
     [localPlayerIsActive, multiplayerGameState]
   );
+
+  // ── C2 Audit: Sync game-session state to Zustand (single source of truth) ──
+  // GameView reads these from useGameSessionStore instead of GameContext.
+  // Single named syncSessionSnapshot action for atomic update + DevTools tracing.
+  useEffect(() => {
+    useGameSessionStore.getState().syncSessionSnapshot({
+      layoutPlayers,
+      layoutPlayersWithScores: enrichedLayoutPlayers,
+      playerTotalScores,
+      currentPlayerName,
+      isPlayerReady,
+      isGameFinished,
+      matchNumber,
+    });
+  }, [
+    layoutPlayers,
+    enrichedLayoutPlayers,
+    playerTotalScores,
+    currentPlayerName,
+    isPlayerReady,
+    isGameFinished,
+    matchNumber,
+  ]);
 
   // ── Task #651 / #649: in-game video + voice chat ─────────────────────────────
   // LiveKitVideoChatAdapter is used in native (EAS) builds where
@@ -1412,6 +1439,7 @@ export function MultiplayerGame() {
       toggleOrientation,
       isInitializing: !isMultiplayerDataReady,
       isConnected,
+      connectionStatus,
       showSettings,
       setShowSettings,
       roomCode,
@@ -1420,16 +1448,10 @@ export function MultiplayerGame() {
       setSelectedCardIds,
       handleCardsReorder,
       selectedCards,
-      customCardOrder,
-      setCustomCardOrder,
       effectiveLastPlayedCards: multiplayerLastPlayedCards,
       effectiveLastPlayedBy: multiplayerLastPlayedBy,
       effectiveLastPlayComboType: multiplayerLastPlayComboType,
       effectiveLastPlayCombo: multiplayerLastPlayCombo,
-      layoutPlayers,
-      layoutPlayersWithScores: enrichedLayoutPlayers,
-      playerTotalScores,
-      currentPlayerName,
       togglePlayHistory,
       toggleScoreboardExpanded,
       memoizedPlayerNames,
@@ -1438,8 +1460,6 @@ export function MultiplayerGame() {
       memoizedOriginalPlayerNames,
       effectiveAutoPassTimerState,
       effectiveScoreboardCurrentPlayerIndex,
-      matchNumber,
-      isGameFinished,
       displayOrderScoreHistory,
       playHistoryByMatch,
       turnClockOffsetMs,
@@ -1453,7 +1473,6 @@ export function MultiplayerGame() {
       handleSort,
       handleSmartSort,
       handleHint,
-      isPlayerReady,
       gameManagerRef: emptyGameManagerRef,
       isMountedRef,
       // Task #651 / #649
@@ -1493,6 +1512,7 @@ export function MultiplayerGame() {
       toggleOrientation,
       isMultiplayerDataReady,
       isConnected,
+      connectionStatus,
       showSettings,
       setShowSettings,
       roomCode,
@@ -1501,16 +1521,10 @@ export function MultiplayerGame() {
       setSelectedCardIds,
       handleCardsReorder,
       selectedCards,
-      customCardOrder,
-      setCustomCardOrder,
       multiplayerLastPlayedCards,
       multiplayerLastPlayedBy,
       multiplayerLastPlayComboType,
       multiplayerLastPlayCombo,
-      layoutPlayers,
-      enrichedLayoutPlayers,
-      playerTotalScores,
-      currentPlayerName,
       togglePlayHistory,
       toggleScoreboardExpanded,
       memoizedPlayerNames,
@@ -1519,8 +1533,6 @@ export function MultiplayerGame() {
       memoizedOriginalPlayerNames,
       effectiveAutoPassTimerState,
       effectiveScoreboardCurrentPlayerIndex,
-      matchNumber,
-      isGameFinished,
       displayOrderScoreHistory,
       playHistoryByMatch,
       turnClockOffsetMs,
@@ -1534,7 +1546,6 @@ export function MultiplayerGame() {
       handleSort,
       handleSmartSort,
       handleHint,
-      isPlayerReady,
       emptyGameManagerRef,
       isMountedRef,
       isChatConnected,
@@ -1675,6 +1686,7 @@ export function MultiplayerGame() {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
+            'x-app-version': APP_VERSION,
           },
           body: JSON.stringify(payload),
         });

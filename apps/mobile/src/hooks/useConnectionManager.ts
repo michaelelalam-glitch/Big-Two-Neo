@@ -219,7 +219,7 @@ export function useConnectionManager({
 
       // Server detected we were replaced by a bot (user_id no longer matches)
       if (data?.replaced_by_bot) {
-        setConnectionStatus('disconnected');
+        setConnectionStatus('replaced_by_bot');
         stopHeartbeat();
         trackEvent('player_replaced_by_bot', { room_id: roomId });
         sentryCapture.breadcrumb('Replaced by bot', { room_id: roomId }, 'connection');
@@ -450,14 +450,23 @@ export function useConnectionManager({
 
   // ── Memory warning: release non-essential resources ────────────────────────
   useEffect(() => {
-    // iOS fires 'memoryWarning' via AppState when the OS is under memory pressure.
-    const sub = AppState.addEventListener('memoryWarning', () => {
-      networkLogger.warn('[useConnectionManager] Memory warning — releasing resources');
+    const handleMemoryPressure = () => {
+      networkLogger.warn('[useConnectionManager] Memory pressure — releasing resources');
       // soundManager is imported lazily to avoid circular deps;
       // fire-and-forget cleanup is fine here.
       import('../utils/soundManager').then(m => m.soundManager.cleanup()).catch(() => {});
-    });
-    return () => sub.remove();
+    };
+
+    // iOS fires 'memoryWarning' via AppState; Android requires a native bridge
+    // module to forward ComponentCallbacks2.onTrimMemory() into JS. Since that
+    // native module is not yet implemented, memory-pressure handling on Android
+    // relies on the OS reclaiming resources directly.
+    // TODO: implement a TrimMemoryModule native module to emit this event.
+    const iosSub = AppState.addEventListener('memoryWarning', handleMemoryPressure);
+
+    return () => {
+      iosSub.remove();
+    };
   }, []);
 
   // ── Start heartbeat on mount ──────────────────────────────────────────────

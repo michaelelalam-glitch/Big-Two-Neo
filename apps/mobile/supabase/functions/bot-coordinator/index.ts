@@ -21,11 +21,11 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { BotAI, type BotDifficulty } from '../_shared/botAI.ts';
 import { parseCards } from '../_shared/parseCards.ts';
 import type { Card } from '../_shared/gameEngine.ts';
+import { checkMinimumVersion } from '../_shared/versionCheck.ts';
+// M12: CORS origin controlled by ALLOWED_ORIGIN env var
+import { buildCorsHeaders } from '../_shared/cors.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const corsHeaders = buildCorsHeaders();
 
 /**
  * Delay between bot moves (ms).
@@ -38,8 +38,31 @@ const BOT_MOVE_DELAY_MS = 0;
 /** Maximum bot moves per invocation — prevents infinite loops */
 const MAX_BOT_MOVES = 20;
 
-/** Lock timeout — abandon if we can't acquire lock within this duration (ms) */
-const LOCK_TIMEOUT_MS = 15_000;
+/**
+ * M8: Broadcast safety timeout (ms). Configurable via BROADCAST_TIMEOUT_MS env var.
+ * Defaults to 5000 ms. Set a lower value in CI to speed up tests, or higher in slow
+ * network environments. Guards against NaN/<=0 to prevent immediate resolution.
+ */
+const _parsedBroadcastTimeoutMs = parseInt(Deno.env.get('BROADCAST_TIMEOUT_MS') ?? '5000', 10);
+const BROADCAST_TIMEOUT_MS =
+  Number.isFinite(_parsedBroadcastTimeoutMs) && _parsedBroadcastTimeoutMs > 0
+    ? _parsedBroadcastTimeoutMs
+    : 5000;
+
+/**
+ * Lock timeout — abandon if we can't acquire lock within this duration (ms).
+ * C12 Fix: Increased from 15s to 30s so that a single FETCH_TIMEOUT_MS (10s)
+ * doesn't consume >50% of the budget, leaving room for retries and lease refresh.
+ * Lease TTL is derived as ceil(LOCK_TIMEOUT_MS * 1.5 / 1000) = 45s.
+ */
+const LOCK_TIMEOUT_MS = 30_000;
+
+/**
+ * H6 Fix: Maximum consecutive fetch timeouts before bailing early.
+ * Prevents the coordinator from burning the entire LOCK_TIMEOUT budget on
+ * repeated timeouts (e.g. when play-cards is overloaded).
+ */
+const MAX_CONSECUTIVE_TIMEOUTS = 2;
 
 // ==================== HELPERS ====================
 
@@ -97,8 +120,8 @@ async function broadcastToRoom(
       }
     };
 
-    // Safety net: always resolve after 5 s to avoid blocking the EF indefinitely
-    const safetyTimeout = setTimeout(finish, 5000);
+    // Safety net: always resolve after BROADCAST_TIMEOUT_MS to avoid blocking the EF indefinitely
+    const safetyTimeout = setTimeout(finish, BROADCAST_TIMEOUT_MS);
 
     channel.subscribe((status: string) => {
       if (status === 'SUBSCRIBED') {
@@ -118,7 +141,7 @@ async function broadcastToRoom(
  * Call the play-cards Edge Function to execute a bot's card play.
  * Uses HTTP fetch to reuse all existing validation logic.
  */
-/** Fetch timeout — well within LOCK_TIMEOUT_MS (15 s) so the lease is always released. */
+/** Fetch timeout — well within LOCK_TIMEOUT_MS (30 s) so the lease is always released. */
 const FETCH_TIMEOUT_MS = 10_000;
 
 async function callPlayCards(
@@ -247,6 +270,10 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+    // C3: Enforce minimum app version (service-role callers auto-detected)
+    const versionError = checkMinimumVersion(req, corsHeaders);
+    if (versionError) return versionError;
 
   const startTime = Date.now();
 
@@ -412,6 +439,7 @@ Deno.serve(async (req) => {
     let movesExecuted = 0;
     let lastError: string | null = null;
     let lastExitReason: string | null = null;
+    let consecutiveTimeouts = 0; // H6: Track consecutive fetch timeouts
     // Track whether a match/game ended during bot play so we can start the next match
     let matchEndedData: {
       match_ended: boolean;
@@ -615,12 +643,26 @@ Deno.serve(async (req) => {
 
           const result = await callPlayCards(supabaseUrl, serviceKey, room.code, currentPlayer.id, cardsToPlay);
           if (!result.success) {
+            // H6: Track consecutive timeouts to bail early
+            if (result.error?.includes('timed out')) {
+              consecutiveTimeouts++;
+              if (consecutiveTimeouts >= MAX_CONSECUTIVE_TIMEOUTS) {
+                lastError = `${consecutiveTimeouts} consecutive fetch timeouts`;
+                lastExitReason = 'consecutive_timeouts';
+                console.warn(`[bot-coordinator] ⏰ ${consecutiveTimeouts} consecutive timeouts, bailing early`);
+                break;
+              }
+              // Don't break — allow retry on next iteration
+              console.warn(`[bot-coordinator] ⚠️ Play timeout (${consecutiveTimeouts}/${MAX_CONSECUTIVE_TIMEOUTS}), retrying`);
+              continue;
+            }
             lastError = result.error || 'play-cards failed';
             lastExitReason = `play_cards_failed: ${lastError}`;
             console.error(`[bot-coordinator] ❌ Bot play failed: ${lastError}`);
             break;
           }
 
+          consecutiveTimeouts = 0; // Reset on success
           movesExecuted++;
           console.log(`✅ [bot-coordinator] Bot played successfully (move #${movesExecuted})`);
 
@@ -640,12 +682,25 @@ Deno.serve(async (req) => {
           // Pass
           const result = await callPlayerPass(supabaseUrl, serviceKey, room.code, currentPlayer.id);
           if (!result.success) {
+            // H6: Track consecutive timeouts to bail early
+            if (result.error?.includes('timed out')) {
+              consecutiveTimeouts++;
+              if (consecutiveTimeouts >= MAX_CONSECUTIVE_TIMEOUTS) {
+                lastError = `${consecutiveTimeouts} consecutive fetch timeouts`;
+                lastExitReason = 'consecutive_timeouts';
+                console.warn(`[bot-coordinator] ⏰ ${consecutiveTimeouts} consecutive timeouts, bailing early`);
+                break;
+              }
+              console.warn(`[bot-coordinator] ⚠️ Pass timeout (${consecutiveTimeouts}/${MAX_CONSECUTIVE_TIMEOUTS}), retrying`);
+              continue;
+            }
             lastError = result.error || 'player-pass failed';
             lastExitReason = `player_pass_failed: ${lastError}`;
             console.error(`[bot-coordinator] ❌ Bot pass failed: ${lastError}`);
             break;
           }
 
+          consecutiveTimeouts = 0; // Reset on success
           movesExecuted++;
           console.log(`✅ [bot-coordinator] Bot passed successfully (move #${movesExecuted})`);
         }

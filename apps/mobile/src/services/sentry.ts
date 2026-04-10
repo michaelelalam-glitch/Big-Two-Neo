@@ -462,7 +462,14 @@ function _setupConsoleCapture(): void {
   if (_consolePatchApplied) return;
   _consolePatchApplied = true;
 
-  // Rate limiter: token bucket for breadcrumb/event capture (max 50/sec)
+  // Rate limiter: token bucket for breadcrumb/event capture (max 50/sec).
+  // 50/sec was chosen to absorb burst gameplay logging (card plays emit
+  // multiple console logs per turn) while preventing runaway loops from
+  // flooding Sentry quota. Each console.error → captureMessage and each
+  // console.warn → addBreadcrumb both consume one token. On a 4-player game
+  // with bots, peak log rate is ~20/sec, so 50/sec gives 2.5× headroom.
+  // Raise _breadcrumbMaxTokens if a new subsystem produces sustained bursts
+  // that exceed this threshold during normal operation. (M18)
   let _breadcrumbTokens = 50;
   const _breadcrumbMaxTokens = 50;
   let _lastRefillTime = Date.now();
@@ -561,5 +568,73 @@ export function reportMissingTranslation(key: string, language: string): void {
     message: `Missing translation: ${key}`,
     level: 'warning',
     data: { key, language },
+  });
+}
+
+// ─── Game event breadcrumbs (M19) ────────────────────────────────────────── //
+
+/**
+ * Record a Sentry breadcrumb when a player's turn begins.
+ * Captured in the breadcrumb trail of any subsequent crash/error event.
+ *
+ * @param params.playerId  - UUID of the player whose turn started
+ * @param params.turnNumber - 1-based turn index within the round
+ * @param params.roomId    - Room identifier (for correlation)
+ */
+export function recordTurnStartBreadcrumb(params: {
+  playerId: string;
+  turnNumber: number;
+  roomId: string;
+}): void {
+  if (!_initialized) return;
+  Sentry.addBreadcrumb({
+    category: 'game',
+    message: 'Turn started',
+    level: 'info',
+    data: params,
+  });
+}
+
+/**
+ * Record a Sentry breadcrumb when cards are played.
+ *
+ * @param params.playerId    - UUID of the player who played
+ * @param params.comboType   - e.g. 'single', 'pair', 'triple', 'straight', 'fullHouse'
+ * @param params.cardCount   - Number of cards in the play
+ * @param params.roomId      - Room identifier (for correlation)
+ */
+export function recordCardPlayBreadcrumb(params: {
+  playerId: string;
+  comboType: string;
+  cardCount: number;
+  roomId: string;
+}): void {
+  if (!_initialized) return;
+  Sentry.addBreadcrumb({
+    category: 'game',
+    message: 'Cards played',
+    level: 'info',
+    data: params,
+  });
+}
+
+/**
+ * Record a Sentry breadcrumb when a round score is recorded.
+ *
+ * @param params.roomId  - Room identifier
+ * @param params.round   - Round number
+ * @param params.scores  - Map of playerId → score delta for this round
+ */
+export function recordScoreBreadcrumb(params: {
+  roomId: string;
+  round: number;
+  scores: Record<string, number>;
+}): void {
+  if (!_initialized) return;
+  Sentry.addBreadcrumb({
+    category: 'game',
+    message: 'Round scored',
+    level: 'info',
+    data: params,
   });
 }

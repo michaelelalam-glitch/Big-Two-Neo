@@ -1,10 +1,14 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { checkMinimumVersion } from '../_shared/versionCheck.ts';
+import { checkRateLimit, rateLimitResponse } from '../_shared/rateLimiter.ts';
+// M12: CORS origin controlled by ALLOWED_ORIGIN env var
+import { buildCorsHeaders } from '../_shared/cors.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const corsHeaders = buildCorsHeaders();
+
+
+
 
 /**
  * reconnect-player edge function
@@ -16,13 +20,15 @@ const corsHeaders = {
  *   2. Reclaim-from-bot – bot replaced the player (connection_status = 'replaced_by_bot'
  *      OR human_user_id = auth.uid()).
  *      Action: restore the seat fully (user_id, username, is_bot = false, etc.)
- *
- * In both cases the server-side reconnect_player() RPC does the heavy lifting.
  */
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+    // C3: Enforce minimum app version
+    const versionError = checkMinimumVersion(req, corsHeaders);
+    if (versionError) return versionError;
 
   try {
     const supabaseClient = createClient(
@@ -47,6 +53,13 @@ Deno.serve(async (req) => {
         JSON.stringify({ success: false, error: 'Not authenticated' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // M2: Rate limit reconnect attempts — max 5 per 60 seconds per user
+    const rl = await checkRateLimit(supabaseClient, user.id, 'reconnect_player', 5, 60);
+    if (!rl.allowed) {
+      console.warn('⚠️ [reconnect-player] Rate limit exceeded for user:', user.id.substring(0, 8));
+      return rateLimitResponse(rl.retryAfterMs, corsHeaders);
     }
 
     const body = await req.json();

@@ -4,16 +4,18 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { parseCards } from '../_shared/parseCards.ts';
 import { checkRateLimit, rateLimitResponse } from '../_shared/rateLimiter.ts';
 import { concurrentModificationResponse } from '../_shared/responses.ts';
+import { checkMinimumVersion } from '../_shared/versionCheck.ts';
+// M12: CORS origin controlled by ALLOWED_ORIGIN env var
+import { buildCorsHeaders } from '../_shared/cors.ts';
 
 // Rate-limit config for play-cards: max 10 plays per 10-second window per user.
 // Normal gameplay is ~1 play every several seconds; 10/10s is generous for legitimate use.
 const PLAY_CARDS_RATE_LIMIT_MAX    = 10;
 const PLAY_CARDS_RATE_LIMIT_WINDOW = 10; // seconds
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// M10: Valid card field values for boundary validation at the edge function entry point.
+const VALID_SUITS = new Set(['D', 'C', 'H', 'S']);
+const VALID_RANKS = new Set(['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2']);
 
 // ==================== TYPES ====================
 
@@ -77,8 +79,16 @@ const VALID_STRAIGHT_SEQUENCES: string[][] = [
  * - Malformed data, MAX_ITERATIONS boundary cases
  */
 function parseCard(cardData: any): Card | null {
-  // Already a proper card object
+  // Already a proper card object — validate suit/rank values at the boundary
   if (typeof cardData === 'object' && cardData !== null && 'id' in cardData && 'rank' in cardData && 'suit' in cardData) {
+    if (!VALID_SUITS.has(cardData.suit) || !VALID_RANKS.has(cardData.rank)) {
+      console.warn('[parseCard] Invalid suit/rank in card object:', { suit: cardData.suit, rank: cardData.rank });
+      return null;
+    }
+    if (typeof cardData.id !== 'string' || !cardData.id) {
+      console.warn('[parseCard] Invalid or missing id in card object:', { id: cardData.id });
+      return null;
+    }
     return cardData as Card;
   }
   
@@ -122,6 +132,20 @@ function parseCard(cardData: any): Card | null {
             break;
           }
         } else if (typeof parsed === 'object' && parsed !== null) {
+          // Validate the parsed object has required Card fields with known-good values
+          // before accepting — malformed JSON objects (e.g. {value:"3", suit:"X"}) must
+          // not pass through as Cards.
+          const p = parsed as Record<string, unknown>;
+          if (
+            typeof p.id !== 'string' ||
+            typeof p.suit !== 'string' ||
+            typeof p.rank !== 'string' ||
+            !VALID_SUITS.has(p.suit) ||
+            !VALID_RANKS.has(p.rank)
+          ) {
+            console.warn('[parseCard] JSON-parsed object is not a valid Card:', parsed);
+            return null;
+          }
           return parsed as Card;
         } else {
           break;
@@ -150,10 +174,14 @@ function parseCard(cardData: any): Card | null {
         return { id: cardStr, suit: suit as Card['suit'], rank: rank as Card['rank'] };
       }
       
-      // Fallback for legacy format without regex validation
-      const suit = cardStr[0] as 'D' | 'C' | 'H' | 'S';
-      const rank = cardStr.substring(1) as Card['rank'];
-      return { id: cardStr, suit, rank };
+      // Fallback for legacy format — validate suit/rank with explicit Sets before accepting
+      const suit = cardStr[0];
+      const rank = cardStr.substring(1);
+      if (!VALID_SUITS.has(suit) || !VALID_RANKS.has(rank)) {
+        console.warn('[parseCard] Fallback parse failed suit/rank validation:', { suit, rank, cardStr });
+        return null;
+      }
+      return { id: cardStr, suit: suit as Card['suit'], rank: rank as Card['rank'] };
     }
   }
   
@@ -708,9 +736,16 @@ function _cachedPlayerHash(hash: string, id: string): void {
 // ==================== MAIN HANDLER ====================
 
 Deno.serve(async (req) => {
+  // M12: CORS origin controlled by ALLOWED_ORIGIN env var
+  const corsHeaders = buildCorsHeaders();
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+    // C3: Enforce minimum app version (service-role callers auto-detected)
+    const versionError = checkMinimumVersion(req, corsHeaders);
+    if (versionError) return versionError;
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
@@ -834,6 +869,30 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // M10: Validate and normalize card format at the boundary — reject malformed input before any
+    // game logic. Normalizes both object cards { suit, rank, id } and legacy string cards (e.g.
+    // "D3") via parseCard so downstream logic always receives typed Card objects with a valid .id.
+    if (cards.length > 5) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Too many cards: max 5 per play' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const normalizedCards: Card[] = [];
+    for (const rawCard of cards) {
+      const parsed = parseCard(rawCard);
+      if (!parsed) {
+        // Log full payload server-side for debugging; return generic message to avoid reflecting attacker-controlled input
+        console.warn('[play-cards] ❌ M10: Invalid card at boundary:', JSON.stringify(rawCard).slice(0, 200));
+        return new Response(
+          JSON.stringify({ success: false, error: 'Invalid card format' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      normalizedCards.push(parsed);
+    }
+    cards = normalizedCards;
 
     // Now that we have a valid player_id, complete the identity check for client callers.
     if (!isServiceRole && callerJwtUserId !== player_id) {
@@ -989,6 +1048,31 @@ Deno.serve(async (req) => {
             next_turn: gameState.current_turn,
             combo_type: (gameState.last_play as any)?.combo_type ?? 'Single',
             match_scores: null,      // Scores were already committed; client reads from Realtime
+            highest_play_detected: false,
+            auto_pass_timer: null,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // C11 Fix: Non-winner idempotency guard — if a non-winner retries play-cards
+      // after the match ended (e.g. lost HTTP response), return a graceful success
+      // instead of a hard 400 so the client can transition to the results screen.
+      if (isRecentEnd) {
+        console.log(
+          `[play-cards] ✅ Idempotency: non-winner retry — player ${player.player_index} ` +
+          `retried after match ${gameState.match_number} ended. Returning already_finished=true.`
+        );
+        return new Response(
+          JSON.stringify({
+            success: true,
+            match_ended: true,
+            already_finished: true,
+            game_over: gameState.game_phase === 'game_over',
+            cards_remaining: player.cards_in_hand ?? 0,
+            next_turn: gameState.current_turn,
+            combo_type: (gameState.last_play as any)?.combo_type ?? 'Single',
+            match_scores: null,
             highest_play_detected: false,
             auto_pass_timer: null,
           }),

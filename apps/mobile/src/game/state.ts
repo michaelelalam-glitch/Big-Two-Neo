@@ -5,7 +5,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API } from '../constants';
-import { supabase } from '../services/supabase';
+import { supabase, APP_VERSION } from '../services/supabase';
 import { type AutoPassTimerState } from '../types/multiplayer';
 import { showError, soundManager, SoundType } from '../utils';
 import { gameLogger, statsLogger } from '../utils/logger';
@@ -1419,6 +1419,7 @@ export class GameStateManager {
           headers: {
             Authorization: `Bearer ${session.access_token}`,
             'Content-Type': 'application/json',
+            'x-app-version': APP_VERSION,
           },
           body: JSON.stringify(gameCompletionData),
         });

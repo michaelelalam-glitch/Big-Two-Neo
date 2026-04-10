@@ -3,11 +3,9 @@
  * cleanup-rooms Edge Function (Task #523)
  *
  * Calls the cleanup_abandoned_rooms() Postgres RPC to:
- *   - Delete empty waiting rooms older than 2 hours
- *   - Delete stuck "starting" rooms older than 1 minute
+ *   - Delete empty waiting rooms (status = 'waiting', no players) older than 2 hours
  *   - Delete completed/cancelled rooms older than 30 days
  *
- * Invocation:
  *   - Periodic cleanup in this project is handled by pg_cron calling the
  *     cleanup_abandoned_rooms() SQL function directly (no HTTP).
  *   - This Edge Function is intended for manual or external HTTP-triggered
@@ -22,11 +20,14 @@
  *   - Set the CRON_SECRET env variable in the Supabase project secrets.
  */
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { checkMinimumVersion } from '../_shared/versionCheck.ts';
+// M12: CORS origin controlled by ALLOWED_ORIGIN env var
+import { buildCorsHeaders } from '../_shared/cors.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const corsHeaders = buildCorsHeaders();
+
+
+
 
 // ==================== HELPERS ====================
 
@@ -59,6 +60,12 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+    // Version check: allow missing x-app-version header because this endpoint
+    // is invoked by pg_cron and internal server-side callers that do not carry
+    // a client version header. allowMissingHeader=true is intentional here.
+    const versionError = checkMinimumVersion(req, corsHeaders, true);
+    if (versionError) return versionError;
 
   // Restrict to POST only — this endpoint triggers destructive DB work
   if (req.method !== 'POST') {

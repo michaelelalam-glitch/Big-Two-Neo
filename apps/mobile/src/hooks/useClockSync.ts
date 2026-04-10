@@ -49,15 +49,28 @@ interface ClockSyncResult {
 }
 
 // ── Module-level NTP cache — shared across all hook instances ──────────────
-// Avoids one ping per mounted component; refreshes every 30 s in long sessions.
-const NTP_CACHE_TTL_MS = 30_000;
+// M4: Adaptive TTL — short (5 s) until 3 consecutive successes, then long (60 s).
+// This avoids the initial latency of the static 30 s TTL while reducing pings in
+// long stable sessions.
+const NTP_TTL_SHORT_MS = 5_000;
+const NTP_TTL_LONG_MS = 60_000;
+const NTP_STABLE_THRESHOLD = 3; // consecutive successes before switching to long TTL
+let _successCount = 0;
 let _cachedDrift: { drift: number; measuredAt: number } | null = null;
 let _pendingPing: Promise<number> | null = null;
 
+/** @internal Reset module-level NTP cache — for unit tests only. */
+export function __resetCacheForTesting(): void {
+  _cachedDrift = null;
+  _pendingPing = null;
+  _successCount = 0;
+}
+
 async function getServerDriftMs(): Promise<number> {
   const now = Date.now();
-  // Return cached result if fresh.
-  if (_cachedDrift && now - _cachedDrift.measuredAt < NTP_CACHE_TTL_MS) {
+  // Return cached result if fresh — TTL depends on how stable the sync has been.
+  const ttl = _successCount >= NTP_STABLE_THRESHOLD ? NTP_TTL_LONG_MS : NTP_TTL_SHORT_MS;
+  if (_cachedDrift && now - _cachedDrift.measuredAt < ttl) {
     return _cachedDrift.drift;
   }
   // Deduplicate concurrent calls — only one in-flight ping at a time.
@@ -70,10 +83,12 @@ async function getServerDriftMs(): Promise<number> {
       const rtt = Date.now() - t0;
       if (error || typeof data?.timestamp !== 'number') {
         networkLogger.warn('[Clock Sync] ⚠️ server-time ping failed, drift=0:', error);
+        _successCount = 0;
         return 0;
       }
       const drift = (data.timestamp as number) - t0 - Math.round(rtt / 2);
       _cachedDrift = { drift, measuredAt: Date.now() };
+      _successCount = Math.min(_successCount + 1, NTP_STABLE_THRESHOLD);
       networkLogger.info('[Clock Sync] ✅ NTP drift measured:', {
         serverMs: data.timestamp,
         t0,
@@ -85,6 +100,7 @@ async function getServerDriftMs(): Promise<number> {
       return drift;
     } catch (err) {
       networkLogger.warn('[Clock Sync] ⚠️ server-time ping threw, drift=0:', err);
+      _successCount = 0;
       return 0;
     } finally {
       _pendingPing = null;

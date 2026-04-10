@@ -1,5 +1,13 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { checkMinimumVersion } from '../_shared/versionCheck.ts';
+// M12: CORS origin controlled by ALLOWED_ORIGIN env var
+import { buildCorsHeaders } from '../_shared/cors.ts';
+
+// H7 Fix: LiveKit env vars for room cleanup after game completion
+const LIVEKIT_API_KEY    = Deno.env.get('LIVEKIT_API_KEY')    ?? '';
+const LIVEKIT_API_SECRET = Deno.env.get('LIVEKIT_API_SECRET') ?? '';
+const LIVEKIT_URL        = Deno.env.get('LIVEKIT_URL')        ?? '';
 
 interface GameCompletionRequest {
   room_id: string | null; // Must be valid UUID or null for local games
@@ -41,10 +49,86 @@ interface GameCompletionRequest {
   // because it is contaminated by bot heartbeats for replaced players.
 }
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const corsHeaders = buildCorsHeaders();
+
+
+
+
+// ─── H7 Fix: LiveKit room cleanup helpers ───────────────────────────────────
+// TODO: Extract toBase64Url + JWT signing helpers into _shared/livekit.ts to
+// deduplicate with get-livekit-token/index.ts.
+
+/** Base64url-encode a Uint8Array (RFC 4648 §5, no padding). */
+function toBase64Url(buf: Uint8Array): string {
+  const binary = Array.from(buf).map(b => String.fromCharCode(b)).join('');
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/**
+ * Delete a LiveKit room via the Twirp RoomService API.
+ * Uses HS256-signed JWT with roomAdmin grant (same pattern as get-livekit-token).
+ * Returns silently on failure — LiveKit cleanup must never block game completion.
+ */
+async function deleteLiveKitRoom(roomName: string): Promise<void> {
+  if (!LIVEKIT_API_KEY || !LIVEKIT_API_SECRET || !LIVEKIT_URL) {
+    return; // LiveKit not configured — skip
+  }
+
+  try {
+    // Build admin JWT
+    const enc = new TextEncoder();
+    const iat = Math.floor(Date.now() / 1000);
+    const header  = { alg: 'HS256', typ: 'JWT' };
+    const payload = {
+      iss: LIVEKIT_API_KEY,
+      sub: 'complete-game',
+      iat,
+      nbf: iat,
+      exp: iat + 30, // 30s is enough for a single API call
+      jti: crypto.randomUUID(),
+      video: { roomAdmin: true },
+    };
+
+    const headerB64  = toBase64Url(enc.encode(JSON.stringify(header)));
+    const payloadB64 = toBase64Url(enc.encode(JSON.stringify(payload)));
+    const signingInput = `${headerB64}.${payloadB64}`;
+
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw', enc.encode(LIVEKIT_API_SECRET),
+      { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
+    );
+    const sig    = await crypto.subtle.sign('HMAC', cryptoKey, enc.encode(signingInput));
+    const token  = `${signingInput}.${toBase64Url(new Uint8Array(sig))}`;
+
+    // LiveKit REST API uses the HTTP URL (wss:// → https://)
+    const httpUrl = LIVEKIT_URL.replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://');
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5_000);
+    try {
+      const res = await fetch(`${httpUrl}/twirp/livekit.RoomService/DeleteRoom`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ room: roomName }),
+        signal: controller.signal,
+      });
+      if (res.ok) {
+        console.log(`[Complete Game] LiveKit room '${roomName}' deleted`);
+      } else {
+        const body = await res.text().catch(() => '');
+        console.warn(`[Complete Game] LiveKit DeleteRoom returned ${res.status}: ${body}`);
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
+  } catch (err: any) {
+    // Never block game completion on LiveKit errors
+    console.warn('[Complete Game] LiveKit room cleanup failed (non-critical):', err?.message ?? err);
+  }
+}
 
 // ─── Helper: broadcast game_ended to all room clients ────────────────────────
 // Called from both the normal path (Step 5) and the dedup/23505 short-circuit
@@ -168,6 +252,10 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+    // C3: Enforce minimum app version
+    const versionError = checkMinimumVersion(req, corsHeaders);
+    if (versionError) return versionError;
 
   try {
     // Get service_role client for privileged operations
@@ -941,6 +1029,18 @@ Deno.serve(async (req) => {
           console.warn('[Complete Game] Failed to clean room_players:', rpDel.message);
         } else {
           console.log('[Complete Game] Room players cleaned up');
+        }
+
+        // H7 Fix: Delete the LiveKit room to free server-side resources.
+        // Uses the room UUID as the LiveKit room name (same as get-livekit-token).
+        // Best-effort via EdgeRuntime.waitUntil so it doesn't add latency to game completion.
+        // Create the promise once to avoid double invocation on waitUntil fallback.
+        const deleteRoomPromise = deleteLiveKitRoom(gameData.room_id!);
+        const edgeRt = (globalThis as any).EdgeRuntime;
+        if (typeof edgeRt?.waitUntil === 'function') {
+          edgeRt.waitUntil(deleteRoomPromise);
+        } else {
+          await deleteRoomPromise;
         }
       } catch (roomCleanupErr) {
         console.warn('[Complete Game] Room cleanup error (non-critical):', roomCleanupErr);

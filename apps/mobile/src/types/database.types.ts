@@ -8,6 +8,27 @@ export type Database = {
   };
   public: {
     Tables: {
+      blocked_users: {
+        Row: {
+          blocked_id: string;
+          blocker_id: string;
+          created_at: string;
+          id: string;
+        };
+        Insert: {
+          blocked_id: string;
+          blocker_id: string;
+          created_at?: string;
+          id?: string;
+        };
+        Update: {
+          blocked_id?: string;
+          blocker_id?: string;
+          created_at?: string;
+          id?: string;
+        };
+        Relationships: [];
+      };
       bot_coordinator_locks: {
         Row: {
           coordinator_id: string;
@@ -1417,6 +1438,7 @@ export type Database = {
           status: string | null;
           user_id: string;
           username: string;
+          waiting_count: number;
         };
         Insert: {
           id?: string;
@@ -1429,6 +1451,7 @@ export type Database = {
           status?: string | null;
           user_id: string;
           username: string;
+          waiting_count?: number;
         };
         Update: {
           id?: string;
@@ -1441,6 +1464,7 @@ export type Database = {
           status?: string | null;
           user_id?: string;
           username?: string;
+          waiting_count?: number;
         };
         Relationships: [
           {
@@ -1599,6 +1623,37 @@ export type Database = {
       generate_room_code: { Args: never; Returns: string };
       generate_room_code_v2: { Args: never; Returns: string };
       get_card_value: { Args: { p_card: Json }; Returns: number };
+      get_player_game_state: {
+        Args: { p_room_id: string };
+        Returns: {
+          auto_pass_timer: Json | null;
+          current_turn: number;
+          final_scores: Json | null;
+          game_ended_at: string | null;
+          game_phase: string;
+          game_winner_index: number | null;
+          hands: Json;
+          id: string;
+          last_match_winner_index: number | null;
+          last_play: Json | null;
+          last_player: number | null;
+          match_ended_at: string | null;
+          match_number: number;
+          pass_count: number | null;
+          passes: number | null;
+          passes_in_row: number | null;
+          play_history: Json | null;
+          played_cards: Json | null;
+          room_id: string | null;
+          round_number: number | null;
+          scores_history: Json;
+          started_at: string | null;
+          total_training_actions: number;
+          turn_started_at: string | null;
+          updated_at: string | null;
+          winner: number | null;
+        }[];
+      };
       get_leaderboard_casual: {
         Args: { p_limit?: number; p_offset?: number };
         Returns: {

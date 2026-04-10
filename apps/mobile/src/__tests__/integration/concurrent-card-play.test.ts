@@ -31,9 +31,14 @@ const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 const hasCredentials = !!SUPABASE_URL && !!SUPABASE_ANON_KEY && !!SUPABASE_SERVICE_ROLE_KEY;
-const describeWithCredentials = hasCredentials ? describe : describe.skip;
+if (!hasCredentials) {
+  console.warn(
+    '[SKIP] concurrent-card-play: Supabase credentials not set — integration tests skipped'
+  );
+}
+const describeIntegration = hasCredentials ? describe : describe.skip;
 
-describeWithCredentials('Concurrent Card Play Stress Tests', () => {
+describeIntegration('Concurrent Card Play Stress Tests', () => {
   let supabase: SupabaseClient;
   const authUserIds: string[] = [];
 
@@ -242,7 +247,7 @@ describeWithCredentials('Concurrent Card Play Stress Tests', () => {
       expect(settled.length).toBeGreaterThan(0);
       // Assert double-submit rejection: at most 1 call returns without error
       const successCount = settled.filter(
-        (r) => !(r as PromiseFulfilledResult<{ error: unknown }>).value.error,
+        r => !(r as PromiseFulfilledResult<{ error: unknown }>).value.error
       ).length;
       expect(successCount).toBeLessThanOrEqual(1);
     } finally {

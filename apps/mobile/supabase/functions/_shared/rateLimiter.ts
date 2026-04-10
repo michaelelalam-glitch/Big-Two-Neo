@@ -53,6 +53,9 @@ export async function checkRateLimit(
   maxPerWindow: number,
   windowSeconds: number,
 ): Promise<RateLimitResult> {
+  // M7: Check against DB for every request — no in-memory bypass.
+  // (The former allow-cache was removed because it allowed unbounded requests
+  // within its 1s TTL window without incrementing the DB counter.)
   try {
     const { data, error } = await client.rpc('upsert_rate_limit_counter', {
       p_user_id:     userId,
@@ -93,7 +96,6 @@ export async function checkRateLimit(
 
     return { allowed, attempts, retryAfterMs };
   } catch (err) {
-    // Unexpected error — fail open so gameplay isn't disrupted.
     console.error(`[rateLimiter] Unexpected error for ${action}:`, err);
     return { allowed: true, attempts: 0, retryAfterMs: 0 };
   }

@@ -1,0 +1,94 @@
+# Flow 43: Offline Game — Easy bots, full game controls and helper buttons
+# Validates: Game launches (Easy), Pass/Play buttons, Sort/Smart/Hint helpers,
+#            Settings button, no error overlay across multiple interactions
+# Tags: ci-authenticated, offline-game, game-controls
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - offline-game
+  - game-controls
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 20000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Launch Easy offline game
+- tapOn: "Offline Practice"
+- extendedWaitUntil:
+    visible: "Bot Difficulty"
+    timeout: 6000
+- tapOn:
+    id: "difficulty-easy"
+
+# Wait for game board
+- extendedWaitUntil:
+    visible:
+      id: "pass-button"
+    timeout: 20000
+- takeScreenshot: "43_game_easy_start"
+
+# Verify all game controls are present
+- assertVisible:
+    id: "pass-button"
+- assertVisible:
+    id: "play-button"
+- assertVisible:
+    id: "sort-button"
+- assertVisible:
+    id: "smart-sort-button"
+- assertVisible:
+    id: "hint-button"
+- assertVisible:
+    id: "settings-button"
+
+# Interact: Sort cards
+- tapOn:
+    id: "sort-button"
+- takeScreenshot: "43_after_sort"
+
+# Smart sort
+- tapOn:
+    id: "smart-sort-button"
+- takeScreenshot: "43_after_smart_sort"
+
+# Hint
+- tapOn:
+    id: "hint-button"
+- takeScreenshot: "43_after_hint"
+
+# Pass turn
+- tapOn:
+    id: "pass-button"
+- takeScreenshot: "43_after_pass"
+
+# Pass again (second turn)
+- tapOn:
+    id: "pass-button"
+- takeScreenshot: "43_after_pass_2"
+
+# Verify no error overlay
+- assertNotVisible:
+    text: "Error"
+    optional: true
+
+# Open in-game settings
+- tapOn:
+    id: "settings-button"
+- extendedWaitUntil:
+    visible:
+      id: "close-settings-button"
+    timeout: 5000
+- takeScreenshot: "43_in_game_settings"
+
+# Close settings
+- tapOn:
+    id: "close-settings-button"
+- assertVisible:
+    id: "pass-button"

@@ -20,7 +20,7 @@ tags:
 - launchApp
 - extendedWaitUntil:
     visible: "Choose a game to play"
-    timeout: 15000
+    timeout: 8000
 
 # Step 2: Select Chinese Poker
 - tapOn:

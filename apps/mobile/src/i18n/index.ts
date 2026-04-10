@@ -55,6 +55,7 @@ export interface Translations {
     connected: string;
     reconnecting: string;
     disconnected: string;
+    replacedByBot: string;
   };
 
   // In-game chat controls
@@ -561,6 +562,42 @@ export interface Translations {
     cards: string;
   };
 
+  // Card accessibility labels (H11 — VoiceOver/TalkBack i18n for suits and ranks)
+  cardA11y: {
+    hearts: string;
+    diamonds: string;
+    clubs: string;
+    spades: string;
+    ace: string;
+    king: string;
+    queen: string;
+    jack: string;
+    ten: string;
+    nine: string;
+    eight: string;
+    seven: string;
+    six: string;
+    five: string;
+    four: string;
+    three: string;
+    two: string;
+    selected: string;
+    /** Template: '{{rank}} of {{suit}}' */
+    cardLabel: string;
+    /** Template: '{{rank}} of {{suit}}, selected' — localized selected-card label */
+    selectedCardLabel: string;
+    /** Hint shown when card is not selected (or only this card is selected) */
+    hintSelectDeselect: string;
+    /** Hint shown when card is selected and multiple cards are selected */
+    hintDeselectMulti: string;
+    /** Accessibility action label to select a card */
+    actionSelect: string;
+    /** Accessibility action label to deselect a card */
+    actionDeselect: string;
+    /** Accessibility action label for long press */
+    actionLongPress: string;
+  };
+
   // Lobby Screen
   lobby: {
     title: string;
@@ -922,6 +959,7 @@ const en: Translations = {
     connected: 'Connected',
     reconnecting: 'Reconnecting...',
     disconnected: 'Disconnected',
+    replacedByBot: 'Replaced by Bot',
   },
   chat: {
     joinVoice: 'Join Voice Chat',
@@ -1399,6 +1437,33 @@ const en: Translations = {
     card: 'card',
     cards: 'cards',
   },
+  cardA11y: {
+    hearts: 'Hearts',
+    diamonds: 'Diamonds',
+    clubs: 'Clubs',
+    spades: 'Spades',
+    ace: 'Ace',
+    king: 'King',
+    queen: 'Queen',
+    jack: 'Jack',
+    ten: 'Ten',
+    nine: 'Nine',
+    eight: 'Eight',
+    seven: 'Seven',
+    six: 'Six',
+    five: 'Five',
+    four: 'Four',
+    three: 'Three',
+    two: 'Two',
+    selected: 'selected',
+    cardLabel: '{{rank}} of {{suit}}',
+    selectedCardLabel: '{{rank}} of {{suit}}, selected',
+    hintSelectDeselect: 'Double tap to select or deselect. Long press then drag to rearrange.',
+    hintDeselectMulti: 'Double tap to deselect. Drag with other selected cards to play.',
+    actionSelect: 'Select card',
+    actionDeselect: 'Deselect card',
+    actionLongPress: 'Long press',
+  },
   lobby: {
     title: 'Game Lobby',
     roomCode: 'Room Code',
@@ -1749,6 +1814,7 @@ const ar: Translations = {
     connected: 'متصل',
     reconnecting: 'جارٍ إعادة الاتصال...',
     disconnected: 'غير متصل',
+    replacedByBot: 'تم استبدالك بروبوت',
   },
   chat: {
     joinVoice: 'انضم إلى الدردشة الصوتية',
@@ -2156,6 +2222,33 @@ const ar: Translations = {
     expandAll: 'توسيع الكل',
     card: 'بطاقة',
     cards: 'بطاقات',
+  },
+  cardA11y: {
+    hearts: 'قلوب',
+    diamonds: 'ماس',
+    clubs: 'سباتي',
+    spades: 'بستوني',
+    ace: 'آس',
+    king: 'ملك',
+    queen: 'ملكة',
+    jack: 'جاك',
+    ten: 'عشرة',
+    nine: 'تسعة',
+    eight: 'ثمانية',
+    seven: 'سبعة',
+    six: 'ستة',
+    five: 'خمسة',
+    four: 'أربعة',
+    three: 'ثلاثة',
+    two: 'اثنان',
+    selected: 'محدد',
+    cardLabel: '{{rank}} من {{suit}}',
+    selectedCardLabel: '{{rank}} من {{suit}}، محدد',
+    hintSelectDeselect: 'انقر مرتين للتحديد أو إلغاء التحديد. اضغط طويلاً ثم اسحب لإعادة الترتيب.',
+    hintDeselectMulti: 'انقر مرتين لإلغاء التحديد. اسحب مع البطاقات المحددة الأخرى للعب.',
+    actionSelect: 'تحديد البطاقة',
+    actionDeselect: 'إلغاء تحديد البطاقة',
+    actionLongPress: 'ضغط طويل',
   },
   lobby: {
     title: 'صالة اللعبة',
@@ -2591,6 +2684,7 @@ const de: Translations = {
     connected: 'Verbunden',
     reconnecting: 'Verbindung wird wiederhergestellt...',
     disconnected: 'Getrennt',
+    replacedByBot: 'Durch Bot ersetzt',
   },
   chat: {
     joinVoice: 'Sprach-Chat beitreten',
@@ -3016,6 +3110,35 @@ const de: Translations = {
     expandAll: 'Alle ausklappen',
     card: 'Karte',
     cards: 'Karten',
+  },
+  cardA11y: {
+    hearts: 'Herz',
+    diamonds: 'Karo',
+    clubs: 'Kreuz',
+    spades: 'Pik',
+    ace: 'Ass',
+    king: 'König',
+    queen: 'Dame',
+    jack: 'Bube',
+    ten: 'Zehn',
+    nine: 'Neun',
+    eight: 'Acht',
+    seven: 'Sieben',
+    six: 'Sechs',
+    five: 'Fünf',
+    four: 'Vier',
+    three: 'Drei',
+    two: 'Zwei',
+    selected: 'ausgewählt',
+    cardLabel: '{{rank}} von {{suit}}',
+    selectedCardLabel: '{{rank}} von {{suit}}, ausgewählt',
+    hintSelectDeselect:
+      'Doppeltippen zum Auswählen oder Abwählen. Lang drücken dann ziehen zum Neuanordnen.',
+    hintDeselectMulti:
+      'Doppeltippen zum Abwählen. Mit anderen ausgewählten Karten ziehen zum Spielen.',
+    actionSelect: 'Karte auswählen',
+    actionDeselect: 'Karte abwählen',
+    actionLongPress: 'Langer Druck',
   },
   lobby: {
     title: 'Spiellobby',

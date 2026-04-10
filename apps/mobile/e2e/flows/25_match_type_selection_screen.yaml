@@ -1,0 +1,64 @@
+# Flow 25: Match Type Selection Screen
+# Validates: Match Type Selection screen UI and both type options
+# Tags: navigation, auth-required
+#
+# Prerequisites: User is authenticated and on the Home screen
+# Source: MatchTypeSelectionScreen.tsx — testID="match-type-selection-screen"
+
+appId: com.big2mobile.app
+tags:
+  - navigation
+  - auth-required
+---
+# Step 1: Launch and navigate to Home
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 8000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Step 2: Open "Find a Game" modal
+- tapOn: "Find a Game"
+- extendedWaitUntil:
+    visible: "Choose your game mode"
+    timeout: 5000
+
+# Step 3: Tap "Ranked Match" to navigate to Match Type Selection
+- tapOn: "Ranked Match"
+- extendedWaitUntil:
+    visible:
+      id: "match-type-selection-screen"
+    timeout: 10000
+
+# Step 4: Verify screen title
+- assertVisible: "Select Match Type"
+- takeScreenshot: "25_match_type_selection"
+
+# Step 5: Verify Casual option is present and tap it
+- assertVisible:
+    id: "casual-match-type"
+- tapOn:
+    id: "casual-match-type"
+- takeScreenshot: "25_casual_selected"
+
+# Step 6: Verify Ranked option is present and tap it
+- assertVisible:
+    id: "ranked-match-type"
+- tapOn:
+    id: "ranked-match-type"
+- takeScreenshot: "25_ranked_selected"
+
+# Step 7: Verify Continue button is present
+- assertVisible:
+    id: "continue-match-type-button"
+
+# Step 8: Tap back button to return
+- tapOn:
+    id: "match-type-back-button"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000

@@ -26,10 +26,14 @@ export default function MatchTypeSelectionScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} testID="match-type-selection-screen">
       <View style={styles.content}>
         {/* Back Button */}
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+          testID="match-type-back-button"
+        >
           <Text style={styles.backButtonText}>←</Text>
         </TouchableOpacity>
 
@@ -40,6 +44,7 @@ export default function MatchTypeSelectionScreen() {
         <View style={styles.optionsContainer}>
           {/* Casual */}
           <TouchableOpacity
+            testID="casual-match-type"
             style={[styles.optionCard, selectedType === 'casual' && styles.optionCardSelected]}
             onPress={() => setSelectedType('casual')}
           >
@@ -57,6 +62,7 @@ export default function MatchTypeSelectionScreen() {
 
           {/* Ranked */}
           <TouchableOpacity
+            testID="ranked-match-type"
             style={[styles.optionCard, selectedType === 'ranked' && styles.optionCardSelected]}
             onPress={() => setSelectedType('ranked')}
           >
@@ -74,7 +80,11 @@ export default function MatchTypeSelectionScreen() {
         </View>
 
         {/* Continue Button */}
-        <TouchableOpacity style={styles.continueButton} onPress={handleContinue}>
+        <TouchableOpacity
+          testID="continue-match-type-button"
+          style={styles.continueButton}
+          onPress={handleContinue}
+        >
           <Text style={styles.continueButtonText}>{i18n.t('common.continue')} →</Text>
         </TouchableOpacity>
       </View>

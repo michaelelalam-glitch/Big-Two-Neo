@@ -1,0 +1,31 @@
+# Helper: Navigate into an offline game room (used by portrait game-room flows)
+# This is a reusable sub-flow
+
+appId: com.big2mobile.app
+tags:
+  - helper
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 15000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Enter offline game as game room proxy
+- tapOn: "Offline Practice"
+- extendedWaitUntil:
+    visible: "Bot Difficulty"
+    timeout: 6000
+- tapOn:
+    id: "difficulty-easy"
+
+# Wait for game board to fully load
+- extendedWaitUntil:
+    visible:
+      id: "pass-button"
+    timeout: 20000
+- waitForAnimationToEnd

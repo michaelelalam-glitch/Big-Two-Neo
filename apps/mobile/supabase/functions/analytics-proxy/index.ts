@@ -10,17 +10,17 @@
  *   supabase secrets set GA4_MEASUREMENT_ID=G-XXXXXXXXXX
  */
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+// M12: CORS origin controlled by ALLOWED_ORIGIN env var (see _shared/cors.ts)
+import { buildCorsHeaders } from '../_shared/cors.ts';
+// L5: Request ID tracing + L4: standardized error responses
+import { errorResponse, getRequestId } from '../_shared/responses.ts';
 
 const GA4_API_SECRET = Deno.env.get('GA4_API_SECRET') ?? '';
 const GA4_MEASUREMENT_ID = Deno.env.get('GA4_MEASUREMENT_ID') ?? '';
 const MP_ENDPOINT = 'https://www.google-analytics.com/mp/collect';
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { checkMinimumVersion } from '../_shared/versionCheck.ts';
 
 // Best-effort per-user rate limiter: max 60 requests per minute per authenticated user.
 // Rate-limit key is the authenticated user.id from the verified JWT — cannot be spoofed
@@ -67,34 +67,35 @@ function isRateLimited(userId: string): boolean {
 }
 
 Deno.serve(async (req) => {
+  // M12: CORS origin controlled by ALLOWED_ORIGIN env var
+  const corsHeaders = buildCorsHeaders();
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  // L5: Propagate request ID for tracing
+  const requestId = getRequestId(req);
+
+  // C3: Enforce minimum app version
+  const versionError = checkMinimumVersion(req, { ...corsHeaders, 'X-Request-ID': requestId });
+  if (versionError) return versionError;
+
   if (req.method !== 'POST') {
-    return new Response(
-      JSON.stringify({ error: 'Method not allowed' }),
-      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
+    return errorResponse(405, 'Method not allowed', corsHeaders, 'METHOD_NOT_ALLOWED', requestId);
   }
 
   // Require valid Supabase JWT to prevent anonymous abuse
   const authHeader = req.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
-    return new Response(
-      JSON.stringify({ error: 'Unauthorized' }),
-      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
+    return errorResponse(401, 'Unauthorized', corsHeaders, 'UNAUTHORIZED', requestId);
   }
   const token = authHeader.replace('Bearer ', '');
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
   const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
   if (!supabaseUrl || !supabaseAnonKey) {
     console.error('[analytics-proxy] SUPABASE_URL or SUPABASE_ANON_KEY not configured');
-    return new Response(
-      JSON.stringify({ error: 'Server misconfigured' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
+    return errorResponse(500, 'Server misconfigured', corsHeaders, 'INTERNAL_ERROR', requestId);
   }
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
@@ -102,53 +103,35 @@ Deno.serve(async (req) => {
   });
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) {
-    return new Response(
-      JSON.stringify({ error: 'Invalid or expired token' }),
-      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
+    return errorResponse(401, 'Invalid or expired token', corsHeaders, 'UNAUTHORIZED', requestId);
   }
 
   // Per-user rate limiting (using authenticated user.id, not spoofable IP)
   if (isRateLimited(user.id)) {
-    return new Response(
-      JSON.stringify({ error: 'Too many requests' }),
-      { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
+    return errorResponse(429, 'Too many requests', corsHeaders, 'RATE_LIMITED', requestId);
   }
 
   if (!GA4_API_SECRET || !GA4_MEASUREMENT_ID) {
     console.error('[analytics-proxy] GA4_API_SECRET or GA4_MEASUREMENT_ID not configured');
-    return new Response(
-      JSON.stringify({ error: 'Analytics not configured' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
+    return errorResponse(500, 'Analytics not configured', corsHeaders, 'INTERNAL_ERROR', requestId);
   }
 
   let body: any;
   try {
     body = await req.json();
   } catch {
-    return new Response(
-      JSON.stringify({ error: 'Invalid JSON body' }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
+    return errorResponse(400, 'Invalid JSON body', corsHeaders, 'BAD_REQUEST', requestId);
   }
 
   try {
     // Basic validation: must have client_id and events array
     if (!body.client_id || !Array.isArray(body.events) || body.events.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid payload: client_id and events[] required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
+      return errorResponse(400, 'Invalid payload: client_id and events[] required', corsHeaders, 'BAD_REQUEST', requestId);
     }
 
     // Cap events per request to prevent abuse
     if (body.events.length > 25) {
-      return new Response(
-        JSON.stringify({ error: 'Too many events (max 25 per request)' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
+      return errorResponse(400, 'Too many events (max 25 per request)', corsHeaders, 'BAD_REQUEST', requestId);
     }
 
     // Overwrite user_id with authenticated user to prevent spoofing
@@ -183,14 +166,11 @@ Deno.serve(async (req) => {
       JSON.stringify({ status: ga4Response.status }),
       {
         status: ga4Response.ok ? 200 : 502,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Request-ID': requestId },
       },
     );
   } catch (error: any) {
-    console.error('[analytics-proxy] Error:', error);
-    return new Response(
-      JSON.stringify({ error: error.message || 'Unknown error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
+    console.error(`[analytics-proxy] reqId=${requestId} Error:`, error);
+    return errorResponse(500, error.message || 'Unknown error', corsHeaders, 'INTERNAL_ERROR', requestId);
   }
 });

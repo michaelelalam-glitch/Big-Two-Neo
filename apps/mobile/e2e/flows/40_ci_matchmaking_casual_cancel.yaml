@@ -1,0 +1,42 @@
+# Flow 40: Matchmaking Casual — Start search then cancel
+# Validates: Casual matchmaking starts, matchmaking screen shows, cancel works
+# Tags: ci-authenticated, matchmaking
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - matchmaking
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 20000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Start casual matchmaking
+- tapOn:
+    id: "find-game-button"
+- extendedWaitUntil:
+    visible: "Choose Game Mode"
+    timeout: 6000
+- tapOn:
+    id: "find-game-casual"
+
+# Wait for matchmaking screen
+- extendedWaitUntil:
+    visible:
+      id: "matchmaking-screen"
+    timeout: 12000
+- takeScreenshot: "40_matchmaking_casual_searching"
+
+# Cancel search
+- tapOn:
+    id: "cancel-matchmaking-button"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+- takeScreenshot: "40_back_to_home"

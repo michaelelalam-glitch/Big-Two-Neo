@@ -9,6 +9,7 @@
  */
 import React, { Profiler, useMemo, useCallback, useState, useRef, useEffect } from 'react';
 import { View, Text, Pressable, TouchableOpacity, ActivityIndicator, Animated } from 'react-native';
+import { useShallow } from 'zustand/react/shallow';
 import {
   CardHand,
   PlayerInfo,
@@ -40,10 +41,36 @@ import type { DragZoneState } from '../components/game';
 import { useGameContext } from '../contexts/GameContext';
 import { useFriendsContext } from '../contexts/FriendsContext';
 import { AddFriendButton } from '../components/friends';
-import { useUserPreferencesStore } from '../store';
+import { useUserPreferencesStore, useGameSessionStore } from '../store';
 import { LAYOUT } from '../constants';
 
 function GameViewComponent() {
+  // C2 Audit: read migrated state from Zustand (single source of truth).
+  // Single subscription with shallow equality avoids 9 separate re-render triggers.
+  const {
+    customCardOrder,
+    setCustomCardOrder,
+    layoutPlayers,
+    layoutPlayersWithScores,
+    playerTotalScores,
+    currentPlayerName,
+    isPlayerReady,
+    isGameFinished,
+    matchNumber,
+  } = useGameSessionStore(
+    useShallow(s => ({
+      customCardOrder: s.customCardOrder,
+      setCustomCardOrder: s.setCustomCardOrder,
+      layoutPlayers: s.layoutPlayers,
+      layoutPlayersWithScores: s.layoutPlayersWithScores,
+      playerTotalScores: s.playerTotalScores,
+      currentPlayerName: s.currentPlayerName,
+      isPlayerReady: s.isPlayerReady,
+      isGameFinished: s.isGameFinished,
+      matchNumber: s.matchNumber,
+    }))
+  );
+
   const profilePhotoSize = useUserPreferencesStore(s => s.profilePhotoSize);
   const throwableClipSize = useMemo(() => {
     const scaleMap = { small: 0.85, medium: 1.0, large: 1.25 } as const;
@@ -56,7 +83,7 @@ function GameViewComponent() {
     currentOrientation,
     toggleOrientation,
     isInitializing,
-    isConnected,
+    connectionStatus,
     showSettings,
     setShowSettings,
     roomCode,
@@ -66,16 +93,10 @@ function GameViewComponent() {
     setSelectedCardIds,
     handleCardsReorder,
     selectedCards,
-    customCardOrder,
-    setCustomCardOrder,
     effectiveLastPlayedCards,
     effectiveLastPlayedBy,
     effectiveLastPlayComboType,
     effectiveLastPlayCombo,
-    layoutPlayers,
-    layoutPlayersWithScores,
-    playerTotalScores,
-    currentPlayerName,
     togglePlayHistory,
     toggleScoreboardExpanded,
     memoizedPlayerNames,
@@ -84,8 +105,6 @@ function GameViewComponent() {
     memoizedOriginalPlayerNames,
     effectiveAutoPassTimerState,
     effectiveScoreboardCurrentPlayerIndex,
-    matchNumber,
-    isGameFinished,
     displayOrderScoreHistory,
     playHistoryByMatch,
     handlePlayCards,
@@ -98,7 +117,6 @@ function GameViewComponent() {
     handleSort,
     handleSmartSort,
     handleHint,
-    isPlayerReady,
     gameManagerRef,
     isMountedRef,
     // Task #651 / #649 video + voice chat
@@ -277,6 +295,17 @@ function GameViewComponent() {
   // render (which would break React.memo on GameSettingsModal). Task #628.
   const closeSettings = useCallback(() => setShowSettings(false), [setShowSettings]);
 
+  // H13: Stable drag-to-play callback for LandscapeGameLayout. Inlining this
+  // as an arrow function creates a new reference on every render, defeating
+  // the React.memo wrapping on LandscapeGameLayout (now added in H14).
+  const handleLandscapeDragPlay = useCallback(
+    (cards: Card[]) => {
+      gameLogger.info('🎴 [Landscape] Drag-to-play triggered with cards:', cards.length);
+      handleCardHandPlayCards(cards);
+    },
+    [handleCardHandPlayCards]
+  );
+
   // Performance profiling callback (Task #430)
   // useCallback with empty deps: same identity across all re-renders, no new
   // allocation on updates. The callback itself is stateless (reads no closure
@@ -313,12 +342,12 @@ function GameViewComponent() {
         {/* Task #575: Connection status indicator for multiplayer */}
         {isMultiplayerGame && (
           <ConnectionStatusIndicator
-            status={isConnected ? 'connected' : 'reconnecting'}
+            status={connectionStatus}
             style={{ position: 'absolute', top: 50, alignSelf: 'center', zIndex: 200 }}
           />
         )}
 
-        {isInitializing ? (
+        {isInitializing || layoutPlayersWithScores.length === 0 ? (
           // Loading state
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#fff" style={{ marginBottom: 12 }} />
@@ -361,10 +390,7 @@ function GameViewComponent() {
             onCardsReorder={handleCardsReorder}
             // Drag-to-play callback — uses handleCardHandPlayCards (not handlePlayCards directly)
             // so play_method is correctly set to 'drag' in analytics before the play is processed.
-            onPlayCards={(cards: Card[]) => {
-              gameLogger.info('🎴 [Landscape] Drag-to-play triggered with cards:', cards.length);
-              handleCardHandPlayCards(cards);
-            }}
+            onPlayCards={handleLandscapeDragPlay}
             // Control callbacks
             onOrientationToggle={toggleOrientation}
             onHelp={() => gameLogger.info('Help requested')}

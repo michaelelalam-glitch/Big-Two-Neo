@@ -2643,6 +2643,7 @@ exports[`CardHand — visual regression snapshots renders a 5-card hand (no sele
             },
           ]
         }
+        testID="play-button"
       >
         <Text
           style={
@@ -5526,6 +5527,7 @@ exports[`CardHand — visual regression snapshots renders a 13-card starting han
             },
           ]
         }
+        testID="play-button"
       >
         <Text
           style={
@@ -6656,6 +6658,7 @@ exports[`CardHand — visual regression snapshots renders hand with Play button 
             },
           ]
         }
+        testID="play-button"
       >
         <Text
           style={
@@ -7883,6 +7886,7 @@ exports[`CardHand — visual regression snapshots renders hand with one card sel
             false,
           ]
         }
+        testID="play-button"
       >
         <Text
           style={

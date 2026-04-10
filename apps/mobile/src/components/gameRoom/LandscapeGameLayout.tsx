@@ -137,7 +137,8 @@ export interface LandscapeGameLayoutProps {
 // MAIN COMPONENT
 // ============================================================================
 
-export function LandscapeGameLayout({
+// H14: Wrap with React.memo so parent re-renders only propagate when props change.
+export const LandscapeGameLayout = React.memo(function LandscapeGameLayout({
   // Scoreboard
   playerNames,
   currentScores,
@@ -722,7 +723,7 @@ export function LandscapeGameLayout({
       </View>
     </SafeAreaView>
   );
-}
+});
 
 // ============================================================================
 // STYLES

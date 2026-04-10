@@ -1,0 +1,91 @@
+# Flow 17: Hot Relaunch Stability (No State Clear)
+# Validates: App is stable across 5 consecutive hot relaunches without clearing
+#   AsyncStorage between cycles. Catches regressions in singleton re-init
+#   (SoundManager, Supabase client), navigation stack accumulation, and
+#   React Native bridge state bleed between launches.
+# Tags: smoke, stability
+#
+# CI-safe: no authentication required.
+# Complements flow 14 (which uses clearState: true between every cycle).
+
+appId: com.big2mobile.app
+tags:
+  - smoke
+  - stability
+
+---
+# ── Cycle 1: Base cold start ──────────────────────────────────────────────
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible:
+      id: "privacy-consent-decline"
+    timeout: 30000
+- tapOn:
+    id: "privacy-consent-decline"
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 120000
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "17_hot_relaunch_cycle1"
+
+# ── Cycle 2: Hot relaunch, no state clear ─────────────────────────────────
+- launchApp
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 60000
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "17_hot_relaunch_cycle2"
+
+# ── Cycle 3 ───────────────────────────────────────────────────────────────
+- launchApp
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 60000
+- assertVisible:
+    id: "sign-in-title"
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "17_hot_relaunch_cycle3"
+
+# ── Cycle 4 ───────────────────────────────────────────────────────────────
+- launchApp
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 60000
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "17_hot_relaunch_cycle4"
+
+# ── Cycle 5: Final full assertion ─────────────────────────────────────────
+- launchApp
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 60000
+
+# All elements must still render correctly after 5 hot relaunches
+- assertVisible:
+    id: "sign-in-screen"
+- assertVisible:
+    id: "sign-in-title"
+- assertVisible:
+    id: "sign-in-subtitle"
+- assertVisible:
+    id: "google-sign-in-button"
+- assertVisible:
+    id: "sign-in-footer"
+
+- takeScreenshot: "17_hot_relaunch_cycle5_final"

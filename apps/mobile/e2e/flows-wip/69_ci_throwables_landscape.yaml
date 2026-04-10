@@ -1,0 +1,37 @@
+appId: com.big2mobile.app
+tags:
+  - game-room-e2e
+  - throwables
+  - landscape
+---
+# Flow 69: Throwables — open picker and send in landscape mode
+
+- runFlow: ./88_ci_landscape_mode_game.yaml
+
+# Open throwable picker in landscape
+- tapOn:
+    text: "🎯"
+    optional: true
+- waitForAnimationToEnd
+- assertVisible:
+    id: "throw-picker-egg"
+
+# Select confetti in landscape — most visually impactful
+- tapOn:
+    id: "throw-picker-confetti"
+- waitForAnimationToEnd
+
+# Reopen and select egg in landscape
+- tapOn:
+    text: "🎯"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    id: "throw-picker-egg"
+- waitForAnimationToEnd
+
+# Close landscape mode
+- tapOn:
+    id: "orientation-toggle-button"
+    optional: true
+- waitForAnimationToEnd

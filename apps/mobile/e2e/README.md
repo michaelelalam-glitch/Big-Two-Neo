@@ -55,18 +55,28 @@ maestro test --include-tags critical-path e2e/flows/
 | `06_offline_game.yaml` | Full offline bot game flow | game, critical-path | ❌ |
 | `07_match_history.yaml` | Match history + leaderboard | navigation, history | ❌ |
 | `08_settings_how_to_play.yaml` | Settings + How to Play screens | navigation | ❌ |
+| `09_livekit_voice_video.yaml` | LiveKit voice/video toggles in-game | livekit, phase7 | ❌ |
+| `10_sign_in_content_check.yaml` | Deep sign-in screen content validation | smoke, ci | ✅ |
+| `11_app_relaunch_state.yaml` | App relaunch state persistence | smoke, ci | ✅ |
+| `12_multiplayer_game_flow.yaml` | Full multiplayer lifecycle with bots | multiplayer, critical-path | ❌ |
+| `13_sign_in_interaction.yaml` | Sign-in interactions + error handling | smoke, ci | ✅ |
+| `14_app_stability_cold_starts.yaml` | 3-cycle cold start stability test | smoke, stability, ci | ✅ |
 
 ### CI vs Local Testing
 
-**CI (GitHub Actions):** Runs only `ci`-tagged flows — tests that pass without Google/Apple
-Sign-In authentication. Currently flow 01 (app launch smoke test) validates the app
-builds, installs, boots, and renders the sign-in screen correctly.
+**CI (GitHub Actions):** Runs 5 `ci`-tagged flows — validates app builds, installs,
+boots, renders correctly, handles user interactions, and remains stable across multiple
+cold starts. Covers: sign-in screen rendering, content assertions, privacy consent
+modal (accept + decline paths), Google sign-in button interaction, and app stability
+under repeated restarts.
 
 **Local/Integration:** Run all flows after signing in manually or with pre-seeded auth state.
-Flows 02-08 exercise the full app: navigation, room creation, offline games, and settings.
+Flows 02-09, 12 exercise the full app: navigation, room creation, offline games, multiplayer
+lifecycle, voice/video chat, and settings.
 
-To expand CI coverage, add a `ci` tag to flows that don't require authentication, or
-implement a CI auth bypass (anonymous/email-password auth for test accounts).
+**Auth Gate:** Flows 02-12 require Google/Apple Sign-In which cannot be automated in CI.
+To expand gameplay CI coverage, implement a CI auth bypass using email/password
+authentication with a dedicated test account and `CI_TEST_MODE` environment variable.
 
 ## Writing New Tests
 

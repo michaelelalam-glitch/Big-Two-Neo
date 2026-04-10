@@ -1,0 +1,59 @@
+# Flow 57: Leaderboard → Stats navigation
+# Validates: Navigating from Leaderboard to Stats (or via Profile → Stats)
+# Tags: ci-authenticated, navigation
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - navigation
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 20000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Go to Leaderboard first
+- tapOn:
+    id: "leaderboard-button"
+- extendedWaitUntil:
+    visible:
+      id: "leaderboard-screen"
+    timeout: 8000
+- takeScreenshot: "57_leaderboard"
+
+# Navigate back
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 8000
+
+# Navigate to Stats via Profile
+- tapOn:
+    id: "home-profile-button"
+- extendedWaitUntil:
+    visible:
+      id: "profile-screen"
+    timeout: 8000
+
+# Tap Stats tab/button within profile
+- tapOn: "Stats"
+- extendedWaitUntil:
+    visible:
+      id: "stats-screen"
+    timeout: 8000
+- takeScreenshot: "57_stats_screen"
+
+- back
+- extendedWaitUntil:
+    visible:
+      id: "profile-screen"
+    timeout: 8000
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 8000

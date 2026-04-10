@@ -193,6 +193,19 @@ function generateClientId(): string {
 }
 
 let _clientId: string | null = null;
+/**
+ * True once initClientId() has resolved — ensures events emitted before the
+ * async AsyncStorage read completes are replayed with the stable persisted
+ * client_id rather than a transient per-call UUID (M17 race condition fix).
+ *
+ * Defaults to `true` so that callers who never call initClientId() (e.g.,
+ * isolated unit tests) get immediate fire-and-forget behaviour.
+ * initClientId() sets this to `false` at entry and back to `true` on resolve,
+ * creating a queuing window only while the AsyncStorage read is in flight.
+ */
+let _clientIdReady = true;
+/** Queue of sendEvents() calls held until _clientIdReady becomes true. */
+const _pendingEventQueue: { name: string; params?: AnalyticsEventParams }[][] = [];
 /** GA4 session_id must be numeric — use epoch-millisecond timestamp at session start. */
 let _sessionId: number | null = null;
 let _userId: string | null = null;
@@ -233,6 +246,9 @@ function getClientId(): string {
  * including the very first ones, carry the stable device identifier.
  */
 export async function initClientId(): Promise<void> {
+  // Open the queuing window so events emitted during the AsyncStorage read
+  // are buffered with a transient id and then replayed with the stable one.
+  _clientIdReady = false;
   try {
     const stored = await AsyncStorage.getItem(CLIENT_ID_KEY);
     if (stored) {
@@ -247,6 +263,13 @@ export async function initClientId(): Promise<void> {
     if (!_clientId) {
       _clientId = generateClientId();
     }
+  }
+  // Mark client_id as resolved and flush any events that were queued
+  // while the AsyncStorage read was in flight (M17 race condition fix).
+  _clientIdReady = true;
+  const queued = _pendingEventQueue.splice(0);
+  for (const batch of queued) {
+    void _sendEventsImmediate(batch);
   }
 }
 
@@ -264,10 +287,10 @@ function getSessionId(): number {
 // ─── Core send function ───────────────────────────────────────────────────── //
 
 /**
- * Send a batch of events to Firebase Measurement Protocol v2.
- * Silently swallows network errors to avoid impacting app UX.
+ * Internal: sends events to GA4 without queue buffering.
+ * Called directly once _clientIdReady is true.
  */
-async function sendEvents(
+async function _sendEventsImmediate(
   events: { name: string; params?: AnalyticsEventParams }[]
 ): Promise<void> {
   if (!USE_PROXY && !MEASUREMENT_ID) {
@@ -409,6 +432,25 @@ async function sendEvents(
     }
     // Network error — swallow silently (analytics must never crash the app)
   }
+}
+
+/**
+ * Send a batch of events to Firebase Measurement Protocol v2.
+ * Silently swallows network errors to avoid impacting app UX.
+ *
+ * If initClientId() has not yet resolved, events are queued and replayed
+ * once the stable persisted client_id is available (M17 race condition fix).
+ */
+async function sendEvents(
+  events: { name: string; params?: AnalyticsEventParams }[]
+): Promise<void> {
+  if (!_clientIdReady) {
+    // Hold events until initClientId() resolves so all events in the session
+    // use the same stable persisted device UUID, not a transient per-call one.
+    _pendingEventQueue.push(events);
+    return;
+  }
+  return _sendEventsImmediate(events);
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────── //

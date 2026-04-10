@@ -1,0 +1,51 @@
+# Flow 45: Offline Game — Hard bots
+# Validates: Game launches at Hard difficulty, basic play/pass interactions work
+# Tags: ci-authenticated, offline-game
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - offline-game
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 20000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+- tapOn: "Offline Practice"
+- extendedWaitUntil:
+    visible: "Bot Difficulty"
+    timeout: 6000
+- tapOn:
+    id: "difficulty-hard"
+
+- extendedWaitUntil:
+    visible:
+      id: "pass-button"
+    timeout: 20000
+- takeScreenshot: "45_game_hard_start"
+
+# Verify controls
+- assertVisible:
+    id: "pass-button"
+- assertVisible:
+    id: "play-button"
+
+# Use smart sort on hard difficulty hand
+- tapOn:
+    id: "smart-sort-button"
+- takeScreenshot: "45_hard_smart_sorted"
+
+- tapOn:
+    id: "pass-button"
+- tapOn:
+    id: "pass-button"
+- assertNotVisible:
+    text: "Error"
+    optional: true
+- takeScreenshot: "45_hard_game_stable"

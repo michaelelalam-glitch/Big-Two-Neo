@@ -1,0 +1,45 @@
+# Flow 34: Profile Screen — Full walk-through
+# Validates: Profile screen shows user info and key sections
+# Tags: ci-authenticated, navigation, profile
+
+appId: com.big2mobile.app
+tags:
+  - ci-authenticated
+  - navigation
+  - profile
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 20000
+- tapOn:
+    id: "chinese-poker-card"
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 10000
+
+# Open Profile
+- tapOn:
+    id: "home-profile-button"
+- extendedWaitUntil:
+    visible:
+      id: "profile-screen"
+    timeout: 8000
+- takeScreenshot: "34_profile_top"
+
+# Scroll down to see stats/history sections
+- swipe:
+    direction: DOWN
+    duration: 800
+- takeScreenshot: "34_profile_bottom"
+
+# Scroll back up
+- swipe:
+    direction: UP
+    duration: 800
+
+# Navigate back
+- back
+- extendedWaitUntil:
+    visible: "Big2 Mobile"
+    timeout: 8000

@@ -37,6 +37,17 @@ import { useAutoPassTimer } from './useAutoPassTimer';
 import { useClockSync } from './useClockSync';
 import { useRoomLobby } from './useRoomLobby';
 
+// Known non-retryable auth / RLS / JWT PostgreSQL error codes.
+// Hoisted to module scope so the Set is allocated once rather than per-retry.
+const NON_RETRYABLE_CODES = new Set([
+  '42501',
+  '28P01',
+  '28000',
+  'PGRST301',
+  'PGRST302',
+  'PGRST303',
+]);
+
 // Re-export types for backward compatibility
 export type { UseRealtimeOptions } from '../types/realtimeTypes';
 
@@ -156,10 +167,11 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
   });
 
   /**
-   * Fetch all room players from room_players table
+   * Fetch all room players from room_players table.
+   * Retries once after 500 ms on transient network errors before re-throwing (M6).
    */
   const fetchPlayers = useCallback(async (roomId: string) => {
-    try {
+    const attempt = async (): Promise<void> => {
       const { data, error } = await supabase
         .from('room_players')
         .select('*')
@@ -184,20 +196,47 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           }
         }
       }
-    } catch (err) {
-      networkLogger.error('[useRealtime] Failed to fetch players:', err);
-      throw err;
+    };
+
+    try {
+      await attempt();
+    } catch (_err) {
+      // Single retry after 500 ms (M6). Retry is suppressed only for errors whose code
+      // appears in NON_RETRYABLE_CODES (known-permanent auth/RLS/permission failures).
+      // All other errors — including unknown PostgREST / Postgres codes — are retried once
+      // on the assumption they may be transient network or momentary server issues.
+      // PostgREST errors expose `code` (PostgreSQL error code), not an HTTP `status` field,
+      // so checking `status` would resolve to 0 and treat every error as non-retryable.
+      const postgrestErr = _err as { code?: string; status?: number; message?: string } | null;
+      const isNetworkError =
+        _err instanceof TypeError ||
+        /Failed to fetch|Network request failed/i.test(postgrestErr?.message ?? '');
+      const shouldRetry = isNetworkError || !NON_RETRYABLE_CODES.has(postgrestErr?.code ?? '');
+      if (!shouldRetry) {
+        networkLogger.error('[useRealtime] fetchPlayers non-retryable error:', postgrestErr);
+        throw _err;
+      }
+      await new Promise<void>(resolve => setTimeout(resolve, 500));
+      if (!isMountedRef.current) return;
+      try {
+        await attempt();
+      } catch (retryErr) {
+        networkLogger.error('[useRealtime] fetchPlayers retry failed:', retryErr);
+        throw retryErr;
+      }
     }
   }, []);
 
   /**
-   * Fetch current game state
+   * Fetch current game state via secure RPC.
+   * Uses get_player_game_state() which returns only the requesting player's
+   * hand — other players' hands are replaced with placeholder arrays.
+   * This prevents the C1 vulnerability where select('*') on game_state
+   * exposed all players' cards via RLS.
    */
   const fetchGameState = useCallback(async (roomId: string) => {
     const { data, error } = await supabase
-      .from('game_state')
-      .select('*')
-      .eq('room_id', roomId)
+      .rpc('get_player_game_state', { p_room_id: roomId })
       .single();
 
     // Guard: component unmounted while fetch was in-flight — skip state updates.
@@ -511,8 +550,15 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 filter: `room_id=eq.${roomId}`,
               },
               payload => {
+                // C1 Security Fix: Do NOT use payload.new directly — the raw Realtime
+                // payload contains ALL players' hands (RLS cannot filter columns).
+                // Instead, re-fetch via the secure get_player_game_state RPC which
+                // returns only the requesting player's hand.
+                // NOTE: The game_state SELECT RLS policy is intentionally kept so that
+                // postgres_changes fires change events. Sprint 2 should migrate to
+                // broadcast or a notification table to fully close this vector.
                 if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-                  setGameState(payload.new as GameState);
+                  void fetchGameState(roomId).catch(warnFetch('game_state_change'));
                 }
               }
             )

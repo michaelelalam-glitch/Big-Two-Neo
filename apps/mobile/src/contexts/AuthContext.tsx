@@ -493,37 +493,45 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           setSession(initialSession);
           setUser(initialSession?.user ?? null);
 
-          // Fetch profile if user exists
+          // 🔑 UNBLOCK NAVIGATION: Set isLoading=false immediately after session check.
+          // Profile fetch (fetchProfile) has a worst-case of ~22 s (6 attempts × 3 s
+          // timeout + 5 × 0.8 s delay) and cleanupStaleRoomMembership makes additional
+          // DB calls — both must NOT hold up isLoading or the LoadingScreen spinner
+          // blocks the app for 20+ s, causing every E2E authenticated flow to time out
+          // waiting for the GameSelection screen to appear.
+          // Profile and cleanup run in the background below; UI components that need
+          // profile data (HomeScreen, ProfileScreen) already handle profile=null gracefully.
+          setIsLoading(false);
+          authLogger.info(
+            '✅ [AuthContext] Initialization complete, session:',
+            initialSession ? 'present' : 'null'
+          );
+
+          // Fetch profile and run post-login tasks in the background (non-blocking).
           if (initialSession?.user) {
             // Set analytics user ID and Sentry user context on cold start first.
-            // We do this before fetching the profile so they are captured even
-            // if the profile request fails.
             setAnalyticsUserId(initialSession.user.id);
             setSentryUser({ id: initialSession.user.id });
 
-            const profileData = await fetchProfile(initialSession.user.id);
-            setProfile(profileData);
+            // Background: profile fetch — does NOT block navigation
+            fetchProfile(initialSession.user.id)
+              .then(profileData => {
+                if (mounted) setProfile(profileData);
+              })
+              .catch(() => {}); // errors already logged inside fetchProfile
 
-            // CRITICAL FIX: Clean up stale room memberships on login
-            // This handles cases where user force-closed app or didn't properly leave
-            await cleanupStaleRoomMembership(initialSession.user.id);
+            // Background: stale room cleanup — fire-and-forget
+            cleanupStaleRoomMembership(initialSession.user.id).catch(() => {});
 
             // 🔔 PUSH NOTIFICATIONS: Register in background (non-blocking)
-            // This ensures users receive game notifications on their device
             authLogger.info('🔔 [AuthContext] Registering for push notifications...');
             registerPushNotifications(initialSession.user.id).catch(err => {
               authLogger.error(
                 'Error registering for push notifications:',
                 err?.message || err?.code || String(err)
               );
-            }); // Fire-and-forget with error logging
+            });
           }
-
-          setIsLoading(false);
-          authLogger.info(
-            '✅ [AuthContext] Initialization complete, session:',
-            initialSession ? 'present' : 'null'
-          );
         }
       } catch (error: unknown) {
         // Only log error message to avoid exposing auth internals/tokens

@@ -17,6 +17,7 @@ import type { AutoPassTimerState, ThrowableType } from '../types/multiplayer';
 import type { LiveKitTrackRef } from '../hooks/useVideoChat';
 import type { ActiveThrowableEffect, IncomingThrowable } from '../hooks/useThrowables';
 import type { InGameAlertOptions } from '../components/game/InGameAlert';
+import type { ConnectionStatus } from '../components/ConnectionStatusIndicator';
 
 // ---------------------------------------------------------------------------
 // Player type aliases (mirror the inline types in the old GameViewProps)
@@ -53,6 +54,8 @@ export interface GameContextType {
   // ── Status flags ───────────────────────────────────────────────────────
   isInitializing: boolean;
   isConnected: boolean;
+  /** Full connection status for ConnectionStatusIndicator. Always 'connected' for local AI games. */
+  connectionStatus: ConnectionStatus;
 
   // ── Settings modal ─────────────────────────────────────────────────────
   showSettings: boolean;
@@ -65,8 +68,6 @@ export interface GameContextType {
   setSelectedCardIds: (ids: Set<string>) => void;
   handleCardsReorder: (cards: Card[]) => void;
   selectedCards: Card[];
-  customCardOrder: string[];
-  setCustomCardOrder: (order: string[]) => void;
 
   // ── Table state ────────────────────────────────────────────────────────
   effectiveLastPlayedCards: Card[];
@@ -75,10 +76,8 @@ export interface GameContextType {
   effectiveLastPlayCombo: string | null;
 
   // ── Layout players ─────────────────────────────────────────────────────
-  layoutPlayers: LayoutPlayer[];
-  layoutPlayersWithScores: LayoutPlayerWithTimer[];
-  playerTotalScores: number[];
-  currentPlayerName: string;
+  // C2 Audit: layoutPlayers, layoutPlayersWithScores, playerTotalScores,
+  // currentPlayerName now live in gameSessionStore (Zustand).
 
   // ── Scoreboard UI toggles ──────────────────────────────────────────────
   togglePlayHistory: () => void;
@@ -91,8 +90,7 @@ export interface GameContextType {
   memoizedOriginalPlayerNames: string[];
   effectiveAutoPassTimerState: AutoPassTimerState | undefined;
   effectiveScoreboardCurrentPlayerIndex: number;
-  matchNumber: number;
-  isGameFinished: boolean;
+  // C2 Audit: matchNumber, isGameFinished now live in gameSessionStore (Zustand).
   displayOrderScoreHistory: ScoreHistory[];
   playHistoryByMatch: PlayHistoryMatch[];
 
@@ -115,8 +113,7 @@ export interface GameContextType {
   handleHint: () => void;
 
   // ── Control state ──────────────────────────────────────────────────────
-  /** True when it is the local player's turn and the game engine is ready. */
-  isPlayerReady: boolean;
+  // C2 Audit: isPlayerReady now lives in gameSessionStore (Zustand).
 
   // ── GameControls internals ─────────────────────────────────────────────
   gameManagerRef: React.MutableRefObject<GameStateManager | null>;

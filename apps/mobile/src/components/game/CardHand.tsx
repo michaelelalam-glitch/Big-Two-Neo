@@ -618,6 +618,7 @@ function CardHandComponent({
               accessibilityRole="button"
               accessibilityLabel={`Play ${selectedCardIds.size} selected card${selectedCardIds.size !== 1 ? 's' : ''}`}
               accessibilityState={{ disabled: selectedCardIds.size === 0 || !canPlay || disabled }}
+              testID="play-button"
             >
               <Text style={styles.buttonText}>
                 Play {selectedCardIds.size > 0 ? `(${selectedCardIds.size})` : ''}

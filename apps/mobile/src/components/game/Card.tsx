@@ -11,6 +11,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { COLORS, SPACING, CARD_FONTS, TYPOGRAPHY } from '../../constants';
 import type { Card as CardType } from '../../game/types';
+import { i18n } from '../../i18n';
 
 interface CardProps {
   card: CardType;
@@ -60,31 +61,34 @@ const SUIT_SYMBOLS: Record<string, string> = {
   S: '♠',
 };
 
-// Task #645: Full names for VoiceOver/TalkBack accessibility labels
-const SUIT_NAMES: Record<string, string> = {
-  H: 'Hearts',
-  D: 'Diamonds',
-  C: 'Clubs',
-  S: 'Spades',
+// H11: Map suit/rank codes to i18n key suffixes for VoiceOver/TalkBack accessibility labels.
+// Using i18n ensures accessibility labels are announced in the user's selected language
+// instead of being hardcoded in English (Task #645).
+const SUIT_I18N_KEYS: Record<string, string> = {
+  H: 'cardA11y.hearts',
+  D: 'cardA11y.diamonds',
+  C: 'cardA11y.clubs',
+  S: 'cardA11y.spades',
 };
 
-const RANK_NAMES: Record<string, string> = {
-  A: 'Ace',
-  K: 'King',
-  Q: 'Queen',
-  J: 'Jack',
-  '10': 'Ten',
-  '9': 'Nine',
-  '8': 'Eight',
-  '7': 'Seven',
-  '6': 'Six',
-  '5': 'Five',
-  '4': 'Four',
-  '3': 'Three',
-  '2': 'Two',
+const RANK_I18N_KEYS: Record<string, string> = {
+  A: 'cardA11y.ace',
+  K: 'cardA11y.king',
+  Q: 'cardA11y.queen',
+  J: 'cardA11y.jack',
+  '10': 'cardA11y.ten',
+  '9': 'cardA11y.nine',
+  '8': 'cardA11y.eight',
+  '7': 'cardA11y.seven',
+  '6': 'cardA11y.six',
+  '5': 'cardA11y.five',
+  '4': 'cardA11y.four',
+  '3': 'cardA11y.three',
+  '2': 'cardA11y.two',
 };
 
-const Card = React.memo(function Card({
+// H12: CardInner owns all hooks — card is guaranteed non-null by the Card wrapper below.
+const CardInner = React.memo(function CardInner({
   card,
   isSelected,
   onToggleSelect,
@@ -102,17 +106,6 @@ const Card = React.memo(function Card({
   sharedDragY = 0,
   cardOverlap = DEFAULT_CARD_OVERLAP_MARGIN,
 }: CardProps) {
-  // 🔥 CRITICAL DEBUG: Why are cards rendering blank?
-  if (!card || !card.rank || !card.suit) {
-    console.error('[Card] 🚨 INVALID CARD OBJECT:', {
-      hasCard: !!card,
-      cardId: card?.id,
-      cardRank: card?.rank,
-      cardSuit: card?.suit,
-      fullCard: JSON.stringify(card),
-    });
-  }
-
   const translateY = useSharedValue(0);
   const translateX = useSharedValue(0);
   const scale = useSharedValue(1);
@@ -310,8 +303,8 @@ const Card = React.memo(function Card({
     };
   }, [isSelected, zIndex, isDraggingGroup, sharedDragX, sharedDragY, translateX, translateY]);
 
-  const suitColor = SUIT_COLORS[card.suit] || '#212121';
-  const suitSymbol = SUIT_SYMBOLS[card.suit] || card.suit;
+  const suitColor = (card?.suit != null ? SUIT_COLORS[card.suit] : undefined) ?? '#212121';
+  const suitSymbol = (card?.suit != null ? SUIT_SYMBOLS[card.suit] : undefined) ?? card?.suit ?? '';
 
   const rankStyle = useMemo(
     () => ({
@@ -347,6 +340,13 @@ const Card = React.memo(function Card({
     [cardWidth, cardHeight]
   );
 
+  // All hooks have been called above — safe to bail out here.
+  // card is guaranteed non-null by the Card wrapper; this guard catches
+  // cards with a missing rank or suit field before reading them in JSX.
+  if (!card.rank || !card.suit) {
+    return null;
+  }
+
   return (
     <GestureDetector gesture={composedGesture}>
       <Animated.View
@@ -358,22 +358,35 @@ const Card = React.memo(function Card({
           styles.touchTargetExpansion, // Add invisible padding for larger touch area
         ]}
         accessible={true}
-        accessibilityLabel={`${RANK_NAMES[card.rank] ?? card.rank} of ${SUIT_NAMES[card.suit] ?? card.suit}${isSelected ? ', selected' : ''}`}
+        accessibilityLabel={i18n.t(
+          isSelected ? 'cardA11y.selectedCardLabel' : 'cardA11y.cardLabel',
+          {
+            rank: RANK_I18N_KEYS[card.rank] ? i18n.t(RANK_I18N_KEYS[card.rank]) : card.rank,
+            suit: SUIT_I18N_KEYS[card.suit] ? i18n.t(SUIT_I18N_KEYS[card.suit]) : card.suit,
+          }
+        )}
         accessibilityRole="button"
         accessibilityState={{ selected: isSelected, disabled: disabled }}
         accessibilityHint={
           disabled
             ? undefined
             : isSelected && hasMultipleSelected
-              ? 'Double tap to deselect. Drag with other selected cards to play.'
-              : 'Double tap to select or deselect. Long press then drag to rearrange.'
+              ? i18n.t('cardA11y.hintDeselectMulti')
+              : i18n.t('cardA11y.hintSelectDeselect')
         }
         accessibilityActions={
           disabled
             ? undefined
             : [
-                { name: 'activate', label: isSelected ? 'Deselect card' : 'Select card' },
-                ...(onLongPress ? [{ name: 'longpress', label: 'Long press' }] : []),
+                {
+                  name: 'activate',
+                  label: isSelected
+                    ? i18n.t('cardA11y.actionDeselect')
+                    : i18n.t('cardA11y.actionSelect'),
+                },
+                ...(onLongPress
+                  ? [{ name: 'longpress', label: i18n.t('cardA11y.actionLongPress') }]
+                  : []),
               ]
         }
         onAccessibilityAction={event => {
@@ -493,6 +506,18 @@ const styles = StyleSheet.create({
   cardImage: {
     borderRadius: 6,
   },
+});
+
+// H12: Outer validation renders null for malformed card data so CardInner is
+// only instantiated with valid props, keeping its hooks unconditional.
+const Card = React.memo(function Card(props: CardProps) {
+  if (!props.card || !props.card.rank || !props.card.suit) {
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.error('[Card] 🚨 INVALID CARD DATA: missing card, rank, or suit', props.card);
+    }
+    return null;
+  }
+  return <CardInner {...props} />;
 });
 
 export default Card;

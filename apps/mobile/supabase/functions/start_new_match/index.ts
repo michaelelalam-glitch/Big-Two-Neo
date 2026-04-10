@@ -1,10 +1,10 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { checkMinimumVersion } from '../_shared/versionCheck.ts';
+// M12: CORS origin controlled by ALLOWED_ORIGIN env var
+import { buildCorsHeaders } from '../_shared/cors.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const corsHeaders = buildCorsHeaders();
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -49,6 +49,10 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+    // C3: Enforce minimum app version (service-role callers auto-detected)
+    const versionError = checkMinimumVersion(req, corsHeaders);
+    if (versionError) return versionError;
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
@@ -142,6 +146,14 @@ Deno.serve(async (req) => {
     // Any authenticated user who knows a room_id could otherwise call
     // start_new_match to advance game state. Verify the caller is an active
     // member of the room before proceeding with service-role mutations.
+    //
+    // H4 Note: Service-role callers (bot-coordinator, internal automation) skip
+    // this membership check BY DESIGN. The bot-coordinator holds a lease on the
+    // room, is authenticated via INTERNAL_BOT_AUTH_KEY, and only calls
+    // start_new_match for rooms where it just executed a bot move. The atomic
+    // WHERE guard at step 1b (game_phase='finished' AND match_number=expected)
+    // ensures that even a rogue service-role call cannot advance game state
+    // beyond the current match, making a membership check redundant for this path.
     if (authenticatedUserId && anonClientForMembershipCheck) {
       const { data: memberRow, error: memberError } = await anonClientForMembershipCheck
         .from('room_players')
@@ -160,6 +172,31 @@ Deno.serve(async (req) => {
         return new Response(
           JSON.stringify({ error: 'Forbidden' }),
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else if (isServiceRole) {
+      // H4 Fix: Lightweight sanity check for service-role callers — verify the room exists
+      // and is in the expected state. This prevents a misconfigured bot-coordinator from
+      // advancing a non-existent or already-abandoned room.
+      const { data: roomCheck, error: roomCheckError } = await supabaseClient
+        .from('rooms')
+        .select('status')
+        .eq('id', roomId)
+        .maybeSingle();
+
+      if (roomCheckError || !roomCheck) {
+        console.warn(`[start_new_match] ⚠️ Service-role call for non-existent room: ${roomId}`);
+        return new Response(
+          JSON.stringify({ error: 'Room not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (roomCheck.status === 'finished' || roomCheck.status === 'abandoned') {
+        console.log(`[start_new_match] ✅ Room already ${roomCheck.status}, no-op`);
+        return new Response(
+          JSON.stringify({ success: true, already_advanced: true, message: `Room already ${roomCheck.status}` }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
     }
