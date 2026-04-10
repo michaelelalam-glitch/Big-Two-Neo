@@ -299,6 +299,8 @@ export function useAutoPassTimer({
         const correctedNow = snapshotNow();
         const elapsed = correctedNow - startedAt;
         remaining = Math.max(0, timerState.duration_ms - elapsed);
+        // Cap at duration_ms for the same reason as the end_timestamp path above.
+        remaining = Math.min(remaining, timerState.duration_ms);
       }
 
       // Timer expired → trigger one self-pass (server cascades the rest)
