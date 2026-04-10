@@ -148,6 +148,29 @@ export function useTurnInactivityTimer({
     onAutoPlayRef.current = onAutoPlay;
   }, [onAutoPlay]);
 
+  // P3-3 FIX: Reset throttle refs when the player reconnects mid-turn.
+  // The stable polling interval only resets hasExpiredRef/lastAutoPlayAttemptRef when
+  // it detects a NEW turn sequence (different turn_started_at).  If the player
+  // disconnects and reconnects during the SAME turn, these refs retain stale values:
+  // - hasExpiredRef=true suppresses the "EXPIRED" log
+  // - lastAutoPlayAttemptRef retains the last attempt timestamp, potentially blocking
+  //   auto-play for up to 1 second after reconnect on a nearly-expired turn
+  // Resetting on transition → 'connected' ensures auto-play fires promptly once
+  // the player is back online.  autoPlayExecutionGuard is NOT reset — the in-flight
+  // tryAutoPlayTurn call (if any) will clear it in its own `finally` block.
+  const prevConnectionStatusRef = useRef<ConnectionStatus | undefined>(connectionStatus);
+  useEffect(() => {
+    const prev = prevConnectionStatusRef.current;
+    prevConnectionStatusRef.current = connectionStatus;
+    if (connectionStatus === 'connected' && (prev === 'reconnecting' || prev === 'disconnected')) {
+      networkLogger.info(
+        '⏰ [TurnTimer] Reconnected mid-turn — resetting throttle refs so auto-play can fire'
+      );
+      hasExpiredRef.current = false;
+      lastAutoPlayAttemptRef.current = 0;
+    }
+  }, [connectionStatus]);
+
   // ── Stable auto-play function ───────────────────────────────────────────
   const tryAutoPlayTurn = useCallback(async () => {
     const currentRoom = roomRef.current;
@@ -174,7 +197,8 @@ export function useTurnInactivityTimer({
 
       const { data: result, error } = await invokeWithRetry<{
         success: boolean;
-        action: 'play' | 'pass';
+        action: 'play' | 'pass' | 'skipped';
+        reason?: string;
         cards?: Card[];
         replaced_by_bot?: boolean;
         error?: string;
@@ -196,8 +220,9 @@ export function useTurnInactivityTimer({
 
       // The server always replaces the inactive player with a bot (65s spec).
       // The Realtime subscription will surface the RejoinModal automatically.
-      // Call onAutoPlay for logging/observability.
-      if (onAutoPlayRef.current) {
+      // Only call onAutoPlay when the EF actually played/passed — 'skipped' means the
+      // player was already disconnected/replaced by bot and there is nothing to show.
+      if (onAutoPlayRef.current && result.action !== 'skipped') {
         onAutoPlayRef.current(result.cards || null, result.action);
       }
 

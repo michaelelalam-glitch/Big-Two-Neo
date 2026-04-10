@@ -198,7 +198,9 @@ export default function AppNavigator() {
         if (attempts >= MAX_ATTEMPTS) {
           clearInterval(timerId);
           pendingLinkRef.current = null;
-          authLogger.info('[AppNavigator] Max attempts reached (openURL hung), discarding deep link');
+          authLogger.info(
+            '[AppNavigator] Max attempts reached (openURL hung), discarding deep link'
+          );
         }
         return;
       }

@@ -548,4 +548,43 @@ describe('useTurnInactivityTimer', () => {
       );
     });
   });
+
+  // ── action: 'skipped' guard ────────────────────────────────────────────
+
+  it('does not call onAutoPlay when EF returns action: skipped', async () => {
+    const turnStart = Date.now();
+    const gs = makeGameState({
+      current_turn: 0,
+      turn_started_at: new Date(turnStart).toISOString(),
+    });
+
+    // EF returns 'skipped' — player was disconnected/replaced by bot server-side
+    mockInvokeWithRetry.mockResolvedValue({
+      data: { success: true, action: 'skipped', reason: 'player_disconnected' },
+      error: null,
+    });
+
+    const onAutoPlay = jest.fn();
+    renderHook(() =>
+      useTurnInactivityTimer(
+        makeDefaultOptions({
+          gameState: gs as any,
+          getCorrectedNow: () => turnStart + 61_000, // expired
+          onAutoPlay,
+        })
+      )
+    );
+
+    act(() => {
+      jest.advanceTimersByTime(600);
+    });
+
+    // Wait for invokeWithRetry to be called
+    await waitFor(() => {
+      expect(mockInvokeWithRetry).toHaveBeenCalled();
+    });
+
+    // onAutoPlay must NOT be called for a skipped action
+    expect(onAutoPlay).not.toHaveBeenCalled();
+  });
 });
