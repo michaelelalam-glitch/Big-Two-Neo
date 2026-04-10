@@ -2,7 +2,7 @@
  * k6 Load Test — Big Two Neo Edge Functions
  * Task #23 (Tier 4 — P14-3)
  *
- * Targets: play-cards, find-match, start_new_match
+ * Targets: play-cards, find-match
  *
  * Usage:
  *   k6 run --env SUPABASE_URL=https://xxx.supabase.co \
@@ -25,7 +25,7 @@
  */
 
 import http from 'k6/http';
-import { check, sleep } from 'k6';
+import { check, fail, sleep } from 'k6';
 import { Rate, Trend } from 'k6/metrics';
 
 // ---------------------------------------------------------------------------
@@ -104,8 +104,11 @@ const SERVICE_ROLE_KEY  = __ENV.SERVICE_ROLE_KEY   ?? '';
 // Setup: obtain a throwaway JWT once before tests start
 // ---------------------------------------------------------------------------
 export function setup() {
-  if (!SUPABASE_URL || !ANON_KEY) {
-    console.warn('[k6] SUPABASE_URL or ANON_KEY not set — authenticated scenarios will produce 401s');
+  if (!SUPABASE_URL) {
+    fail('[k6] SUPABASE_URL is required. Pass --env SUPABASE_URL=https://xxx.supabase.co');
+  }
+  if (!ANON_KEY) {
+    console.warn('[k6] ANON_KEY not set — authenticated scenarios will produce 401s');
     return { token: '' };
   }
 

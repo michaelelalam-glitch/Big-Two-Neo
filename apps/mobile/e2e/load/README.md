@@ -63,7 +63,6 @@ cd apps/mobile && pnpm add -D artillery
 | Metric | Target |
 |--------|--------|
 | p95 response time | < 2 s |
-| p99 response time | < 3 s |
 | 5xx error rate | < 10 % |
 
 401 responses are expected (unauthenticated scenarios) and are **not** counted as errors.
