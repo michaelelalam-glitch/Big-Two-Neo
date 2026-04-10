@@ -265,6 +265,26 @@ Deno.serve(async (req) => {
     const versionError = checkMinimumVersion(req, corsHeaders);
     if (versionError) return versionError;
 
+  // P5-1 Fix: Only service-role callers (other Edge Functions, server-side processes)
+  // may send push notifications. Reject user-JWT calls to prevent any client from
+  // delivering arbitrary notifications to any user_ids.
+  const authHeader = req.headers.get('Authorization') ?? '';
+  const apiKeyHeader = req.headers.get('apikey') ?? '';
+  const botAuthHeader = req.headers.get('x-bot-auth') ?? '';
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  const internalBotKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
+  const isServiceRole =
+    (serviceKey !== '' && authHeader === `Bearer ${serviceKey}`) ||
+    (serviceKey !== '' && apiKeyHeader === serviceKey) ||
+    (internalBotKey !== '' && botAuthHeader === internalBotKey);
+
+  if (!isServiceRole) {
+    return new Response(
+      JSON.stringify({ error: 'Forbidden: this endpoint requires service-role authorization' }),
+      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
   try {
     // Create Supabase client
     const supabaseAdmin = createClient(

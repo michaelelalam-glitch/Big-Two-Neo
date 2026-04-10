@@ -3,6 +3,8 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { checkMinimumVersion } from '../_shared/versionCheck.ts';
 // M12: CORS origin controlled by ALLOWED_ORIGIN env var
 import { buildCorsHeaders } from '../_shared/cors.ts';
+// P5-6 Fix: DB-backed rate limiter to prevent account deletion spam.
+import { checkRateLimit } from '../_shared/rateLimiter.ts';
 
 const corsHeaders = buildCorsHeaders();
 
@@ -28,15 +30,15 @@ Deno.serve(async (req) => {
 
     // Get authenticated user from request
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Missing authorization header' }),
+        JSON.stringify({ success: false, error: 'Missing or invalid authorization header' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Get user from JWT
-    const token = authHeader.replace('Bearer ', '');
+    const token = authHeader.slice(7);
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
     
     if (authError || !user) {
@@ -48,6 +50,16 @@ Deno.serve(async (req) => {
     }
 
     const userId = user.id;
+
+    // P5-6 Fix: Rate limit account deletion to 3 attempts per 10 minutes per user.
+    // This prevents brute-force spam against the account deletion endpoint.
+    const rl = await checkRateLimit(supabaseClient, userId, 'delete_account', 3, 600);
+    if (!rl.allowed) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Too many requests. Please try again later.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
 
 

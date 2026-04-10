@@ -14,6 +14,8 @@
 import { buildCorsHeaders } from '../_shared/cors.ts';
 // L5: Request ID tracing + L4: standardized error responses
 import { errorResponse, getRequestId } from '../_shared/responses.ts';
+// P5-7 Fix: DB-backed rate limiter shared across all isolates (replaces in-memory Map).
+import { checkRateLimit } from '../_shared/rateLimiter.ts';
 
 const GA4_API_SECRET = Deno.env.get('GA4_API_SECRET') ?? '';
 const GA4_MEASUREMENT_ID = Deno.env.get('GA4_MEASUREMENT_ID') ?? '';
@@ -21,50 +23,6 @@ const MP_ENDPOINT = 'https://www.google-analytics.com/mp/collect';
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { checkMinimumVersion } from '../_shared/versionCheck.ts';
-
-// Best-effort per-user rate limiter: max 60 requests per minute per authenticated user.
-// Rate-limit key is the authenticated user.id from the verified JWT — cannot be spoofed
-// by the client. (No IP header such as x-forwarded-for is used as the key; those are
-// trivially spoofed and would allow bypassing or targeting the throttle.)
-// NOTE: This is instance-local (each Edge Function isolate has its own Map).
-// It does NOT enforce a global limit across concurrent isolates or cold starts.
-// For strict enforcement, use a shared store (e.g., Redis/Supabase table).
-// Entries are swept periodically to bound memory.
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX = 60;
-const RATE_LIMIT_MAP_CAP = 10_000;
-let _sweepCounter = 0;
-
-function isRateLimited(userId: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(userId);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(userId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-  } else {
-    entry.count += 1;
-    if (entry.count > RATE_LIMIT_MAX) return true;
-  }
-  // Periodic sweep: every 100 requests OR when map exceeds cap
-  _sweepCounter += 1;
-  if (_sweepCounter >= 100 || rateLimitMap.size > RATE_LIMIT_MAP_CAP) {
-    _sweepCounter = 0;
-    for (const [k, v] of rateLimitMap) {
-      if (now > v.resetAt) rateLimitMap.delete(k);
-    }
-    // Hard FIFO eviction: if still over cap after purging expired entries
-    if (rateLimitMap.size > RATE_LIMIT_MAP_CAP) {
-      const excess = rateLimitMap.size - RATE_LIMIT_MAP_CAP;
-      let removed = 0;
-      for (const k of rateLimitMap.keys()) {
-        if (removed >= excess) break;
-        rateLimitMap.delete(k);
-        removed += 1;
-      }
-    }
-  }
-  return false;
-}
 
 Deno.serve(async (req) => {
   // M12: CORS origin controlled by ALLOWED_ORIGIN env var
@@ -93,6 +51,7 @@ Deno.serve(async (req) => {
   const token = authHeader.replace('Bearer ', '');
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
   const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
   if (!supabaseUrl || !supabaseAnonKey) {
     console.error('[analytics-proxy] SUPABASE_URL or SUPABASE_ANON_KEY not configured');
     return errorResponse(500, 'Server misconfigured', corsHeaders, 'INTERNAL_ERROR', requestId);
@@ -106,8 +65,13 @@ Deno.serve(async (req) => {
     return errorResponse(401, 'Invalid or expired token', corsHeaders, 'UNAUTHORIZED', requestId);
   }
 
-  // Per-user rate limiting (using authenticated user.id, not spoofable IP)
-  if (isRateLimited(user.id)) {
+  // P5-7 Fix: DB-backed per-user rate limiting — enforced globally across all isolates.
+  // 60 events/min per user matches the previous in-memory limit but is now shared-state.
+  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const rl = await checkRateLimit(supabaseAdmin, user.id, 'analytics_proxy', 60, 60);
+  if (!rl.allowed) {
     return errorResponse(429, 'Too many requests', corsHeaders, 'RATE_LIMITED', requestId);
   }
 

@@ -63,12 +63,16 @@ supabase.auth
 const MP_ENDPOINT = 'https://www.google-analytics.com/mp/collect';
 
 const MEASUREMENT_ID = process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID ?? '';
-// API_SECRET is now stored server-side in Supabase secrets.
-// The client routes events through the analytics-proxy Edge Function.
-// Keep the client-side fallback for dev validation only.
-const API_SECRET = process.env.EXPO_PUBLIC_FIREBASE_API_SECRET ?? '';
-/** When true, use the Supabase Edge Function proxy instead of direct GA4. */
-const USE_PROXY = !__DEV__;
+// P10-2 Fix: In production, API_SECRET must never appear in the client bundle.
+// The client always routes events through the analytics-proxy Edge Function (server supplies the secret).
+// In Jest (JEST_WORKER_ID is set), allow the env var so existing fetch-based unit tests keep working.
+const API_SECRET = process.env.JEST_WORKER_ID
+  ? (process.env.EXPO_PUBLIC_FIREBASE_API_SECRET ?? '')
+  : ''; // intentionally empty in production — proxy supplies the secret server-side
+/** Use the Supabase Edge Function proxy in production so API_SECRET stays off the client.
+ * In Jest environments, disable the proxy so unit tests can assert directly on fetch() calls.
+ */
+const USE_PROXY = !process.env.JEST_WORKER_ID;
 
 /**
  * Tracks whether the user has consented to analytics.

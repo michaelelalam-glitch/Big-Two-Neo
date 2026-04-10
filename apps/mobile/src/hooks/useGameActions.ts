@@ -17,6 +17,7 @@ import { i18n } from '../i18n';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { soundManager, hapticManager, SoundType, showError, showConfirm } from '../utils';
 import { sortCardsForDisplay } from '../utils/cardSorting';
+import type { InGameAlertOptions } from '../components/game/InGameAlert';
 import { gameLogger } from '../utils/logger';
 import { isExpectedTurnRaceError } from '../utils/edgeFunctionErrors';
 import {
@@ -68,6 +69,12 @@ interface UseGameActionsOptions {
    */
   onAlert?: (options: { title?: string; message: string }) => void;
   /**
+   * Orientation-aware confirmation dialog (iOS only — replaces showConfirm/Alert.alert
+   * for in-game confirm dialogs like Leave Game). When provided, uses InGameAlert's
+   * Modal-based confirm so the dialog respects the game's orientation lock.
+   */
+  showInGameAlert?: (options: InGameAlertOptions) => void;
+  /**
    * Game mode for analytics differentiation.
    * 'offline' for local AI games; 'online_ranked'|'online_casual'|'online_private' for multiplayer.
    * If omitted, local AI games default to 'offline' and multiplayer games default to 'online_casual'.
@@ -92,6 +99,7 @@ export function useGameActions({
   getMultiplayerValidationState,
   getOfflineValidationState,
   onAlert,
+  showInGameAlert,
   gameMode,
   humanCount,
   botCount,
@@ -593,31 +601,44 @@ export function useGameActions({
         return;
       }
 
-      showConfirm({
-        title: i18n.t('game.leaveGameConfirm'),
-        message: i18n.t('game.leaveGameMessage'),
-        confirmText: i18n.t('game.leaveGame'),
-        cancelText: i18n.t('game.stay'),
-        destructive: true,
-        onConfirm: () => {
-          trackGameEvent('game_abandoned', { source: 'leave_button', game_mode: resolvedGameMode });
-          trackGameEvent('game_not_completed', {
-            reason: 'player_left',
-            game_mode: resolvedGameMode,
-            ...(humanCount !== undefined && { human_count: humanCount }),
-            ...(botCount !== undefined && { bot_count: botCount }),
-            ...(botDifficultyLevel !== undefined && { bot_difficulty: botDifficultyLevel }),
-          });
-          sentryCapture.breadcrumb(
-            'Game abandoned',
-            { source: 'leave_button', game_mode: resolvedGameMode },
-            'game'
-          );
-          navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
-        },
-      });
+      const onLeave = () => {
+        trackGameEvent('game_abandoned', { source: 'leave_button', game_mode: resolvedGameMode });
+        trackGameEvent('game_not_completed', {
+          reason: 'player_left',
+          game_mode: resolvedGameMode,
+          ...(humanCount !== undefined && { human_count: humanCount }),
+          ...(botCount !== undefined && { bot_count: botCount }),
+          ...(botDifficultyLevel !== undefined && { bot_difficulty: botDifficultyLevel }),
+        });
+        sentryCapture.breadcrumb(
+          'Game abandoned',
+          { source: 'leave_button', game_mode: resolvedGameMode },
+          'game'
+        );
+        navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+      };
+
+      if (Platform.OS === 'ios' && showInGameAlert) {
+        showInGameAlert({
+          title: i18n.t('game.leaveGameConfirm'),
+          message: i18n.t('game.leaveGameMessage'),
+          buttons: [
+            { text: i18n.t('game.stay'), style: 'cancel' },
+            { text: i18n.t('game.leaveGame'), style: 'destructive', onPress: onLeave },
+          ],
+        });
+      } else {
+        showConfirm({
+          title: i18n.t('game.leaveGameConfirm'),
+          message: i18n.t('game.leaveGameMessage'),
+          confirmText: i18n.t('game.leaveGame'),
+          cancelText: i18n.t('game.stay'),
+          destructive: true,
+          onConfirm: onLeave,
+        });
+      }
     },
-    [navigation, resolvedGameMode, humanCount, botCount, botDifficultyLevel]
+    [navigation, resolvedGameMode, humanCount, botCount, botDifficultyLevel, showInGameAlert]
   );
 
   return {

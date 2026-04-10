@@ -374,6 +374,7 @@ export function LocalAIGame() {
     isMountedRef,
     getOfflineValidationState,
     onAlert: showInGameAlert,
+    showInGameAlert,
     // Local AI: 1 human + 3 bots
     humanCount: 1,
     botCount: 3,
