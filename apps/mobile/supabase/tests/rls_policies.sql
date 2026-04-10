@@ -121,7 +121,10 @@ SELECT throws_ok(
 RESET ROLE;
 
 SET LOCAL ROLE authenticated;
+-- Set both JSON claims (PostgREST<12) and individual claim (PostgREST≥12 / current Supabase)
 SET LOCAL "request.jwt.claims" TO '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated"}';
+SET LOCAL "request.jwt.claim.sub" TO 'aaaaaaaa-0000-0000-0000-000000000001';
+SET LOCAL "request.jwt.claim.role" TO 'authenticated';
 SELECT is(
   (SELECT count(*)::int FROM public.profiles WHERE id = 'aaaaaaaa-0000-0000-0000-000000000001'::uuid),
   1,
@@ -133,10 +136,12 @@ SELECT ok(
 );
 RESET ROLE;
 
+SET LOCAL ROLE service_role;
 SELECT ok(
   (SELECT count(*)::int FROM public.profiles) >= 2,
   'service-role: can read all profiles'
 );
+RESET ROLE;
 
 -- ============================================================================
 -- SECTION 2 -- rooms (SELECT USING true)
@@ -151,6 +156,8 @@ RESET ROLE;
 
 SET LOCAL ROLE authenticated;
 SET LOCAL "request.jwt.claims" TO '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated"}';
+SET LOCAL "request.jwt.claim.sub" TO 'aaaaaaaa-0000-0000-0000-000000000001';
+SET LOCAL "request.jwt.claim.role" TO 'authenticated';
 SELECT ok(
   (SELECT count(*)::int FROM public.rooms WHERE code = 'PGTAP1') >= 1,
   'authenticated: can read rooms (USING true)'
@@ -183,12 +190,15 @@ RESET ROLE;
 
 SET LOCAL ROLE authenticated;
 SET LOCAL "request.jwt.claims" TO '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated"}';
+SET LOCAL "request.jwt.claim.sub" TO 'aaaaaaaa-0000-0000-0000-000000000001';
+SET LOCAL "request.jwt.claim.role" TO 'authenticated';
 SELECT ok(
   (SELECT count(*)::int FROM public.room_players
     WHERE room_id = 'cccccccc-0000-0000-0000-000000000003'::uuid) >= 1,
   'authenticated member: can read own room_players rows'
 );
 SET LOCAL "request.jwt.claims" TO '{"sub":"bbbbbbbb-0000-0000-0000-000000000002","role":"authenticated"}';
+SET LOCAL "request.jwt.claim.sub" TO 'bbbbbbbb-0000-0000-0000-000000000002';
 SELECT is(
   (SELECT count(*)::int FROM public.room_players
     WHERE room_id = 'cccccccc-0000-0000-0000-000000000003'::uuid),
@@ -215,6 +225,8 @@ RESET ROLE;
 
 SET LOCAL ROLE authenticated;
 SET LOCAL "request.jwt.claims" TO '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated"}';
+SET LOCAL "request.jwt.claim.sub" TO 'aaaaaaaa-0000-0000-0000-000000000001';
+SET LOCAL "request.jwt.claim.role" TO 'authenticated';
 SELECT ok(
   (SELECT count(*)::int FROM public.player_stats
     WHERE user_id = 'aaaaaaaa-0000-0000-0000-000000000001'::uuid) >= 1,
@@ -261,6 +273,8 @@ RESET ROLE;
 
 SET LOCAL ROLE authenticated;
 SET LOCAL "request.jwt.claims" TO '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated"}';
+SET LOCAL "request.jwt.claim.sub" TO 'aaaaaaaa-0000-0000-0000-000000000001';
+SET LOCAL "request.jwt.claim.role" TO 'authenticated';
 SELECT is(
   (SELECT count(*)::int FROM public.blocked_users
     WHERE blocker_id <> 'aaaaaaaa-0000-0000-0000-000000000001'::uuid),
@@ -293,6 +307,8 @@ RESET ROLE;
 
 SET LOCAL ROLE authenticated;
 SET LOCAL "request.jwt.claims" TO '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated"}';
+SET LOCAL "request.jwt.claim.sub" TO 'aaaaaaaa-0000-0000-0000-000000000001';
+SET LOCAL "request.jwt.claim.role" TO 'authenticated';
 SELECT ok(
   (SELECT count(*)::int FROM public.waiting_room) >= 0,
   'authenticated: can query waiting_room without error'

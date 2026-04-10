@@ -154,11 +154,10 @@ jobs:
 
       # ── Task #22 (Tier 4) — RLS pgTAP policy tests ──────────────────────────
       # Skipped when SUPABASE_ACCESS_TOKEN is absent (forks, new repos).
-      # continue-on-error: true keeps CI green when the pgTAP suite finds
-      # failures — the failure is surfaced in the step output, not masked.
+      # When the secret IS present the step must pass — a pgTAP failure
+      # means RLS is broken and should block the merge.
       - name: 🔒 Run RLS policy tests (pgTAP)
         if: env.SUPABASE_ACCESS_TOKEN != ''
-        continue-on-error: true
         run: |
           cd apps/mobile
           # Pin the Supabase CLI to a specific version for reproducibility.
