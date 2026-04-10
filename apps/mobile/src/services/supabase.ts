@@ -111,12 +111,19 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
         } else if (prevCountStr === null) {
           // prevCountStr is null: a previous chunked write may have been interrupted
           // after deleting the count key but before completing (leaving orphaned chunk
-          // keys). Do a bounded sweep to clean them up.
-          await Promise.allSettled(
-            Array.from({ length: MAX_CHUNKS }, (_, i) =>
-              SecureStore.deleteItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`).catch(() => {})
-            )
+          // keys). Probe chunk_0 first — if it exists, orphans are present and we
+          // sweep 0..MAX_CHUNKS-1 to clean them up. This avoids MAX_CHUNKS no-op
+          // deletions on every normal first write where no chunks ever existed.
+          const orphanProbe = await SecureStore.getItemAsync(`${key}${CHUNK_KEY_SUFFIX}0`).catch(
+            () => null
           );
+          if (orphanProbe !== null) {
+            await Promise.allSettled(
+              Array.from({ length: MAX_CHUNKS }, (_, i) =>
+                SecureStore.deleteItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`).catch(() => {})
+              )
+            );
+          }
         }
       } else {
         // P10-1 Fix: Chunk large values across multiple SecureStore keys
@@ -129,8 +136,18 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
         // unbounded SecureStore writes and storage exhaustion from corrupted/oversized tokens.
         if (chunks.length > MAX_CHUNKS) {
           console.error(
-            `[supabase:storage] Value too large to chunk (${chunks.length} chunks > MAX_CHUNKS ${MAX_CHUNKS}); auth token NOT persisted.`
+            `[supabase:storage] Value too large to chunk (${chunks.length} chunks > MAX_CHUNKS ${MAX_CHUNKS}); clearing stale credentials and failing.`
           );
+          // Remove any existing data for this key so getItem returns null on the next
+          // launch (forcing re-auth) rather than returning a now-stale session.
+          await SecureStore.deleteItemAsync(`${key}${CHUNK_COUNT_SUFFIX}`).catch(() => {});
+          await SecureStore.deleteItemAsync(key).catch(() => {});
+          await Promise.allSettled(
+            Array.from({ length: MAX_CHUNKS }, (_, i) =>
+              SecureStore.deleteItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`).catch(() => {})
+            )
+          );
+          await AsyncStorage.removeItem(key).catch(() => {});
           return;
         }
         // Read previous chunk count so we can delete any surplus chunk keys
