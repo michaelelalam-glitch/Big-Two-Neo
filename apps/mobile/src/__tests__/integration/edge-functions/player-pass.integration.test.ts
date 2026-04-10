@@ -40,7 +40,10 @@ async function callEF(
   body: unknown,
   authToken?: string
 ): Promise<{ status: number; body: unknown }> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'x-app-version': '1.0.0',
+  };
   if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
 
   const res = await fetch(EF_URL, {
@@ -89,7 +92,7 @@ describe('Suite 2 — player-pass: body validation (no auth)', () => {
   it('returns 400 or 401 for empty body', async () => {
     const res = await fetch(EF_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-app-version': '1.0.0' },
       body: '',
     });
     expect([400, 401]).toContain(res.status);
@@ -98,7 +101,7 @@ describe('Suite 2 — player-pass: body validation (no auth)', () => {
   it('returns 400 or 401 for non-JSON body', async () => {
     const res = await fetch(EF_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-app-version': '1.0.0' },
       body: 'not json',
     });
     expect([400, 401]).toContain(res.status);
