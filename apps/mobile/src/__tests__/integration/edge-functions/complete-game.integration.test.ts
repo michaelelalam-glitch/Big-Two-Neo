@@ -5,7 +5,7 @@
  * Covers:
  *   Suite 1 — Unauthenticated request → 401
  *   Suite 2 — Rejected reserved room_code 'LOCAL' → 400
- *   Suite 3 — Invalid game_type → 400 (requires ANON_KEY)
+ *   Suite 3 — Invalid game_type → 400 (requires SERVICE_ROLE_KEY for admin user creation)
  *   Suite 4 — Valid structure but non-existent room / users (requires SERVICE_ROLE_KEY)
  *
  * The complete-game EF accepts a full GameCompletionRequest body. Suites 1–2 test
@@ -90,7 +90,7 @@ async function callEF(
     'Content-Type': 'application/json',
     'x-app-version': '1.0.0',
   };
-  if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+  if (authToken !== undefined) headers['Authorization'] = `Bearer ${authToken}`;
 
   const res = await fetch(EF_URL, {
     method: 'POST',

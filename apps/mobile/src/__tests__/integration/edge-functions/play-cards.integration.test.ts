@@ -5,13 +5,13 @@
  * Covers:
  *   Suite 1 — Unauthenticated request → 401 (URL-only, no creds needed)
  *   Suite 2 — Missing / malformed body fields → 400
- *   Suite 3 — JWT caller identity mismatch → 403 (requires ANON_KEY)
+ *   Suite 3 — JWT caller identity mismatch → 403 (requires SERVICE_ROLE_KEY for admin user creation)
  *   Suite 4 — Non-existent room returns a DB-level error (requires SERVICE_ROLE_KEY)
  *
  * Test strategy:
  *   - Suites 1–2 only require EXPO_PUBLIC_SUPABASE_URL. Skip the whole file if the
  *     URL is absent so tests don't time-out in environments with no network config.
- *   - Suite 3 requires signing up a throwaway test user → needs EXPO_PUBLIC_SUPABASE_ANON_KEY.
+ *   - Suite 3 requires a throwaway test user created via service-role admin API → needs SUPABASE_SERVICE_ROLE_KEY.
  *   - Suite 4 needs SUPABASE_SERVICE_ROLE_KEY to create ephemeral test data.
  *     All DB-backed suites clean up test data in afterAll, even on failure.
  */
@@ -53,7 +53,7 @@ async function callEF(
     'Content-Type': 'application/json',
     'x-app-version': '1.0.0',
   };
-  if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+  if (authToken !== undefined) headers['Authorization'] = `Bearer ${authToken}`;
 
   const res = await fetch(EF_URL, {
     method: 'POST',

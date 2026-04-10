@@ -5,13 +5,13 @@
  * Covers:
  *   Suite 1 — Unauthenticated request → 401
  *   Suite 2 — Missing / malformed body fields → 400
- *   Suite 3 — JWT caller identity mismatch → 403 (requires ANON_KEY)
+ *   Suite 3 — JWT caller identity mismatch → 403 (requires SERVICE_ROLE_KEY for admin user creation)
  *   Suite 4 — Non-existent room returns a controlled error (requires SERVICE_ROLE_KEY)
  *
  * Test strategy mirrors play-cards.integration.test.ts — see header there for details.
  */
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 
 // ---------------------------------------------------------------------------
 // Env / credential flags
@@ -44,7 +44,7 @@ async function callEF(
     'Content-Type': 'application/json',
     'x-app-version': '1.0.0',
   };
-  if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+  if (authToken !== undefined) headers['Authorization'] = `Bearer ${authToken}`;
 
   const res = await fetch(EF_URL, {
     method: 'POST',
