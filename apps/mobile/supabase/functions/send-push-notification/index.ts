@@ -268,6 +268,18 @@ Deno.serve(async (req) => {
   const botAuthHeader = req.headers.get('x-bot-auth') ?? '';
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
   const internalBotKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
+
+  // Fail-fast: SUPABASE_SERVICE_ROLE_KEY is required — both for auth comparison below
+  // and for the Supabase admin client created later. A missing key means misconfiguration,
+  // not an unauthorized caller; return 500 so operators can distinguish the two cases.
+  if (!serviceKey) {
+    console.error('[send-push-notification] SUPABASE_SERVICE_ROLE_KEY is not configured');
+    return new Response(
+      JSON.stringify({ error: 'Server misconfigured' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
   // Service-role callers: pass SUPABASE_SERVICE_ROLE_KEY via Authorization: Bearer <key>
   // or via the apikey header (standard Supabase client behaviour).
   // Internal bot callers: pass INTERNAL_BOT_AUTH_KEY via the x-bot-auth header.

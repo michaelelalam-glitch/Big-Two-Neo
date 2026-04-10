@@ -121,13 +121,15 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
           () => null
         );
         const prevCount = prevCountStr !== null ? parseInt(prevCountStr, 10) : NaN;
-        // Delete old count key AND old single-key FIRST so concurrent getItem cannot
-        // observe stale data during the multi-await write window.
-        // - No count key  → getItem falls through to single-key check.
-        // - No single key → getItem falls through to AsyncStorage (migration path).
+        // Delete old count key, old single-key, AND old AsyncStorage copy FIRST so
+        // concurrent getItem cannot observe stale data during the multi-await write window.
+        // - No count key        → getItem falls through to single-key check.
+        // - No single key       → getItem falls through to AsyncStorage migration path.
+        // - No AsyncStorage key → getItem returns null (no stale data / no spurious rewrite).
         // This ensures reads during the write window return null rather than stale data.
         await SecureStore.deleteItemAsync(`${key}${CHUNK_COUNT_SUFFIX}`).catch(() => {});
         await SecureStore.deleteItemAsync(key).catch(() => {});
+        await AsyncStorage.removeItem(key).catch(() => {});
         // Write chunk data, then commit the new count key last.
         for (let i = 0; i < chunks.length; i++) {
           await SecureStore.setItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`, chunks[i]);
@@ -143,8 +145,6 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
             )
           );
         }
-        // Clean up any stale AsyncStorage copies
-        await AsyncStorage.removeItem(key).catch(() => {});
       }
     } catch {
       // SecureStore write failed entirely — try to clean up any partial state before

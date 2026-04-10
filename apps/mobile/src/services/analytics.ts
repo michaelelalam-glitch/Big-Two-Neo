@@ -65,10 +65,10 @@ const MP_ENDPOINT = 'https://www.google-analytics.com/mp/collect';
 const MEASUREMENT_ID = process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID ?? '';
 // P10-2 Fix: In production, API_SECRET must never appear in the client bundle.
 // The client always routes events through the analytics-proxy Edge Function (server supplies the secret).
-// In Jest (JEST_WORKER_ID is set), allow the env var so existing fetch-based unit tests keep working.
-const API_SECRET = process.env.JEST_WORKER_ID
-  ? (process.env.EXPO_PUBLIC_FIREBASE_API_SECRET ?? '')
-  : ''; // intentionally empty in production — proxy supplies the secret server-side
+// In Jest (JEST_WORKER_ID is set), allow the test-only env var so unit tests can assert fetch() calls.
+// IMPORTANT: Use a non-EXPO_PUBLIC_ var (FIREBASE_TEST_API_SECRET) so Metro never inlines it during
+// a production bundle even if the variable is inadvertently set in the EAS build environment.
+const API_SECRET = process.env.JEST_WORKER_ID ? (process.env.FIREBASE_TEST_API_SECRET ?? '') : ''; // intentionally empty in production — proxy supplies the secret server-side
 /** Use the Supabase Edge Function proxy in all non-Jest environments (dev + production)
  * so API_SECRET stays off the client at all times.
  * In Jest (JEST_WORKER_ID is set), disable the proxy so unit tests can assert directly
@@ -315,11 +315,6 @@ async function _sendEventsImmediate(
     return;
   }
 
-  // In dev, POST to the validation endpoint first so GA4 validation errors
-  // are printed to the console. The validation endpoint returns 200 with a
-  // JSON body describing any issues — it does NOT ingest the event.
-  // Then always POST to the real endpoint so events actually land in GA4.
-  //
   // NOTE: GA4 DebugView with the Measurement Protocol requires sending
   // `debug_mode: 1` at the TOP LEVEL of the request body (not inside event
   // params). This service does NOT set `debug_mode` — all events land in
