@@ -30,8 +30,8 @@ jobs:
       EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       # SUPABASE_DB_PASSWORD intentionally NOT set at job level — passed only to
-      # the pgTAP step below so it is not visible to unrelated steps.
-      # The pgTAP step uses `if: secrets.SUPABASE_DB_PASSWORD != ''` directly.
+      # the pgTAP step below so it is not visible to unrelated steps. A gate step
+      # (pgtap-gate) writes a boolean output; pgTAP reads it via steps context.
 
     strategy:
       matrix:
@@ -159,8 +159,16 @@ jobs:
       # Tests run inside BEGIN…ROLLBACK so no data persists; seed uses per-run
       # collision guards instead of ON CONFLICT DO UPDATE to avoid touching real
       # rows or firing triggers on unexpected collisions.
+      #
+      # NOTE: the `secrets` context is NOT available in step-level `if:`
+      # (only in step `run:` / `env:`). A gate step writes a boolean output;
+      # the pgTAP step reads it via the `steps` context, which IS allowed.
+      - name: 🔍 Detect pgTAP DB secret
+        id: pgtap-gate
+        run: echo "available=${{ secrets.SUPABASE_DB_PASSWORD != '' }}" >> $GITHUB_OUTPUT
+
       - name: 🔒 Run RLS policy tests (pgTAP)
-        if: ${{ secrets.SUPABASE_DB_PASSWORD != '' }}
+        if: steps.pgtap-gate.outputs.available == 'true'
         env:
           # Scoped only to this step — not exposed to other steps in the job.
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
