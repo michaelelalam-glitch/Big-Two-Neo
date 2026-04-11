@@ -282,12 +282,12 @@ export function useDisconnectDetection({
             ? new Date(rp.disconnect_timer_started_at).getTime()
             : null;
           const existingAnchorMs = existingAnchor ? new Date(existingAnchor).getTime() : null;
-          // Seed if not set; or correct downward if server anchor is strictly earlier.
+          // P2-3 FIX: DB disconnect_timer_started_at is the single authority.
+          // Seed if no client anchor exists; or correct in either direction when the
+          // server has a timer anchor (not just downward correction — the DB value IS
+          // canonical regardless of the client-side estimate direction).
           const needsUpdate =
-            !existingAnchor ||
-            (serverAnchorMs !== null &&
-              existingAnchorMs !== null &&
-              serverAnchorMs < existingAnchorMs);
+            !existingAnchor || (serverAnchorMs !== null && serverAnchorMs !== existingAnchorMs);
 
           if (needsUpdate) {
             const gs = multiplayerGameStateRef.current;

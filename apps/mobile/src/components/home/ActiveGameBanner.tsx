@@ -96,6 +96,12 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
   const [isLeaving, setIsLeaving] = useState(false);
   const slideAnim = useRef(new Animated.Value(-100)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  // P2-4 FIX: Captures the remaining seconds on the first tick of each countdown
+  // interval so that subsequent ticks count down from that snapshot rather than
+  // recomputing elapsed = Date.now() - disconnectTimestamp every second.
+  // This prevents the countdown from "jumping" when the effect re-mounts (e.g.
+  // on app re-focus) and disconnectTimestamp hasn't changed but Date.now() has advanced.
+  const capturedRemainingRef = useRef<number | null>(null);
 
   // Check for offline game in AsyncStorage
   const checkOfflineGame = useCallback(async () => {
@@ -167,9 +173,23 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
     // preventing onBotReplaced / onTimerExpired from firing every second.
     let interval: ReturnType<typeof setInterval> | undefined;
 
+    // P2-4 FIX: Reset the snapshot so the first tick of this effect run computes
+    // remaining fresh from the (possibly new) disconnectTimestamp, and subsequent
+    // ticks count down from that snapshot without reading Date.now() again.
+    capturedRemainingRef.current = null;
+
     const updateCountdown = () => {
-      const elapsed = Math.floor((Date.now() - disconnectTimestamp) / 1000);
-      const remaining = BOT_REPLACEMENT_SECONDS - elapsed;
+      let remaining: number;
+      if (capturedRemainingRef.current === null) {
+        // First tick: anchor to disconnectTimestamp, then count down from snapshot.
+        const elapsed = Math.floor((Date.now() - disconnectTimestamp) / 1000);
+        remaining = BOT_REPLACEMENT_SECONDS - elapsed;
+        capturedRemainingRef.current = remaining;
+      } else {
+        // Subsequent ticks: decrement from snapshot — no Date.now() re-read.
+        remaining = capturedRemainingRef.current - 1;
+        capturedRemainingRef.current = remaining;
+      }
 
       if (remaining <= 0) {
         setCountdown(0);

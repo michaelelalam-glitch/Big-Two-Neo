@@ -860,6 +860,7 @@ export interface Translations {
     shareWithFriends: string;
     friendsCanJoin: string;
     signInRequired: string;
+    queueExpiresIn: string;
   };
 
   // Match History Screen
@@ -1723,6 +1724,7 @@ const en: Translations = {
     shareWithFriends: 'Share with Friends',
     friendsCanJoin: 'Friends can join your match using this code',
     signInRequired: 'You must be signed in to use matchmaking',
+    queueExpiresIn: 'Queue expires in {{count}}s',
   },
   matchHistory: {
     title: 'Match History',
@@ -2506,6 +2508,7 @@ const ar: Translations = {
     shareWithFriends: 'شارك مع الأصدقاء',
     friendsCanJoin: 'يمكن للأصدقاء الانضمام إلى مباراتك باستخدام هذا الرمز',
     signInRequired: 'يجب أن تكون مسجلاً للدخول لاستخدام البحث عن مباراة',
+    queueExpiresIn: 'تنتهي صلاحية قائمة الانتظار خلال {{count}} ثانية',
   },
   matchHistory: {
     title: 'سجل المباريات',
@@ -3406,6 +3409,7 @@ const de: Translations = {
     shareWithFriends: 'Mit Freunden teilen',
     friendsCanJoin: 'Freunde können deinem Spiel mit diesem Code beitreten',
     signInRequired: 'Sie müssen angemeldet sein, um die Spielsuche zu nutzen',
+    queueExpiresIn: 'Warteschlange läuft ab in {{count}}s',
   },
   matchHistory: {
     title: 'Spielverlauf',

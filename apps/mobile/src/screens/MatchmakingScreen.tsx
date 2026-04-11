@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -51,6 +51,7 @@ export default function MatchmakingScreen() {
     matchFound,
     roomCode,
     error,
+    queueJoinedAt,
     startMatchmaking,
     cancelMatchmaking,
     resetMatch,
@@ -94,6 +95,25 @@ export default function MatchmakingScreen() {
       showError(error);
     }
   }, [error]);
+
+  // P7-2 FIX: Queue expiry countdown — the server expires waiting_room entries
+  // after 5 minutes. Show a live countdown so users know when to retry.
+  const QUEUE_EXPIRY_SECONDS = 5 * 60;
+  const [queueSecondsLeft, setQueueSecondsLeft] = useState<number | null>(null);
+  useEffect(() => {
+    if (!queueJoinedAt) {
+      setQueueSecondsLeft(null);
+      return;
+    }
+    const expiryMs = new Date(queueJoinedAt).getTime() + QUEUE_EXPIRY_SECONDS * 1000;
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((expiryMs - Date.now()) / 1000));
+      setQueueSecondsLeft(remaining);
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [queueJoinedAt]);
 
   const handleCancel = async () => {
     await cancelMatchmaking();
@@ -178,6 +198,14 @@ export default function MatchmakingScreen() {
     </Text>
   );
 
+  // P7-2 FIX: Queue expiry countdown display (shown while waiting, hidden when matched)
+  const queueExpiryBlock =
+    queueSecondsLeft !== null && queueSecondsLeft > 0 ? (
+      <Text style={[styles.queueExpiryText, isLandscape && styles.queueExpiryTextLandscape]}>
+        {i18n.t('matchmaking.queueExpiresIn', { count: queueSecondsLeft })}
+      </Text>
+    ) : null;
+
   const playersForNextMatch = Math.min(waitingCount, 4);
 
   const progressBlock = (
@@ -258,6 +286,7 @@ export default function MatchmakingScreen() {
               {searchingAnimation}
               {waitingCountBlock}
               {statusMessage}
+              {queueExpiryBlock}
               {progressBlock}
             </View>
             {/* Right column: info, room code, actions */}
@@ -276,6 +305,7 @@ export default function MatchmakingScreen() {
             {searchingAnimation}
             {waitingCountBlock}
             {statusMessage}
+            {queueExpiryBlock}
             {roomCodeBlock}
             {progressBlock}
             {infoBox}
@@ -360,6 +390,17 @@ const styles = StyleSheet.create({
   statusMessageLandscape: {
     fontSize: FONT_SIZES.md,
     marginBottom: SPACING.sm,
+  },
+  // P7-2: Queue expiry countdown
+  queueExpiryText: {
+    fontSize: FONT_SIZES.sm,
+    color: 'rgba(255,255,255,0.55)',
+    textAlign: 'center',
+    marginBottom: SPACING.md,
+  },
+  queueExpiryTextLandscape: {
+    fontSize: FONT_SIZES.xs,
+    marginBottom: SPACING.xs,
   },
   roomCodeContainer: {
     width: '100%',

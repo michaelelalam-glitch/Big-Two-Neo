@@ -35,6 +35,8 @@ interface UseMatchmakingReturn {
   roomCode: string | null;
   roomId: string | null;
   error: string | null;
+  /** ISO timestamp when the user entered the waiting queue (null when not searching). */
+  queueJoinedAt: string | null;
   startMatchmaking: (
     username: string,
     skillRating?: number,
@@ -85,6 +87,7 @@ export function useMatchmaking(): UseMatchmakingReturn {
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [queueJoinedAt, setQueueJoinedAt] = useState<string | null>(null);
 
   const channelRef = useRef<RealtimeChannel | null>(null);
   const userIdRef = useRef<string | null>(null);
@@ -216,6 +219,9 @@ export function useMatchmaking(): UseMatchmakingReturn {
         } else {
           // Waiting — subscribe to Realtime for match notification (no polling)
           setWaitingCount(result.waiting_count);
+          // P7-2 FIX: Record when the user joined the queue so the screen can
+          // display a 5-minute countdown to queue expiration.
+          setQueueJoinedAt(new Date().toISOString());
           subscribeToWaitingRoom(user.id);
         }
       } catch (err) {
@@ -438,6 +444,7 @@ export function useMatchmaking(): UseMatchmakingReturn {
       isResolvingMatchRef.current = false;
       setIsSearching(false);
       setWaitingCount(0);
+      setQueueJoinedAt(null);
 
       const userId = userIdRef.current;
       if (!userId) return;
@@ -479,6 +486,7 @@ export function useMatchmaking(): UseMatchmakingReturn {
     setRoomCode(null);
     setRoomId(null);
     setWaitingCount(0);
+    setQueueJoinedAt(null);
   }, []);
 
   // Cleanup on unmount — tear down Realtime channel and any active polling fallback
@@ -503,6 +511,7 @@ export function useMatchmaking(): UseMatchmakingReturn {
     roomCode,
     roomId,
     error,
+    queueJoinedAt,
     startMatchmaking,
     cancelMatchmaking,
     resetMatch,

@@ -107,10 +107,15 @@ function resolveStartTimeMs(startedAt: string, clockOffsetMs: number): number {
   const serverMs = new Date(startedAt).getTime();
   const correctedNow = Date.now() + clockOffsetMs;
   const correctedElapsed = correctedNow - serverMs;
-  // When the corrected time is still behind the server start by more than the
-  // threshold (extremely rare — means offset is stale / inaccurate), clamp to
-  // correctedNow so the ring starts depleting immediately rather than freezing.
-  if (correctedElapsed < -CLOCK_SKEW_WARN_THRESHOLD_MS) {
+  // P3-5 FIX: Clamp any negative correctedElapsed to correctedNow.
+  // Covers two cases:
+  //   a. Strong skew  (< -CLOCK_SKEW_WARN_THRESHOLD_MS): client still well behind server.
+  //   b. Mild over-correction (−2s to 0): clockOffsetMs slightly over-corrected so
+  //      correctedNow is marginally before serverMs.
+  // In both cases we return correctedNow so initialProgress computes elapsed = 0
+  // and the ring starts at full 100% rather than slightly above it (which would
+  // also clamp to 1.0 via Math.min, but being explicit here avoids confusion).
+  if (correctedElapsed < 0) {
     return correctedNow;
   }
   return serverMs;

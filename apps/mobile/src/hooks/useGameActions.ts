@@ -106,9 +106,11 @@ export function useGameActions({
   botDifficultyLevel,
 }: UseGameActionsOptions) {
   const resolvedGameMode: GameMode = gameMode ?? (isLocalAIGame ? 'offline' : 'online_casual');
-  // Task #568: Separate refs to prevent cross-operation blocking
-  const isPlayingCardsRef = useRef(false);
-  const isPassingRef = useRef(false);
+  // P1-1 FIX: Single shared mutex for both play and pass actions.
+  // Separate isPlayingCardsRef / isPassingRef allowed a rapid tap to fire both
+  // playCards and passCards concurrently. A single isSubmittingRef gates both
+  // operations so only one action can be in-flight at any time.
+  const isSubmittingRef = useRef(false);
 
   // Platform-aware error display: InGameAlert modal on iOS (orientation-safe),
   // Toast/system-Alert via showError on Android.
@@ -125,7 +127,7 @@ export function useGameActions({
 
   const handlePlayCards = useCallback(
     async (cards: Card[]) => {
-      if (isPlayingCardsRef.current) {
+      if (isSubmittingRef.current) {
         gameLogger.warn(
           '⚠️ [GameScreen] Card play already in progress, ignoring duplicate request'
         );
@@ -139,7 +141,7 @@ export function useGameActions({
         }
 
         try {
-          isPlayingCardsRef.current = true;
+          isSubmittingRef.current = true;
           hapticManager.playCard();
 
           const sortedCards = sortCardsForDisplay(cards);
@@ -163,7 +165,7 @@ export function useGameActions({
                   mode: 'local_ai',
                   error_type: 'card_not_in_hand',
                 });
-                isPlayingCardsRef.current = false;
+                isSubmittingRef.current = false;
                 return;
               }
 
@@ -176,7 +178,7 @@ export function useGameActions({
                   mode: 'local_ai',
                   error_type: 'invalid_combo',
                 });
-                isPlayingCardsRef.current = false;
+                isSubmittingRef.current = false;
                 return;
               }
 
@@ -188,7 +190,7 @@ export function useGameActions({
                   mode: 'local_ai',
                   error_type: 'must_play_3d_first',
                 });
-                isPlayingCardsRef.current = false;
+                isSubmittingRef.current = false;
                 return;
               }
 
@@ -200,7 +202,7 @@ export function useGameActions({
                   mode: 'local_ai',
                   error_type: 'cannot_beat_combo',
                 });
-                isPlayingCardsRef.current = false;
+                isSubmittingRef.current = false;
                 return;
               }
 
@@ -219,7 +221,7 @@ export function useGameActions({
                     mode: 'local_ai',
                     error_type: 'one_card_left_rule',
                   });
-                  isPlayingCardsRef.current = false;
+                  isSubmittingRef.current = false;
                   return;
                 }
               }
@@ -263,7 +265,7 @@ export function useGameActions({
           alertError(errMsg);
         } finally {
           playMethodRef.current = 'button';
-          isPlayingCardsRef.current = false;
+          isSubmittingRef.current = false;
         }
       } else {
         if (!multiplayerPlayCards) {
@@ -272,7 +274,7 @@ export function useGameActions({
         }
 
         try {
-          isPlayingCardsRef.current = true;
+          isSubmittingRef.current = true;
           hapticManager.playCard();
 
           const sortedCards = sortCardsForDisplay(cards);
@@ -295,7 +297,7 @@ export function useGameActions({
                   mode: 'multiplayer',
                   error_type: 'card_not_in_hand',
                 });
-                isPlayingCardsRef.current = false;
+                isSubmittingRef.current = false;
                 return;
               }
 
@@ -309,7 +311,7 @@ export function useGameActions({
                   mode: 'multiplayer',
                   error_type: 'invalid_combo',
                 });
-                isPlayingCardsRef.current = false;
+                isSubmittingRef.current = false;
                 return;
               }
 
@@ -325,7 +327,7 @@ export function useGameActions({
                   mode: 'multiplayer',
                   error_type: 'must_play_3d_first',
                 });
-                isPlayingCardsRef.current = false;
+                isSubmittingRef.current = false;
                 return;
               }
 
@@ -338,7 +340,7 @@ export function useGameActions({
                   mode: 'multiplayer',
                   error_type: 'cannot_beat_combo',
                 });
-                isPlayingCardsRef.current = false;
+                isSubmittingRef.current = false;
                 return;
               }
 
@@ -357,7 +359,7 @@ export function useGameActions({
                     mode: 'multiplayer',
                     error_type: 'one_card_left_rule',
                   });
-                  isPlayingCardsRef.current = false;
+                  isSubmittingRef.current = false;
                   return;
                 }
               }
@@ -430,7 +432,7 @@ export function useGameActions({
           throw error; // Re-throw so GameControls can handle
         } finally {
           playMethodRef.current = 'button';
-          isPlayingCardsRef.current = false;
+          isSubmittingRef.current = false;
         }
       }
     },
@@ -446,7 +448,7 @@ export function useGameActions({
   );
 
   const handlePass = useCallback(async () => {
-    if (isPassingRef.current) {
+    if (isSubmittingRef.current) {
       gameLogger.warn(
         '⚠️ [GameScreen] Pass action already in progress, ignoring duplicate request'
       );
@@ -460,7 +462,7 @@ export function useGameActions({
       }
 
       try {
-        isPassingRef.current = true;
+        isSubmittingRef.current = true;
         hapticManager.pass();
 
         const result = await gameManagerRef.current.pass();
@@ -485,7 +487,7 @@ export function useGameActions({
         const failMsg = msg || 'Failed to pass';
         alertError(failMsg);
       } finally {
-        isPassingRef.current = false;
+        isSubmittingRef.current = false;
       }
     } else {
       if (!multiplayerPass) {
@@ -494,7 +496,7 @@ export function useGameActions({
       }
 
       try {
-        isPassingRef.current = true;
+        isSubmittingRef.current = true;
 
         // Client-side pre-validation: cannot pass when leading (no last play on board)
         if (getMultiplayerValidationState) {
@@ -532,7 +534,7 @@ export function useGameActions({
           alertError(failMsg);
         }
       } finally {
-        isPassingRef.current = false;
+        isSubmittingRef.current = false;
       }
     }
   }, [
