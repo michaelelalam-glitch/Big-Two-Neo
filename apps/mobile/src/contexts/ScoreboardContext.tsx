@@ -253,6 +253,14 @@ export const ScoreboardProvider: React.FC<ScoreboardProviderProps> = ({
     setCollapsedMatches(new Set());
     setIsScoreboardExpanded(false);
     setIsPlayHistoryOpen(false);
+    // Synchronously clear the flush ref and cancel any pending debounce so that
+    // a fast clearHistory() + unmount sequence does not re-persist stale data
+    // (the unmount-flush effect reads playHistoryFlushRef, not React state).
+    playHistoryFlushRef.current = [];
+    if (playHistoryDebounceRef.current) {
+      clearTimeout(playHistoryDebounceRef.current);
+      playHistoryDebounceRef.current = null;
+    }
     // Clear persisted history (no-op in multiplayer where AsyncStorage is unused)
     if (enableLocalPersistence) {
       AsyncStorage.removeItem(SCORE_HISTORY_KEY).catch(err => {

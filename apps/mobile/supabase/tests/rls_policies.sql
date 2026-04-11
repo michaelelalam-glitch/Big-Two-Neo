@@ -37,9 +37,11 @@ SELECT plan(26);
 -- eliminates any chance of colliding with real rows on the live Supabase
 -- project, which could otherwise cause unexpected row-level locks.
 SELECT
-  set_config('pgtap.owner_id', gen_random_uuid()::text, true),
-  set_config('pgtap.other_id', gen_random_uuid()::text, true),
-  set_config('pgtap.room_id',  gen_random_uuid()::text, true);
+  set_config('pgtap.owner_id',   gen_random_uuid()::text, true),
+  set_config('pgtap.other_id',   gen_random_uuid()::text, true),
+  set_config('pgtap.room_id',    gen_random_uuid()::text, true),
+  -- Random 8-char alphanumeric code: eliminates hard-coded 'PGTAP1' collision risk
+  set_config('pgtap.room_code',  upper(replace(gen_random_uuid()::text, '-', ''))::varchar(8), true);
 
 -- Seed auth users; let on_auth_user_created fire and auto-create profiles.
 -- Then normalize the auto-created rows with plain DML (UPDATE) to avoid
@@ -94,20 +96,23 @@ $$;
 
 DO $$
 DECLARE
-  v_owner_id uuid := current_setting('pgtap.owner_id', true)::uuid;
-  v_other_id uuid := current_setting('pgtap.other_id', true)::uuid;
-  v_room_id  uuid := current_setting('pgtap.room_id', true)::uuid;
+  v_owner_id  uuid := current_setting('pgtap.owner_id', true)::uuid;
+  v_other_id  uuid := current_setting('pgtap.other_id', true)::uuid;
+  v_room_id   uuid := current_setting('pgtap.room_id', true)::uuid;
+  v_room_code text := current_setting('pgtap.room_code', true);
 BEGIN
   -- Guard against room UUID or room code collision.
-  -- rooms.code has a UNIQUE constraint; if 'PGTAP1' already exists the INSERT
-  -- would fail and abort the entire pgTAP run.
-  IF EXISTS (SELECT 1 FROM public.rooms WHERE id = v_room_id OR code = 'PGTAP1') THEN
+  -- rooms.code has a UNIQUE constraint; if the generated code already exists the
+  -- INSERT would fail and abort the entire pgTAP run.  Using a random per-run
+  -- code (stored in pgtap.room_code GUC) eliminates the hard-coded 'PGTAP1'
+  -- collision risk identified in the Copilot review.
+  IF EXISTS (SELECT 1 FROM public.rooms WHERE id = v_room_id OR code = v_room_code) THEN
     RAISE EXCEPTION
-      'Refusing to run RLS pgTAP seed: room (id=% or code=PGTAP1) already exists in public.rooms', v_room_id;
+      'Refusing to run RLS pgTAP seed: room (id=% or code=%) already exists in public.rooms', v_room_id, v_room_code;
   END IF;
 
   INSERT INTO public.rooms (id, code, host_id, status, created_at, updated_at)
-  VALUES (v_room_id, 'PGTAP1', v_owner_id, 'waiting', now(), now());
+  VALUES (v_room_id, v_room_code, v_owner_id, 'waiting', now(), now());
 
   INSERT INTO public.room_players (
     room_id, user_id, player_index, is_host, is_ready, is_bot, joined_at
@@ -131,7 +136,7 @@ ON CONFLICT (blocker_id, blocked_id) DO NOTHING;
 
 -- Seed game_history row (Section 7 data-driven assertions)
 INSERT INTO public.game_history (room_code, started_at, finished_at)
-VALUES ('PGTAP1', now(), now());
+VALUES (current_setting('pgtap.room_code', true), now(), now());
 
 -- Seed waiting_room row for user A (Section 8 data-driven assertions)
 INSERT INTO public.waiting_room (user_id, username)
@@ -140,7 +145,7 @@ ON CONFLICT (user_id) DO NOTHING;
 
 -- Seed bot_coordinator_locks row (Section 9 data-driven assertions)
 INSERT INTO public.bot_coordinator_locks (room_code, coordinator_id, expires_at)
-VALUES ('PGTAP1', current_setting('pgtap.owner_id', true), now() + interval '5 minutes')
+VALUES (current_setting('pgtap.room_code', true), current_setting('pgtap.owner_id', true), now() + interval '5 minutes')
 ON CONFLICT DO NOTHING;
 
 -- ============================================================================
@@ -195,7 +200,7 @@ RESET ROLE;
 
 SET LOCAL ROLE anon;
 SELECT ok(
-  (SELECT count(*)::int FROM public.rooms WHERE code = 'PGTAP1') >= 1,
+  (SELECT count(*)::int FROM public.rooms WHERE code = current_setting('pgtap.room_code', true)) >= 1,
   'anon: can SELECT rooms (USING true -- anyone can view)'
 );
 RESET ROLE;
@@ -206,7 +211,7 @@ SELECT set_config('request.jwt.claims',
 SELECT set_config('request.jwt.claim.sub', current_setting('pgtap.owner_id', true), true);
 SELECT set_config('request.jwt.claim.role', 'authenticated', true);
 SELECT ok(
-  (SELECT count(*)::int FROM public.rooms WHERE code = 'PGTAP1') >= 1,
+  (SELECT count(*)::int FROM public.rooms WHERE code = current_setting('pgtap.room_code', true)) >= 1,
   'authenticated: can read rooms (USING true)'
 );
 RESET ROLE;
@@ -369,7 +374,7 @@ RESET ROLE;
 
 SET LOCAL ROLE anon;
 SELECT is(
-  (SELECT count(*)::int FROM public.game_history WHERE room_code = 'PGTAP1'),
+  (SELECT count(*)::int FROM public.game_history WHERE room_code = current_setting('pgtap.room_code', true)),
   1,
   'anon: can SELECT game_history (USING true)'
 );
