@@ -21,6 +21,8 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { checkMinimumVersion } from '../_shared/versionCheck.ts';
 // M12: CORS origin controlled by ALLOWED_ORIGIN env var
 import { buildCorsHeaders } from '../_shared/cors.ts';
+// #32 — Rate limiting (P6-2)
+import { checkRateLimit, rateLimitResponse } from '../_shared/rateLimiter.ts';
 
 const LIVEKIT_API_KEY    = Deno.env.get('LIVEKIT_API_KEY')    ?? '';
 const LIVEKIT_API_SECRET = Deno.env.get('LIVEKIT_API_SECRET') ?? '';
@@ -152,6 +154,16 @@ Deno.serve(async (req: Request) => {
     );
   }
 
+  // #32 — Rate limit: 5 tokens per minute per user (P6-2)
+  const supabaseServiceClient = createClient(
+    supabaseUrl,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+  );
+  const rl = await checkRateLimit(supabaseServiceClient, user.id, 'get_livekit_token', 5, 60);
+  if (!rl.allowed) {
+    return rateLimitResponse(rl.retryAfterMs, CORS_HEADERS);
+  }
+
   // ── Parse body ──────────────────────────────────────────────────────────
   let body: { roomId?: unknown; displayName?: unknown };
   try {
@@ -195,11 +207,14 @@ Deno.serve(async (req: Request) => {
   // Any authenticated user can reach this point; we must ensure they are
   // actually a participant in `roomId` before issuing a token. Without this
   // check any authenticated user could join any room they know the UUID of.
+  // #31 — Also verify the room is still active (P6-1): do not issue tokens for
+  // ended or abandoned rooms.
   const { data: membership, error: membershipError } = await supabase
     .from('room_players')
-    .select('id')
+    .select('id, rooms!inner(id, status)')
     .eq('room_id', roomId.trim())
     .eq('user_id', user.id)
+    .eq('rooms.status', 'active')
     .maybeSingle();
 
   if (membershipError) {
@@ -212,7 +227,7 @@ Deno.serve(async (req: Request) => {
   }
   if (!membership) {
     return new Response(
-      JSON.stringify({ error: 'Forbidden: you are not a member of this room' }),
+      JSON.stringify({ error: 'Forbidden: you are not a member of an active room with this ID' }),
       { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } },
     );
   }

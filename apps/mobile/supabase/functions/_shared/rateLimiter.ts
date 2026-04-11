@@ -37,14 +37,17 @@ export interface RateLimitResult {
  * @param action         Arbitrary label, e.g. "play_cards" | "player_pass"
  * @param maxPerWindow   Maximum allowed calls within the window
  * @param windowSeconds  Window size in seconds (e.g. 10 for "10 requests per 10 s")
+ * @param failClosed     When true, DB errors return allowed=false (503) instead of allowing
+ *                       the request. Use for high-risk endpoints (play-cards, find-match).
+ *                       Defaults to false (fail-open = best-effort, never blocks gameplay).
  *
  * The function performs an atomic UPSERT via the `upsert_rate_limit_counter`
  * Postgres function, so concurrent requests from the same user are counted correctly
  * even under Edge Function concurrency.
  *
- * If the DB call itself fails (e.g. during a Supabase outage), the function
- * ALLOWS the request and logs the error — rate limiting is best-effort and
- * should never block legitimate gameplay.
+ * If the DB call itself fails (e.g. during a Supabase outage):
+ *   - failClosed=false → ALLOWS the request (best-effort; never blocks legitimate gameplay)
+ *   - failClosed=true  → BLOCKS the request with 503 (use on high-risk abuse vectors)
  */
 export async function checkRateLimit(
   client: any,           // SupabaseClient — typed as `any` to avoid importing the heavy type in every caller
@@ -52,6 +55,7 @@ export async function checkRateLimit(
   action: string,
   maxPerWindow: number,
   windowSeconds: number,
+  failClosed = false,
 ): Promise<RateLimitResult> {
   // M7: Check against DB for every request — no in-memory bypass.
   // (The former allow-cache was removed because it allowed unbounded requests
@@ -64,9 +68,11 @@ export async function checkRateLimit(
     });
 
     if (error) {
-      // Non-fatal: allow request but log for observability.
+      // Non-fatal by default: allow request but log for observability.
+      // failClosed=true callers (high-risk endpoints) receive allowed=false so
+      // abuse during DB degradation is blocked rather than silently permitted.
       console.error(`[rateLimiter] DB error for ${action}/${userId.substring(0, 8)}:`, error.message);
-      return { allowed: true, attempts: 0, retryAfterMs: 0 };
+      return { allowed: !failClosed, attempts: 0, retryAfterMs: 0 };
     }
 
     const attempts: number = data as number;
@@ -97,7 +103,7 @@ export async function checkRateLimit(
     return { allowed, attempts, retryAfterMs };
   } catch (err) {
     console.error(`[rateLimiter] Unexpected error for ${action}:`, err);
-    return { allowed: true, attempts: 0, retryAfterMs: 0 };
+    return { allowed: !failClosed, attempts: 0, retryAfterMs: 0 };
   }
 }
 

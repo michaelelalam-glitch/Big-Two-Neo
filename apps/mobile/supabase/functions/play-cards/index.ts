@@ -907,12 +907,14 @@ Deno.serve(async (req) => {
     // Prevents rapid-fire abuse of play-cards (e.g. scripted card spam).
     // Uses the shared rate_limit_tracking table — Task #556.
     if (!isServiceRole) {
+      // #29 failClosed=true: during DB degradation block play-cards rather than allow unlimited calls.
       const rl = await checkRateLimit(
         supabaseClient,
         player_id,
         'play_cards',
         PLAY_CARDS_RATE_LIMIT_MAX,
         PLAY_CARDS_RATE_LIMIT_WINDOW,
+        true, // failClosed — high-risk endpoint
       );
       if (!rl.allowed) {
         return rateLimitResponse(rl.retryAfterMs, corsHeaders);
