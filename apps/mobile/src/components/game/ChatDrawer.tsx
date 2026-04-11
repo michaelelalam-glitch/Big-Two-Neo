@@ -14,13 +14,13 @@ import {
   View,
   Text,
   TextInput,
-  FlatList,
   Pressable,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
   useWindowDimensions,
 } from 'react-native';
+import { FlashList, FlashListRef } from '@shopify/flash-list';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -74,7 +74,7 @@ function ChatDrawerComponent({
   localUserId,
 }: ChatDrawerProps) {
   const inputRef = useRef<TextInput>(null);
-  const listRef = useRef<FlatList<ChatMessage>>(null);
+  const listRef = useRef<FlashListRef<ChatMessage>>(null);
   const [inputText, setInputText] = React.useState('');
   // Incrementing key remounts the TextInput node, destroying the native IME session.
   const [inputKey, setInputKey] = React.useState(0);
@@ -322,14 +322,13 @@ function ChatDrawerComponent({
           <Text style={styles.emptyText}>{i18n.t('chat.noMessages')}</Text>
         </View>
       ) : (
-        <FlatList
+        <FlashList
           ref={listRef}
           data={messages}
           renderItem={renderMessage}
           keyExtractor={keyExtractor}
           style={styles.messageList}
           contentContainerStyle={styles.messageListContent}
-          onContentSizeChange={isOpen ? scrollToBottom : undefined}
         />
       )}
 

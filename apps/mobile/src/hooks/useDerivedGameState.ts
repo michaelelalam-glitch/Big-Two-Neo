@@ -2,7 +2,7 @@
  * @module useDerivedGameState
  * Derives display-ready UI state from the local game engine.
  */
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { sortCardsForDisplay } from '../utils/cardSorting';
 import type { GameState } from '../game/state';
 import type { Card } from '../game/types';
@@ -42,20 +42,27 @@ export function useDerivedGameState({
   customCardOrder,
   setCustomCardOrder,
 }: UseDerivedGameStateParams) {
-  // Player hand with custom ordering support
-  const playerHand = useMemo(() => {
-    if (!gameState) return [];
-    const hand = gameState.players[0].hand; // Player is always at index 0
-
-    // Reset custom order if hand is empty (new round starting)
+  // P1-2 FIX: Reset custom order via useEffect (not inside useMemo) to prevent
+  // the React anti-pattern of calling setState during a render derivation.
+  // Calling setState inside useMemo can trigger double-renders and is explicitly
+  // warned against in React. The effect runs after the render that sees an empty
+  // hand, so the clearing is deferred to the next commit phase, which is safe.
+  const hand = gameState?.players[0]?.hand ?? [];
+  useEffect(() => {
     if (hand.length === 0 && customCardOrder.length > 0) {
       setCustomCardOrder([]);
     }
+  }, [hand.length, customCardOrder.length, setCustomCardOrder]);
+
+  // Player hand with custom ordering support
+  const playerHand = useMemo(() => {
+    if (!gameState) return [];
+    const currentHand = gameState.players[0].hand; // Player is always at index 0
 
     // If user has manually reordered cards, use that order
     if (customCardOrder.length > 0) {
       const orderedHand: Card[] = [];
-      const handMap = new Map(hand.map(c => [c.id, c]));
+      const handMap = new Map(currentHand.map(c => [c.id, c]));
 
       // First, add cards in custom order that are still in hand
       for (const cardId of customCardOrder) {
@@ -65,7 +72,7 @@ export function useDerivedGameState({
 
       // Then add any new cards that aren't in custom order (at the end)
       const orderedIds = new Set(orderedHand.map(c => c.id));
-      for (const card of hand) {
+      for (const card of currentHand) {
         if (!orderedIds.has(card.id)) {
           orderedHand.push(card);
         }
@@ -77,8 +84,8 @@ export function useDerivedGameState({
       }
     }
 
-    return hand;
-  }, [gameState, customCardOrder, setCustomCardOrder]);
+    return currentHand;
+  }, [gameState, customCardOrder]);
 
   const lastPlayedCards = useMemo(() => {
     if (!gameState || !gameState.lastPlay) return [];

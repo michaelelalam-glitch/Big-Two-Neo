@@ -351,7 +351,7 @@ export function MultiplayerGame() {
     customCardOrder,
     setCustomCardOrder,
     handleCardsReorder,
-  } = useCardSelection();
+  } = useCardSelection(roomInfo?.id ?? roomCode);
 
   // Initialize multiplayer room data
   useMultiplayerRoomLoader({

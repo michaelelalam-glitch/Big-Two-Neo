@@ -63,6 +63,12 @@ interface UseConnectionManagerOptions {
   /** room_players.id — NOT auth.uid() */
   playerId: string;
   enabled: boolean;
+  /**
+   * P2-6 FIX: Current game phase. When set to 'finished' or 'game_over' the
+   * heartbeat is stopped automatically to avoid wasted network traffic in
+   * completed rooms.
+   */
+  gamePhase?: string | null;
   /** Called when the server confirms a bot has taken this player's seat */
   onBotReplaced?: () => void;
   /** Called when the room was closed while the player was away */
@@ -120,6 +126,7 @@ export function useConnectionManager({
   roomId,
   playerId,
   enabled,
+  gamePhase,
   onBotReplaced,
   onRoomClosed,
 }: UseConnectionManagerOptions): UseConnectionManagerReturn {
@@ -163,6 +170,18 @@ export function useConnectionManager({
       reconnectingDebounceRef.current = null;
     }
   }, []);
+
+  // P2-6 FIX: Stop heartbeats when the game has finished/ended to avoid wasted
+  // network traffic in rooms that are no longer active.
+  useEffect(() => {
+    if (gamePhase === 'finished' || gamePhase === 'game_over') {
+      networkLogger.debug(
+        '[ConnectionManager] Game ended — stopping heartbeats (phase=%s)',
+        gamePhase
+      );
+      stopHeartbeat();
+    }
+  }, [gamePhase, stopHeartbeat]);
 
   // P2-2 FIX: Debounced transition to 'reconnecting'. Clears any pending debounce when
   // the connection recovers so brief blips don't trigger the indicator.

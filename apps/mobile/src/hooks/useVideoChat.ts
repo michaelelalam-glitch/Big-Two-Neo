@@ -385,6 +385,15 @@ export function useVideoChat({
   // Adapter on RoomEvent.Disconnected) are treated as fatal: reset all local
   // and remote chat state so the UI never sticks in a "connected" state after
   // an unexpected network drop or server-side kick.
+  //
+  // P6-3 FIX: After resetting state, schedule an auto-reconnect with exponential
+  // backoff (max 3 retries) when the user had actively opted in to chat
+  // (desiredCameraRef or desiredMicRef). This mirrors the autoConnect retry
+  // pattern already used for listener-mode reconnects.
+  const MAX_RECONNECT_RETRIES = 3;
+  const [reconnectRetryKey, setReconnectRetryKey] = useState(0);
+  const reconnectAttemptsRef = useRef(0);
+
   useEffect(() => {
     if (!isChatConnected) return;
     const unsubscribe = adapterRef.current.onError((err: Error) => {
@@ -407,11 +416,84 @@ export function useVideoChat({
         setIsLocalMicOn(false);
         setRemoteParticipants([]);
         gameLogger.warn('[VideoChat] Session reset after unexpected disconnect.');
+        // P6-3: Trigger auto-reconnect if user had opted in.
+        if (
+          (desiredCameraRef.current || desiredMicRef.current) &&
+          reconnectAttemptsRef.current < MAX_RECONNECT_RETRIES
+        ) {
+          const delay = 2000 * Math.pow(2, reconnectAttemptsRef.current); // 2s, 4s, 8s
+          gameLogger.info(
+            `[VideoChat] Scheduling reconnect attempt ${reconnectAttemptsRef.current + 1}/${MAX_RECONNECT_RETRIES} in ${delay}ms`
+          );
+          setTimeout(() => {
+            setReconnectRetryKey(k => k + 1);
+          }, delay);
+        }
       }
     });
     return unsubscribe;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isChatConnected, adapterProp]);
+
+  // P6-3 FIX: Auto-reconnect effect — fires whenever reconnectRetryKey increments.
+  // Re-establishes the video or voice session after an UnexpectedDisconnectError
+  // when the user had previously opted in.  Mirrors the autoConnect retry pattern.
+  useEffect(() => {
+    if (reconnectRetryKey === 0) return;
+    if (!roomId || !userId) return;
+    if (isChatConnected) return; // already reconnected by another path
+    let cancelled = false;
+
+    (async () => {
+      try {
+        gameLogger.info(
+          `[VideoChat] Auto-reconnect attempt ${reconnectAttemptsRef.current + 1}/${MAX_RECONNECT_RETRIES}...`
+        );
+        await adapterRef.current.connect(roomId, userId);
+        if (cancelled) return;
+        reconnectAttemptsRef.current = 0; // reset on success
+        if (desiredCameraRef.current) {
+          await adapterRef.current.enableCamera().catch(() => {});
+          if (!cancelled) setIsLocalCameraOn(true);
+        }
+        if (desiredMicRef.current) {
+          await adapterRef.current.enableMicrophone().catch(() => {});
+          if (!cancelled) setIsLocalMicOn(true);
+        }
+        if (!cancelled) {
+          setRemoteParticipants(adapterRef.current.getParticipants());
+          setIsChatConnected(true);
+          featureDurationStart('video_chat');
+          if (desiredCameraRef.current) featureDurationStart('camera');
+          if (desiredMicRef.current) featureDurationStart('mic');
+          gameLogger.info('[VideoChat] Auto-reconnect succeeded.');
+        }
+      } catch (err) {
+        if (cancelled) return;
+        reconnectAttemptsRef.current += 1;
+        gameLogger.warn(
+          `[VideoChat] Auto-reconnect attempt ${reconnectAttemptsRef.current} failed:`,
+          err instanceof Error ? err.message : String(err)
+        );
+        if (reconnectAttemptsRef.current < MAX_RECONNECT_RETRIES) {
+          const delay = 2000 * Math.pow(2, reconnectAttemptsRef.current);
+          setTimeout(() => {
+            if (!cancelled) setReconnectRetryKey(k => k + 1);
+          }, delay);
+        } else {
+          gameLogger.warn(
+            `[VideoChat] Auto-reconnect gave up after ${MAX_RECONNECT_RETRIES} attempts.`
+          );
+          reconnectAttemptsRef.current = 0; // reset for future disconnects
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reconnectRetryKey]);
 
   // Track the previous roomId so the roomId-change effect can distinguish
   // a genuine room navigation from the initial mount.
@@ -450,6 +532,9 @@ export function useVideoChat({
       desiredMicRef.current = false;
       // Also reset auto-connect retry state so a new room gets a fresh retry budget.
       setAutoConnectRetryKey(0);
+      // P6-3: Also reset manual-reconnect attempt counter for the new room.
+      reconnectAttemptsRef.current = 0;
+      setReconnectRetryKey(0);
     }
     prevRoomIdRef.current = roomId;
     // isChatConnected included so the effect sees the current session state when

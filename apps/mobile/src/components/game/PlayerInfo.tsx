@@ -523,4 +523,16 @@ const avatarStyles = StyleSheet.create({
   },
 });
 
-export default React.memo(PlayerInfoComponent);
+const PlayerInfoMemo = React.memo(PlayerInfoComponent);
+
+// P8-6 FIX: DEV-only Profiler wrapper — surfaces render timing in React
+// DevTools / Flipper without any overhead in production builds.
+export default __DEV__
+  ? function PlayerInfoProfiled(props: React.ComponentProps<typeof PlayerInfoMemo>) {
+      return (
+        <React.Profiler id="PlayerInfo" onRender={() => {}}>
+          <PlayerInfoMemo {...props} />
+        </React.Profiler>
+      );
+    }
+  : PlayerInfoMemo;

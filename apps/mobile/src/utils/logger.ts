@@ -114,6 +114,12 @@ const prodConfig = {
 // @ts-expect-error - runtime dynamic config creates type conflicts with library's conditional types
 const log = logger.createLogger(__DEV__ ? devConfig : prodConfig);
 
+// P8-5 FIX: Prune old log files at startup (production only) so log files
+// do not accumulate unboundedly on device storage.
+if (!__DEV__) {
+  void pruneOldLogFiles();
+}
+
 // Export namespaced loggers for different modules
 export const authLogger = log.extend('AUTH');
 export const gameLogger = log.extend('GAME');
@@ -138,4 +144,32 @@ export function getTodayLogFileName(): string {
   const mm = String(today.getMonth() + 1).padStart(2, '0');
   const dd = String(today.getDate()).padStart(2, '0');
   return `app_logs_${yyyy}-${mm}-${dd}.log`;
+}
+
+/**
+ * P8-5 FIX: Delete log files older than `maxAgeDays` days from the device's
+ * document directory. Called once at module initialisation (production only)
+ * to prevent unbounded log file accumulation. Failures are silently ignored —
+ * log pruning is non-critical and must not surface to the user.
+ */
+export async function pruneOldLogFiles(maxAgeDays = 7): Promise<void> {
+  if (!FileSystem) return; // no file system available (web / Expo Go)
+  try {
+    // expo-file-system v19: Paths.document replaces the legacy documentDirectory
+    // string. readDirectoryAsync / getInfoAsync / deleteAsync are still available.
+    const dirUri = FileSystem.Paths.document.uri;
+    const files = await FileSystem.readDirectoryAsync(dirUri);
+    const cutoff = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
+    for (const file of files) {
+      if (!file.startsWith('app_logs_') || !file.endsWith('.log')) continue;
+      const info = await FileSystem.getInfoAsync(dirUri + file);
+      if (!info.exists) continue;
+      const modTime = (info as { modificationTime?: number }).modificationTime;
+      if (modTime != null && modTime * 1000 < cutoff) {
+        await FileSystem.deleteAsync(dirUri + file, { idempotent: true });
+      }
+    }
+  } catch {
+    // Non-critical — ignore pruning failures silently
+  }
 }
