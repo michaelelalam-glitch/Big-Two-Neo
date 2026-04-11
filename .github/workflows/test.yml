@@ -29,9 +29,9 @@ jobs:
       EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
       EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      # Exposed at job level so the pgTAP step if: can evaluate it correctly.
-      # Step-level env is not visible to that step's own if: condition.
-      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      # SUPABASE_DB_PASSWORD intentionally NOT set at job level — passed only to
+      # the pgTAP step below so it is not visible to unrelated steps.
+      # The pgTAP step uses `if: secrets.SUPABASE_DB_PASSWORD != ''` directly.
 
     strategy:
       matrix:
@@ -160,8 +160,10 @@ jobs:
       # collision guards instead of ON CONFLICT DO UPDATE to avoid touching real
       # rows or firing triggers on unexpected collisions.
       - name: 🔒 Run RLS policy tests (pgTAP)
-        if: env.SUPABASE_DB_PASSWORD != ''
+        if: ${{ secrets.SUPABASE_DB_PASSWORD != '' }}
         env:
+          # Scoped only to this step — not exposed to other steps in the job.
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           # Allow the Supabase project ref to be overridden via a repository
           # variable (Settings → Variables). Falls back to the default project.
           SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF || 'dppybucldqufbqhwnkxu' }}
