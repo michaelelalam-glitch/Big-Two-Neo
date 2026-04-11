@@ -53,11 +53,13 @@ let _iosKeyId: string | null = null;
 /**
  * Attempts to load the Play Integrity module (Android). Returns null if absent.
  *
- * The package `@infominds/react-native-play-integrity` is an optional peer dep
- * that is NOT listed in package.json. To activate Android integrity checks, add it
- * to `optionalDependencies` and re-install. Metro resolves string-literal require()
- * calls at bundle time; if the module is absent from node_modules the try/catch
- * catches the MODULE_NOT_FOUND error at runtime and returns null.
+ * The package `@infominds/react-native-play-integrity` is an optional peer dep not
+ * listed in package.json. `metro.config.js` maps this package name to a throwing
+ * stub (`src/stubs/optionalModuleStub.js`) so Metro always resolves it at bundle
+ * time. The stub throws at runtime, which this try/catch catches, returning null
+ * and gracefully disabling Android attestation.
+ * To activate: add to `optionalDependencies`, run `pnpm install`, then remove the
+ * corresponding `extraNodeModules` entry from `metro.config.js`.
  */
 function loadPlayIntegrityModule(): {
   requestIntegrityToken(nonce: string): Promise<string>;
@@ -75,9 +77,11 @@ function loadPlayIntegrityModule(): {
 /**
  * Attempts to load the App Attest module (iOS). Returns null if absent.
  *
- * The package `react-native-app-attest` is an optional peer dep that is NOT listed
- * in package.json. To activate iOS integrity checks, add it to `optionalDependencies`
- * and re-install. Same Metro resolution note as `loadPlayIntegrityModule` above.
+ * The package `react-native-app-attest` is an optional peer dep not listed in
+ * package.json. Same `metro.config.js` extraNodeModules stub pattern as
+ * `loadPlayIntegrityModule` — see that function's JSDoc for details.
+ * To activate: add to `optionalDependencies`, run `pnpm install`, then remove the
+ * corresponding `extraNodeModules` entry from `metro.config.js`.
  */
 function loadAppAttestModule(): {
   generateKey(): Promise<string>;

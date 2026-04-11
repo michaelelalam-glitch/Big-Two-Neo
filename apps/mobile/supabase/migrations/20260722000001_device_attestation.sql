@@ -61,4 +61,6 @@ CREATE POLICY "Users can read own attestation"
 
 COMMENT ON TABLE device_attestation IS
   'P10-4: Tracks Google Play Integrity / Apple App Attest verification results. '
-  'Updated by the verify-attestation Edge Function after validating tokens with Apple/Google APIs.';
+  'Written by the verify-attestation Edge Function. '
+  'Android (Play Integrity) token validation and persistence are implemented (Step 1). '
+  'iOS (App Attest) assertion verification and persistence are pending (Step 2).';

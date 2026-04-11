@@ -24,4 +24,19 @@ config.watchFolders = [
   path.resolve(__dirname, 'node_modules/.pnpm'),
 ];
 
+// Map optional native peer dependencies to a throwing stub so Metro can always
+// resolve them at bundle time. When the real package is absent from node_modules,
+// Metro would otherwise fail the bundle before any try/catch can run. The stub
+// throws at runtime so the try/catch in attestation.ts catches it and returns null.
+// To activate a flow: add the package to optionalDependencies, run pnpm install,
+// then remove its entry here.
+config.resolver.extraNodeModules = {
+  '@infominds/react-native-play-integrity': require.resolve(
+    './src/stubs/optionalModuleStub.js',
+  ),
+  'react-native-app-attest': require.resolve(
+    './src/stubs/optionalModuleStub.js',
+  ),
+};
+
 module.exports = config;
