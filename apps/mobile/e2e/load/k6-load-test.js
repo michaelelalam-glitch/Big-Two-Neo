@@ -38,17 +38,25 @@ const findMatchDur = new Trend('find_match_duration');
 // ---------------------------------------------------------------------------
 // Options
 // ---------------------------------------------------------------------------
+// Smoke mode: reduced VUs and durations for CI PR validation.
+// Set via --env K6_SMOKE_MODE=true to exercise the code path quickly
+// without incurring full load-test costs on every pull request.
+// ---------------------------------------------------------------------------
+const SMOKE = (__ENV.K6_SMOKE_MODE ?? '') === 'true';
+
 export const options = {
   scenarios: {
     // Scenario 1 — unauthenticated flood (baseline: 401 latency under load)
     auth_error_flood: {
       executor: 'ramping-vus',
       startVUs: 1,
-      stages: [
-        { duration: '15s', target: 20 },
-        { duration: '30s', target: 20 },
-        { duration: '10s', target:  0 },
-      ],
+      stages: SMOKE
+        ? [{ duration: '5s', target: 3 }, { duration: '5s', target: 0 }]
+        : [
+            { duration: '15s', target: 20 },
+            { duration: '30s', target: 20 },
+            { duration: '10s', target:  0 },
+          ],
       gracefulRampDown: '5s',
       exec: 'authErrorFlood',
       tags: { scenario: 'auth_error_flood' },
@@ -58,30 +66,34 @@ export const options = {
     play_cards_load: {
       executor: 'ramping-vus',
       startVUs: 1,
-      stages: [
-        { duration: '20s', target: 10 },
-        { duration: '40s', target: 10 },
-        { duration: '10s', target:  0 },
-      ],
+      stages: SMOKE
+        ? [{ duration: '5s', target: 2 }, { duration: '5s', target: 0 }]
+        : [
+            { duration: '20s', target: 10 },
+            { duration: '40s', target: 10 },
+            { duration: '10s', target:  0 },
+          ],
       gracefulRampDown: '5s',
       exec: 'playCardsLoad',
       tags: { scenario: 'play_cards_load' },
-      startTime: '55s',  // start after auth_error_flood completes
+      startTime: SMOKE ? '15s' : '55s',  // start after auth_error_flood completes
     },
 
     // Scenario 3 — find-match concurrency
     find_match_load: {
       executor: 'ramping-vus',
       startVUs: 1,
-      stages: [
-        { duration: '20s', target: 15 },
-        { duration: '40s', target: 15 },
-        { duration: '10s', target:  0 },
-      ],
+      stages: SMOKE
+        ? [{ duration: '5s', target: 2 }, { duration: '5s', target: 0 }]
+        : [
+            { duration: '20s', target: 15 },
+            { duration: '40s', target: 15 },
+            { duration: '10s', target:  0 },
+          ],
       gracefulRampDown: '5s',
       exec: 'findMatchLoad',
       tags: { scenario: 'find_match_load' },
-      startTime: '55s',  // run alongside play_cards_load
+      startTime: SMOKE ? '15s' : '55s',  // run alongside play_cards_load
     },
   },
 
@@ -108,7 +120,12 @@ export function setup() {
     fail('[k6] SUPABASE_URL is required. Pass --env SUPABASE_URL=https://xxx.supabase.co');
   }
   if (!ANON_KEY) {
-    console.warn('[k6] ANON_KEY not set — authenticated scenarios will produce 401s');
+    if (!SMOKE) {
+      fail('[k6] ANON_KEY is required for authenticated scenarios in full-load mode. Pass --env ANON_KEY=...');
+    }
+    // Smoke mode: the authenticated scenarios are trivially smoke-tested by
+    // letting them produce 401 errors — valid as a "does the script run?" check.
+    console.warn('[k6] ANON_KEY not set (smoke mode) — authenticated scenarios will produce 401s');
     return { token: '' };
   }
 
