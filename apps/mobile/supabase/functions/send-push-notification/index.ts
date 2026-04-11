@@ -442,7 +442,13 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Step 2: Apply rate limiting only to users with tokens (quota consumed only when delivery is possible)
+    // Step 2: Apply rate limiting only to users with tokens (quota consumed only when delivery is possible).
+    // Trade-off: the rate-limit counter is committed to the DB atomically before the FCM send
+    // attempt. If the FCM send fails (e.g. transient FCM error), the 30-second quota for that
+    // user/event bucket is still consumed even though no notification was delivered. This is
+    // the conservative / pessimistic approach: it prevents a flood of retries during FCM
+    // degradation at the cost of potentially delaying one notification per affected user.
+    // A reservation+rollback mechanism would be needed to only commit on successful delivery.
     const throttledIds: string[] = [];
     const rlChecks = await Promise.all(
       usersWithTokens.map(async (uid: string) => {

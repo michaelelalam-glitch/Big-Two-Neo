@@ -149,9 +149,40 @@ async function attestIOS(): Promise<AttestationResult> {
     _iosKeyId = await AppAttest.generateKey();
   }
 
-  // clientData hash = SHA-256 of a UUID (challenge)
-  const challenge = crypto.randomUUID();
-  const assertion = await AppAttest.generateAssertion(_iosKeyId, challenge);
+  // randomUUID fallback — crypto.randomUUID() not guaranteed on all RN runtimes.
+  const randomUUID: () => string =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? () => crypto.randomUUID()
+      : () => {
+          const bytes = new Uint8Array(16);
+          // eslint-disable-next-line no-bitwise
+          if (typeof crypto !== 'undefined' && crypto.getRandomValues)
+            crypto.getRandomValues(bytes);
+          // eslint-disable-next-line no-bitwise
+          bytes[6] = (bytes[6] & 0x0f) | 0x40;
+          // eslint-disable-next-line no-bitwise
+          bytes[8] = (bytes[8] & 0x3f) | 0x80;
+          return [...bytes]
+            .map((b, i) =>
+              [4, 6, 8, 10].includes(i)
+                ? `-${b.toString(16).padStart(2, '0')}`
+                : b.toString(16).padStart(2, '0')
+            )
+            .join('');
+        };
+  const challenge = randomUUID();
+
+  // App Attest generateAssertion expects a SHA-256 hash of the clientData, not the raw
+  // challenge string. Compute it via Web Crypto; bail out (fail-open) if unavailable.
+  let clientDataHash: string;
+  try {
+    const hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(challenge));
+    clientDataHash = btoa(String.fromCharCode(...new Uint8Array(hashBuf)));
+  } catch {
+    networkLogger.warn('[Attestation] iOS: crypto.subtle unavailable — skipping attestation');
+    return { passed: true, skipped: true, reason: 'crypto_unavailable' };
+  }
+  const assertion = await AppAttest.generateAssertion(_iosKeyId, clientDataHash);
 
   const { data, error } = await supabase.functions.invoke('verify-attestation', {
     body: { platform: 'ios', token: assertion, keyId: _iosKeyId },

@@ -69,13 +69,13 @@ const NETWORK_SECURITY_CONFIG = `<?xml version="1.0" encoding="utf-8"?>
         </trust-anchors>
     </base-config>
 
-    <!-- Supabase API: pin the leaf cert + Cloudflare intermediate as backup -->
+    <!-- Supabase API: pin the leaf cert + Google Trust Services WE1 intermediate as backup -->
     <domain-config>
         <domain includeSubdomains="true">${SUPABASE_DOMAIN}</domain>
         <pin-set expiration="${PIN_EXPIRATION}">
             <!-- Primary: Supabase leaf certificate SPKI SHA-256 -->
             <pin digest="SHA-256">${PIN_PRIMARY_SUPABASE}</pin>
-            <!-- Backup: Cloudflare intermediate CA SPKI SHA-256 -->
+            <!-- Backup: Google Trust Services WE1 intermediate CA SPKI SHA-256 -->
             <pin digest="SHA-256">${PIN_BACKUP_GTS_WE1_INTERMEDIATE}</pin>
         </pin-set>
     </domain-config>

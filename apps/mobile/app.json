@@ -16,7 +16,7 @@
       "url": "https://u.expo.dev/e9655e19-679f-4683-924a-581c54736a73",
       "enabled": true,
       "fallbackToCacheTimeout": 0,
-      "checkAutomatically": "EAGER"
+      "checkAutomatically": "ON_ERROR_RECOVERY"
     },
     "splash": {
       "image": "./assets/splash-icon.png",

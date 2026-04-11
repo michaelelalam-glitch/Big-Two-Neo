@@ -151,8 +151,10 @@ function GameViewComponent() {
     showInGameAlert,
   } = useGameContext();
 
-  // P9-1: Read timer state from the isolated AutoPassTimerContext so that timer
-  // tick updates only re-render timer consumers, not the entire GameView tree.
+  // P9-1: Read timer state from the isolated AutoPassTimerContext so timer-focused
+  // consumers can subscribe without depending on GameContext. GameView still uses
+  // GameContext, so this alone does not prevent GameView re-renders if that context
+  // value changes on timer ticks.
   const { effectiveAutoPassTimerState, turnClockOffsetMs } = useAutoPassTimerContext();
 
   const isMultiplayerGame = !isLocalAIGame;

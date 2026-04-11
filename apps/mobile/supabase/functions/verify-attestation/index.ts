@@ -147,16 +147,21 @@ async function verifyPlayIntegrityToken(
 // ─── iOS App Attest ─────────────────────────────────────────────────────────
 
 /**
- * Verify an Apple App Attest assertion by forwarding it to Apple's attestation
- * service and treating a 200 HTTP response as valid.
+ * Placeholder for iOS App Attest assertion verification.
  *
- * NOTE: This is a lightweight first-pass implementation. It confirms the
- * assertion is well-formed and accepted by Apple but does NOT perform full
- * server-side App Attest validation (CBOR parsing, nonce binding, receipt
- * chain verification). For Step 2 production hardening, implement the full
- * flow from: https://developer.apple.com/documentation/devicecheck/validating_apps_that_connect_to_your_server
+ * Full server-side App Attest validation requires:
+ *   1. Parsing the CBOR-encoded assertion (AuthenticatorData + signature).
+ *   2. Verifying the signature against the attested public key + clientDataHash.
+ *   3. Validating the key certificate chain (leaf → Apple App Attest CA → Apple Root CA).
+ *   4. Checking the sequence counter to detect replay attacks.
  *
- * The function is fail-open — a verification error never blocks the user.
+ * Apple does NOT provide a server-side HTTP API for assertion verification;
+ * calling /v1/attest is incorrect here — that endpoint receives a fresh
+ * attestation object (generated during key attestation), not an assertion.
+ *
+ * This Step 1 implementation is explicitly fail-open (skipped) until the full
+ * CBOR/signature validation is implemented in Step 2.
+ * See: https://developer.apple.com/documentation/devicecheck/validating_apps_that_connect_to_your_server
  */
 async function verifyAppAttest(
   assertionBase64: string,
@@ -164,29 +169,13 @@ async function verifyAppAttest(
   teamId: string,
   bundleId: string,
   environment: string,
-): Promise<{ passed: boolean }> {
-  // App ID prefix = <Team ID>.<Bundle ID>
-  const appId = `${teamId}.${bundleId}`;
+): Promise<{ passed: boolean; skipped?: boolean }> {
+  // Suppress unused-variable warnings for Step 2 parameters.
+  void assertionBase64; void keyId; void teamId; void bundleId; void environment;
 
-  // Forward assertion bytes to Apple's attestation service
-  const appleUrl = environment === 'production'
-    ? 'https://data.appattest.apple.com/v1/attest'
-    : 'https://data-development.appattest.apple.com/v1/attest';
-
-  const assertionBytes = base64ToUint8Array(assertionBase64);
-  const attest = await fetch(appleUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/octet-stream' },
-    body: assertionBytes,
-  });
-
-  if (!attest.ok) {
-    console.warn(`[verify-attestation] Apple attest returned ${attest.status} for keyId=${keyId} appId=${appId}`);
-    return { passed: false };
-  }
-
-  // A 200 response from Apple's service means the assertion was accepted.
-  return { passed: true };
+  // Step 2 not yet implemented — fail-open so legitimate iOS users are not blocked.
+  console.warn('[verify-attestation] iOS App Attest full assertion verification not yet implemented (Step 2) — fail-open');
+  return { passed: true, skipped: true };
 }
 
 // ─── Main handler ───────────────────────────────────────────────────────────

@@ -234,13 +234,15 @@ interface GameContextProviderProps {
 }
 
 export function GameContextProvider({ children, value }: GameContextProviderProps) {
-  // P9-1: Isolate timer state into a separate AutoPassTimerContext so components that
-  // only need the timer (e.g. InactivityCountdownRing) don't subscribe to all GameContext
-  // changes and vice versa.
+  // P9-1: Expose timer state through a separate AutoPassTimerContext so components that
+  // only need the timer (e.g. InactivityCountdownRing) can subscribe to that narrower
+  // context instead of all GameContext updates.
   //
-  // Note: GameContext still carries effectiveAutoPassTimerState / turnClockOffsetMs for
-  // any legacy consumers. Components that want timer-only isolation should call
-  // useAutoPassTimer() (from AutoPassTimerContext) instead of useGameContext().
+  // Note: this is only a partial isolation step. GameContext still carries
+  // effectiveAutoPassTimerState / turnClockOffsetMs for legacy consumers, so updates to
+  // those fields still change the GameContext provider value and can re-render
+  // useGameContext() consumers. Components that only need timer state should call
+  // useAutoPassTimer() (from AutoPassTimerContext).
   const timerValue = useMemo(
     () => ({
       effectiveAutoPassTimerState: value.effectiveAutoPassTimerState,
