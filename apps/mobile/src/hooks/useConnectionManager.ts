@@ -156,6 +156,12 @@ export function useConnectionManager({
       clearInterval(heartbeatIntervalRef.current);
       heartbeatIntervalRef.current = null;
     }
+    // P2-2: Also cancel any pending reconnecting debounce so it cannot fire
+    // after the heartbeat is intentionally stopped (e.g. on disconnect/unmount).
+    if (reconnectingDebounceRef.current) {
+      clearTimeout(reconnectingDebounceRef.current);
+      reconnectingDebounceRef.current = null;
+    }
   }, []);
 
   // P2-2 FIX: Debounced transition to 'reconnecting'. Clears any pending debounce when

@@ -240,7 +240,7 @@ Deno.serve(async (req) => {
     // insert, leaving the user stuck without feedback.
     const { data: existingEntry, error: existingEntryError } = await supabaseClient
       .from('waiting_room')
-      .select('status, matched_room_id')
+      .select('status, matched_room_id, joined_at')
       .eq('user_id', userId)
       .in('status', ['processing', 'matched'])
       .maybeSingle();
@@ -275,7 +275,7 @@ Deno.serve(async (req) => {
       // Status is 'processing' — another invocation is assembling a match
       console.log('ℹ️ [find-match] User is in processing state, returning waiting');
       return new Response(
-        JSON.stringify({ matched: false, waiting_count: 0 } as FindMatchResponse),
+        JSON.stringify({ matched: false, waiting_count: 0, joined_at: existingEntry.joined_at } as FindMatchResponse),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -420,7 +420,7 @@ Deno.serve(async (req) => {
             .eq('status', 'processing'); // Only revert rows we actually own
         }
         return new Response(
-          JSON.stringify({ success: false, matched: false, waiting_count: waitingCount }),
+          JSON.stringify({ matched: false, waiting_count: waitingCount, joined_at: entryData.joined_at }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
