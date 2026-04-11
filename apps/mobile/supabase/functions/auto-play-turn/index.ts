@@ -305,8 +305,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    const freshPlayerStatus = (freshCurrentPlayer as any).connection_status as string | undefined;
-    const freshPlayerIsBot = Boolean((freshCurrentPlayer as any).is_bot);
+    type FreshPlayerRow = { connection_status: string | null; is_bot: boolean | null };
+    const freshPlayer = freshCurrentPlayer as FreshPlayerRow;
+    const freshPlayerStatus = freshPlayer.connection_status ?? undefined;
+    const freshPlayerIsBot = Boolean(freshPlayer.is_bot);
     if (
       freshPlayerIsBot ||
       freshPlayerStatus === 'disconnected' ||

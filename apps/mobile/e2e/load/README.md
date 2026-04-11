@@ -38,8 +38,11 @@ k6 run \
 
 ### CI usage
 
-The k6 load test job in `.github/workflows/test.yml` runs only on `workflow_dispatch`
-(manual trigger) to avoid incurring Supabase costs on every PR.
+The k6 load test job in `.github/workflows/test.yml` runs automatically on every
+PR and push in **smoke mode** (`K6_SMOKE_MODE=true` — 3 scenarios × ~10 s each,
+~30 s total) to verify the script executes correctly with real secrets.
+Full load runs (20/10/15 VUs, ~130 s) are reserved for `workflow_dispatch` with
+`run_load_tests: true`.
 
 ---
 
