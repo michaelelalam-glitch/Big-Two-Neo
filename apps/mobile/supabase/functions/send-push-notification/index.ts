@@ -435,9 +435,9 @@ Deno.serve(async (req) => {
       .in('user_id', user_ids)
 
     if (allTokensError) {
-      console.error('Error fetching push tokens:', allTokensError)
+      console.error('[send-push-notification] Error fetching push tokens:', allTokensError)
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch push tokens', details: allTokensError }),
+        JSON.stringify({ error: 'Failed to fetch push tokens' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }

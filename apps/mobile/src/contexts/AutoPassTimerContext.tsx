@@ -59,12 +59,12 @@ export function AutoPassTimerContextProvider({
 
 /**
  * Returns `{ effectiveAutoPassTimerState, turnClockOffsetMs }`.
- * Throws if called outside a `<GameContextProvider>`.
+ * Throws if called outside a `<AutoPassTimerContextProvider>`.
  */
 export function useAutoPassTimerContext(): AutoPassTimerContextType {
   const ctx = useContext(AutoPassTimerContext);
   if (ctx === undefined) {
-    throw new Error('useAutoPassTimerContext must be used within a GameContextProvider');
+    throw new Error('useAutoPassTimerContext must be used within an AutoPassTimerContextProvider');
   }
   return ctx;
 }

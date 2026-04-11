@@ -129,9 +129,11 @@ export function useGameAudio({
     if (!isMultiplayerGame || !multiplayerGameState || myPlayerIndex === undefined) return;
     if (multiplayerGameState.current_turn !== myPlayerIndex) return;
     void hapticManager.trigger(HapticType.SUCCESS);
-    gameLogger.info(
-      `📳 [Haptic] Your-turn vibration fired (playerIndex=${myPlayerIndex}, turn=${multiplayerGameState.current_turn})`
-    );
+    if (__DEV__) {
+      gameLogger.info(
+        `📳 [Haptic] Your-turn vibration fired (playerIndex=${myPlayerIndex}, turn=${multiplayerGameState.current_turn})`
+      );
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- current_turn + turn_started_at drive re-runs
   }, [
     isMultiplayerGame,

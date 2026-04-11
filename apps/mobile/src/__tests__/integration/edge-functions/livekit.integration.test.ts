@@ -107,6 +107,7 @@ describeIfUrl('get-livekit-token EF', () => {
 
   describeBodyValidation('Suite 2 — Body validation → 400', () => {
     let testUserToken: string;
+    let testUserId: string;
     let adminClient: ReturnType<typeof createClient>;
 
     const TEST_EMAIL = `livekit-test-${uuid()}@ci-test.invalid`;
@@ -123,6 +124,8 @@ describeIfUrl('get-livekit-token EF', () => {
         email_confirm: true,
       });
       if (error || !data?.user) throw new Error(`createUser failed: ${error?.message}`);
+      // Store the created user id for deterministic cleanup in afterAll.
+      testUserId = data.user.id;
 
       // Sign in to obtain a real JWT
       const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -137,11 +140,9 @@ describeIfUrl('get-livekit-token EF', () => {
     });
 
     afterAll(async () => {
-      // Clean up test user even if tests fail
-      if (adminClient) {
-        const { data } = await adminClient.auth.admin.listUsers();
-        const user = data?.users?.find(u => u.email === TEST_EMAIL);
-        if (user) await adminClient.auth.admin.deleteUser(user.id);
+      // Delete user directly by id for deterministic cleanup (avoids listUsers pagination).
+      if (adminClient && testUserId) {
+        await adminClient.auth.admin.deleteUser(testUserId);
       }
     });
 

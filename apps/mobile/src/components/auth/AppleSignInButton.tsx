@@ -1,6 +1,7 @@
 import React from 'react';
 import { Platform, StyleSheet, TouchableOpacity, Text, View } from 'react-native';
 import { authLogger } from '../../utils/logger';
+import { i18n } from '../../i18n';
 
 /**
  * Apple Sign In - DISABLED (Backlogged)
@@ -28,11 +29,13 @@ const AppleSignInButton = () => {
         activeOpacity={0.7}
         disabled={true}
         accessibilityRole="button"
-        accessibilityLabel="Sign in with Apple (Coming Soon)"
+        accessibilityLabel={`${i18n.t('auth.signInWithApple')} (${i18n.t('common.comingSoon')})`}
         accessibilityState={{ disabled: true }}
       >
         <View style={styles.buttonContent}>
-          <Text style={styles.buttonText}>Sign in with Apple (Coming Soon)</Text>
+          <Text style={styles.buttonText}>
+            {i18n.t('auth.signInWithApple')} ({i18n.t('common.comingSoon')})
+          </Text>
         </View>
       </TouchableOpacity>
     );
@@ -47,11 +50,13 @@ const AppleSignInButton = () => {
         activeOpacity={0.7}
         disabled={true}
         accessibilityRole="button"
-        accessibilityLabel="Sign in with Apple (Coming Soon)"
+        accessibilityLabel={`${i18n.t('auth.signInWithApple')} (${i18n.t('common.comingSoon')})`}
         accessibilityState={{ disabled: true }}
       >
         <View style={styles.buttonContent}>
-          <Text style={styles.buttonText}>Sign in with Apple (Coming Soon)</Text>
+          <Text style={styles.buttonText}>
+            {i18n.t('auth.signInWithApple')} ({i18n.t('common.comingSoon')})
+          </Text>
         </View>
       </TouchableOpacity>
     );

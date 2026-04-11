@@ -1712,21 +1712,24 @@ Deno.serve(async (req) => {
           // 15b. Notify the next human player it's their turn (fire-and-forget)
           const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
           const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-          const notifPromise = fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${serviceKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              user_ids:  [nextPlayer.user_id],
-              title:     '⏰ Your Turn!',
-              body:      `It's your turn in room ${room_code}`,
-              data:      { type: 'your_turn', roomCode: room_code },
-            }),
-          }).catch(() => { /* non-critical — never block the response */ });
-          try { (globalThis as any).EdgeRuntime?.waitUntil(notifPromise); } catch (_) {}
-        }
+          // Guard: skip if required env vars are not set to avoid an invalid-URL fetch
+          // error being silently swallowed by the .catch() — consistent with player-pass.
+          if (supabaseUrl && serviceKey) {
+            const notifPromise = fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${serviceKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                user_ids:  [nextPlayer.user_id],
+                title:     '⏰ Your Turn!',
+                body:      `It's your turn in room ${room_code}`,
+                data:      { type: 'your_turn', roomCode: room_code },
+              }),
+            }).catch(() => { /* non-critical — never block the response */ });
+            try { (globalThis as any).EdgeRuntime?.waitUntil(notifPromise); } catch (_) {}
+          }
       } catch (err) {
         console.error('[play-cards] ⚠️ Bot next-player check failed (non-critical):', err);
       }
