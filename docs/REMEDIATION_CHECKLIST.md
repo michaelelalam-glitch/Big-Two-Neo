@@ -131,7 +131,7 @@
   > - `play-cards.integration.test.ts` — 4 suites covering 401/400/403/non-existent room
   > - `player-pass.integration.test.ts` — 4 suites covering 401/400/403/non-existent room
   > - `complete-game.integration.test.ts` — 4 suites covering 401/LOCAL rejection/invalid game_type/non-existent winner
-  > Tests skip gracefully (`.todo`) when Supabase credentials are absent.
+  > Tests skip gracefully (`describe.skip`) when Supabase credentials are absent.
 
 - [x] **#22 🟠 P14-2** — No RLS policy tests in CI — a migration mistake could silently expose player data.  
   **Fix:** Add `supabase db test` or `pgTAP` tests covering each table's RLS policies (select, insert, update, delete).  

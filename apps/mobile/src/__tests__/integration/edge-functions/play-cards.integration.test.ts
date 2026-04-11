@@ -72,12 +72,7 @@ async function callEF(
 // ---------------------------------------------------------------------------
 // Suite 1 — Authentication (no credentials needed beyond URL)
 // ---------------------------------------------------------------------------
-describe('Suite 1 — play-cards: authentication', () => {
-  if (!hasUrl) {
-    it.todo('skipped — EXPO_PUBLIC_SUPABASE_URL not configured');
-    return;
-  }
-
+(hasUrl ? describe : describe.skip)('Suite 1 — play-cards: authentication', () => {
   it('returns 401 when Authorization header is absent', async () => {
     const result = await callEF({ room_code: 'ABCDEF', player_id: uuid(), cards: [VALID_CARD] });
     expect(result.status).toBe(401);
@@ -111,12 +106,7 @@ describe('Suite 1 — play-cards: authentication', () => {
 // ---------------------------------------------------------------------------
 // Suite 2 — Request body validation (no credentials needed)
 // ---------------------------------------------------------------------------
-describe('Suite 2 — play-cards: body validation', () => {
-  if (!hasUrl) {
-    it.todo('skipped — EXPO_PUBLIC_SUPABASE_URL not configured');
-    return;
-  }
-
+(hasUrl ? describe : describe.skip)('Suite 2 — play-cards: body validation', () => {
   // These tests use a dummy bearer token that will fail auth before body validation.
   // To reach the body-validation layer we need a valid user JWT, so suite 2 tests
   // that are purely structural (e.g. too many cards) will run in Suite 3 once we
@@ -144,179 +134,175 @@ describe('Suite 2 — play-cards: body validation', () => {
 // ---------------------------------------------------------------------------
 // Suite 3 — Identity / body validation with real JWT (requires SERVICE_ROLE_KEY)
 // ---------------------------------------------------------------------------
-describe('Suite 3 — play-cards: identity + body validation (live JWT)', () => {
-  if (!hasServiceRole) {
-    it.todo('skipped — SUPABASE_SERVICE_ROLE_KEY not configured');
-    return;
-  }
+(hasServiceRole ? describe : describe.skip)(
+  'Suite 3 — play-cards: identity + body validation (live JWT)',
+  () => {
+    let userToken: string;
+    let testUserId: string;
+    const testEmail = `ci-play-cards-s3-${Date.now()}@test.invalid`;
+    const testPass = `Ci-T3st-${uuid().slice(0, 8)}!`;
 
-  let userToken: string;
-  let testUserId: string;
-  const testEmail = `ci-play-cards-s3-${Date.now()}@test.invalid`;
-  const testPass = `Ci-T3st-${uuid().slice(0, 8)}!`;
-
-  beforeAll(async () => {
-    // Use admin.createUser so the account is email-confirmed immediately
-    const srClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-    const { data, error } = await srClient.auth.admin.createUser({
-      email: testEmail,
-      password: testPass,
-      email_confirm: true,
-    });
-    if (error) throw new Error(`Test setup failed (createUser): ${error.message}`);
-    testUserId = data.user?.id ?? '';
-
-    // Sign in via anon client to obtain a JWT
-    const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const { data: signInData, error: signInError } = await anonClient.auth.signInWithPassword({
-      email: testEmail,
-      password: testPass,
-    });
-    if (signInError) throw new Error(`Sign-in failed: ${signInError.message}`);
-    userToken = signInData.session?.access_token ?? '';
-    if (!userToken) throw new Error('Test setup failed: no access token returned');
-  }, 30_000);
-
-  afterAll(async () => {
-    if (hasServiceRole && testUserId) {
-      // Delete the throwaway test user from auth
+    beforeAll(async () => {
+      // Use admin.createUser so the account is email-confirmed immediately
       const srClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE, {
         auth: { autoRefreshToken: false, persistSession: false },
       });
-      await srClient.auth.admin.deleteUser(testUserId);
-    }
-  }, 15_000);
+      const { data, error } = await srClient.auth.admin.createUser({
+        email: testEmail,
+        password: testPass,
+        email_confirm: true,
+      });
+      if (error) throw new Error(`Test setup failed (createUser): ${error.message}`);
+      testUserId = data.user?.id ?? '';
 
-  it('returns 400 when room_code is missing', async () => {
-    const result = await callEF({ player_id: testUserId, cards: [VALID_CARD] }, userToken);
-    expect(result.status).toBe(400);
-    expect((result.body as Record<string, unknown>)?.success).toBe(false);
-  }, 15_000);
+      // Sign in via anon client to obtain a JWT
+      const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const { data: signInData, error: signInError } = await anonClient.auth.signInWithPassword({
+        email: testEmail,
+        password: testPass,
+      });
+      if (signInError) throw new Error(`Sign-in failed: ${signInError.message}`);
+      userToken = signInData.session?.access_token ?? '';
+      if (!userToken) throw new Error('Test setup failed: no access token returned');
+    }, 30_000);
 
-  it('returns 400 when player_id is missing', async () => {
-    const result = await callEF({ room_code: 'ABCDEF', cards: [VALID_CARD] }, userToken);
-    expect(result.status).toBe(400);
-  }, 15_000);
+    afterAll(async () => {
+      if (hasServiceRole && testUserId) {
+        // Delete the throwaway test user from auth
+        const srClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
+        await srClient.auth.admin.deleteUser(testUserId);
+      }
+    }, 15_000);
 
-  it('returns 400 when cards array is empty', async () => {
-    const result = await callEF(
-      { room_code: 'ABCDEF', player_id: testUserId, cards: [] },
-      userToken
-    );
-    expect(result.status).toBe(400);
-  }, 15_000);
+    it('returns 400 when room_code is missing', async () => {
+      const result = await callEF({ player_id: testUserId, cards: [VALID_CARD] }, userToken);
+      expect(result.status).toBe(400);
+      expect((result.body as Record<string, unknown>)?.success).toBe(false);
+    }, 15_000);
 
-  it('returns 400 when cards array has more than 5 cards', async () => {
-    const manyCards = Array.from({ length: 6 }, (_, i) => ({
-      id: `D${i + 3}`,
-      suit: 'D' as const,
-      rank: '3' as const,
-    }));
-    const result = await callEF(
-      { room_code: 'ABCDEF', player_id: testUserId, cards: manyCards },
-      userToken
-    );
-    expect(result.status).toBe(400);
-    expect(JSON.stringify(result.body)).toContain('max 5');
-  }, 15_000);
+    it('returns 400 when player_id is missing', async () => {
+      const result = await callEF({ room_code: 'ABCDEF', cards: [VALID_CARD] }, userToken);
+      expect(result.status).toBe(400);
+    }, 15_000);
 
-  it('returns 400 for invalid card suit', async () => {
-    const result = await callEF(
-      {
-        room_code: 'ABCDEF',
-        player_id: testUserId,
-        cards: [{ id: 'X3', suit: 'X', rank: '3' }],
-      },
-      userToken
-    );
-    expect(result.status).toBe(400);
-  }, 15_000);
+    it('returns 400 when cards array is empty', async () => {
+      const result = await callEF(
+        { room_code: 'ABCDEF', player_id: testUserId, cards: [] },
+        userToken
+      );
+      expect(result.status).toBe(400);
+    }, 15_000);
 
-  it('returns 400 for invalid card rank', async () => {
-    const result = await callEF(
-      {
-        room_code: 'ABCDEF',
-        player_id: testUserId,
-        cards: [{ id: 'D0', suit: 'D', rank: '0' }],
-      },
-      userToken
-    );
-    expect(result.status).toBe(400);
-  }, 15_000);
+    it('returns 400 when cards array has more than 5 cards', async () => {
+      const manyCards = Array.from({ length: 6 }, (_, i) => ({
+        id: `D${i + 3}`,
+        suit: 'D' as const,
+        rank: '3' as const,
+      }));
+      const result = await callEF(
+        { room_code: 'ABCDEF', player_id: testUserId, cards: manyCards },
+        userToken
+      );
+      expect(result.status).toBe(400);
+      expect(JSON.stringify(result.body)).toContain('max 5');
+    }, 15_000);
 
-  it('returns 403 when JWT user_id does not match player_id in body', async () => {
-    const differentPlayerId = uuid();
-    const result = await callEF(
-      { room_code: 'ABCDEF', player_id: differentPlayerId, cards: [VALID_CARD] },
-      userToken
-    );
-    // EF returns 403 when callerJwtUserId !== player_id
-    expect(result.status).toBe(403);
-  }, 15_000);
-});
+    it('returns 400 for invalid card suit', async () => {
+      const result = await callEF(
+        {
+          room_code: 'ABCDEF',
+          player_id: testUserId,
+          cards: [{ id: 'X3', suit: 'X', rank: '3' }],
+        },
+        userToken
+      );
+      expect(result.status).toBe(400);
+    }, 15_000);
+
+    it('returns 400 for invalid card rank', async () => {
+      const result = await callEF(
+        {
+          room_code: 'ABCDEF',
+          player_id: testUserId,
+          cards: [{ id: 'D0', suit: 'D', rank: '0' }],
+        },
+        userToken
+      );
+      expect(result.status).toBe(400);
+    }, 15_000);
+
+    it('returns 403 when JWT user_id does not match player_id in body', async () => {
+      const differentPlayerId = uuid();
+      const result = await callEF(
+        { room_code: 'ABCDEF', player_id: differentPlayerId, cards: [VALID_CARD] },
+        userToken
+      );
+      // EF returns 403 when callerJwtUserId !== player_id
+      expect(result.status).toBe(403);
+    }, 15_000);
+  }
+);
 
 // ---------------------------------------------------------------------------
 // Suite 4 — Non-existent room lookup (requires SERVICE_ROLE_KEY)
 // ---------------------------------------------------------------------------
-describe('Suite 4 — play-cards: non-existent room (live DB lookup)', () => {
-  if (!hasServiceRole) {
-    it.todo('skipped — SUPABASE_SERVICE_ROLE_KEY not configured');
-    return;
-  }
+(hasServiceRole ? describe : describe.skip)(
+  'Suite 4 — play-cards: non-existent room (live DB lookup)',
+  () => {
+    let userToken: string;
+    let testUserId: string;
+    const testEmail = `ci-play-cards-room-${Date.now()}@test.invalid`;
+    const testPass = `Ci-T3st-${uuid().slice(0, 8)}!`;
 
-  let userToken: string;
-  let testUserId: string;
-  const testEmail = `ci-play-cards-room-${Date.now()}@test.invalid`;
-  const testPass = `Ci-T3st-${uuid().slice(0, 8)}!`;
-
-  beforeAll(async () => {
-    const srClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-    const { data, error } = await srClient.auth.admin.createUser({
-      email: testEmail,
-      password: testPass,
-      email_confirm: true,
-    });
-    if (error) throw new Error(`Test setup failed: ${error.message}`);
-    testUserId = data.user?.id ?? '';
-
-    // Sign in to get a JWT
-    const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const { data: signInData, error: signInError } = await anonClient.auth.signInWithPassword({
-      email: testEmail,
-      password: testPass,
-    });
-    if (signInError) throw new Error(`Sign-in failed: ${signInError.message}`);
-    userToken = signInData.session?.access_token ?? '';
-    if (!userToken) throw new Error('Test setup failed: sign-in returned no access token');
-  }, 30_000);
-
-  afterAll(async () => {
-    if (testUserId) {
+    beforeAll(async () => {
       const srClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE, {
         auth: { autoRefreshToken: false, persistSession: false },
       });
-      await srClient.auth.admin.deleteUser(testUserId);
-    }
-  }, 15_000);
+      const { data, error } = await srClient.auth.admin.createUser({
+        email: testEmail,
+        password: testPass,
+        email_confirm: true,
+      });
+      if (error) throw new Error(`Test setup failed: ${error.message}`);
+      testUserId = data.user?.id ?? '';
 
-  it('returns 404 (not a 500 crash) for a room_code that does not exist', async () => {
-    // Use a random per-run code to prevent collision with any real room
-    const nonExistentRoomCode = `TST${uuid().slice(0, 5).toUpperCase()}`;
-    const result = await callEF(
-      {
-        room_code: nonExistentRoomCode,
-        player_id: testUserId,
-        cards: [VALID_CARD],
-      },
-      userToken
-    );
-    expect(result.status).not.toBe(401); // confirms auth token was accepted
-    expect(result.status).toBeGreaterThanOrEqual(400);
-    expect(result.status).toBeLessThan(500);
-    expect(result.body).toBeTruthy();
-  }, 15_000);
-});
+      // Sign in to get a JWT
+      const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const { data: signInData, error: signInError } = await anonClient.auth.signInWithPassword({
+        email: testEmail,
+        password: testPass,
+      });
+      if (signInError) throw new Error(`Sign-in failed: ${signInError.message}`);
+      userToken = signInData.session?.access_token ?? '';
+      if (!userToken) throw new Error('Test setup failed: sign-in returned no access token');
+    }, 30_000);
+
+    afterAll(async () => {
+      if (testUserId) {
+        const srClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
+        await srClient.auth.admin.deleteUser(testUserId);
+      }
+    }, 15_000);
+
+    it('returns 404 (not a 500 crash) for a room_code that does not exist', async () => {
+      // Use a random per-run code to prevent collision with any real room
+      const nonExistentRoomCode = `TST${uuid().slice(0, 5).toUpperCase()}`;
+      const result = await callEF(
+        {
+          room_code: nonExistentRoomCode,
+          player_id: testUserId,
+          cards: [VALID_CARD],
+        },
+        userToken
+      );
+      expect(result.status).not.toBe(401); // confirms auth token was accepted
+      expect(result.status).toBeGreaterThanOrEqual(400);
+      expect(result.status).toBeLessThan(500);
+      expect(result.body).toBeTruthy();
+    }, 15_000);
+  }
+);
