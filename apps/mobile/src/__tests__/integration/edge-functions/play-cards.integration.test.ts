@@ -156,7 +156,9 @@ async function callEF(
       testUserId = data.user?.id ?? '';
 
       // Sign in via anon client to obtain a JWT
-      const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
       const { data: signInData, error: signInError } = await anonClient.auth.signInWithPassword({
         email: testEmail,
         password: testPass,
@@ -269,7 +271,9 @@ async function callEF(
       testUserId = data.user?.id ?? '';
 
       // Sign in to get a JWT
-      const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
       const { data: signInData, error: signInError } = await anonClient.auth.signInWithPassword({
         email: testEmail,
         password: testPass,
