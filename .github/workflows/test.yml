@@ -647,13 +647,17 @@ jobs:
         run: echo "🎉 Android Maestro E2E tests completed!"
 
   # ── Task #23 (Tier 4) — k6 Load Tests ────────────────────────────────────
-  # Runs only via workflow_dispatch to avoid incurring Supabase costs on
-  # every PR. Uses continue-on-error so a load test regression never blocks
-  # a release. Check k6 output / thresholds in the job logs manually.
+  # Runs on every PR/push in smoke mode (K6_SMOKE_MODE=true) to verify the
+  # k6 script executes correctly. Full load (20/10/15 VUs, ~2 min) only runs
+  # via workflow_dispatch. continue-on-error so a regression never blocks a
+  # release. Check k6 output / thresholds in the job logs.
   load_test:
     name: Load Tests (k6)
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_load_tests == 'true'
+    if: |
+      github.event_name == 'pull_request' ||
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_load_tests == 'true')
     continue-on-error: true
     timeout-minutes: 15
 
@@ -661,6 +665,9 @@ jobs:
       EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
       EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      # PR/push runs use smoke mode (3 scenarios, ~30s total) to verify the
+      # script executes without errors. Full load is triggered via workflow_dispatch.
+      K6_SMOKE_MODE: ${{ github.event_name != 'workflow_dispatch' && 'true' || 'false' }}
 
     steps:
       - name: 📥 Checkout code
@@ -691,6 +698,7 @@ jobs:
             --env SUPABASE_URL="${EXPO_PUBLIC_SUPABASE_URL}" \
             --env ANON_KEY="${EXPO_PUBLIC_SUPABASE_ANON_KEY}" \
             --env SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY}" \
+            --env K6_SMOKE_MODE="${K6_SMOKE_MODE}" \
             apps/mobile/e2e/load/k6-load-test.js
         timeout-minutes: 10
   # ─────────────────────────────────────────────────────────────────────────
