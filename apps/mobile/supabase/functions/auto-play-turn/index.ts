@@ -160,8 +160,13 @@ Deno.serve(async (req) => {
       ? room.game_state[0]
       : room.game_state;
     const gameState = gameStateRaw as (typeof gameStateRaw) & Record<string, unknown>;
-    const players = (Array.isArray(room.room_players) ? room.room_players : [room.room_players]) as
-      Array<Record<string, unknown>>;
+    const players = (
+      Array.isArray(room.room_players)
+        ? room.room_players
+        : room.room_players
+          ? [room.room_players]
+          : []
+    ).filter(Boolean) as Array<Record<string, unknown>>;
 
     if (!gameState) {
       return new Response(

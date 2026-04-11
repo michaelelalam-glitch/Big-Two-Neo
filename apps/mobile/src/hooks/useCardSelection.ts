@@ -30,17 +30,17 @@ export function useCardSelection(roomId?: string | null) {
   const [selectedCardIds, setSelectedCardIdsState] = useState<Set<string>>(new Set());
   const customCardOrder = useGameSessionStore(s => s.customCardOrder);
   const setCustomCardOrder = useGameSessionStore(s => s.setCustomCardOrder);
-  // Guard against loading stale persisted selection after we've already cleared it
-  // (e.g. user deselects then the app comes back to foreground).
-  const isRestoredRef = useRef(false);
+  // Guard against loading stale persisted selection more than once for the same
+  // room key, while still allowing restoration when roomId/storageKey changes.
+  const lastRestoredStorageKeyRef = useRef<string | null>(null);
 
   // Build the AsyncStorage key for this room's selection.
   const storageKey = roomId ? `${CARD_SELECTION_KEY_PREFIX}${roomId}` : null;
 
-  // P4-8: Restore persisted selection on mount (only for multiplayer rooms with a roomId).
+  // P4-8: Restore persisted selection once per room key (only for multiplayer rooms with a roomId).
   useEffect(() => {
-    if (!storageKey || isRestoredRef.current) return;
-    isRestoredRef.current = true;
+    if (!storageKey || lastRestoredStorageKeyRef.current === storageKey) return;
+    lastRestoredStorageKeyRef.current = storageKey;
     AsyncStorage.getItem(storageKey)
       .then(value => {
         if (!value) return;

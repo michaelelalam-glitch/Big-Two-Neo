@@ -393,6 +393,8 @@ export function useVideoChat({
   const MAX_RECONNECT_RETRIES = 3;
   const [reconnectRetryKey, setReconnectRetryKey] = useState(0);
   const reconnectAttemptsRef = useRef(0);
+  // Holds the pending reconnect timer so it can be cleared on unmount/room change.
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!isChatConnected) return;
@@ -425,7 +427,9 @@ export function useVideoChat({
           gameLogger.info(
             `[VideoChat] Scheduling reconnect attempt ${reconnectAttemptsRef.current + 1}/${MAX_RECONNECT_RETRIES} in ${delay}ms`
           );
-          setTimeout(() => {
+          // Store the handle so the cleanup function can clear it on unmount or room change.
+          reconnectTimerRef.current = setTimeout(() => {
+            reconnectTimerRef.current = null;
             setReconnectRetryKey(k => k + 1);
           }, delay);
         }
@@ -477,7 +481,8 @@ export function useVideoChat({
         );
         if (reconnectAttemptsRef.current < MAX_RECONNECT_RETRIES) {
           const delay = 2000 * Math.pow(2, reconnectAttemptsRef.current);
-          setTimeout(() => {
+          reconnectTimerRef.current = setTimeout(() => {
+            reconnectTimerRef.current = null;
             if (!cancelled) setReconnectRetryKey(k => k + 1);
           }, delay);
         } else {
@@ -491,6 +496,10 @@ export function useVideoChat({
 
     return () => {
       cancelled = true;
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reconnectRetryKey]);
@@ -532,8 +541,12 @@ export function useVideoChat({
       desiredMicRef.current = false;
       // Also reset auto-connect retry state so a new room gets a fresh retry budget.
       setAutoConnectRetryKey(0);
-      // P6-3: Also reset manual-reconnect attempt counter for the new room.
+      // P6-3: Also reset manual-reconnect attempt counter and cancel any pending timer.
       reconnectAttemptsRef.current = 0;
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
       setReconnectRetryKey(0);
     }
     prevRoomIdRef.current = roomId;
