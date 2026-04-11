@@ -202,7 +202,7 @@ export default function MatchmakingScreen() {
 
   // P7-2 FIX: Queue expiry countdown display (shown while waiting, hidden when matched)
   const queueExpiryBlock =
-    queueSecondsLeft !== null && queueSecondsLeft > 0 ? (
+    !matchFound && queueSecondsLeft !== null && queueSecondsLeft > 0 ? (
       <Text style={[styles.queueExpiryText, isLandscape && styles.queueExpiryTextLandscape]}>
         {i18n.t('matchmaking.queueExpiresIn', { count: queueSecondsLeft })}
       </Text>

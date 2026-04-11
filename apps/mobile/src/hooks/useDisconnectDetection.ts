@@ -301,7 +301,10 @@ export function useDisconnectDetection({
             desiredAnchor = rp.last_seen_at;
             anchorType = 'last_seen_at';
           } else {
-            desiredAnchor = new Date().toISOString();
+            // Stable fallback: reuse the existing anchor if one was already seeded
+            // so we don't continuously re-anchor to 'now' on every tick when all
+            // authoritative timestamps are absent (which would reset the ring every second).
+            desiredAnchor = existingAnchor ?? new Date().toISOString();
             anchorType = 'now';
           }
 
