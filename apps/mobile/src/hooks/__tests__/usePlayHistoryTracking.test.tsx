@@ -1,12 +1,12 @@
 /**
  * Unit tests for usePlayHistoryTracking hook
- * 
+ *
  * Tests:
  * - Converting RoundHistoryEntry to PlayHistoryHand
  * - Converting GameState.roundHistory to PlayHistoryMatch
  * - Automatic updates to ScoreboardContext
  * - Handling of new plays and new matches
- * 
+ *
  * Created as part of Task #355: Play history tracking
  * Date: December 12, 2025
  */
@@ -15,15 +15,37 @@ import { renderHook, act } from '@testing-library/react-native';
 import React from 'react';
 import { usePlayHistoryTracking } from '../usePlayHistoryTracking';
 import { ScoreboardProvider, useScoreboard } from '../../contexts/ScoreboardContext';
+import { statsLogger } from '../../utils/logger';
 import type { GameState, RoundHistoryEntry } from '../../game/state';
 import type { Card } from '../../types/multiplayer';
 
 // Mock data
 const mockPlayers = [
   { id: 'p1', name: 'Player 1', hand: [], isBot: false, passed: false },
-  { id: 'p2', name: 'Player 2', hand: [], isBot: true, passed: false, botDifficulty: 'medium' as const },
-  { id: 'p3', name: 'Player 3', hand: [], isBot: true, passed: false, botDifficulty: 'medium' as const },
-  { id: 'p4', name: 'Player 4', hand: [], isBot: true, passed: false, botDifficulty: 'medium' as const },
+  {
+    id: 'p2',
+    name: 'Player 2',
+    hand: [],
+    isBot: true,
+    passed: false,
+    botDifficulty: 'medium' as const,
+  },
+  {
+    id: 'p3',
+    name: 'Player 3',
+    hand: [],
+    isBot: true,
+    passed: false,
+    botDifficulty: 'medium' as const,
+  },
+  {
+    id: 'p4',
+    name: 'Player 4',
+    hand: [],
+    isBot: true,
+    passed: false,
+    botDifficulty: 'medium' as const,
+  },
 ];
 
 const mockCard1: Card = { id: '3D', suit: 'D', rank: '3' };
@@ -98,10 +120,7 @@ describe('usePlayHistoryTracking', () => {
   });
 
   test('should initialize without errors', () => {
-    const { result } = renderHook(
-      () => usePlayHistoryTracking(null),
-      { wrapper }
-    );
+    const { result } = renderHook(() => usePlayHistoryTracking(null), { wrapper });
 
     expect(result.current).toBeUndefined();
   });
@@ -109,10 +128,7 @@ describe('usePlayHistoryTracking', () => {
   test('should not process when gameState is null', () => {
     const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
 
-    renderHook(
-      () => usePlayHistoryTracking(null),
-      { wrapper }
-    );
+    renderHook(() => usePlayHistoryTracking(null), { wrapper });
 
     expect(consoleLogSpy).not.toHaveBeenCalledWith(
       expect.stringContaining('[PlayHistory] Updated')
@@ -125,10 +141,7 @@ describe('usePlayHistoryTracking', () => {
     const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
     const gameState = createMockGameState({ gameStarted: false });
 
-    renderHook(
-      () => usePlayHistoryTracking(gameState),
-      { wrapper }
-    );
+    renderHook(() => usePlayHistoryTracking(gameState), { wrapper });
 
     expect(consoleLogSpy).not.toHaveBeenCalledWith(
       expect.stringContaining('[PlayHistory] Updated')
@@ -140,10 +153,7 @@ describe('usePlayHistoryTracking', () => {
   test('should convert roundHistory to PlayHistoryMatch', () => {
     const gameState = createMockGameState();
 
-    const { result } = renderHook(
-      () => usePlayHistoryTrackingWithState(gameState),
-      { wrapper }
-    );
+    const { result } = renderHook(() => usePlayHistoryTrackingWithState(gameState), { wrapper });
 
     // Should have added match 1 with 2 hands (pass entry filtered)
     const match1 = result.current.playHistoryByMatch.find((m: any) => m.matchNumber === 1);
@@ -154,10 +164,7 @@ describe('usePlayHistoryTracking', () => {
   test('should filter out passed entries (no cards played)', () => {
     const gameState = createMockGameState();
 
-    const { result } = renderHook(
-      () => usePlayHistoryTrackingWithState(gameState),
-      { wrapper }
-    );
+    const { result } = renderHook(() => usePlayHistoryTrackingWithState(gameState), { wrapper });
 
     // Should log 2 hands (1 single + 1 pair), not 3 (pass entry filtered out)
     const match1 = result.current.playHistoryByMatch.find((m: any) => m.matchNumber === 1);
@@ -170,14 +177,16 @@ describe('usePlayHistoryTracking', () => {
 
     const { result, rerender } = renderHook(
       ({ state }: { state: GameState }) => usePlayHistoryTrackingWithState(state),
-      { 
+      {
         wrapper,
-        initialProps: { state: gameState }
+        initialProps: { state: gameState },
       }
     );
 
     // Initial: 2 hands
-    expect(result.current.playHistoryByMatch.find((m: any) => m.matchNumber === 1)?.hands.length).toBe(2);
+    expect(
+      result.current.playHistoryByMatch.find((m: any) => m.matchNumber === 1)?.hands.length
+    ).toBe(2);
 
     // Add new play
     const newHistory: RoundHistoryEntry = {
@@ -198,7 +207,9 @@ describe('usePlayHistoryTracking', () => {
     });
 
     // Should now have 3 hands
-    expect(result.current.playHistoryByMatch.find((m: any) => m.matchNumber === 1)?.hands.length).toBe(3);
+    expect(
+      result.current.playHistoryByMatch.find((m: any) => m.matchNumber === 1)?.hands.length
+    ).toBe(3);
   });
 
   test('should update when match number changes', () => {
@@ -206,9 +217,9 @@ describe('usePlayHistoryTracking', () => {
 
     const { result, rerender } = renderHook(
       ({ state }: { state: GameState }) => usePlayHistoryTrackingWithState(state),
-      { 
+      {
         wrapper,
-        initialProps: { state: gameState }
+        initialProps: { state: gameState },
       }
     );
 
@@ -245,10 +256,7 @@ describe('usePlayHistoryTracking', () => {
       winnerId: 'p1',
     });
 
-    const { result } = renderHook(
-      () => usePlayHistoryTrackingWithState(gameState),
-      { wrapper }
-    );
+    const { result } = renderHook(() => usePlayHistoryTrackingWithState(gameState), { wrapper });
 
     // Should still update and include winner info
     const match1 = result.current.playHistoryByMatch.find((m: any) => m.matchNumber === 1);
@@ -274,8 +282,8 @@ describe('usePlayHistoryTracking', () => {
   });
 
   test('should handle unknown player IDs gracefully', () => {
-    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-    
+    const loggerWarnSpy = jest.spyOn(statsLogger, 'warn').mockImplementation(() => {});
+
     const badHistory: RoundHistoryEntry[] = [
       {
         playerId: 'unknown_player', // Invalid player ID
@@ -291,17 +299,14 @@ describe('usePlayHistoryTracking', () => {
       roundHistory: badHistory,
     });
 
-    renderHook(
-      () => usePlayHistoryTracking(gameState),
-      { wrapper }
-    );
+    renderHook(() => usePlayHistoryTracking(gameState), { wrapper });
 
     // Should log warning about unknown player
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
+    expect(loggerWarnSpy).toHaveBeenCalledWith(
       expect.stringContaining('[PlayHistory] Unknown player ID')
     );
 
-    consoleWarnSpy.mockRestore();
+    loggerWarnSpy.mockRestore();
   });
 
   test('should not update if same match and history length', () => {
@@ -310,9 +315,9 @@ describe('usePlayHistoryTracking', () => {
 
     const { rerender } = renderHook<void, { state: GameState }>(
       ({ state }: { state: GameState }) => usePlayHistoryTracking(state),
-      { 
+      {
         wrapper,
-        initialProps: { state: gameState }
+        initialProps: { state: gameState },
       }
     );
 

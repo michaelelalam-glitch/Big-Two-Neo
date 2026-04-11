@@ -1,7 +1,9 @@
 -- P10-4: Device Attestation Table
 -- Tracks Google Play Integrity / Apple App Attest verification results per device.
--- Edge Functions call verify-attestation and store the result here.
--- Only valid (verified) attestation tokens are trusted for high-risk operations.
+-- The verify-attestation Edge Function returns a verdict (passed/failed) to the client.
+-- High-risk server operations may query this table to check prior attestation status.
+-- Note: the current verify-attestation EF returns the verdict immediately (fail-open);
+-- persistence to this table is a future extension for fraud investigation workflows.
 
 CREATE TABLE IF NOT EXISTS device_attestation (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),

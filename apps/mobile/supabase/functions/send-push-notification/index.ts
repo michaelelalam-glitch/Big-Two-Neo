@@ -412,11 +412,40 @@ Deno.serve(async (req) => {
     // Rate-limit (P12-2): DB-backed throttle — max 1 notification per user per event type per 30 s.
     // checkRateLimit uses an atomic DB upsert, so it works correctly across concurrent isolates
     // and cold starts (unlike the former in-memory Map).
+    // Token check runs first so we only consume quota for users who actually have a push token,
+    // preventing transient token-fetch failures from burning the 30 s retry window.
     const eventType = data?.type;
     const normalizedEventType = normalizeEventType(eventType);
+
+    // Step 1: Fetch tokens for all candidate users BEFORE rate limiting
+    const { data: allTokens, error: allTokensError } = await supabaseAdmin
+      .from('push_tokens')
+      .select('push_token, platform, user_id')
+      .in('user_id', user_ids)
+
+    if (allTokensError) {
+      console.error('Error fetching push tokens:', allTokensError)
+      return new Response(
+        JSON.stringify({ error: 'Failed to fetch push tokens', details: allTokensError }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Only rate-limit users who have at least one registered token
+    const usersWithTokens = [...new Set((allTokens ?? []).map((t: { user_id: string }) => t.user_id))]
+
+    if (usersWithTokens.length === 0) {
+      console.log('No push tokens found for specified users')
+      return new Response(
+        JSON.stringify({ message: 'No push tokens found', sent: 0 }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Step 2: Apply rate limiting only to users with tokens (quota consumed only when delivery is possible)
     const throttledIds: string[] = [];
     const rlChecks = await Promise.all(
-      user_ids.map(async (uid: string) => {
+      usersWithTokens.map(async (uid: string) => {
         const rl = await checkRateLimit(supabaseAdmin, uid, `push_${normalizedEventType}`, 1, 30, false);
         return { uid, allowed: rl.allowed };
       })
@@ -437,22 +466,11 @@ Deno.serve(async (req) => {
       console.log(`⏳ Throttled ${throttledIds.length} user(s) for event type "${eventType ?? 'default'}"`)
     }
 
-    // Get push tokens for the specified users
-    const { data: tokens, error: tokensError } = await supabaseAdmin
-      .from('push_tokens')
-      .select('push_token, platform, user_id')
-      .in('user_id', allowedIds)
+    // Step 3: Filter to allowed users' tokens
+    const tokens = (allTokens ?? []).filter((t: { user_id: string }) => allowedIds.includes(t.user_id))
 
-    if (tokensError) {
-      console.error('Error fetching push tokens:', tokensError)
-      return new Response(
-        JSON.stringify({ error: 'Failed to fetch push tokens', details: tokensError }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    if (!tokens || tokens.length === 0) {
-      console.log('No push tokens found for specified users')
+    if (tokens.length === 0) {
+      console.log('No push tokens found for allowed users')
       return new Response(
         JSON.stringify({ message: 'No push tokens found', sent: 0 }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

@@ -95,7 +95,29 @@ async function attestAndroid(): Promise<AttestationResult> {
     return { passed: true, skipped: true, reason: 'module_missing' };
   }
 
-  const nonce = crypto.randomUUID().replace(/-/g, '');
+  // crypto.randomUUID() is available on modern React Native (v0.73+) but not guaranteed
+  // on all older runtimes. Fall back to a manual hex generator if it's missing.
+  const randomUUID: () => string =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? () => crypto.randomUUID()
+      : () => {
+          const bytes = new Uint8Array(16);
+          // eslint-disable-next-line no-bitwise
+          if (typeof crypto !== 'undefined' && crypto.getRandomValues)
+            crypto.getRandomValues(bytes);
+          // eslint-disable-next-line no-bitwise
+          bytes[6] = (bytes[6] & 0x0f) | 0x40;
+          // eslint-disable-next-line no-bitwise
+          bytes[8] = (bytes[8] & 0x3f) | 0x80;
+          return [...bytes]
+            .map((b, i) =>
+              [4, 6, 8, 10].includes(i)
+                ? `-${b.toString(16).padStart(2, '0')}`
+                : b.toString(16).padStart(2, '0')
+            )
+            .join('');
+        };
+  const nonce = randomUUID().replace(/-/g, '');
   const token = await PlayIntegrity.requestIntegrityToken(nonce);
 
   const { data, error } = await supabase.functions.invoke('verify-attestation', {

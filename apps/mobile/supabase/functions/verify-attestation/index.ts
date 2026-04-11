@@ -38,6 +38,11 @@ import { buildCorsHeaders } from '../_shared/cors.ts';
 import { checkRateLimit } from '../_shared/rateLimiter.ts';
 import { errorResponse, getRequestId } from '../_shared/responses.ts';
 
+// ─── Base64url helper (JWT requires base64url: no padding, + → -, / → _) ────
+function toBase64Url(input: string): string {
+  return btoa(input).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
 // ─── Base64-to-Uint8Array helper (Deno) ────────────────────────────────────
 function base64ToUint8Array(b64: string): Uint8Array {
   const binaryStr = atob(b64);
@@ -73,8 +78,8 @@ async function verifyPlayIntegrityToken(
 
   // Build a minimal JWT for the service account (RS256)
   const now = Math.floor(Date.now() / 1000);
-  const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
-  const payload = btoa(JSON.stringify({
+  const header = toBase64Url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const payload = toBase64Url(JSON.stringify({
     iss: creds.client_email,
     scope,
     aud: tokenEndpoint,
@@ -101,14 +106,14 @@ async function verifyPlayIntegrityToken(
     cryptoKey,
     new TextEncoder().encode(signingInput),
   );
-  const sig = btoa(String.fromCharCode(...new Uint8Array(sigBytes)));
+  const sig = toBase64Url(String.fromCharCode(...new Uint8Array(sigBytes)));
   const jwt = `${signingInput}.${sig}`;
 
   // Exchange JWT for access token
   const tokenRes = await fetch(tokenEndpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
+    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${encodeURIComponent(jwt)}`,
   });
   if (!tokenRes.ok) throw new Error(`OAuth token exchange failed: ${tokenRes.status}`);
   const { access_token: accessToken } = await tokenRes.json() as { access_token: string };
@@ -142,8 +147,16 @@ async function verifyPlayIntegrityToken(
 // ─── iOS App Attest ─────────────────────────────────────────────────────────
 
 /**
- * Verify an Apple App Attest assertion against Apple's attestation service.
- * See: https://developer.apple.com/documentation/devicecheck/validating_apps_that_connect_to_your_server
+ * Verify an Apple App Attest assertion by forwarding it to Apple's attestation
+ * service and treating a 200 HTTP response as valid.
+ *
+ * NOTE: This is a lightweight first-pass implementation. It confirms the
+ * assertion is well-formed and accepted by Apple but does NOT perform full
+ * server-side App Attest validation (CBOR parsing, nonce binding, receipt
+ * chain verification). For Step 2 production hardening, implement the full
+ * flow from: https://developer.apple.com/documentation/devicecheck/validating_apps_that_connect_to_your_server
+ *
+ * The function is fail-open — a verification error never blocks the user.
  */
 async function verifyAppAttest(
   assertionBase64: string,
@@ -152,15 +165,10 @@ async function verifyAppAttest(
   bundleId: string,
   environment: string,
 ): Promise<{ passed: boolean }> {
-  // Apple's App Attest assertion is a CBOR-encoded structure.
-  // For full production use, use the Apple receipt-validation flow.
-  // This implementation verifies the assertion's keyId matches the teamId+bundleId
-  // using the receipt validation endpoint (available in App Attest production).
-
   // App ID prefix = <Team ID>.<Bundle ID>
   const appId = `${teamId}.${bundleId}`;
 
-  // Verify with Apple's attestation service (production or development)
+  // Forward assertion bytes to Apple's attestation service
   const appleUrl = environment === 'production'
     ? 'https://data.appattest.apple.com/v1/attest'
     : 'https://data-development.appattest.apple.com/v1/attest';
@@ -177,7 +185,7 @@ async function verifyAppAttest(
     return { passed: false };
   }
 
-  // A 200 response from Apple means the attestation is valid for this App ID
+  // A 200 response from Apple's service means the assertion was accepted.
   return { passed: true };
 }
 
@@ -275,7 +283,8 @@ Deno.serve(async (req) => {
     }
 
     if (!passed) {
-      // Log for fraud investigation — do NOT block the user (fail-open for gameplay UX)
+      // Log for fraud investigation — do NOT block the user (fail-open for gameplay UX).
+      // Future hardening: upsert a row into device_attestation for server-side risk scoring.
       console.warn(`[verify-attestation] ⚠️ Attestation failed for user=${user.id.slice(0, 8)} platform=${platform}`);
     }
 

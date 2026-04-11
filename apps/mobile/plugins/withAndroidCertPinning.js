@@ -51,7 +51,7 @@ const PIN_PRIMARY_SUPABASE = 'GU2W4j1P24T3sqlI+o6YTnidzz0PI8fB/Gvd2ITfSZE=';
 // Regenerate with: openssl s_client -showcerts -connect dppybucldqufbqhwnkxu.supabase.co:443 \
 //   </dev/null 2>/dev/null | awk chain_cert_index_2 | openssl x509 -noout -pubkey | \
 //   openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64
-const PIN_BACKUP_CLOUDFLARE_INTERMEDIATE = 'kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4=';
+const PIN_BACKUP_GTS_WE1_INTERMEDIATE = 'kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4=';
 const SUPABASE_DOMAIN = 'supabase.co';
 // Pin expiration — update when cert rotates (typically annually).
 const PIN_EXPIRATION = '2027-04-12';
@@ -76,7 +76,7 @@ const NETWORK_SECURITY_CONFIG = `<?xml version="1.0" encoding="utf-8"?>
             <!-- Primary: Supabase leaf certificate SPKI SHA-256 -->
             <pin digest="SHA-256">${PIN_PRIMARY_SUPABASE}</pin>
             <!-- Backup: Cloudflare intermediate CA SPKI SHA-256 -->
-            <pin digest="SHA-256">${PIN_BACKUP_CLOUDFLARE_INTERMEDIATE}</pin>
+            <pin digest="SHA-256">${PIN_BACKUP_GTS_WE1_INTERMEDIATE}</pin>
         </pin-set>
     </domain-config>
 </network-security-config>

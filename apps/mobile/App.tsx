@@ -75,7 +75,8 @@ export default function App() {
   const [consentDecision, setConsentDecision] = useState<boolean | null | 'loading'>('loading');
 
   // P13-2: Periodic OTA update polling — check every 60 min when the app becomes active.
-  // ON_LOAD handles the initial check; this catches updates for long-lived sessions.
+  // Initial launch-time update behavior is controlled by Expo Updates configuration; this
+  // effect catches updates for long-lived sessions after the app returns to the foreground.
   const lastOtaCheckRef = useRef<number>(0);
   const OTA_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 60 minutes
   useEffect(() => {
