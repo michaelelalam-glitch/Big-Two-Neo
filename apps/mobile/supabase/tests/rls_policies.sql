@@ -12,7 +12,7 @@
 --     room_players         (room-membership check, authenticated only)
 --     rate_limit_tracking  (own rows only, authenticated only)
 --     blocked_users        (own rows where blocker_id = auth.uid())
---     bot_coordinator_locks  (no SELECT policy -- full deny by default)
+--     bot_coordinator_locks  (explicit deny-all SELECT policy; returns 0 rows for anon/authenticated)
 --
 -- Notes:
 --   push_tokens and friendships are intentionally excluded: neither is defined
@@ -21,7 +21,7 @@
 --   Runs inside one transaction, rolled back at the end -- no test data persists.
 --
 -- Run locally:   supabase test db
--- Run in CI:     supabase test db --project-ref <project-id>
+-- Run in CI:     supabase test db --db-url <database-url>
 -- ============================================================================
 
 BEGIN;
