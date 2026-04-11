@@ -677,10 +677,9 @@ jobs:
       EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL || 'https://dppybucldqufbqhwnkxu.supabase.co' }}
       # Anon key — constrained to read-only RLS access; the same key is shipped
       # in the mobile app bundle and is therefore not a sensitive credential.
-      # Source from secret when available; fall back to the public key so CI
-      # always runs k6 smoke tests without requiring secret configuration.
-      # If key rotation is needed: update EXPO_PUBLIC_SUPABASE_ANON_KEY secret.
-      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwcHlidWNsZHF1ZmJxaHdua3h1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM5MzEyNjMsImV4cCI6MjA3OTUwNzI2M30.NPr-oBDZrfJisJH5rzosMMYTL3GKbIVQ_nllmaTxyFE' }}
+      # Source from repo variable or secret (set EXPO_PUBLIC_SUPABASE_ANON_KEY in
+      # Settings → Actions → Variables or Secrets to ensure k6 tests always run).
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY || secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
       # Service role key stays secret-only; load scenarios that need it are gated.
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       # PR/push runs use smoke mode (3 scenarios, ~30s total) to verify the

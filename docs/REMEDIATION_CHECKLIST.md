@@ -149,7 +149,9 @@
 
 - [x] **#24 🟡 P5-9** — `find-match` trusts **client-provided `skill_rating`** — a cheating user can manipulate their ELO bracket.  
   **Fix:** Ignore client `skill_rating`; query `profiles.elo_rating` server-side using `auth.uid()` (ELO is stored in `profiles`, not `player_stats`).  
-  `apps/mobile/supabase/functions/find-match/index.ts` 🟡 P5-8** — `complete-game` uses SELECT-then-INSERT dedup with a 23505 fallback — a **narrow race window** exists between check and insert.  
+  `apps/mobile/supabase/functions/find-match/index.ts`
+
+- [x] **#25 🟡 P5-8** — `complete-game` uses SELECT-then-INSERT dedup with a 23505 fallback — a **narrow race window** exists between check and insert.  
   **Fix:** Rely on the DB unique partial index on `game_history(room_id)` (migration 20260313000001) with a plain `INSERT`; treat `23505` as the already-processed outcome for atomic dedup. (Note: `INSERT ... ON CONFLICT` was attempted but requires a non-partial UNIQUE constraint; reverted to plain INSERT + 23505 handler.)  
   `apps/mobile/supabase/functions/complete-game/index.ts`
 
@@ -162,7 +164,7 @@
   `apps/mobile/supabase/functions/reconnect-player/index.ts` / `get-rejoin-status/index.ts`
 
 - [x] **#28 🟡 P5-11** — `player-pass` accepts service-role auth via a JSON body field `_bot_auth` — weaker than header-only auth used by other EFs.  
-  **Fix:** Move bot auth verification to the Authorization header; remove body-based auth path.  
+  **Fix:** Remove body-based `_bot_auth` JSON field. Keep header-only auth: bot coordinator uses the `X-Bot-Auth` custom header (`INTERNAL_BOT_AUTH_KEY`); service-role callers use the `Authorization: Bearer <service_role_key>` header.  
   `apps/mobile/supabase/functions/player-pass/index.ts`
 
 - [x] **#29 🟡 P5-14** — Rate limiter **allows ALL requests** if the `rate_limit_tracking` DB table is inaccessible (availability-first by design). This can be exploited during DB degradation.  
