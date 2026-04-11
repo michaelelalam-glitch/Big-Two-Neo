@@ -197,6 +197,8 @@ export function useMatchmaking(): UseMatchmakingReturn {
           room_code?: string;
           room_id?: string;
           waiting_count: number;
+          /** Server-written ISO timestamp for the user's waiting_room row. */
+          joined_at?: string;
         };
 
         // Validate required fields
@@ -219,9 +221,10 @@ export function useMatchmaking(): UseMatchmakingReturn {
         } else {
           // Waiting — subscribe to Realtime for match notification (no polling)
           setWaitingCount(result.waiting_count);
-          // P7-2 FIX: Record when the user joined the queue so the screen can
-          // display a 5-minute countdown to queue expiration.
-          setQueueJoinedAt(new Date().toISOString());
+          // P7-2 FIX: Use the DB-written joined_at from the find-match response so
+          // the expiry countdown reflects the server-side timestamp rather than the
+          // client clock (which may differ due to skew or call latency).
+          setQueueJoinedAt(result.joined_at ?? new Date().toISOString());
           subscribeToWaitingRoom(user.id);
         }
       } catch (err) {

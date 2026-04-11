@@ -26,6 +26,8 @@ interface FindMatchResponse {
   room_id?: string;
   room_code?: string;
   waiting_count: number;
+  /** ISO timestamp from the DB row — used by the client for an authoritative queue-expiry countdown. */
+  joined_at?: string;
 }
 
 // ==================== MAIN HANDLER ====================
@@ -576,6 +578,7 @@ Deno.serve(async (req) => {
       const response: FindMatchResponse = {
         matched: false,
         waiting_count: waitingCount,
+        joined_at: entryData.joined_at,
       };
 
       return new Response(
