@@ -63,12 +63,7 @@ async function callEF(
 // ---------------------------------------------------------------------------
 // Suite 1 — Authentication (no credentials needed beyond URL)
 // ---------------------------------------------------------------------------
-describe('Suite 1 — player-pass: authentication', () => {
-  if (!hasUrl) {
-    it.todo('skipped — EXPO_PUBLIC_SUPABASE_URL not configured');
-    return;
-  }
-
+(hasUrl ? describe : describe.skip)('Suite 1 — player-pass: authentication', () => {
   it('returns 401 when Authorization header is absent', async () => {
     const result = await callEF({ room_code: 'ABCDEF', player_id: uuid() });
     expect(result.status).toBe(401);
@@ -83,12 +78,7 @@ describe('Suite 1 — player-pass: authentication', () => {
 // ---------------------------------------------------------------------------
 // Suite 2 — Request body validation (no credentials needed)
 // ---------------------------------------------------------------------------
-describe('Suite 2 — player-pass: body validation (no auth)', () => {
-  if (!hasUrl) {
-    it.todo('skipped — EXPO_PUBLIC_SUPABASE_URL not configured');
-    return;
-  }
-
+(hasUrl ? describe : describe.skip)('Suite 2 — player-pass: body validation (no auth)', () => {
   it('returns 400 or 401 for empty body', async () => {
     const res = await fetch(EF_URL, {
       method: 'POST',
@@ -111,127 +101,123 @@ describe('Suite 2 — player-pass: body validation (no auth)', () => {
 // ---------------------------------------------------------------------------
 // Suite 3 — Identity + body validation with real JWT (requires SERVICE_ROLE_KEY)
 // ---------------------------------------------------------------------------
-describe('Suite 3 — player-pass: body validation + identity (live JWT)', () => {
-  if (!hasServiceRole) {
-    it.todo('skipped — SUPABASE_SERVICE_ROLE_KEY not configured');
-    return;
-  }
+(hasServiceRole ? describe : describe.skip)(
+  'Suite 3 — player-pass: body validation + identity (live JWT)',
+  () => {
+    let userToken: string;
+    let testUserId: string;
+    const testEmail = `ci-player-pass-s3-${Date.now()}@test.invalid`;
+    const testPass = `Ci-T3st-${uuid().slice(0, 8)}!`;
 
-  let userToken: string;
-  let testUserId: string;
-  const testEmail = `ci-player-pass-s3-${Date.now()}@test.invalid`;
-  const testPass = `Ci-T3st-${uuid().slice(0, 8)}!`;
-
-  beforeAll(async () => {
-    // Use admin.createUser so the account is email-confirmed immediately
-    const srClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-    const { data, error } = await srClient.auth.admin.createUser({
-      email: testEmail,
-      password: testPass,
-      email_confirm: true,
-    });
-    if (error) throw new Error(`Test setup failed (createUser): ${error.message}`);
-    testUserId = data.user?.id ?? '';
-
-    // Sign in via anon client to obtain a JWT
-    const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const { data: signInData, error: signInError } = await anonClient.auth.signInWithPassword({
-      email: testEmail,
-      password: testPass,
-    });
-    if (signInError) throw new Error(`Sign-in failed: ${signInError.message}`);
-    userToken = signInData.session?.access_token ?? '';
-    if (!userToken) throw new Error('Test setup failed: no access token returned');
-  }, 30_000);
-
-  afterAll(async () => {
-    if (hasServiceRole && testUserId) {
+    beforeAll(async () => {
+      // Use admin.createUser so the account is email-confirmed immediately
       const srClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE, {
         auth: { autoRefreshToken: false, persistSession: false },
       });
-      await srClient.auth.admin.deleteUser(testUserId);
-    }
-  }, 15_000);
+      const { data, error } = await srClient.auth.admin.createUser({
+        email: testEmail,
+        password: testPass,
+        email_confirm: true,
+      });
+      if (error) throw new Error(`Test setup failed (createUser): ${error.message}`);
+      testUserId = data.user?.id ?? '';
 
-  it('returns 400 when room_code is missing from body', async () => {
-    const result = await callEF({ player_id: testUserId }, userToken);
-    expect(result.status).toBe(400);
-  }, 15_000);
+      // Sign in via anon client to obtain a JWT
+      const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const { data: signInData, error: signInError } = await anonClient.auth.signInWithPassword({
+        email: testEmail,
+        password: testPass,
+      });
+      if (signInError) throw new Error(`Sign-in failed: ${signInError.message}`);
+      userToken = signInData.session?.access_token ?? '';
+      if (!userToken) throw new Error('Test setup failed: no access token returned');
+    }, 30_000);
 
-  it('returns 400 when player_id is missing from body', async () => {
-    const result = await callEF({ room_code: 'ABCDEF' }, userToken);
-    expect(result.status).toBe(400);
-  }, 15_000);
+    afterAll(async () => {
+      if (hasServiceRole && testUserId) {
+        const srClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
+        await srClient.auth.admin.deleteUser(testUserId);
+      }
+    }, 15_000);
 
-  it('returns 400 when both required fields are missing', async () => {
-    const result = await callEF({}, userToken);
-    expect(result.status).toBe(400);
-  }, 15_000);
+    it('returns 400 when room_code is missing from body', async () => {
+      const result = await callEF({ player_id: testUserId }, userToken);
+      expect(result.status).toBe(400);
+    }, 15_000);
 
-  it('returns 403 when JWT user_id does not match player_id in body', async () => {
-    const differentId = uuid();
-    const result = await callEF({ room_code: 'ABCDEF', player_id: differentId }, userToken);
-    // player-pass mirrors play-cards: returns 403 on identity mismatch
-    expect(result.status).toBe(403);
-  }, 15_000);
-});
+    it('returns 400 when player_id is missing from body', async () => {
+      const result = await callEF({ room_code: 'ABCDEF' }, userToken);
+      expect(result.status).toBe(400);
+    }, 15_000);
+
+    it('returns 400 when both required fields are missing', async () => {
+      const result = await callEF({}, userToken);
+      expect(result.status).toBe(400);
+    }, 15_000);
+
+    it('returns 403 when JWT user_id does not match player_id in body', async () => {
+      const differentId = uuid();
+      const result = await callEF({ room_code: 'ABCDEF', player_id: differentId }, userToken);
+      // player-pass mirrors play-cards: returns 403 on identity mismatch
+      expect(result.status).toBe(403);
+    }, 15_000);
+  }
+);
 
 // ---------------------------------------------------------------------------
 // Suite 4 — Non-existent room (requires SERVICE_ROLE_KEY)
 // ---------------------------------------------------------------------------
-describe('Suite 4 — player-pass: non-existent room (live DB lookup)', () => {
-  if (!hasServiceRole) {
-    it.todo('skipped — SUPABASE_SERVICE_ROLE_KEY not configured');
-    return;
-  }
+(hasServiceRole ? describe : describe.skip)(
+  'Suite 4 — player-pass: non-existent room (live DB lookup)',
+  () => {
+    let userToken: string;
+    let testUserId: string;
+    const testEmail = `ci-pass-room-${Date.now()}@test.invalid`;
+    const testPass = `Ci-T3st-${uuid().slice(0, 8)}!`;
 
-  let userToken: string;
-  let testUserId: string;
-  const testEmail = `ci-pass-room-${Date.now()}@test.invalid`;
-  const testPass = `Ci-T3st-${uuid().slice(0, 8)}!`;
-
-  beforeAll(async () => {
-    const srClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-    const { data, error } = await srClient.auth.admin.createUser({
-      email: testEmail,
-      password: testPass,
-      email_confirm: true,
-    });
-    if (error) throw new Error(`Test setup failed: ${error.message}`);
-    testUserId = data.user?.id ?? '';
-
-    const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const { data: signInData, error: signInError } = await anonClient.auth.signInWithPassword({
-      email: testEmail,
-      password: testPass,
-    });
-    if (signInError) throw new Error(`Sign-in failed: ${signInError.message}`);
-    userToken = signInData.session?.access_token ?? '';
-    if (!userToken) throw new Error('Test setup failed: sign-in returned no access token');
-  }, 30_000);
-
-  afterAll(async () => {
-    if (testUserId) {
+    beforeAll(async () => {
       const srClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE, {
         auth: { autoRefreshToken: false, persistSession: false },
       });
-      await srClient.auth.admin.deleteUser(testUserId);
-    }
-  }, 15_000);
+      const { data, error } = await srClient.auth.admin.createUser({
+        email: testEmail,
+        password: testPass,
+        email_confirm: true,
+      });
+      if (error) throw new Error(`Test setup failed: ${error.message}`);
+      testUserId = data.user?.id ?? '';
 
-  it('returns 404 (not 5xx) when room_code does not exist', async () => {
-    // Use a random per-run code to prevent collision with any real room
-    const nonExistentRoomCode = `TST${uuid().slice(0, 5).toUpperCase()}`;
-    const result = await callEF(
-      { room_code: nonExistentRoomCode, player_id: testUserId },
-      userToken
-    );
-    expect(result.status).not.toBe(401); // confirms auth token was accepted
-    expect(result.status).toBeGreaterThanOrEqual(400);
-    expect(result.status).toBeLessThan(500);
-  }, 15_000);
-});
+      const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const { data: signInData, error: signInError } = await anonClient.auth.signInWithPassword({
+        email: testEmail,
+        password: testPass,
+      });
+      if (signInError) throw new Error(`Sign-in failed: ${signInError.message}`);
+      userToken = signInData.session?.access_token ?? '';
+      if (!userToken) throw new Error('Test setup failed: sign-in returned no access token');
+    }, 30_000);
+
+    afterAll(async () => {
+      if (testUserId) {
+        const srClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
+        await srClient.auth.admin.deleteUser(testUserId);
+      }
+    }, 15_000);
+
+    it('returns 404 (not 5xx) when room_code does not exist', async () => {
+      // Use a random per-run code to prevent collision with any real room
+      const nonExistentRoomCode = `TST${uuid().slice(0, 5).toUpperCase()}`;
+      const result = await callEF(
+        { room_code: nonExistentRoomCode, player_id: testUserId },
+        userToken
+      );
+      expect(result.status).not.toBe(401); // confirms auth token was accepted
+      expect(result.status).toBeGreaterThanOrEqual(400);
+      expect(result.status).toBeLessThan(500);
+    }, 15_000);
+  }
+);
