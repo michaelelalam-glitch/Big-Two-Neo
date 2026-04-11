@@ -123,7 +123,9 @@ async function callEF(
       testUserId = data.user?.id ?? '';
 
       // Sign in via anon client to obtain a JWT
-      const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
       const { data: signInData, error: signInError } = await anonClient.auth.signInWithPassword({
         email: testEmail,
         password: testPass,
@@ -189,7 +191,9 @@ async function callEF(
       if (error) throw new Error(`Test setup failed: ${error.message}`);
       testUserId = data.user?.id ?? '';
 
-      const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
       const { data: signInData, error: signInError } = await anonClient.auth.signInWithPassword({
         email: testEmail,
         password: testPass,
@@ -208,7 +212,7 @@ async function callEF(
       }
     }, 15_000);
 
-    it('returns 404 (not 5xx) when room_code does not exist', async () => {
+    it('returns 4xx (not 5xx) when room_code does not exist', async () => {
       // Use a random per-run code to prevent collision with any real room
       const nonExistentRoomCode = `TST${uuid().slice(0, 5).toUpperCase()}`;
       const result = await callEF(
