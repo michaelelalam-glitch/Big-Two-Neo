@@ -22,7 +22,7 @@ import { checkMinimumVersion } from '../_shared/versionCheck.ts';
 // M12: CORS origin controlled by ALLOWED_ORIGIN env var
 import { buildCorsHeaders } from '../_shared/cors.ts';
 // #32 — Rate limiting (P6-2)
-import { checkRateLimit, rateLimitResponse, serviceUnavailableResponse } from '../_shared/rateLimiter.ts';
+import { checkRateLimit, rateLimitResponse } from '../_shared/rateLimiter.ts';
 
 const LIVEKIT_API_KEY    = Deno.env.get('LIVEKIT_API_KEY')    ?? '';
 const LIVEKIT_API_SECRET = Deno.env.get('LIVEKIT_API_SECRET') ?? '';
@@ -170,7 +170,6 @@ Deno.serve(async (req: Request) => {
   );
   const rl = await checkRateLimit(supabaseServiceClient, user.id, 'get_livekit_token', 5, 60);
   if (!rl.allowed) {
-    if (rl.blockedByError) return serviceUnavailableResponse(CORS_HEADERS);
     return rateLimitResponse(rl.retryAfterMs, CORS_HEADERS);
   }
 
