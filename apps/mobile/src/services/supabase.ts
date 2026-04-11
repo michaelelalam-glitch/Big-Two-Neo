@@ -238,6 +238,21 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
           );
         }
       }
+    } else {
+      // No count metadata — check for orphaned chunk keys from an interrupted setItem
+      // (chunks partially written but count key never committed).  Probe chunk_0: if
+      // it exists a prior write was interrupted and a bounded sweep is needed to evict
+      // all orphan chunk keys so they do not accumulate across sessions.
+      const orphanChunk0 = await SecureStore.getItemAsync(`${key}${CHUNK_KEY_SUFFIX}0`).catch(
+        () => null
+      );
+      if (orphanChunk0 !== null) {
+        for (let i = 0; i < MAX_CHUNKS; i++) {
+          deleteOps.push(
+            SecureStore.deleteItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`).catch(() => {})
+          );
+        }
+      }
     }
     await Promise.allSettled(deleteOps);
   },
