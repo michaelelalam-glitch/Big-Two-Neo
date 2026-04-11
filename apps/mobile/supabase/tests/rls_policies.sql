@@ -41,7 +41,7 @@ SELECT
   set_config('pgtap.other_id',   gen_random_uuid()::text, true),
   set_config('pgtap.room_id',    gen_random_uuid()::text, true),
   -- Random 8-char alphanumeric code: eliminates hard-coded 'PGTAP1' collision risk
-  set_config('pgtap.room_code',  upper(replace(gen_random_uuid()::text, '-', ''))::varchar(8), true);
+  set_config('pgtap.room_code',  upper(left(replace(gen_random_uuid()::text, '-', ''), 8)), true);
 
 -- Seed auth users; let on_auth_user_created fire and auto-create profiles.
 -- Then normalize the auto-created rows with plain DML (UPDATE) to avoid
