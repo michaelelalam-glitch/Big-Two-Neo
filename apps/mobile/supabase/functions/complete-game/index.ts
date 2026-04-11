@@ -586,9 +586,16 @@ Deno.serve(async (req) => {
     // behavior since bots don't have auth.users records. Usernames are still preserved for all players.
     const realPlayers = gameData.players.map(p => p.user_id.startsWith('bot_') ? null : p.user_id);
 
-    const { error: historyError } = await supabaseAdmin
+    // #25 — Atomic dedup: upsert with ignoreDuplicates=true (P5-8).
+    // ON CONFLICT DO NOTHING semantics: if a row already exists for room_id the
+    // upsert returns an empty array (no error) instead of the inserted row.
+    // This closes the race window between a SELECT check and a plain INSERT.
+    // Requires the UNIQUE partial index on game_history(room_id) added by
+    // migration 20260313000001. The SELECT-based pre-check above still runs
+    // to detect partial failures (stats_applied_at IS NULL) for observability.
+    const { data: insertedRows, error: historyError } = await supabaseAdmin
       .from('game_history')
-      .insert({
+      .upsert({
         room_id: gameData.room_id,
         room_code: gameData.room_code,
         game_type: gameData.game_type,
@@ -634,20 +641,33 @@ Deno.serve(async (req) => {
         finished_at: gameData.finished_at,
         // Voided player: null for completed games, set when last human left an unfinished game
         voided_user_id: serverVoidedPlayerId,
-      });
+      }, { onConflict: 'room_id', ignoreDuplicates: true })
+      .select('id');
+
+    // Atomic dedup check: empty array means ON CONFLICT skipped the insert.
+    if (!historyError && insertedRows !== null && insertedRows.length === 0) {
+      console.log(`[Complete Game] ⏭️ Atomic dedup (ON CONFLICT DO NOTHING): room ${gameData.room_id} already recorded — skipping`);
+      if (gameData.room_id) {
+        const { error: roomEndErr } = await supabaseAdmin
+          .from('rooms')
+          .update({ status: 'finished' })
+          .eq('id', gameData.room_id);
+        if (roomEndErr) {
+          console.warn('[Complete Game] Failed to mark room finished in atomic-dedup path:', roomEndErr.message);
+        }
+        try { (globalThis as any).EdgeRuntime?.waitUntil(broadcastGameEnded(supabaseAdmin, gameData)); } catch (_) {}
+      }
+      return new Response(
+        JSON.stringify({ success: true, message: 'Game already recorded by another client', duplicate: true }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (historyError) {
-      // Unique constraint violation on room_id = race-condition duplicate.
-      // Another client's INSERT landed between our SELECT check and this INSERT.
-      // Treat it the same as the dedup guard above: return 200, skip stats.
-      //
-      // Check both the error code AND message text as a fallback, because
-      // PostgREST occasionally wraps the Postgres error differently (e.g. HTTP-
-      // level 409 from some proxy configurations, or the code may arrive as an
-      // integer rather than string in rare Deno edge-runtime builds).
+      // Belt-and-suspenders: 23505 / unique-constraint error means the same race
+      // was caught at the DB level even though the upsert should have prevented it.
+      // Treat identically to the atomic dedup path above.
       const errorCode = historyError.code != null ? String(historyError.code) : undefined;
-      // Only treat unique violations on the game_history.room_id constraint as
-      // race-condition duplicates. This avoids masking other uniqueness bugs.
       const combinedErrorText = `${historyError.message ?? ''} ${historyError.details ?? ''}`.toLowerCase();
       const isGameHistoryRoomIdConstraint =
         combinedErrorText.includes('game_history_room_id_key') ||
@@ -656,24 +676,11 @@ Deno.serve(async (req) => {
           (combinedErrorText.includes('duplicate key') ||
             combinedErrorText.includes('unique constraint') ||
             combinedErrorText.includes('already exists')));
-      // Match when: (a) Postgres code '23505' + constraint text confirms room_id,
-      // OR (b) HTTP/proxy-level conflict code '409' + constraint text confirms
-      // room_id (PostgREST proxies sometimes surface uniqueness as 409),
-      // OR (c) no errorCode (proxy/HTTP-level wrapping, Deno edge runtime) but
-      // constraint text still unambiguously identifies the game_history room_id
-      // uniqueness violation — so the race-condition fallback still fires.
       const isDuplicateKeyError =
         isGameHistoryRoomIdConstraint &&
         (errorCode === '23505' || errorCode === '409' || errorCode == null);
       if (isDuplicateKeyError) {
-        // Race-condition duplicate: another caller's INSERT committed between our
-        // SELECT check and this INSERT. The winning caller may not have applied
-        // stats yet (stats_applied_at IS NULL). We cannot re-apply stats here
-        // (non-idempotent function), but we mark the room ended and broadcast so
-        // clients are not blocked. See admin diagnostic in Step 2b comment.
         console.log(`[Complete Game] ⏭️ Unique constraint hit for room ${gameData.room_id} — duplicate (race), skipping`);
-        // Only mark the room as finished (idempotent). Do NOT delete room_players —
-        // the winning caller is still executing Step 3 and reads room_players.
         if (gameData.room_id) {
           const { error: roomEndErr } = await supabaseAdmin
             .from('rooms')
@@ -682,10 +689,6 @@ Deno.serve(async (req) => {
           if (roomEndErr) {
             console.warn('[Complete Game] Failed to mark room finished in 23505 path:', roomEndErr.message);
           }
-          // Broadcast game_ended so clients are not blocked if the winning
-          // caller crashes before reaching Step 5. Idempotent from client side.
-          // Register with EdgeRuntime.waitUntil so Deno Deploy keeps the function
-          // alive to complete the broadcast even after the HTTP response is returned.
           try { (globalThis as any).EdgeRuntime?.waitUntil(broadcastGameEnded(supabaseAdmin, gameData)); } catch (_) {}
         }
         return new Response(

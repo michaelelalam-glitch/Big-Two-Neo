@@ -15,9 +15,10 @@ import { checkRateLimit, rateLimitResponse } from '../_shared/rateLimiter.ts';
 
 interface FindMatchRequest {
   username: string;
-  skill_rating?: number;
+  // skill_rating from client is intentionally ignored (P5-9 fix #24):
+  // ELO is fetched server-side from profiles.elo_rating to prevent manipulation.
   region?: string;
-  match_type?: 'casual' | 'ranked';
+  match_type?: string;
 }
 
 interface FindMatchResponse {
@@ -67,12 +68,38 @@ Deno.serve(async (req) => {
     }
 
     // P5-2 Fix: Rate limit find-match to prevent matchmaking abuse (10 req/60s per user).
-    const rl = await checkRateLimit(supabaseClient, user.id, 'find_match', 10, 60);
+    // #29 failClosed=true: during DB degradation block find-match rather than open the queue to flooding.
+    const rl = await checkRateLimit(supabaseClient, user.id, 'find_match', 10, 60, true);
     if (!rl.allowed) {
       return rateLimitResponse(rl.retryAfterMs, corsHeaders);
     }
 
-    const { username, skill_rating = 1000, region = 'global', match_type = 'casual' }: FindMatchRequest = await req.json();
+    const { username, region = 'global', match_type = 'casual' }: FindMatchRequest = await req.json();
+
+    // #26 — Validate match_type enum (P5-13)
+    const VALID_MATCH_TYPES = ['casual', 'ranked'] as const;
+    if (!VALID_MATCH_TYPES.includes(match_type as typeof VALID_MATCH_TYPES[number])) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'match_type must be casual or ranked' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!username) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Username is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // #24 — Use server-side ELO from profiles (P5-9): ignore client-provided skill_rating
+    // to prevent cheating by manipulating ELO bracket.
+    const { data: profileData } = await supabaseClient
+      .from('profiles')
+      .select('elo_rating')
+      .eq('id', user.id)
+      .maybeSingle();
+    const skill_rating: number = profileData?.elo_rating ?? 1000;
 
     console.log('🎮 [find-match] Request received:', {
       user_id: user.id.substring(0, 8),
@@ -81,13 +108,6 @@ Deno.serve(async (req) => {
       region,
       match_type,
     });
-
-    if (!username) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Username is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
 
     const userId = user.id;
     const isRanked = match_type === 'ranked';

@@ -318,19 +318,16 @@ Deno.serve(async (req) => {
     // Non-service-role callers (clients) must present a valid user JWT; the resolved
     // user.id is compared against player_id after the body is parsed below.
     //
-    // Three equivalent auth paths (header OR body token):
-    //   1. SUPABASE_SERVICE_ROLE_KEY bearer match
-    //   2. INTERNAL_BOT_AUTH_KEY custom header
-    //   3. _bot_auth field in the request body (guaranteed to pass through unchanged)
+    // Two equivalent auth paths (header-only; body-based auth path removed — P5-11 fix #28):
+    //   1. SUPABASE_SERVICE_ROLE_KEY bearer match  (Authorization: Bearer <service_role_key>)
+    //   2. INTERNAL_BOT_AUTH_KEY custom header     (X-Bot-Auth: <internal_key>)
     const authHeader  = req.headers.get('authorization') ?? '';
     const botAuthHdr  = req.headers.get('x-bot-auth') ?? '';
     const internalKey = Deno.env.get('INTERNAL_BOT_AUTH_KEY') ?? '';
     const hasInternalKey = internalKey !== '';
-    const botBodyAuth = bodyJson?._bot_auth ?? '';
     const isServiceRole =
       (serviceKey !== '' && authHeader === `Bearer ${serviceKey}`) ||
-      (hasInternalKey && botAuthHdr === internalKey) ||
-      (hasInternalKey && botBodyAuth === internalKey);
+      (hasInternalKey && botAuthHdr === internalKey);
     let callerJwtUserId: string | null = null;
 
     if (!isServiceRole) {

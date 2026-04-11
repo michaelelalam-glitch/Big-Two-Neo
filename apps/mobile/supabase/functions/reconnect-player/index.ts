@@ -72,6 +72,15 @@ Deno.serve(async (req) => {
       );
     }
 
+    // #27 — Validate UUID format (P5-10): consistent with mark-disconnected.
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_REGEX.test(room_id)) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid room_id format' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     console.log('🔄 [reconnect-player] user:', user.id.substring(0, 8), 'room:', room_id.substring(0, 8));
 
     // Delegate entirely to the server-side RPC which handles both reconnect paths

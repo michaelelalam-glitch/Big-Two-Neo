@@ -74,6 +74,15 @@ Deno.serve(async (req) => {
       );
     }
 
+    // #27 — Validate UUID format (P5-10): consistent with mark-disconnected.
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_REGEX.test(room_id)) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid room_id format' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // P5-4 Fix: Verify the requesting user is actually a member of the room
     // before returning any status. Prevents information disclosure to non-members.
     const { data: membership, error: membershipError } = await supabaseClient
