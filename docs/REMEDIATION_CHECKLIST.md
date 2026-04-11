@@ -188,47 +188,47 @@
 ## TIER 6 — Medium Client Reliability
 > Client-side bugs and UX gaps that affect real users in edge cases.
 
-- [ ] **#33 🟡 P4-6** — `matchNumber` and `isGameFinished` use manual setters in `gameSessionSlice` that can **drift from the DB state** if a Realtime update is missed.  
+- [x] **#33 🟡 P4-6** — `matchNumber` and `isGameFinished` use manual setters in `gameSessionSlice` that can **drift from the DB state** if a Realtime update is missed.  
   **Fix:** Derive both values from the Realtime `game_state.game_phase` subscription rather than manual setters.  
   `apps/mobile/src/store/gameSessionSlice.ts` · L41, L126
 
-- [ ] **#34 🟡 P4-7** — `GameContext` duplicates `layoutPlayers`, `layoutPlayersWithScores`, `playerTotalScores`, and `currentPlayerName` — all already in Zustand store.  
+- [x] **#34 🟡 P4-7** — `GameContext` duplicates `layoutPlayers`, `layoutPlayersWithScores`, `playerTotalScores`, and `currentPlayerName` — all already in Zustand store.  
   **Fix:** Remove duplicated state from `GameContext`; consume from Zustand selectors directly in components that need it.  
   `apps/mobile/src/contexts/GameContext.tsx` · L142–145
 
-- [ ] **#35 🟡 P1-1** — Separate `isPlayingRef` / `isPassingRef` guards don't share a mutex — a rapid tap could fire both `playCards` and `passCards` concurrently.  
+- [x] **#35 🟡 P1-1** — Separate `isPlayingRef` / `isPassingRef` guards don't share a mutex — a rapid tap could fire both `playCards` and `passCards` concurrently.  
   **Fix:** Merge into a single `isSubmittingRef` that gates both actions.  
   `apps/mobile/src/hooks/useGameActions.ts` · L193–310
 
-- [ ] **#36 🟡 P1-3** — Stats upload in `useGameStatsUploader` has **no retry logic** — a transient network error silently drops the player's game stats.  
+- [x] **#36 🟡 P1-3** — Stats upload in `useGameStatsUploader` has **no retry logic** — a transient network error silently drops the player's game stats.  
   **Fix:** Wrap the upload call in `edgeFunctionRetry` (already used elsewhere in the codebase).  
   `apps/mobile/src/hooks/useGameStatsUploader.ts` · ~L160
 
-- [ ] **#37 🟡 P2-2** — Connection status transitions have no debounce/hysteresis — a briefly flaky network causes rapid `connected → reconnecting → connected` flicker in the UI indicator.  
+- [x] **#37 🟡 P2-2** — Connection status transitions have no debounce/hysteresis — a briefly flaky network causes rapid `connected → reconnecting → connected` flicker in the UI indicator.  
   **Fix:** Add a 2-second debounce before transitioning away from `connected`.  
   `apps/mobile/src/hooks/useConnectionManager.ts` · L118–130
 
-- [ ] **#38 🟡 P2-3** — Disconnect timer start time is tracked by 4 different sources (client heartbeat, server sweep, pg_cron, mark-disconnected) — inconsistent anchors cause different countdown lengths per player.  
+- [x] **#38 🟡 P2-3** — Disconnect timer start time is tracked by 4 different sources (client heartbeat, server sweep, pg_cron, mark-disconnected) — inconsistent anchors cause different countdown lengths per player.  
   **Fix:** Treat `disconnect_timer_started_at` from DB as the single authority; ignore client-side anchor.  
   `apps/mobile/src/hooks/useDisconnectDetection.ts` · L295–330
 
-- [ ] **#39 🟡 P2-4** — HomeScreen active game banner **countdown jumps** when app re-focuses (re-reads `disconnect_timer_started_at` from DB on mount).  
+- [x] **#39 🟡 P2-4** — HomeScreen active game banner **countdown jumps** when app re-focuses (re-reads `disconnect_timer_started_at` from DB on mount).  
   **Fix:** Capture the remaining time at mount and count down from that; don't re-subtract elapsed time on re-mount.  
-  `apps/mobile/src/hooks/useActiveGameBanner.ts` · L197
+  `apps/mobile/src/components/home/ActiveGameBanner.tsx` · L197
 
-- [ ] **#40 🟡 P2-5** — `RejoinModal` silently abandons an in-flight `reconnect-player` RPC call if the component unmounts mid-request — leaves the player stranded in a half-reconnected state.  
+- [x] **#40 🟡 P2-5** — `RejoinModal` silently abandons an in-flight `reconnect-player` RPC call if the component unmounts mid-request — leaves the player stranded in a half-reconnected state.  
   **Fix:** Use `AbortController` to cancel the RPC on unmount, or set an `isMounted` ref to gate the `setState` call.  
   `apps/mobile/src/components/RejoinModal.tsx` · L40
 
 - [ ] **#41 🟡 P2-7** — Design-level: a user could deliberately disconnect at the right moment to force a bot to play a bad hand (exploit via timing).  
   **Fix:** Consider adding a brief "surrender penalty" (score penalty + stats mark) when a player disconnects >2× per session.  
-  Design-level discussion
+  Design-level discussion _(DEFERRED — design discussion required)_
 
-- [ ] **#42 🟡 P3-5** — `InactivityCountdownRing` does not clamp a positive clock offset — if the client clock is ahead of the server, the ring **starts already partially depleted**.  
+- [x] **#42 🟡 P3-5** — `InactivityCountdownRing` does not clamp a positive clock offset — if the client clock is ahead of the server, the ring **starts already partially depleted**.  
   **Fix:** `const elapsed = Math.max(0, getCorrectedNow() - serverTurnStart)` before computing ring fill.  
-  `apps/mobile/src/components/InactivityCountdownRing.tsx` · L80–88
+  `apps/mobile/src/components/game/InactivityCountdownRing.tsx` · L80–88
 
-- [ ] **#43 🟡 P7-2** — No explicit timeout UI — the matchmaking screen doesn't tell the user the queue expires in 5 minutes. Users don't know when to retry manually.  
+- [x] **#43 🟡 P7-2** — No explicit timeout UI — the matchmaking screen doesn't tell the user the queue expires in 5 minutes. Users don't know when to retry manually.  
   **Fix:** Show a countdown to queue expiration (use `joined_at + 5min` from the waiting_room record).  
   `apps/mobile/src/screens/MatchmakingScreen.tsx` · L119–127
 

@@ -96,6 +96,13 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
   const [isLeaving, setIsLeaving] = useState(false);
   const slideAnim = useRef(new Animated.Value(-100)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  // P2-4 FIX: Captures the remaining seconds and the wall-clock timestamp of
+  // the first tick so subsequent ticks can compute actual elapsed time rather
+  // than assuming exactly 1 s per JS interval. This prevents both re-anchor
+  // jumps (disconnectTimestamp re-reads) and timer-jitter drift (backgrounding,
+  // JS-thread stalls) from causing the countdown to lag behind the real expiry.
+  const capturedRemainingRef = useRef<number | null>(null);
+  const capturedAtMsRef = useRef<number | null>(null);
 
   // Check for offline game in AsyncStorage
   const checkOfflineGame = useCallback(async () => {
@@ -167,9 +174,27 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
     // preventing onBotReplaced / onTimerExpired from firing every second.
     let interval: ReturnType<typeof setInterval> | undefined;
 
+    // P2-4 FIX: Reset both refs so the first tick of this effect run computes
+    // remaining fresh from the (possibly new) disconnectTimestamp and records
+    // the wall-clock snapshot for drift-free subsequent ticks.
+    capturedRemainingRef.current = null;
+    capturedAtMsRef.current = null;
+
     const updateCountdown = () => {
-      const elapsed = Math.floor((Date.now() - disconnectTimestamp) / 1000);
-      const remaining = BOT_REPLACEMENT_SECONDS - elapsed;
+      let remaining: number;
+      if (capturedRemainingRef.current === null) {
+        // First tick: anchor to disconnectTimestamp and snapshot both the
+        // remaining seconds and the current wall-clock time.
+        const elapsed = Math.floor((Date.now() - disconnectTimestamp) / 1000);
+        remaining = BOT_REPLACEMENT_SECONDS - elapsed;
+        capturedRemainingRef.current = remaining;
+        capturedAtMsRef.current = Date.now();
+      } else {
+        // Subsequent ticks: derive remaining from the wall-clock diff since
+        // the snapshot so JS timer jitter/backgrounding doesn't cause drift.
+        const elapsedSinceCapture = Math.floor((Date.now() - capturedAtMsRef.current!) / 1000);
+        remaining = capturedRemainingRef.current - elapsedSinceCapture;
+      }
 
       if (remaining <= 0) {
         setCountdown(0);

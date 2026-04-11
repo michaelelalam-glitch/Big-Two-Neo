@@ -63,9 +63,7 @@ function makePlayer(overrides: Partial<MultiplayerPlayer> = {}): MultiplayerPlay
   };
 }
 
-function makeLayoutPlayer(
-  overrides: Partial<LayoutPlayerWithScore> = {},
-): LayoutPlayerWithScore {
+function makeLayoutPlayer(overrides: Partial<LayoutPlayerWithScore> = {}): LayoutPlayerWithScore {
   return {
     name: 'Player',
     cardCount: 10,
@@ -86,7 +84,7 @@ function makeLayoutPlayer(
  * disconnectTimerStartedAt in the returned enrichedLayoutPlayers entry.
  */
 function makeDisconnectedLayoutPlayer(
-  overrides: Partial<LayoutPlayerWithScore> = {},
+  overrides: Partial<LayoutPlayerWithScore> = {}
 ): LayoutPlayerWithScore {
   return makeLayoutPlayer({
     isDisconnected: true,
@@ -156,8 +154,12 @@ describe('useDisconnectDetection', () => {
 
       // No remote players -> interval early-returns -> REPLACE never dispatched
       // -> reducer equality guard keeps same state -> useMemo not re-run.
-      act(() => { jest.advanceTimersByTime(1_100); });
-      act(() => { jest.advanceTimersByTime(1_100); });
+      act(() => {
+        jest.advanceTimersByTime(1_100);
+      });
+      act(() => {
+        jest.advanceTimersByTime(1_100);
+      });
 
       expect(result.current.enrichedLayoutPlayers).toBe(before);
     });
@@ -180,12 +182,16 @@ describe('useDisconnectDetection', () => {
       ];
 
       const { result } = renderHook(() =>
-        useDisconnectDetection(makeProps({ realtimePlayers: [remotePlayer], layoutPlayersWithScores })),
+        useDisconnectDetection(
+          makeProps({ realtimePlayers: [remotePlayer], layoutPlayersWithScores })
+        )
       );
 
       expect(result.current.enrichedLayoutPlayers[1].disconnectTimerStartedAt).toBeNull();
 
-      act(() => { jest.advanceTimersByTime(1_100); });
+      act(() => {
+        jest.advanceTimersByTime(1_100);
+      });
 
       expect(result.current.enrichedLayoutPlayers[1].isDisconnected).toBe(true);
       expect(result.current.enrichedLayoutPlayers[1].disconnectTimerStartedAt).toBe(lastSeenTs);
@@ -199,10 +205,12 @@ describe('useDisconnectDetection', () => {
       });
 
       const { result } = renderHook(() =>
-        useDisconnectDetection(makeProps({ realtimePlayers: [remotePlayer] })),
+        useDisconnectDetection(makeProps({ realtimePlayers: [remotePlayer] }))
       );
 
-      act(() => { jest.advanceTimersByTime(1_100); });
+      act(() => {
+        jest.advanceTimersByTime(1_100);
+      });
 
       expect(result.current.enrichedLayoutPlayers[1].isDisconnected).toBe(false);
       expect(result.current.enrichedLayoutPlayers[1].disconnectTimerStartedAt).toBeNull();
@@ -218,10 +226,12 @@ describe('useDisconnectDetection', () => {
       });
 
       const { result } = renderHook(() =>
-        useDisconnectDetection(makeProps({ realtimePlayers: [localPlayer] })),
+        useDisconnectDetection(makeProps({ realtimePlayers: [localPlayer] }))
       );
 
-      act(() => { jest.advanceTimersByTime(1_100); });
+      act(() => {
+        jest.advanceTimersByTime(1_100);
+      });
 
       expect(result.current.enrichedLayoutPlayers[0].isDisconnected).toBe(false);
     });
@@ -248,11 +258,17 @@ describe('useDisconnectDetection', () => {
 
       const { result } = renderHook(() =>
         useDisconnectDetection(
-          makeProps({ realtimePlayers: [remotePlayer], playerLastSeenAtRef, layoutPlayersWithScores }),
-        ),
+          makeProps({
+            realtimePlayers: [remotePlayer],
+            playerLastSeenAtRef,
+            layoutPlayersWithScores,
+          })
+        )
       );
 
-      act(() => { jest.advanceTimersByTime(1_100); });
+      act(() => {
+        jest.advanceTimersByTime(1_100);
+      });
 
       // Client skips anchoring -> no client-side disconnectTimerStartedAt.
       expect(result.current.enrichedLayoutPlayers[1].disconnectTimerStartedAt).toBeNull();
@@ -273,28 +289,33 @@ describe('useDisconnectDetection', () => {
         makeDisconnectedLayoutPlayer({ player_index: 1 }),
       ];
 
-      const { result, rerender } = renderHook(
-        (props: HookProps) => useDisconnectDetection(props),
-        { initialProps: makeProps({ realtimePlayers: [remotePlayer], layoutPlayersWithScores }) },
-      );
+      const { result, rerender } = renderHook((props: HookProps) => useDisconnectDetection(props), {
+        initialProps: makeProps({ realtimePlayers: [remotePlayer], layoutPlayersWithScores }),
+      });
 
       // Tick 1 - anchor seeded from disconnect_timer_started_at = laterTs.
-      act(() => { jest.advanceTimersByTime(1_100); });
+      act(() => {
+        jest.advanceTimersByTime(1_100);
+      });
       expect(result.current.enrichedLayoutPlayers[1].disconnectTimerStartedAt).toBe(laterTs);
 
       // Server now provides an EARLIER anchor.
       const earlierTs = new Date(Date.now() - 30_000).toISOString();
-      rerender(makeProps({
-        realtimePlayers: [{ ...remotePlayer, disconnect_timer_started_at: earlierTs }],
-        layoutPlayersWithScores,
-      }));
+      rerender(
+        makeProps({
+          realtimePlayers: [{ ...remotePlayer, disconnect_timer_started_at: earlierTs }],
+          layoutPlayersWithScores,
+        })
+      );
 
       // Tick 2 - anchor corrected downward.
-      act(() => { jest.advanceTimersByTime(1_100); });
+      act(() => {
+        jest.advanceTimersByTime(1_100);
+      });
       expect(result.current.enrichedLayoutPlayers[1].disconnectTimerStartedAt).toBe(earlierTs);
     });
 
-    it('does NOT correct anchor upward - later server timestamp is rejected', () => {
+    it('P2-3 FIX: corrects anchor upward - DB is single authority regardless of direction', () => {
       const earlierTs = new Date(Date.now() - 30_000).toISOString();
       const remotePlayer = makePlayer({
         connection_status: 'disconnected',
@@ -306,23 +327,29 @@ describe('useDisconnectDetection', () => {
         makeDisconnectedLayoutPlayer({ player_index: 1 }),
       ];
 
-      const { result, rerender } = renderHook(
-        (props: HookProps) => useDisconnectDetection(props),
-        { initialProps: makeProps({ realtimePlayers: [remotePlayer], layoutPlayersWithScores }) },
+      const { result, rerender } = renderHook((props: HookProps) => useDisconnectDetection(props), {
+        initialProps: makeProps({ realtimePlayers: [remotePlayer], layoutPlayersWithScores }),
+      });
+
+      act(() => {
+        jest.advanceTimersByTime(1_100);
+      });
+      expect(result.current.enrichedLayoutPlayers[1].disconnectTimerStartedAt).toBe(earlierTs);
+
+      // Server sends a LATER timestamp — DB is single authority, so it IS accepted.
+      // (Old behaviour rejected upward corrections; P2-3 removes that restriction.)
+      const laterTs = new Date(Date.now() - 5_000).toISOString();
+      rerender(
+        makeProps({
+          realtimePlayers: [{ ...remotePlayer, disconnect_timer_started_at: laterTs }],
+          layoutPlayersWithScores,
+        })
       );
 
-      act(() => { jest.advanceTimersByTime(1_100); });
-      expect(result.current.enrichedLayoutPlayers[1].disconnectTimerStartedAt).toBe(earlierTs);
-
-      // Server sends a LATER timestamp - should be rejected.
-      const laterTs = new Date(Date.now() - 5_000).toISOString();
-      rerender(makeProps({
-        realtimePlayers: [{ ...remotePlayer, disconnect_timer_started_at: laterTs }],
-        layoutPlayersWithScores,
-      }));
-
-      act(() => { jest.advanceTimersByTime(1_100); });
-      expect(result.current.enrichedLayoutPlayers[1].disconnectTimerStartedAt).toBe(earlierTs);
+      act(() => {
+        jest.advanceTimersByTime(1_100);
+      });
+      expect(result.current.enrichedLayoutPlayers[1].disconnectTimerStartedAt).toBe(laterTs);
     });
   });
 
@@ -341,21 +368,24 @@ describe('useDisconnectDetection', () => {
       ];
       const layoutConnected = [
         makeLayoutPlayer({ player_index: 0, name: 'LocalPlayer' }),
-        makeLayoutPlayer({ player_index: 1, isDisconnected: false, disconnectTimerStartedAt: null }),
+        makeLayoutPlayer({
+          player_index: 1,
+          isDisconnected: false,
+          disconnectTimerStartedAt: null,
+        }),
       ];
 
-      const { result, rerender } = renderHook(
-        (props: HookProps) => useDisconnectDetection(props),
-        {
-          initialProps: makeProps({
-            realtimePlayers: [disconnectedPlayer],
-            layoutPlayersWithScores: layoutDisconnected,
-          }),
-        },
-      );
+      const { result, rerender } = renderHook((props: HookProps) => useDisconnectDetection(props), {
+        initialProps: makeProps({
+          realtimePlayers: [disconnectedPlayer],
+          layoutPlayersWithScores: layoutDisconnected,
+        }),
+      });
 
       // Seed the client anchor via the stale-check interval.
-      act(() => { jest.advanceTimersByTime(1_100); });
+      act(() => {
+        jest.advanceTimersByTime(1_100);
+      });
       expect(result.current.enrichedLayoutPlayers[1].disconnectTimerStartedAt).toBe(lastSeenTs);
 
       // Server confirms reconnect.
@@ -365,10 +395,12 @@ describe('useDisconnectDetection', () => {
         disconnect_timer_started_at: null,
       };
       act(() => {
-        rerender(makeProps({
-          realtimePlayers: [reconnectedPlayer],
-          layoutPlayersWithScores: layoutConnected,
-        }));
+        rerender(
+          makeProps({
+            realtimePlayers: [reconnectedPlayer],
+            layoutPlayersWithScores: layoutConnected,
+          })
+        );
       });
 
       // Ring cleared without advancing the timer another 1 s.
@@ -414,31 +446,34 @@ describe('useDisconnectDetection', () => {
         makeLayoutPlayer({ player_index: 2, name: 'StayingPlayer' }),
       ];
 
-      const { result, rerender } = renderHook(
-        (props: HookProps) => useDisconnectDetection(props),
-        {
-          initialProps: makeProps({
-            realtimePlayers: [departedPlayer, stayingPlayer],
-            layoutPlayersWithScores: layoutBothDisconnected,
-            layoutPlayers,
-          }),
-        },
-      );
+      const { result, rerender } = renderHook((props: HookProps) => useDisconnectDetection(props), {
+        initialProps: makeProps({
+          realtimePlayers: [departedPlayer, stayingPlayer],
+          layoutPlayersWithScores: layoutBothDisconnected,
+          layoutPlayers,
+        }),
+      });
 
       // Tick 1: both players seeded in clientDisconnectStartRef.
-      act(() => { jest.advanceTimersByTime(1_100); });
+      act(() => {
+        jest.advanceTimersByTime(1_100);
+      });
       expect(result.current.enrichedLayoutPlayers[1].disconnectTimerStartedAt).not.toBeNull();
 
       // departedPlayer leaves the room (DELETE -> removed from realtimePlayers).
-      rerender(makeProps({
-        realtimePlayers: [stayingPlayer],
-        layoutPlayersWithScores: layoutOnlyStayingDisconnected,
-        layoutPlayers,
-      }));
+      rerender(
+        makeProps({
+          realtimePlayers: [stayingPlayer],
+          layoutPlayersWithScores: layoutOnlyStayingDisconnected,
+          layoutPlayers,
+        })
+      );
 
       // Tick 2: interval builds newMap without departedPlayer, then prunes
       // the ref so player_index 1 is removed before dispatching REPLACE.
-      act(() => { jest.advanceTimersByTime(1_100); });
+      act(() => {
+        jest.advanceTimersByTime(1_100);
+      });
 
       // stayingPlayer reconnects -> immediate-clear fires with changed=true
       // and rebuilds the Map from the ref. Without pruning the ref would still
@@ -449,11 +484,13 @@ describe('useDisconnectDetection', () => {
         disconnect_timer_started_at: null,
       };
       act(() => {
-        rerender(makeProps({
-          realtimePlayers: [reconnectedStaying],
-          layoutPlayersWithScores: layoutStayingReconnected,
-          layoutPlayers,
-        }));
+        rerender(
+          makeProps({
+            realtimePlayers: [reconnectedStaying],
+            layoutPlayersWithScores: layoutStayingReconnected,
+            layoutPlayers,
+          })
+        );
       });
 
       // departedPlayer's slot must not have a ghost grey ring.
@@ -495,19 +532,18 @@ describe('useDisconnectDetection', () => {
         makeLayoutPlayer({ player_index: 2, name: 'StayingPlayer' }),
       ];
 
-      const { result, rerender } = renderHook(
-        (props: HookProps) => useDisconnectDetection(props),
-        {
-          initialProps: makeProps({
-            realtimePlayers: [departedPlayer, stayingPlayer],
-            layoutPlayersWithScores: layoutBothDisconnected,
-            layoutPlayers,
-          }),
-        },
-      );
+      const { result, rerender } = renderHook((props: HookProps) => useDisconnectDetection(props), {
+        initialProps: makeProps({
+          realtimePlayers: [departedPlayer, stayingPlayer],
+          layoutPlayersWithScores: layoutBothDisconnected,
+          layoutPlayers,
+        }),
+      });
 
       // Tick 1: both players seeded in clientDisconnectStartRef.
-      act(() => { jest.advanceTimersByTime(1_100); });
+      act(() => {
+        jest.advanceTimersByTime(1_100);
+      });
       expect(result.current.enrichedLayoutPlayers[1].disconnectTimerStartedAt).not.toBeNull();
 
       // departedPlayer leaves AND stayingPlayer reconnects in the same render.
@@ -519,12 +555,14 @@ describe('useDisconnectDetection', () => {
         disconnect_timer_started_at: null,
       };
       act(() => {
-        rerender(makeProps({
-          // departedPlayer absent (room_players DELETE)
-          realtimePlayers: [reconnectedStaying],
-          layoutPlayersWithScores: layoutStayingReconnected,
-          layoutPlayers,
-        }));
+        rerender(
+          makeProps({
+            // departedPlayer absent (room_players DELETE)
+            realtimePlayers: [reconnectedStaying],
+            layoutPlayersWithScores: layoutStayingReconnected,
+            layoutPlayers,
+          })
+        );
       });
 
       // immediate-clear must prune the ref BEFORE rebuilding the Map, so the
@@ -562,7 +600,9 @@ describe('useDisconnectDetection', () => {
 
       expect(forceSweep).toHaveBeenCalledTimes(1);
 
-      act(() => { jest.advanceTimersByTime(5_100); });
+      act(() => {
+        jest.advanceTimersByTime(5_100);
+      });
       expect(forceSweep).toHaveBeenCalledTimes(2);
     });
 
