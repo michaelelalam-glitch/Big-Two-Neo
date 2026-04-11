@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
           was_replaced: result.was_replaced ?? false,
         };
         await new Promise<void>((resolve) => {
-          const broadcastChannel = supabaseClient.channel(`room:${room_id}`);
+          const broadcastChannel = supabaseClient.channel(`room:${roomId}`);
           let settled = false;
           const finish = (): void => {
             if (!settled) {
@@ -168,7 +168,7 @@ Deno.serve(async (req) => {
                   if (sendResult?.error) {
                     console.warn(`[reconnect-player] Reconnect broadcast delivery failure (non-critical):`, sendResult.error);
                   } else {
-                    console.log(`📡 [reconnect-player] Broadcast player_reconnected for room ${room_id} (index ${result.player_index})`);
+                    console.log(`📡 [reconnect-player] Broadcast player_reconnected for room ${roomId} (index ${result.player_index})`);
                   }
                   clearTimeout(safetyTimeout);
                   finish();

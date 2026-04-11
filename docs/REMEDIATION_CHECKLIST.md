@@ -148,15 +148,15 @@
 > Edge function hardening and data model cleanup.
 
 - [x] **#24 🟡 P5-9** — `find-match` trusts **client-provided `skill_rating`** — a cheating user can manipulate their ELO bracket.  
-  **Fix:** Ignore client `skill_rating`; query `player_stats.elo_rating` server-side using `auth.uid()`.  
+  **Fix:** Ignore client `skill_rating`; query `profiles.elo_rating` server-side using `auth.uid()` (ELO is stored in `profiles`, not `player_stats`).  
   `apps/mobile/supabase/functions/find-match/index.ts` · L71
 
 - [x] **#25 🟡 P5-8** — `complete-game` uses SELECT-then-INSERT dedup with a 23505 fallback — a **narrow race window** exists between check and insert.  
-  **Fix:** Replace with `INSERT ... ON CONFLICT DO NOTHING` for atomic dedup.  
+  **Fix:** Rely on the DB unique partial index on `game_history(room_id)` (migration 20260313000001) with a plain `INSERT`; treat `23505` as the already-processed outcome for atomic dedup. (Note: `INSERT ... ON CONFLICT` was attempted but requires a non-partial UNIQUE constraint; reverted to plain INSERT + 23505 handler.)  
   `apps/mobile/supabase/functions/complete-game/index.ts` · L380–430
 
 - [x] **#26 🟡 P5-13** — `find-match` has no runtime validation for `match_type` enum values or `skill_rating` bounds.  
-  **Fix:** Validate `match_type` ∈ `['casual', 'ranked']` and `skill_rating` ∈ [0, 5000] at function entry.  
+  **Fix:** Validate `match_type` ∈ `['casual', 'ranked']` at function entry. (Note: `skill_rating` bounds are no longer relevant as `skill_rating` is now fetched server-side and not accepted from the client.)  
   `apps/mobile/supabase/functions/find-match/index.ts` · L71
 
 - [x] **#27 🟡 P5-10** — `reconnect-player` and `get-rejoin-status` accept `room_id` without UUID format validation (unlike `mark-disconnected` which has it).  

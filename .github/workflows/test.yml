@@ -666,7 +666,7 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) ||
-      github.event_name == 'push' ||
+      (github.event_name == 'push' && github.event.repository.fork == false) ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.run_load_tests == 'true')
     continue-on-error: true
     timeout-minutes: 15
@@ -675,7 +675,11 @@ jobs:
       # Public project URL — not a secret; falls back to the project URL when
       # the secret is absent (e.g. on forks or in repos without secrets configured).
       EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL || 'https://dppybucldqufbqhwnkxu.supabase.co' }}
-      # Public anon key — read-only access constrained by RLS; safe to embed.
+      # Anon key — constrained to read-only RLS access; the same key is shipped
+      # in the mobile app bundle and is therefore not a sensitive credential.
+      # Source from secret when available; fall back to the public key so CI
+      # always runs k6 smoke tests without requiring secret configuration.
+      # If key rotation is needed: update EXPO_PUBLIC_SUPABASE_ANON_KEY secret.
       EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwcHlidWNsZHF1ZmJxaHdua3h1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM5MzEyNjMsImV4cCI6MjA3OTUwNzI2M30.NPr-oBDZrfJisJH5rzosMMYTL3GKbIVQ_nllmaTxyFE' }}
       # Service role key stays secret-only; load scenarios that need it are gated.
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
