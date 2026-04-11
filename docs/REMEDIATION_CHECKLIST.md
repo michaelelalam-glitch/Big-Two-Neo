@@ -147,39 +147,39 @@
 ## TIER 5 — Medium Backend Quality
 > Edge function hardening and data model cleanup.
 
-- [ ] **#24 🟡 P5-9** — `find-match` trusts **client-provided `skill_rating`** — a cheating user can manipulate their ELO bracket.  
+- [x] **#24 🟡 P5-9** — `find-match` trusts **client-provided `skill_rating`** — a cheating user can manipulate their ELO bracket.  
   **Fix:** Ignore client `skill_rating`; query `player_stats.elo_rating` server-side using `auth.uid()`.  
   `apps/mobile/supabase/functions/find-match/index.ts` · L71
 
-- [ ] **#25 🟡 P5-8** — `complete-game` uses SELECT-then-INSERT dedup with a 23505 fallback — a **narrow race window** exists between check and insert.  
+- [x] **#25 🟡 P5-8** — `complete-game` uses SELECT-then-INSERT dedup with a 23505 fallback — a **narrow race window** exists between check and insert.  
   **Fix:** Replace with `INSERT ... ON CONFLICT DO NOTHING` for atomic dedup.  
   `apps/mobile/supabase/functions/complete-game/index.ts` · L380–430
 
-- [ ] **#26 🟡 P5-13** — `find-match` has no runtime validation for `match_type` enum values or `skill_rating` bounds.  
+- [x] **#26 🟡 P5-13** — `find-match` has no runtime validation for `match_type` enum values or `skill_rating` bounds.  
   **Fix:** Validate `match_type` ∈ `['casual', 'ranked']` and `skill_rating` ∈ [0, 5000] at function entry.  
   `apps/mobile/supabase/functions/find-match/index.ts` · L71
 
-- [ ] **#27 🟡 P5-10** — `reconnect-player` and `get-rejoin-status` accept `room_id` without UUID format validation (unlike `mark-disconnected` which has it).  
+- [x] **#27 🟡 P5-10** — `reconnect-player` and `get-rejoin-status` accept `room_id` without UUID format validation (unlike `mark-disconnected` which has it).  
   **Fix:** Add the same UUID regex check: `/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i`.  
   `apps/mobile/supabase/functions/reconnect-player/index.ts` · L44 / `get-rejoin-status/index.ts` · L37
 
-- [ ] **#28 🟡 P5-11** — `player-pass` accepts service-role auth via a JSON body field `_bot_auth` — weaker than header-only auth used by other EFs.  
+- [x] **#28 🟡 P5-11** — `player-pass` accepts service-role auth via a JSON body field `_bot_auth` — weaker than header-only auth used by other EFs.  
   **Fix:** Move bot auth verification to the Authorization header; remove body-based auth path.  
   `apps/mobile/supabase/functions/player-pass/index.ts` · L189
 
-- [ ] **#29 🟡 P5-14** — Rate limiter **allows ALL requests** if the `rate_limit_tracking` DB table is inaccessible (availability-first by design). This can be exploited during DB degradation.  
+- [x] **#29 🟡 P5-14** — Rate limiter **allows ALL requests** if the `rate_limit_tracking` DB table is inaccessible (availability-first by design). This can be exploited during DB degradation.  
   **Fix:** Consider a fail-closed option (return 503) for high-risk endpoints like `play-cards` and `find-match`, keeping fail-open for lower-risk ones.  
   `apps/mobile/supabase/functions/_shared/rateLimiter.ts` · L50–65
 
-- [ ] **#30 🟡 P5-12** — 6 placeholder migration files exist with no content or documentation.  
+- [x] **#30 🟡 P5-12** — 6 placeholder migration files exist with no content or documentation.  
   **Fix:** Add `-- placeholder: reserved for <feature>` comments, or delete if no longer needed.  
   `apps/mobile/supabase/migrations/*_placeholder.sql`
 
-- [ ] **#31 🟡 P6-1** — `get-livekit-token` issues tokens for **already-ended or abandoned rooms** because it doesn't check `room.status`.  
+- [x] **#31 🟡 P6-1** — `get-livekit-token` issues tokens for **already-ended or abandoned rooms** because it doesn't check `room.status`.  
   **Fix:** Add `WHERE status = 'active'` to the room lookup query before issuing the token.  
   `apps/mobile/supabase/functions/get-livekit-token/index.ts` · L206–217
 
-- [ ] **#32 🟡 P6-2** — `get-livekit-token` has no rate limiting — users can hammer it to generate unlimited tokens.  
+- [x] **#32 🟡 P6-2** — `get-livekit-token` has no rate limiting — users can hammer it to generate unlimited tokens.  
   **Fix:** Add `rateLimiter` call: e.g., 5 tokens/minute per user.  
   `apps/mobile/supabase/functions/get-livekit-token/index.ts` · Full scope
 
