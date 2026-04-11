@@ -37,6 +37,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { buildCorsHeaders } from '../_shared/cors.ts';
 import { checkRateLimit } from '../_shared/rateLimiter.ts';
 import { errorResponse, getRequestId } from '../_shared/responses.ts';
+import { checkMinimumVersion } from '../_shared/versionCheck.ts';
 
 // ─── Base64url helper (JWT requires base64url: no padding, + → -, / → _) ────
 function toBase64Url(input: string): string {
@@ -189,6 +190,10 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+  // C3: Enforce minimum app version (consistent with other client-facing EFs).
+  const versionError = checkMinimumVersion(req, corsHeaders);
+  if (versionError) return versionError;
 
   const requestId = getRequestId(req);
 

@@ -31,6 +31,7 @@ config.watchFolders = [
 // To activate a flow: add the package to optionalDependencies, run pnpm install,
 // then remove its entry here.
 config.resolver.extraNodeModules = {
+  ...(config.resolver.extraNodeModules ?? {}),
   '@infominds/react-native-play-integrity': require.resolve(
     './src/stubs/optionalModuleStub.js',
   ),

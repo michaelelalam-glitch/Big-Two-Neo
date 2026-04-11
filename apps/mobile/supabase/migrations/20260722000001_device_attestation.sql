@@ -2,8 +2,8 @@
 -- Tracks Google Play Integrity / Apple App Attest verification results per device.
 -- The verify-attestation Edge Function returns a verdict (passed/failed) to the client.
 -- High-risk server operations may query this table to check prior attestation status.
--- Note: the current verify-attestation EF returns the verdict immediately (fail-open);
--- persistence to this table is a future extension for fraud investigation workflows.
+-- Note: Android (Play Integrity) persistence to this table is implemented in Step 1.
+-- iOS (App Attest) persistence is a future extension pending Step 2 implementation.
 
 CREATE TABLE IF NOT EXISTS device_attestation (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -44,6 +44,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS device_attestation_updated_at ON device_attestation;
 CREATE TRIGGER device_attestation_updated_at
   BEFORE UPDATE ON device_attestation
   FOR EACH ROW EXECUTE FUNCTION update_device_attestation_updated_at();
