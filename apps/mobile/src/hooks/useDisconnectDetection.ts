@@ -313,7 +313,7 @@ export function useDisconnectDetection({
           if (needsUpdate) {
             clientDisconnectStartRef.current[rp.player_index] = desiredAnchor;
             gameLogger.warn(
-              `[useDisconnectDetection] Client-side: ${existingAnchor ? 'CORRECTED' : 'seeding'} disconnect for player_index=${rp.player_index} (anchor=${anchorType}${existingAnchorMs !== null && serverAnchorMs !== null ? `, correction=${Math.round((existingAnchorMs - serverAnchorMs) / 1000)}s` : ''})`
+              `[useDisconnectDetection] Client-side: ${existingAnchor ? 'CORRECTED' : 'seeding'} disconnect for player_index=${rp.player_index} (anchor=${anchorType}${anchorType === 'server_timer_ts' && existingAnchorMs !== null && serverAnchorMs !== null ? `, correction=${Math.round((existingAnchorMs - serverAnchorMs) / 1000)}s` : ''})`
             );
           }
           newMap.set(rp.player_index, clientDisconnectStartRef.current[rp.player_index]);
