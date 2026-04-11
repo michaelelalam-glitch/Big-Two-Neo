@@ -16,6 +16,7 @@ import { i18n } from '../i18n';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { supabase } from '../services/supabase';
 import { showError } from '../utils';
+import { statsLogger } from '../utils/logger';
 
 type MatchHistoryNavigationProp = StackNavigationProp<RootStackParamList, 'MatchHistory'>;
 
@@ -200,7 +201,7 @@ export default function MatchHistoryScreen() {
       setHasMore(formattedMatches.length === PAGE_SIZE);
       setPage(pageNum);
     } catch (error: unknown) {
-      console.error('Error loading match history:', error);
+      statsLogger.error('Error loading match history:', error);
       showError(error instanceof Error ? error.message : 'Failed to load match history');
     } finally {
       setLoading(false);

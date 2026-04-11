@@ -5,6 +5,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { API } from '../constants';
 import type { Database } from '../types/database.types';
+import { networkLogger } from '../utils/logger';
 
 // C3 Fix: Send app version with every Supabase request so edge functions can
 // enforce a minimum version and reject outdated clients.
@@ -135,7 +136,7 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
         // Guard: abort if the value would require more chunks than MAX_CHUNKS to prevent
         // unbounded SecureStore writes and storage exhaustion from corrupted/oversized tokens.
         if (chunks.length > MAX_CHUNKS) {
-          console.error(
+          networkLogger.error(
             `[supabase:storage] Value too large to chunk (${chunks.length} chunks > MAX_CHUNKS ${MAX_CHUNKS}); clearing stale credentials and failing.`
           );
           // Remove any existing data for this key so getItem returns null on the next
@@ -211,7 +212,7 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
       // Do NOT fall back to AsyncStorage — storing an auth token in plaintext
       // violates the P10-1 security requirement. The caller detects session
       // loss on next launch and prompts the user to re-authenticate.
-      console.error('[supabase:storage] SecureStore write failed; auth token NOT persisted.');
+      networkLogger.error('[supabase:storage] SecureStore write failed; auth token NOT persisted.');
     }
   },
   removeItem: async (key: string): Promise<void> => {

@@ -135,6 +135,8 @@ const GoogleSignInButton = () => {
       style={styles.button}
       activeOpacity={0.8}
       testID="google-sign-in-button"
+      accessibilityRole="button"
+      accessibilityLabel="Sign in with Google"
     >
       <View style={styles.buttonContent}>
         <Image

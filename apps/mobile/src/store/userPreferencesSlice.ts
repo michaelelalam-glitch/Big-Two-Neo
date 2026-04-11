@@ -23,6 +23,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SETTINGS_KEYS, DEFAULT_SETTINGS } from '../utils/settings';
 import { soundManager } from '../utils/soundManager';
 import { hapticManager } from '../utils/hapticManager';
+import { uiLogger } from '../utils/logger';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 // Imported from the central settings utility to avoid type drift.
@@ -120,13 +121,13 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
         set({ soundEnabled: enabled });
         void soundManager
           .setAudioEnabled(enabled)
-          .catch(err => console.error('[UserPreferences] Failed to persist audio enabled', err));
+          .catch(err => uiLogger.error('[UserPreferences] Failed to persist audio enabled', err));
       },
       setVibrationEnabled: enabled => {
         set({ vibrationEnabled: enabled });
         void hapticManager
           .setHapticsEnabled(enabled)
-          .catch(err => console.error('[UserPreferences] Failed to persist haptics enabled', err));
+          .catch(err => uiLogger.error('[UserPreferences] Failed to persist haptics enabled', err));
       },
       setCardSortOrder: order => set({ cardSortOrder: order }),
       setAnimationSpeed: speed => set({ animationSpeed: speed }),

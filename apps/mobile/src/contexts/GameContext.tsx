@@ -8,7 +8,7 @@
  *
  * H4 Audit fix — Task #638.
  */
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
 import type { Card } from '../game/types';
 import type { ChatMessage } from '../types/chat';
 import type { GameStateManager } from '../game/state';
@@ -18,6 +18,7 @@ import type { LiveKitTrackRef } from '../hooks/useVideoChat';
 import type { ActiveThrowableEffect, IncomingThrowable } from '../hooks/useThrowables';
 import type { InGameAlertOptions } from '../components/game/InGameAlert';
 import type { ConnectionStatus } from '../components/ConnectionStatusIndicator';
+import { AutoPassTimerContextProvider } from './AutoPassTimerContext';
 
 // ---------------------------------------------------------------------------
 // Player type aliases (mirror the inline types in the old GameViewProps)
@@ -233,7 +234,25 @@ interface GameContextProviderProps {
 }
 
 export function GameContextProvider({ children, value }: GameContextProviderProps) {
-  return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
+  // P9-1: Isolate timer state so only timer consumers re-render on timer ticks.
+  // When non-timer game state changes but effectiveAutoPassTimerState / turnClockOffsetMs
+  // remain the same, the memoized timerValue stays stable and AutoPassTimerContext
+  // consumers are skipped.
+  const timerValue = useMemo(
+    () => ({
+      effectiveAutoPassTimerState: value.effectiveAutoPassTimerState,
+      turnClockOffsetMs: value.turnClockOffsetMs,
+    }),
+    [value.effectiveAutoPassTimerState, value.turnClockOffsetMs]
+  );
+  return (
+    <AutoPassTimerContextProvider
+      effectiveAutoPassTimerState={timerValue.effectiveAutoPassTimerState}
+      turnClockOffsetMs={timerValue.turnClockOffsetMs}
+    >
+      <GameContext.Provider value={value}>{children}</GameContext.Provider>
+    </AutoPassTimerContextProvider>
+  );
 }
 
 // ---------------------------------------------------------------------------

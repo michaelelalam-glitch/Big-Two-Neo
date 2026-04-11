@@ -12,6 +12,7 @@ import Animated, {
 import { COLORS, SPACING, CARD_FONTS, TYPOGRAPHY } from '../../constants';
 import type { Card as CardType } from '../../game/types';
 import { i18n } from '../../i18n';
+import { gameLogger } from '../../utils/logger';
 
 interface CardProps {
   card: CardType;
@@ -513,7 +514,7 @@ const styles = StyleSheet.create({
 const Card = React.memo(function Card(props: CardProps) {
   if (!props.card || !props.card.rank || !props.card.suit) {
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
-      console.error('[Card] 🚨 INVALID CARD DATA: missing card, rank, or suit', props.card);
+      gameLogger.error('[Card] 🚨 INVALID CARD DATA: missing card, rank, or suit', props.card);
     }
     return null;
   }

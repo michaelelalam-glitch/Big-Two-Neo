@@ -354,6 +354,9 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
             activeOpacity={0.8}
             disabled={isRejoining || isLeaving}
             testID="rejoin-game-button"
+            accessibilityRole="button"
+            accessibilityLabel={i18n.t('home.rejoin')}
+            accessibilityState={{ disabled: isRejoining || isLeaving }}
           >
             {isRejoining ? (
               <ActivityIndicator size="small" color="#fff" />
@@ -378,6 +381,9 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
             activeOpacity={0.8}
             disabled={isRejoining || isLeaving}
             testID="replace-bot-button"
+            accessibilityRole="button"
+            accessibilityLabel={i18n.t('home.replaceBotAndRejoin')}
+            accessibilityState={{ disabled: isRejoining || isLeaving }}
           >
             {isRejoining ? (
               <ActivityIndicator size="small" color="#fff" />
@@ -401,6 +407,9 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
           activeOpacity={0.8}
           disabled={isRejoining || isLeaving}
           testID="leave-game-banner-button"
+          accessibilityRole="button"
+          accessibilityLabel={i18n.t('home.leave')}
+          accessibilityState={{ disabled: isRejoining || isLeaving }}
         >
           {isLeaving ? (
             <ActivityIndicator size="small" color="#fff" />

@@ -199,7 +199,7 @@ async function triggerBotCoordinatorIfNeeded(
   try {
     const { data: nextPlayer } = await supabaseClient
       .from('room_players')
-      .select('is_bot')
+      .select('is_bot, user_id')
       .eq('room_id', roomId)
       .eq('player_index', nextTurn)
       .single();
@@ -233,6 +233,23 @@ async function triggerBotCoordinatorIfNeeded(
       // the handler has returned its Response. Falls back silently in environments
       // where EdgeRuntime is not available (local dev, unit tests).
       try { (globalThis as any).EdgeRuntime?.waitUntil(botPromise); } catch (_) {}
+    } else if (nextPlayer && !nextPlayer.is_bot && nextPlayer.user_id) {
+      // Notify the next human player it's their turn (fire-and-forget)
+      const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+      const notifPromise = fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sk}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_ids:  [nextPlayer.user_id],
+          title:     '⏰ Your Turn!',
+          body:      `It's your turn in room ${roomCode}`,
+          data:      { type: 'your_turn', roomCode },
+        }),
+      }).catch(() => { /* non-critical — never block the response */ });
+      try { (globalThis as any).EdgeRuntime?.waitUntil(notifPromise); } catch (_) {}
     }
   } catch (err) {
     console.error(`[player-pass] ⚠️ Bot next-player check (${label}) failed (non-critical):`, err);

@@ -192,7 +192,7 @@ export default function JoinRoomScreen() {
       // Notify other players in the room (roomData already fetched above)
       if (roomData?.id) {
         notifyPlayerJoined(roomData.id, roomCode.toUpperCase(), username, user.id).catch(err =>
-          console.error('Failed to send player joined notification:', err)
+          roomLogger.error('Failed to send player joined notification:', err)
         );
       }
 
@@ -211,7 +211,12 @@ export default function JoinRoomScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel={i18n.t('common.back')}
+        >
           <Text style={styles.backButtonText}>← {i18n.t('common.back')}</Text>
         </TouchableOpacity>
       </View>
@@ -246,6 +251,9 @@ export default function JoinRoomScreen() {
             ]}
             onPress={handleJoinRoom}
             disabled={isJoining || roomCode.length !== 6}
+            accessibilityRole="button"
+            accessibilityLabel={i18n.t('room.joinButton')}
+            accessibilityState={{ disabled: isJoining || roomCode.length !== 6 }}
           >
             {isJoining ? (
               <ActivityIndicator color={COLORS.white} />

@@ -4,10 +4,10 @@ import { authLogger } from '../../utils/logger';
 
 /**
  * Apple Sign In - DISABLED (Backlogged)
- * 
+ *
  * This feature has been temporarily disabled and moved to backlog.
  * The button is shown but does nothing when pressed.
- * 
+ *
  * TODO: Implement Apple Authentication later
  * - Set up Apple Developer account
  * - Configure Sign in with Apple capability
@@ -22,11 +22,14 @@ const AppleSignInButton = () => {
   // iOS - Show disabled button
   if (Platform.OS === 'ios') {
     return (
-      <TouchableOpacity 
-        style={[styles.customButton, styles.disabledButton]} 
+      <TouchableOpacity
+        style={[styles.customButton, styles.disabledButton]}
         onPress={onAppleButtonPress}
         activeOpacity={0.7}
         disabled={true}
+        accessibilityRole="button"
+        accessibilityLabel="Sign in with Apple (Coming Soon)"
+        accessibilityState={{ disabled: true }}
       >
         <View style={styles.buttonContent}>
           <Text style={styles.buttonText}>Sign in with Apple (Coming Soon)</Text>
@@ -38,11 +41,14 @@ const AppleSignInButton = () => {
   // Android - Show disabled button
   if (Platform.OS === 'android') {
     return (
-      <TouchableOpacity 
-        style={[styles.customButton, styles.disabledButton]} 
+      <TouchableOpacity
+        style={[styles.customButton, styles.disabledButton]}
         onPress={onAppleButtonPress}
         activeOpacity={0.7}
         disabled={true}
+        accessibilityRole="button"
+        accessibilityLabel="Sign in with Apple (Coming Soon)"
+        accessibilityState={{ disabled: true }}
       >
         <View style={styles.buttonContent}>
           <Text style={styles.buttonText}>Sign in with Apple (Coming Soon)</Text>

@@ -17,6 +17,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { sentryCapture } from '../../services/sentry';
 import { i18n } from '../../i18n';
+import { uiLogger } from '../../utils/logger';
 
 // Theme colors for error UI
 const ERROR_COLOR = '#ff6b6b';
@@ -56,8 +57,8 @@ export class ScoreboardErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     // Log error to console in development
     if (__DEV__) {
-      console.error('[Scoreboard Error Boundary] Error caught:', error);
-      console.error('[Scoreboard Error Boundary] Component stack:', errorInfo.componentStack);
+      uiLogger.error('[Scoreboard Error Boundary] Error caught:', error);
+      uiLogger.error('[Scoreboard Error Boundary] Component stack:', errorInfo.componentStack);
     }
 
     // Call optional error handler

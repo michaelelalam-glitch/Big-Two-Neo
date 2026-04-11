@@ -83,7 +83,7 @@ try {
   // Module loaded successfully but VideoTrack was not exported — likely a
   // package version/API mismatch. Warn once in DEV so it is easy to diagnose.
   if (!_VideoTrack && typeof __DEV__ !== 'undefined' && __DEV__) {
-    console.warn(
+    gameLogger.warn(
       '[LiveKitVideoSlot] @livekit/react-native loaded but did not export ' +
         'VideoTrack — video rendering disabled. Check the package version.'
     );

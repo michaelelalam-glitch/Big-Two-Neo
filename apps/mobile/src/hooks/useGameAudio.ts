@@ -9,7 +9,7 @@
 
 import { useEffect, useRef } from 'react';
 
-import { soundManager, hapticManager, SoundType } from '../utils';
+import { soundManager, hapticManager, SoundType, HapticType } from '../utils';
 import { gameLogger } from '../utils/logger';
 import type { GameState as MultiplayerGameState } from '../types/multiplayer';
 import type { GameState as LocalGameState } from '../game/state';
@@ -19,6 +19,8 @@ interface UseGameAudioOptions {
   isMultiplayerGame: boolean;
   gameState: LocalGameState | null;
   multiplayerGameState: MultiplayerGameState | null;
+  /** Local player's seat index (0-3) in a multiplayer game. */
+  myPlayerIndex?: number;
 }
 
 export function useGameAudio({
@@ -26,6 +28,7 @@ export function useGameAudio({
   isMultiplayerGame,
   gameState,
   multiplayerGameState,
+  myPlayerIndex,
 }: UseGameAudioOptions): void {
   // Track which timer we last played the sound for (by started_at timestamp).
   // Using started_at instead of remaining_ms because, for multiplayer/server-
@@ -117,6 +120,25 @@ export function useGameAudio({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- explicit primitive deps
   }, [isMultiplayerGame, multiplayerGameState?.match_number, multiplayerGameState?.game_phase]);
+
+  // ── Multiplayer: "your turn" haptic vibration ─────────────────────────── //
+  // Fires once per turn-change to alert the local player it's their move.
+  // turn_started_at is included so the effect re-fires even when the same
+  // player index gets consecutive turns (e.g. highest-card opening both tricks).
+  useEffect(() => {
+    if (!isMultiplayerGame || !multiplayerGameState || myPlayerIndex === undefined) return;
+    if (multiplayerGameState.current_turn !== myPlayerIndex) return;
+    void hapticManager.trigger(HapticType.SUCCESS);
+    gameLogger.info(
+      `📳 [Haptic] Your-turn vibration fired (playerIndex=${myPlayerIndex}, turn=${multiplayerGameState.current_turn})`
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- current_turn + turn_started_at drive re-runs
+  }, [
+    isMultiplayerGame,
+    multiplayerGameState?.current_turn,
+    multiplayerGameState?.turn_started_at,
+    myPlayerIndex,
+  ]);
 
   // ── Auto-pass timer: highest card sound + progressive countdown haptics ─── //
   useEffect(() => {

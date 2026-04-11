@@ -39,6 +39,7 @@ import { isExpectedTurnRaceError } from '../utils/edgeFunctionErrors';
 import type { Card } from '../game/types';
 import type { DragZoneState } from '../components/game';
 import { useGameContext } from '../contexts/GameContext';
+import { useAutoPassTimerContext } from '../contexts/AutoPassTimerContext';
 import { useFriendsContext } from '../contexts/FriendsContext';
 import { AddFriendButton } from '../components/friends';
 import { useUserPreferencesStore, useGameSessionStore } from '../store';
@@ -103,7 +104,6 @@ function GameViewComponent() {
     memoizedCurrentScores,
     memoizedCardCounts,
     memoizedOriginalPlayerNames,
-    effectiveAutoPassTimerState,
     effectiveScoreboardCurrentPlayerIndex,
     displayOrderScoreHistory,
     playHistoryByMatch,
@@ -149,8 +149,11 @@ function GameViewComponent() {
     isThrowCooldown,
     cooldownRemaining,
     showInGameAlert,
-    turnClockOffsetMs,
   } = useGameContext();
+
+  // P9-1: Read timer state from the isolated AutoPassTimerContext so that timer
+  // tick updates only re-render timer consumers, not the entire GameView tree.
+  const { effectiveAutoPassTimerState, turnClockOffsetMs } = useAutoPassTimerContext();
 
   const isMultiplayerGame = !isLocalAIGame;
 
