@@ -11,7 +11,7 @@ import * as Updates from 'expo-updates';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { i18n } from './src/i18n';
-import AppNavigator from './src/navigation/AppNavigator';
+import AppNavigator, { rootNavigationRef } from './src/navigation/AppNavigator';
 import { initSentry, isSentryEnabled, sentryCapture, Sentry } from './src/services/sentry';
 import { trackEvent, setAnalyticsConsent, initClientId } from './src/services/analytics';
 import PrivacyConsentModal from './src/components/privacy/PrivacyConsentModal';
@@ -90,6 +90,9 @@ export default function App() {
         const update = await Updates.checkForUpdateAsync();
         if (update.isAvailable) {
           await Updates.fetchUpdateAsync();
+          // Do not reload mid-game — wait until the user leaves the Game screen.
+          const currentRoute = rootNavigationRef.current?.getCurrentRoute()?.name;
+          if (currentRoute === 'Game') return;
           await Updates.reloadAsync();
         }
       } catch {

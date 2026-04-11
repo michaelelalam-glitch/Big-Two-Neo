@@ -231,7 +231,7 @@ Deno.serve(async (req) => {
     return errorResponse(429, 'Too many attestation attempts', corsHeaders, 'RATE_LIMITED', requestId);
   }
 
-  let body: { platform?: string; token?: string; keyId?: string };
+  let body: { platform?: string; token?: string; keyId?: string; nonce?: string; device_id?: string };
   try {
     body = await req.json();
   } catch {
@@ -262,6 +262,43 @@ Deno.serve(async (req) => {
       }
       const result = await verifyPlayIntegrityToken(token, packageName, serviceCreds);
       passed = result.passed;
+
+      // R7-2: Nonce validation — if the client provides a nonce, compare it to the verdict.
+      // Fail-open for backward compatibility (clients without nonce support still pass).
+      if (body.nonce) {
+        const verdictNonce = result.verdict?.requestDetails?.nonce;
+        if (verdictNonce !== body.nonce) {
+          console.warn(`[verify-attestation] Nonce mismatch — potential replay attack user=${user.id.slice(0, 8)}`);
+          // Fail-open: log but do not block until nonces are mandatory for all clients
+        }
+      } else {
+        console.warn('[verify-attestation] No nonce provided — recommend clients include nonce for replay resistance');
+      }
+
+      // R7-1: Persist attestation result to device_attestation table (fail-open — never block on DB error).
+      if (body.device_id) {
+        try {
+          const now = new Date().toISOString();
+          const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+          const { error: upsertError } = await supabaseAdmin.from('device_attestation').upsert({
+            user_id: user.id,
+            device_id: body.device_id,
+            platform: 'android',
+            attestation_type: 'play_integrity',
+            is_verified: result.passed,
+            risk_verdict: result.verdict?.appIntegrity?.appRecognitionVerdict ?? null,
+            verdict_raw: result.verdict ?? null,
+            verified_at: now,
+            expires_at: expiresAt,
+          }, { onConflict: 'user_id,device_id' });
+          if (upsertError) {
+            console.warn(`[verify-attestation] device_attestation upsert failed (non-blocking): ${upsertError.message}`);
+          }
+        } catch (upsertErr: any) {
+          console.warn(`[verify-attestation] device_attestation upsert exception (non-blocking): ${upsertErr?.message}`);
+        }
+      }
+
       console.log(`[verify-attestation] Android play-integrity: passed=${passed} user=${user.id.slice(0, 8)}`);
     } else if (platform === 'ios') {
       const teamId = Deno.env.get('APPLE_APP_ID_PREFIX');

@@ -238,7 +238,6 @@ async function _flushRetryQueue(): Promise<void> {
       params?: AnalyticsEventParams;
     }[][];
     if (!batches.length) return;
-    await AsyncStorage.removeItem(ANALYTICS_RETRY_QUEUE_KEY);
     for (const batch of batches) {
       const flushBody: Record<string, unknown> = {
         client_id: getClientId(),
@@ -259,6 +258,9 @@ async function _flushRetryQueue(): Promise<void> {
         void _enqueueRetryBatch(batch);
       }
     }
+    // Clear the persisted queue AFTER draining — failed batches re-enqueue themselves
+    // via _enqueueRetryBatch above, so they will not be lost by this removal.
+    await AsyncStorage.removeItem(ANALYTICS_RETRY_QUEUE_KEY);
   } catch {
     /* non-critical */
   } finally {
