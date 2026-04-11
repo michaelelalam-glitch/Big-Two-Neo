@@ -157,20 +157,17 @@ Deno.serve(async (req: Request) => {
   // #32 — Rate limit: 5 tokens per minute per user (P6-2)
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
   if (!serviceRoleKey) {
-    console.error('[get-livekit-token] SUPABASE_SERVICE_ROLE_KEY is not configured — rate limiting cannot function');
-    return new Response(
-      JSON.stringify({ error: 'Service misconfiguration' }),
-      { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } },
+    console.warn('[get-livekit-token] SUPABASE_SERVICE_ROLE_KEY is not configured — skipping rate limiting');
+  } else {
+    const supabaseServiceClient = createClient(
+      supabaseUrl,
+      serviceRoleKey,
+      { auth: { autoRefreshToken: false, persistSession: false } },
     );
-  }
-  const supabaseServiceClient = createClient(
-    supabaseUrl,
-    serviceRoleKey,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
-  const rl = await checkRateLimit(supabaseServiceClient, user.id, 'get_livekit_token', 5, 60);
-  if (!rl.allowed) {
-    return rateLimitResponse(rl.retryAfterMs, CORS_HEADERS);
+    const rl = await checkRateLimit(supabaseServiceClient, user.id, 'get_livekit_token', 5, 60);
+    if (!rl.allowed) {
+      return rateLimitResponse(rl.retryAfterMs, CORS_HEADERS);
+    }
   }
 
   // ── Parse body ──────────────────────────────────────────────────────────
