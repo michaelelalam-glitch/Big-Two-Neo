@@ -202,7 +202,7 @@ export function teardown(data) {
 export function authErrorFlood() {
   const res = http.post(
     `${SUPABASE_URL}/functions/v1/play-cards`,
-    JSON.stringify({ room_code: 'LOAD01', player_id: 'fake', cards: [] }),
+    JSON.stringify({ room_code: 'K6AUTH' + Math.random().toString(36).slice(2, 6).toUpperCase(), player_id: 'fake', cards: [] }),
     { headers: { 'Content-Type': 'application/json', 'x-app-version': '999.99.99' } },
   );
 
@@ -226,7 +226,9 @@ export function playCardsLoad(data) {
   const res = http.post(
     `${SUPABASE_URL}/functions/v1/play-cards`,
     JSON.stringify({
-      room_code: 'XXXXXX',  // non-existent — exercises DB lookup without writing state
+      // Per-iteration random code with test-only 'K6' prefix guarantees
+      // the room does not exist without risking collision with any live room.
+      room_code: 'K6' + Math.random().toString(36).slice(2, 8).toUpperCase(),
       player_id: data.userId ?? 'unused',
       cards: [{ id: 'D3', suit: 'D', rank: '3' }],
     }),
