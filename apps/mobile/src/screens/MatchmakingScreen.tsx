@@ -22,6 +22,9 @@ import { useUnlockOrientationOnIos } from '../hooks/useUnlockOrientationOnIos';
 type MatchmakingScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Matchmaking'>;
 type MatchmakingScreenRouteProp = RouteProp<RootStackParamList, 'Matchmaking'>;
 
+/** P7-2: Server expires waiting_room entries after 5 minutes. */
+const QUEUE_EXPIRY_SECONDS = 5 * 60;
+
 /**
  * Matchmaking Screen - Quick Match Queue
  *
@@ -98,7 +101,6 @@ export default function MatchmakingScreen() {
 
   // P7-2 FIX: Queue expiry countdown — the server expires waiting_room entries
   // after 5 minutes. Show a live countdown so users know when to retry.
-  const QUEUE_EXPIRY_SECONDS = 5 * 60;
   const [queueSecondsLeft, setQueueSecondsLeft] = useState<number | null>(null);
   useEffect(() => {
     if (!queueJoinedAt) {
