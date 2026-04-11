@@ -399,6 +399,17 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Bound fan-out: each user incurs one DB round-trip for rate-limit checking (N+1).
+    // Cap at 50 recipients — a Big 2 game has 4 players and server-side fan-out is small.
+    // A batch-based rate-limit RPC would be the long-term fix for larger fan-out scenarios.
+    const MAX_RECIPIENT_IDS = 50;
+    if (user_ids.length > MAX_RECIPIENT_IDS) {
+      return new Response(
+        JSON.stringify({ error: `user_ids must not exceed ${MAX_RECIPIENT_IDS} recipients` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Validate required fields for game-related notifications
     if (data?.type && ['game_invite', 'your_turn', 'game_started'].includes(data.type)) {
       if (!data.roomCode) {

@@ -52,6 +52,12 @@ let _iosKeyId: string | null = null;
 
 /**
  * Attempts to load the Play Integrity module (Android). Returns null if absent.
+ *
+ * The package `@infominds/react-native-play-integrity` is an optional peer dep
+ * that is NOT listed in package.json. To activate Android integrity checks, add it
+ * to `optionalDependencies` and re-install. Metro resolves string-literal require()
+ * calls at bundle time; if the module is absent from node_modules the try/catch
+ * catches the MODULE_NOT_FOUND error at runtime and returns null.
  */
 function loadPlayIntegrityModule(): {
   requestIntegrityToken(nonce: string): Promise<string>;
@@ -68,6 +74,10 @@ function loadPlayIntegrityModule(): {
 
 /**
  * Attempts to load the App Attest module (iOS). Returns null if absent.
+ *
+ * The package `react-native-app-attest` is an optional peer dep that is NOT listed
+ * in package.json. To activate iOS integrity checks, add it to `optionalDependencies`
+ * and re-install. Same Metro resolution note as `loadPlayIntegrityModule` above.
  */
 function loadAppAttestModule(): {
   generateKey(): Promise<string>;

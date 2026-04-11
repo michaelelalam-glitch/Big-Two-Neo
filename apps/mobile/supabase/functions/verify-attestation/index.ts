@@ -84,7 +84,7 @@ async function verifyPlayIntegrityToken(
     scope,
     aud: tokenEndpoint,
     iat: now,
-    exp: now + 60,
+    exp: now + 3600,
   }));
 
   const privateKeyPem: string = creds.private_key;
@@ -127,7 +127,7 @@ async function verifyPlayIntegrityToken(
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ integrity_token: token }),
+      body: JSON.stringify({ integrityToken: token }),
     },
   );
   if (!decodeRes.ok) throw new Error(`Play Integrity decode failed: ${decodeRes.status}`);
@@ -135,13 +135,16 @@ async function verifyPlayIntegrityToken(
     tokenPayloadExternal: PlayIntegrityVerdict;
   };
 
-  // Evaluate: require PLAY_RECOGNIZED app integrity and meets_basic_integrity device verdict
+  // Evaluate: require PLAY_RECOGNIZED app integrity and meets_basic_integrity device verdict.
+  // Also validate requestPackageName to prevent a valid token minted for a different
+  // app from passing attestation for this one.
   const appOk = verdict.appIntegrity?.appRecognitionVerdict === 'PLAY_RECOGNIZED';
   const deviceVerdicts = verdict.deviceIntegrity?.deviceRecognitionVerdict ?? [];
   const deviceOk = deviceVerdicts.includes('MEETS_BASIC_INTEGRITY') ||
     deviceVerdicts.includes('MEETS_DEVICE_INTEGRITY');
+  const packageNameOk = verdict.requestDetails?.requestPackageName === packageName;
 
-  return { passed: appOk && deviceOk, verdict };
+  return { passed: appOk && deviceOk && packageNameOk, verdict };
 }
 
 // ─── iOS App Attest ─────────────────────────────────────────────────────────
@@ -169,13 +172,13 @@ async function verifyAppAttest(
   teamId: string,
   bundleId: string,
   environment: string,
-): Promise<{ passed: boolean; skipped?: boolean }> {
+): Promise<{ passed: boolean; skipped?: boolean; reason?: string }> {
   // Suppress unused-variable warnings for Step 2 parameters.
   void assertionBase64; void keyId; void teamId; void bundleId; void environment;
 
   // Step 2 not yet implemented — fail-open so legitimate iOS users are not blocked.
   console.warn('[verify-attestation] iOS App Attest full assertion verification not yet implemented (Step 2) — fail-open');
-  return { passed: true, skipped: true };
+  return { passed: true, skipped: true, reason: 'step2_pending' };
 }
 
 // ─── Main handler ───────────────────────────────────────────────────────────
