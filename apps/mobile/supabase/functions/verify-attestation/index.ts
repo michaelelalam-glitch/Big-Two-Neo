@@ -271,8 +271,6 @@ Deno.serve(async (req) => {
           console.warn(`[verify-attestation] Nonce mismatch — potential replay attack user=${user.id.slice(0, 8)}`);
           // Fail-open: log but do not block until nonces are mandatory for all clients
         }
-      } else {
-        console.warn('[verify-attestation] No nonce provided — recommend clients include nonce for replay resistance');
       }
 
       // R7-1: Persist attestation result to device_attestation table (fail-open — never block on DB error).
@@ -286,7 +284,7 @@ Deno.serve(async (req) => {
             platform: 'android',
             attestation_type: 'play_integrity',
             is_verified: result.passed,
-            risk_verdict: result.verdict?.appIntegrity?.appRecognitionVerdict ?? null,
+            risk_verdict: result.verdict?.deviceIntegrity?.deviceRecognitionVerdict?.join(',') ?? null,
             verdict_raw: result.verdict ?? null,
             verified_at: now,
             expires_at: expiresAt,

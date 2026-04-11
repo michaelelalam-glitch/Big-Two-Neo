@@ -28,10 +28,32 @@
  */
 
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { networkLogger } from '../utils/logger';
 import { supabase } from './supabase';
 
-// ─── Types ───────────────────────────────────────────────────────────────── //
+// ─── Stable device identifier ─────────────────────────────────────────────── //
+
+const ATTESTATION_DEVICE_ID_KEY = '@attestation/device_id';
+
+/**
+ * Returns a stable per-install device ID, generating and persisting one on first call.
+ * Used as the `device_id` field when upserting into the device_attestation table.
+ */
+async function getOrCreateDeviceId(): Promise<string | null> {
+  try {
+    const existing = await AsyncStorage.getItem(ATTESTATION_DEVICE_ID_KEY);
+    if (existing) return existing;
+    const newId =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+    await AsyncStorage.setItem(ATTESTATION_DEVICE_ID_KEY, newId);
+    return newId;
+  } catch {
+    return null; // Non-critical — attestation proceeds without device_id
+  }
+}
 
 export interface AttestationResult {
   /** true when attestation passed or was skipped (native module absent / env unconfigured). */
@@ -132,10 +154,14 @@ async function attestAndroid(): Promise<AttestationResult> {
             .join('');
         };
   const nonce = randomUUID().replace(/-/g, '');
+  const deviceId = await getOrCreateDeviceId();
   const token = await PlayIntegrity.requestIntegrityToken(nonce);
 
+  const efBody: Record<string, unknown> = { platform: 'android', token, nonce };
+  if (deviceId) efBody.device_id = deviceId;
+
   const { data, error } = await supabase.functions.invoke('verify-attestation', {
-    body: { platform: 'android', token },
+    body: efBody,
   });
 
   if (error) {
