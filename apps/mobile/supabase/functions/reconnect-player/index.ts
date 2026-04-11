@@ -131,7 +131,7 @@ Deno.serve(async (req) => {
     // Broadcast player_reconnected so all other clients know a human reclaimed
     // this seat and can stop waiting for a "bot" to make a move.
     // This is fire-and-forget — we do not block the response on it.
-    // IMPORTANT: channel name must be `room:${room_id}` (UUID) to match the
+    // IMPORTANT: channel name must be `room:${roomId}` (trimmed UUID) to match the
     // client's Realtime subscription in useRealtime.ts joinChannel().
     // Use subscribe→send→removeChannel pattern: supabase-js Realtime requires
     // a SUBSCRIBED channel before send() is reliable; calling send() on an
