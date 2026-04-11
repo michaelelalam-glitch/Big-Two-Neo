@@ -21,12 +21,17 @@
  */
 
 export interface RateLimitResult {
-  /** true → request is within limits; false → caller should return 429 */
+  /** true → request is within limits; false → caller should return 429 (or 503 if blockedByError) */
   allowed: boolean;
   /** Current attempt count in the active window */
   attempts: number;
   /** Milliseconds until the current window resets (useful for Retry-After header) */
   retryAfterMs: number;
+  /**
+   * true when the request was blocked due to a DB/infra error (not a genuine rate-limit hit).
+   * Only set when failClosed=true AND an error occurred. Callers should return 503 (not 429).
+   */
+  blockedByError?: boolean;
 }
 
 /**
@@ -72,7 +77,7 @@ export async function checkRateLimit(
       // failClosed=true callers (high-risk endpoints) receive allowed=false so
       // abuse during DB degradation is blocked rather than silently permitted.
       console.error(`[rateLimiter] DB error for ${action}/${userId.substring(0, 8)}:`, error.message);
-      return { allowed: !failClosed, attempts: 0, retryAfterMs: 0 };
+      return { allowed: !failClosed, blockedByError: failClosed, attempts: 0, retryAfterMs: 0 };
     }
 
     const attempts: number = data as number;
@@ -103,8 +108,31 @@ export async function checkRateLimit(
     return { allowed, attempts, retryAfterMs };
   } catch (err) {
     console.error(`[rateLimiter] Unexpected error for ${action}:`, err);
-    return { allowed: !failClosed, attempts: 0, retryAfterMs: 0 };
+    return { allowed: !failClosed, blockedByError: failClosed, attempts: 0, retryAfterMs: 0 };
   }
+}
+
+/**
+ * Build a 503 Response for when rate limiting itself fails (DB outage, infra error).
+ * Only used when failClosed=true and blockedByError=true.
+ */
+export function serviceUnavailableResponse(
+  corsHeaders: Record<string, string>,
+): Response {
+  return new Response(
+    JSON.stringify({
+      success: false,
+      error: 'Service temporarily unavailable. Please try again shortly.',
+    }),
+    {
+      status: 503,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json',
+        'Retry-After': '30',
+      },
+    },
+  );
 }
 
 /**

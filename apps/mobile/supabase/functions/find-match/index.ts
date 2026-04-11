@@ -4,7 +4,7 @@ import { checkMinimumVersion } from '../_shared/versionCheck.ts';
 // M12: CORS origin controlled by ALLOWED_ORIGIN env var
 import { buildCorsHeaders } from '../_shared/cors.ts';
 // P5-2 Fix: DB-backed rate limiter — enforced globally across all isolates.
-import { checkRateLimit, rateLimitResponse } from '../_shared/rateLimiter.ts';
+import { checkRateLimit, rateLimitResponse, serviceUnavailableResponse } from '../_shared/rateLimiter.ts';
 
 
 
@@ -71,6 +71,7 @@ Deno.serve(async (req) => {
     // #29 failClosed=true: during DB degradation block find-match rather than open the queue to flooding.
     const rl = await checkRateLimit(supabaseClient, user.id, 'find_match', 10, 60, true);
     if (!rl.allowed) {
+      if (rl.blockedByError) return serviceUnavailableResponse(corsHeaders);
       return rateLimitResponse(rl.retryAfterMs, corsHeaders);
     }
 
@@ -94,11 +95,22 @@ Deno.serve(async (req) => {
 
     // #24 — Use server-side ELO from profiles (P5-9): ignore client-provided skill_rating
     // to prevent cheating by manipulating ELO bracket.
-    const { data: profileData } = await supabaseClient
+    const { data: profileData, error: profileError } = await supabaseClient
       .from('profiles')
       .select('elo_rating')
       .eq('id', user.id)
       .maybeSingle();
+
+    if (profileError) {
+      console.error('❌ [find-match] Failed to fetch profile ELO:', {
+        user_id: user.id.substring(0, 8),
+        error: profileError.message,
+      });
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to fetch player rating' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     const skill_rating: number = profileData?.elo_rating ?? 1000;
 
     console.log('🎮 [find-match] Request received:', {

@@ -2,7 +2,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 // parseCards IS used at lines 718, 777, 800 for parsing card arrays
 import { parseCards } from '../_shared/parseCards.ts';
-import { checkRateLimit, rateLimitResponse } from '../_shared/rateLimiter.ts';
+import { checkRateLimit, rateLimitResponse, serviceUnavailableResponse } from '../_shared/rateLimiter.ts';
 import { concurrentModificationResponse } from '../_shared/responses.ts';
 import { checkMinimumVersion } from '../_shared/versionCheck.ts';
 // M12: CORS origin controlled by ALLOWED_ORIGIN env var
@@ -917,6 +917,7 @@ Deno.serve(async (req) => {
         true, // failClosed — high-risk endpoint
       );
       if (!rl.allowed) {
+        if (rl.blockedByError) return serviceUnavailableResponse(corsHeaders);
         return rateLimitResponse(rl.retryAfterMs, corsHeaders);
       }
     }
