@@ -77,7 +77,7 @@ export async function checkRateLimit(
       // failClosed=true callers (high-risk endpoints) receive allowed=false so
       // abuse during DB degradation is blocked rather than silently permitted.
       console.error(`[rateLimiter] DB error for ${action}/${userId.substring(0, 8)}:`, error.message);
-      return { allowed: !failClosed, blockedByError: failClosed, attempts: 0, retryAfterMs: 0 };
+      return { allowed: !failClosed, ...(failClosed ? { blockedByError: true } : {}), attempts: 0, retryAfterMs: 0 };
     }
 
     const attempts: number = data as number;
@@ -108,7 +108,7 @@ export async function checkRateLimit(
     return { allowed, attempts, retryAfterMs };
   } catch (err) {
     console.error(`[rateLimiter] Unexpected error for ${action}:`, err);
-    return { allowed: !failClosed, blockedByError: failClosed, attempts: 0, retryAfterMs: 0 };
+    return { allowed: !failClosed, ...(failClosed ? { blockedByError: true } : {}), attempts: 0, retryAfterMs: 0 };
   }
 }
 

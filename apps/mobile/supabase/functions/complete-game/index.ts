@@ -586,16 +586,14 @@ Deno.serve(async (req) => {
     // behavior since bots don't have auth.users records. Usernames are still preserved for all players.
     const realPlayers = gameData.players.map(p => p.user_id.startsWith('bot_') ? null : p.user_id);
 
-    // #25 — Atomic dedup: upsert with ignoreDuplicates=true (P5-8).
-    // ON CONFLICT DO NOTHING semantics: if a row already exists for room_id the
-    // upsert returns an empty array (no error) instead of the inserted row.
-    // This closes the race window between a SELECT check and a plain INSERT.
-    // Requires the UNIQUE partial index on game_history(room_id) added by
-    // migration 20260313000001. The SELECT-based pre-check above still runs
-    // to detect partial failures (stats_applied_at IS NULL) for observability.
-    const { data: insertedRows, error: historyError } = await supabaseAdmin
+    // #25 — Dedup via unique partial index on game_history(room_id) (P5-8).
+    // The UNIQUE partial index added by migration 20260313000001 provides atomic
+    // protection: a concurrent INSERT on the same room_id raises 23505 which the
+    // handler below catches. upsert with onConflict was reverted because Postgres
+    // cannot infer ON CONFLICT from a partial index without an explicit WHERE clause.
+    const { error: historyError } = await supabaseAdmin
       .from('game_history')
-      .upsert({
+      .insert({
         room_id: gameData.room_id,
         room_code: gameData.room_code,
         game_type: gameData.game_type,
@@ -641,32 +639,12 @@ Deno.serve(async (req) => {
         finished_at: gameData.finished_at,
         // Voided player: null for completed games, set when last human left an unfinished game
         voided_user_id: serverVoidedPlayerId,
-      }, { onConflict: 'room_id', ignoreDuplicates: true })
-      .select('id');
-
-    // Atomic dedup check: empty array means ON CONFLICT skipped the insert.
-    if (!historyError && insertedRows !== null && insertedRows.length === 0) {
-      console.log(`[Complete Game] ⏭️ Atomic dedup (ON CONFLICT DO NOTHING): room ${gameData.room_id} already recorded — skipping`);
-      if (gameData.room_id) {
-        const { error: roomEndErr } = await supabaseAdmin
-          .from('rooms')
-          .update({ status: 'finished' })
-          .eq('id', gameData.room_id);
-        if (roomEndErr) {
-          console.warn('[Complete Game] Failed to mark room finished in atomic-dedup path:', roomEndErr.message);
-        }
-        try { (globalThis as any).EdgeRuntime?.waitUntil(broadcastGameEnded(supabaseAdmin, gameData)); } catch (_) {}
-      }
-      return new Response(
-        JSON.stringify({ success: true, message: 'Game already recorded by another client', duplicate: true }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+      });
 
     if (historyError) {
-      // Belt-and-suspenders: 23505 / unique-constraint error means the same race
-      // was caught at the DB level even though the upsert should have prevented it.
-      // Treat identically to the atomic dedup path above.
+      // The unique partial index on game_history(room_id) raises 23505 / unique-
+      // constraint error when a concurrent request already recorded the game.
+      // Treat identically to the SELECT-based dedup path above.
       const errorCode = historyError.code != null ? String(historyError.code) : undefined;
       const combinedErrorText = `${historyError.message ?? ''} ${historyError.details ?? ''}`.toLowerCase();
       const isGameHistoryRoomIdConstraint =
