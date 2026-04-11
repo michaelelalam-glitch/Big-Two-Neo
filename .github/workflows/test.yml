@@ -161,13 +161,17 @@ jobs:
       # rows or firing triggers on unexpected collisions.
       - name: 🔒 Run RLS policy tests (pgTAP)
         if: env.SUPABASE_DB_PASSWORD != ''
+        env:
+          # Allow the Supabase project ref to be overridden via a repository
+          # variable (Settings → Variables). Falls back to the default project.
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF || 'dppybucldqufbqhwnkxu' }}
         run: |
           cd apps/mobile
           # Pin the Supabase CLI to a specific version for reproducibility.
           # Update this pin when bumping the Supabase platform version.
           npm install -g supabase@2.89.1
           supabase test db \
-            --db-url "postgresql://postgres:${{ secrets.SUPABASE_DB_PASSWORD }}@db.dppybucldqufbqhwnkxu.supabase.co:5432/postgres"
+            --db-url "postgresql://postgres:${SUPABASE_DB_PASSWORD}@db.${SUPABASE_PROJECT_REF}.supabase.co:5432/postgres"
         timeout-minutes: 10
       # ────────────────────────────────────────────────────────────────────────
 

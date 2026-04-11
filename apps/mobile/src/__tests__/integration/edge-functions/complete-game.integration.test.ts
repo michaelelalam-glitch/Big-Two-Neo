@@ -4,13 +4,15 @@
  *
  * Covers:
  *   Suite 1 — Unauthenticated request → 401
- *   Suite 2 — Rejected reserved room_code 'LOCAL' → 400
- *   Suite 3 — Invalid game_type → 400 (requires SERVICE_ROLE_KEY for admin user creation)
+ *   Suite 2 — Unauthenticated reserved room_code 'LOCAL' request → 401
+ *   Suite 3 — Rejected reserved room_code 'LOCAL' / invalid game_type → 400
+ *             (requires SERVICE_ROLE_KEY for admin user creation)
  *   Suite 4 — Valid structure but non-existent room / users (requires SERVICE_ROLE_KEY)
  *
  * The complete-game EF accepts a full GameCompletionRequest body. Suites 1–2 test
- * structural and reserved-value rejections. Suite 3 confirms input validation with a
- * real JWT. Suite 4 exercises the DB lookup path with a lightweight payload.
+ * unauthenticated rejection paths. Suite 3 confirms authenticated input validation,
+ * including reserved-value rejection, with a real JWT. Suite 4 exercises the DB
+ * lookup path with a lightweight payload.
  *
  * Test strategy: All test users are ephemeral and deleted in afterAll.
  */
@@ -42,38 +44,38 @@ const uuid = (): string => {
 
 const now = new Date().toISOString();
 
-/** Build a minimal but structurally-valid GameCompletionRequest body */
+/** Build a minimal, structurally-valid GameCompletionRequest body with 4 players by default. */
 function buildMinimalBody(overrides: Record<string, unknown> = {}) {
-  const playerId = uuid();
+  const playerIds = [uuid(), uuid(), uuid(), uuid()];
+  const players = playerIds.map((playerId, index) => ({
+    user_id: playerId,
+    username: `TestPlayer${index + 1}`,
+    score: 0,
+    finish_position: index + 1,
+    cards_left: index === 0 ? 0 : 13,
+    was_bot: false,
+    disconnected: false,
+    original_username: null,
+    combos_played: {
+      singles: 0,
+      pairs: 0,
+      triples: 0,
+      straights: 0,
+      flushes: 0,
+      full_houses: 0,
+      four_of_a_kinds: 0,
+      straight_flushes: 0,
+      royal_flushes: 0,
+    },
+  }));
+
   return {
     room_id: null,
     room_code: 'TESTAB',
     game_type: 'casual' as const,
     bot_difficulty: null,
-    players: [
-      {
-        user_id: playerId,
-        username: 'TestPlayer',
-        score: 0,
-        finish_position: 1,
-        cards_left: 0,
-        was_bot: false,
-        disconnected: false,
-        original_username: null,
-        combos_played: {
-          singles: 0,
-          pairs: 0,
-          triples: 0,
-          straights: 0,
-          flushes: 0,
-          full_houses: 0,
-          four_of_a_kinds: 0,
-          straight_flushes: 0,
-          royal_flushes: 0,
-        },
-      },
-    ],
-    winner_id: playerId,
+    players,
+    winner_id: playerIds[0],
     game_duration_seconds: 120,
     started_at: now,
     finished_at: now,
