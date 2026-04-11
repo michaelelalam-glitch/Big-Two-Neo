@@ -216,7 +216,8 @@ describe('Suite 3 — complete-game: input validation (live JWT)', () => {
 // ---------------------------------------------------------------------------
 // Tests that the EF correctly returns 400 when all auth and structural
 // validations pass but winner_id is not one of the players — confirming the
-// test actually reaches the validation layer, not just the auth layer.
+// test actually reaches the winner-id validation layer (not just auth or schema
+// validation). Room existence is not checked at this validation stage.
 // ---------------------------------------------------------------------------
 describe('Suite 4 — complete-game: winner validation (live DB)', () => {
   if (!hasServiceRole) {
