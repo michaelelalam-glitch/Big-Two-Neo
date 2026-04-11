@@ -246,6 +246,8 @@ export default function MatchmakingScreen() {
       <TouchableOpacity
         style={[styles.startWithAIButton, isLandscape && styles.startWithAIButtonLandscape]}
         onPress={handleStartWithAI}
+        accessibilityRole="button"
+        accessibilityLabel={i18n.t('lobby.startWithBots')}
       >
         <Text style={[styles.startWithAIButtonText, isLandscape && styles.buttonTextLandscape]}>
           🤖 {i18n.t('lobby.startWithBots')}
@@ -256,6 +258,8 @@ export default function MatchmakingScreen() {
         testID="cancel-matchmaking-button"
         style={[styles.cancelButton, isLandscape && styles.cancelButtonLandscape]}
         onPress={handleCancel}
+        accessibilityRole="button"
+        accessibilityLabel={i18n.t('common.cancel')}
       >
         <Text style={[styles.cancelButtonText, isLandscape && styles.buttonTextLandscape]}>
           {i18n.t('common.cancel')}

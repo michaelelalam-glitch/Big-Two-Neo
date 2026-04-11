@@ -5,12 +5,13 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 // Explicit import removed - Babel plugin handles initialization in v4.1.6+
 // See: https://docs.swmansion.com/react-native-reanimated/docs/fundamentals/installation
 import 'react-native-reanimated';
-import React, { useCallback, useEffect, useState } from 'react';
-import { View, ActivityIndicator, StatusBar } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState, AppStateStatus, View, ActivityIndicator, StatusBar } from 'react-native';
+import * as Updates from 'expo-updates';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { i18n } from './src/i18n';
-import AppNavigator from './src/navigation/AppNavigator';
+import AppNavigator, { rootNavigationRef } from './src/navigation/AppNavigator';
 import { initSentry, isSentryEnabled, sentryCapture, Sentry } from './src/services/sentry';
 import { trackEvent, setAnalyticsConsent, initClientId } from './src/services/analytics';
 import PrivacyConsentModal from './src/components/privacy/PrivacyConsentModal';
@@ -72,6 +73,35 @@ export default function App() {
   const [i18nInitialized, setI18nInitialized] = useState(false);
   // null = not yet decided (show modal); true/false = persisted choice
   const [consentDecision, setConsentDecision] = useState<boolean | null | 'loading'>('loading');
+
+  // P13-2: Periodic OTA update polling — check every 60 min when the app becomes active.
+  // Initial launch-time update behavior is controlled by Expo Updates configuration; this
+  // effect catches updates for long-lived sessions after the app returns to the foreground.
+  const lastOtaCheckRef = useRef<number>(0);
+  const OTA_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 60 minutes
+  useEffect(() => {
+    const handleAppStateChange = async (nextState: AppStateStatus) => {
+      if (nextState !== 'active') return;
+      if (__DEV__) return; // Skip in dev — expo-updates is a no-op in Expo Go dev builds
+      const now = Date.now();
+      if (now - lastOtaCheckRef.current < OTA_CHECK_INTERVAL_MS) return;
+      lastOtaCheckRef.current = now;
+      try {
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          // Do not reload mid-game — wait until the user leaves the Game screen.
+          const currentRoute = rootNavigationRef.current?.getCurrentRoute()?.name;
+          if (currentRoute === 'Game') return;
+          await Updates.reloadAsync();
+        }
+      } catch {
+        // Best-effort — never block the user for OTA errors
+      }
+    };
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
     // Read consent decision and initialise i18n in parallel.

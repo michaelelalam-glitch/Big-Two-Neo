@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet, Linking, AppState } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import type { LinkingOptions, NavigationContainerRef } from '@react-navigation/native';
+import type { LinkingOptions } from '@react-navigation/native';
 import { GlobalErrorBoundary } from '../components/GlobalErrorBoundary';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
@@ -48,6 +48,12 @@ export type RootStackParamList = {
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
+
+/**
+ * Module-level navigation ref — allows non-React code (e.g. App.tsx OTA handler)
+ * to read the current route without requiring a React context.
+ */
+export const rootNavigationRef = createNavigationContainerRef<RootStackParamList>();
 
 /**
  * Deep linking configuration.
@@ -120,7 +126,7 @@ export default function AppNavigator() {
   const pendingLinkRef = React.useRef<string | null>(null);
   // Guard so the cold-start capture fires exactly once (after auth resolves).
   const coldStartCapturedRef = React.useRef(false);
-  const navigationRef = React.useRef<NavigationContainerRef<RootStackParamList>>(null);
+  // rootNavigationRef (module-level) is passed to NavigationContainer and shared externally.
   const routeNameRef = React.useRef<string | undefined>(undefined);
 
   // Log navigation state for debugging
@@ -183,7 +189,7 @@ export default function AppNavigator() {
     const timerId = setInterval(() => {
       attempts += 1;
 
-      if (!navigationRef.current?.isReady()) {
+      if (!rootNavigationRef.current?.isReady()) {
         if (attempts >= MAX_ATTEMPTS) {
           clearInterval(timerId);
           pendingLinkRef.current = null;
@@ -246,10 +252,10 @@ export default function AppNavigator() {
   return (
     <GlobalErrorBoundary>
       <NavigationContainer
-        ref={navigationRef}
+        ref={rootNavigationRef}
         linking={isLoggedIn ? linking : loggedOutLinking}
         onReady={() => {
-          const initialRoute = navigationRef.current?.getCurrentRoute()?.name;
+          const initialRoute = rootNavigationRef.current?.getCurrentRoute()?.name;
           routeNameRef.current = initialRoute;
           if (initialRoute) {
             trackScreenView(initialRoute);
@@ -258,7 +264,7 @@ export default function AppNavigator() {
         }}
         onStateChange={() => {
           const previousRouteName = routeNameRef.current;
-          const currentRouteName = navigationRef.current?.getCurrentRoute()?.name;
+          const currentRouteName = rootNavigationRef.current?.getCurrentRoute()?.name;
           if (currentRouteName && previousRouteName !== currentRouteName) {
             if (previousRouteName) {
               screenTimeEnd(previousRouteName);

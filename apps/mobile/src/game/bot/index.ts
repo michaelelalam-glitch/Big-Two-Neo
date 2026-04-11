@@ -13,6 +13,7 @@ import {
   type LastPlay,
   type ComboType,
 } from '../engine';
+import { gameLogger } from '../../utils/logger';
 
 export type BotDifficulty = 'easy' | 'medium' | 'hard';
 
@@ -83,19 +84,19 @@ export class BotAI {
       if (Number.isInteger(matchNumber) && matchNumber > 0 && matchNumber <= MAX_MATCH_NUMBER) {
         currentMatch = matchNumber;
       } else if (!Number.isInteger(matchNumber)) {
-        console.warn(
+        gameLogger.warn(
           `[BotAI] ⚠️ Non-integer matchNumber "${matchNumber}" received (expected integer 1-${MAX_MATCH_NUMBER}); defaulting to match 1.`
         );
         currentMatch = 1;
       } else {
-        console.warn(
+        gameLogger.warn(
           `[BotAI] ⚠️ Out-of-range matchNumber "${matchNumber}" received (expected: 1-${MAX_MATCH_NUMBER}); defaulting to match 1.`
         );
         currentMatch = 1;
       }
     } else {
       if (matchNumber !== undefined) {
-        console.warn(
+        gameLogger.warn(
           `[BotAI] ⚠️ Non-numeric matchNumber "${String(matchNumber)}" received (expected integer 1-${MAX_MATCH_NUMBER}); defaulting to match 1.`
         );
       }

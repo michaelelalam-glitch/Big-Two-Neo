@@ -15,6 +15,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { trackError } from '../services/analytics';
 import { sentryCapture } from '../services/sentry';
+import { uiLogger } from '../utils/logger';
 
 // ── Theme colors ──────────────────────────────────────────────────────────────
 const ERROR_COLOR = '#ff6b6b';
@@ -45,8 +46,8 @@ export class GlobalErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     if (__DEV__) {
-      console.error('[GlobalErrorBoundary] Uncaught app error:', error);
-      console.error('[GlobalErrorBoundary] Component stack:', errorInfo.componentStack);
+      uiLogger.error('[GlobalErrorBoundary] Uncaught app error:', error);
+      uiLogger.error('[GlobalErrorBoundary] Component stack:', errorInfo.componentStack);
     }
     // Forward to Sentry for crash reporting
     sentryCapture.exception(error, {

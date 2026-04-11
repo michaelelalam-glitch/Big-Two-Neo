@@ -101,12 +101,14 @@ export function initSentry(): void {
       // Session Replay: disabled in dev (both rates = 0) to prevent the
       // "Detected environment potentially causing PII leaks" red console error
       // on every dev/simulator launch. Enabled on error only in production.
-      // Profiling: 10% of production sessions captures JS + native CPU profiles
-      // tied to performance traces (requires tracesSampleRate > 0).
+      // Profiling: 25% of production sessions captures JS + native CPU profiles
+      // tied to performance traces (requires tracesSampleRate > 0). Increased
+      // from 10% to catch performance regressions reliably during early production;
+      // reduce to 10% once stable baseline data has been collected.
       _experiments: {
         replaysSessionSampleRate: 0,
         replaysOnErrorSampleRate: __DEV__ ? 0 : 1.0,
-        profilesSampleRate: __DEV__ ? 0 : 0.1,
+        profilesSampleRate: __DEV__ ? 0 : 0.25,
       },
 
       // Filter hook: runs before every event is transmitted to Sentry.

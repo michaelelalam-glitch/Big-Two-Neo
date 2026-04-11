@@ -31,6 +31,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import { statsLogger } from '../utils/logger';
 import { supabase } from './supabase';
 
 // ─── Session cache ─────────────────────────────────────────────────────────── //
@@ -191,6 +192,87 @@ export type AnalyticsEventName =
 // ─── Client ID (device-persistent) ─────────────────────────────────────────── //
 
 const CLIENT_ID_KEY = '@analytics/client_id';
+
+// ─── Retry queue (proxy-mode network failures) ───────────────────────────────── //
+
+/** AsyncStorage key for persisting failed event batches across app sessions. */
+const ANALYTICS_RETRY_QUEUE_KEY = '@analytics/retry_queue';
+/** Maximum number of failed batches to retain (prevents unbounded storage growth). */
+const ANALYTICS_RETRY_QUEUE_MAX = 50;
+/** True while a queue flush is in-flight — prevents concurrent flush calls. */
+let _flushingRetryQueue = false;
+
+/**
+ * Appends a failed event batch to the AsyncStorage retry queue.
+ * Silently no-ops if the queue is already at capacity or AsyncStorage is unavailable.
+ */
+async function _enqueueRetryBatch(
+  batch: { name: string; params?: AnalyticsEventParams }[]
+): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(ANALYTICS_RETRY_QUEUE_KEY);
+    const existing: { name: string; params?: AnalyticsEventParams }[][] = raw
+      ? (JSON.parse(raw) as { name: string; params?: AnalyticsEventParams }[][])
+      : [];
+    if (existing.length >= ANALYTICS_RETRY_QUEUE_MAX) return; // cap reached
+    existing.push(batch);
+    await AsyncStorage.setItem(ANALYTICS_RETRY_QUEUE_KEY, JSON.stringify(existing));
+  } catch {
+    /* non-critical — retry queue failures must never crash the app */
+  }
+}
+
+/**
+ * Re-transmits all queued event batches through the analytics-proxy Edge Function.
+ * Called after a successful proxy invocation to drain accumulated offline events.
+ * Individual re-transmission failures are re-enqueued for the next flush attempt.
+ */
+async function _flushRetryQueue(): Promise<void> {
+  if (_flushingRetryQueue) return;
+  _flushingRetryQueue = true;
+  try {
+    const raw = await AsyncStorage.getItem(ANALYTICS_RETRY_QUEUE_KEY);
+    if (!raw) return;
+    const batches: { name: string; params?: AnalyticsEventParams }[][] = JSON.parse(raw) as {
+      name: string;
+      params?: AnalyticsEventParams;
+    }[][];
+    if (!batches.length) return;
+    // Collect failed batches synchronously so we can write them back atomically
+    // after the loop — avoiding the race between an unawaited re-enqueue and removeItem.
+    const failedBatches: { name: string; params?: AnalyticsEventParams }[][] = [];
+    for (const batch of batches) {
+      const flushBody: Record<string, unknown> = {
+        client_id: getClientId(),
+        events: batch.map(e => ({
+          name: e.name,
+          params: {
+            ...(e.params ?? {}),
+            engagement_time_msec: 100,
+            session_id: getSessionId(),
+          },
+        })),
+      };
+      if (_userId) flushBody.user_id = _userId;
+      const { error: retryError } = await supabase.functions.invoke('analytics-proxy', {
+        body: flushBody,
+      });
+      if (retryError) {
+        failedBatches.push(batch);
+      }
+    }
+    // Persist only the failed batches back (if any); clear the key when all succeeded.
+    if (failedBatches.length > 0) {
+      await AsyncStorage.setItem(ANALYTICS_RETRY_QUEUE_KEY, JSON.stringify(failedBatches));
+    } else {
+      await AsyncStorage.removeItem(ANALYTICS_RETRY_QUEUE_KEY);
+    }
+  } catch {
+    /* non-critical */
+  } finally {
+    _flushingRetryQueue = false;
+  }
+}
 
 /**
  * Generate a random UUID v4.
@@ -378,9 +460,12 @@ async function _sendEventsImmediate(
         body,
       });
       if (error) {
-        // Swallow silently — analytics must never crash the app
+        // Proxy request failed — persist events for retry on the next successful invocation.
+        void _enqueueRetryBatch(events);
         return;
       }
+      // Flush any previously-queued events now that connectivity is confirmed.
+      void _flushRetryQueue();
       // Edge Function returns { status: number }
       return;
     } else {
@@ -397,17 +482,14 @@ async function _sendEventsImmediate(
         // eslint-disable-next-line no-console
         console.log('[Analytics] ✅', response.status, '— events ingested by GA4');
       } else {
-        // eslint-disable-next-line no-console
-        console.warn('[Analytics] ❌', response.status, '— GA4 rejected events');
+        statsLogger.warn('[Analytics] ❌', response.status, '— GA4 rejected events');
         const text = await response.text().catch(() => '');
-        // eslint-disable-next-line no-console
-        console.warn('[Analytics] Response body:', text.slice(0, 300));
+        statsLogger.warn('[Analytics] Response body:', text.slice(0, 300));
       }
     }
   } catch (err) {
     if (__DEV__) {
-      // eslint-disable-next-line no-console
-      console.warn('[Analytics] Network error:', err);
+      statsLogger.warn('[Analytics] Network error:', err);
     }
     // Network error — swallow silently (analytics must never crash the app)
   }

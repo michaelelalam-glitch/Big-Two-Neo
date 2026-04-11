@@ -15,6 +15,7 @@ import { AppState, AppStateStatus } from 'react-native';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useUserPreferencesStore } from '../store/userPreferencesSlice';
+import { networkLogger } from '../utils/logger';
 
 interface UsePresenceResult {
   /** Set of user IDs that are currently online */
@@ -88,7 +89,7 @@ export function usePresence(): UsePresenceResult {
             await channel.track({ user_id: user.id });
           } catch (error) {
             // Avoid unhandled promise rejections if presence tracking fails
-            console.error('[usePresence] Failed to track presence for user', user.id, error);
+            networkLogger.error('[usePresence] Failed to track presence for user', user.id, error);
           }
         }
       });
@@ -115,7 +116,7 @@ export function usePresence(): UsePresenceResult {
       } else if (state === 'background' || state === 'inactive') {
         if (channelRef.current) {
           void channelRef.current.untrack().catch(error => {
-            console.error('[usePresence] Failed to untrack presence', error);
+            networkLogger.error('[usePresence] Failed to untrack presence', error);
           });
         }
       }

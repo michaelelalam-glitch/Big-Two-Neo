@@ -4,6 +4,7 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { notificationLogger } from '../utils/logger';
 import { useUserPreferencesStore } from '../store/userPreferencesSlice';
+import { i18n } from '../i18n';
 import { supabase } from './supabase';
 
 // Configure notification handler - determines how notifications appear when app is in foreground
@@ -88,7 +89,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     // Configure Android notification channel
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
-        name: 'Default',
+        name: i18n.t('notificationChannels.default'),
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#FF6B6B',
@@ -96,7 +97,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
       // Channel for game invites
       await Notifications.setNotificationChannelAsync('game-updates', {
-        name: 'Game Updates',
+        name: i18n.t('notificationChannels.gameUpdates'),
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#FF6B6B',
@@ -105,7 +106,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
       // Channel for turn notifications
       await Notifications.setNotificationChannelAsync('turn-notifications', {
-        name: 'Turn Notifications',
+        name: i18n.t('notificationChannels.turnNotifications'),
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 250],
         lightColor: '#4ECDC4',
@@ -114,7 +115,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
       // Channel for social interactions (friend requests, etc.)
       await Notifications.setNotificationChannelAsync('social', {
-        name: 'Social',
+        name: i18n.t('notificationChannels.social'),
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 250],
         lightColor: '#95E1D3',

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
+import { networkLogger } from '../utils/logger';
 
 export interface WaitingRoomEntry {
   id: string;
@@ -228,7 +229,7 @@ export function useMatchmaking(): UseMatchmakingReturn {
           subscribeToWaitingRoom(user.id);
         }
       } catch (err) {
-        console.error('Error starting matchmaking:', err);
+        networkLogger.error('Error starting matchmaking:', err);
         setError(err instanceof Error ? err.message : 'Failed to start matchmaking');
         setIsSearching(false);
       } finally {
@@ -336,7 +337,7 @@ export function useMatchmaking(): UseMatchmakingReturn {
     /** M16: Start polling waiting_room every 5 s as a Realtime fallback. */
     const startPollingFallback = () => {
       if (pollingIntervalRef.current !== null) return; // already polling
-      console.warn('⚠️ [useMatchmaking] Realtime unavailable — starting polling fallback');
+      networkLogger.warn('⚠️ [useMatchmaking] Realtime unavailable — starting polling fallback');
       // in-flight guard: prevents overlapping async executions if a poll
       // takes longer than the 5s interval before completing
       let isInFlight = false;
@@ -470,13 +471,13 @@ export function useMatchmaking(): UseMatchmakingReturn {
       });
 
       if (cancelError || !data?.success) {
-        console.error('Error canceling matchmaking:', cancelError || data);
+        networkLogger.error('Error canceling matchmaking:', cancelError || data);
       }
 
       setError(null);
       userIdRef.current = null;
     } catch (err) {
-      console.error('Error canceling matchmaking:', err);
+      networkLogger.error('Error canceling matchmaking:', err);
       setError(err instanceof Error ? err.message : 'Failed to cancel matchmaking');
     }
   }, []);

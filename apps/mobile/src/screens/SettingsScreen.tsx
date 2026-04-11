@@ -21,6 +21,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { supabase } from '../services/supabase';
 import { showConfirm, showSuccess, showError, hapticManager, HapticType } from '../utils';
 import { useUserPreferencesStore } from '../store';
+import { uiLogger } from '../utils/logger';
 import { SETTINGS_KEYS } from '../utils/settings';
 import { migrateLegacyUserPreferences } from '../utils/migrateLegacyUserPreferences';
 import { setAnalyticsConsent, trackEvent } from '../services/analytics';
@@ -100,7 +101,7 @@ export default function SettingsScreen() {
           if (storageMap[SETTINGS_KEYS.ANALYTICS_CONSENT] != null)
             setAnalyticsConsentState(storageMap[SETTINGS_KEYS.ANALYTICS_CONSENT] === 'true');
         } catch (storageError) {
-          console.warn(
+          uiLogger.warn(
             '[Settings] Failed to load audio/vibration flags from AsyncStorage:',
             storageError
           );
@@ -114,7 +115,7 @@ export default function SettingsScreen() {
 
         setCurrentLanguage(i18n.getLanguage());
       } catch (error) {
-        console.error('[Settings] Failed to sync settings:', error);
+        uiLogger.error('[Settings] Failed to sync settings:', error);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -144,7 +145,7 @@ export default function SettingsScreen() {
     try {
       await AsyncStorage.setItem(SETTINGS_KEYS.ANALYTICS_CONSENT, String(newValue));
     } catch (storageError) {
-      console.warn('[Settings] Failed to save analytics consent:', storageError);
+      uiLogger.warn('[Settings] Failed to save analytics consent:', storageError);
       return; // Don't change state if persistence failed
     }
     setAnalyticsConsentState(newValue);
@@ -243,7 +244,7 @@ export default function SettingsScreen() {
             hapticManager.trigger(HapticType.SUCCESS);
           }
         } catch (error) {
-          console.error('[Settings] Failed to clear cache:', error);
+          uiLogger.error('[Settings] Failed to clear cache:', error);
           showError(t('settings.clearCacheFailed'));
         }
       },
@@ -272,7 +273,7 @@ export default function SettingsScreen() {
           });
 
           if (error || !data?.success) {
-            console.error('[Settings] Failed to delete account:', error || data);
+            uiLogger.error('[Settings] Failed to delete account:', error || data);
             showError(t('settings.deleteAccountFailed'));
             return;
           }
@@ -283,7 +284,7 @@ export default function SettingsScreen() {
 
           showSuccess(t('settings.accountDeletedSuccess'));
         } catch (error) {
-          console.error('[Settings] Error deleting account:', error);
+          uiLogger.error('[Settings] Error deleting account:', error);
           showError(t('settings.deleteAccountFailed'));
         }
       },
@@ -293,7 +294,7 @@ export default function SettingsScreen() {
   // External links
   const handleOpenLink = (url: string) => {
     Linking.openURL(url).catch(error => {
-      console.error('[Settings] Failed to open link:', error);
+      uiLogger.error('[Settings] Failed to open link:', error);
       showError(t('settings.openLinkFailed'));
     });
   };

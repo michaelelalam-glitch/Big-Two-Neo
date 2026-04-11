@@ -35,6 +35,7 @@ import { useGameEnd } from '../../contexts/GameEndContext';
 import { i18n } from '../../i18n';
 import { CardImage } from '../scoreboard/components/CardImage';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '../../constants';
+import { uiLogger } from '../../utils/logger';
 import { Fireworks } from './Fireworks';
 
 // ============================================================================
@@ -127,7 +128,7 @@ export const GameEndModal: React.FC = () => {
     // Task #420: Haptic feedback on tab switch — void+catch so the unhandled rejection
     // from the fire-and-forget call is explicitly handled in a non-async function.
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(e =>
-      console.warn('[GameEndModal] Haptics not supported:', e)
+      uiLogger.warn('[GameEndModal] Haptics not supported:', e)
     );
 
     // Fade out current content
@@ -163,7 +164,7 @@ export const GameEndModal: React.FC = () => {
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (error) {
-      console.warn('[GameEndModal] Haptics not supported:', error);
+      uiLogger.warn('[GameEndModal] Haptics not supported:', error);
     }
 
     // Format results text
@@ -179,7 +180,7 @@ export const GameEndModal: React.FC = () => {
         // Success - no additional action needed. Share API handles the UI feedback.
       }
     } catch (error) {
-      console.error('Error sharing results:', error);
+      uiLogger.error('Error sharing results:', error);
       // Show feedback inside the modal to respect the orientation lock.
       // Alert.alert would ignore the game's orientation lock on iOS.
       setToastMsg(`${i18n.t('gameEnd.shareError')}: ${i18n.t('gameEnd.shareErrorMessage')}`);
@@ -222,7 +223,7 @@ export const GameEndModal: React.FC = () => {
   // Handle modal close
   const handleClose = () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(e =>
-      console.warn('[GameEndModal] Haptics not supported:', e)
+      uiLogger.warn('[GameEndModal] Haptics not supported:', e)
     );
     setShowGameEndModal(false);
   };
@@ -233,7 +234,7 @@ export const GameEndModal: React.FC = () => {
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (error) {
-      console.warn('[GameEndModal] Haptics not supported:', error);
+      uiLogger.warn('[GameEndModal] Haptics not supported:', error);
     }
 
     // Keep the modal open until the async operation succeeds.
@@ -249,7 +250,7 @@ export const GameEndModal: React.FC = () => {
         await onPlayAgain();
         setShowGameEndModal(false);
       } catch (err) {
-        console.warn('[GameEndModal] onPlayAgain error:', err);
+        uiLogger.warn('[GameEndModal] onPlayAgain error:', err);
         const msg = err instanceof Error ? err.message : i18n.t('common.error');
         setToastMsg(msg);
       }
@@ -262,7 +263,7 @@ export const GameEndModal: React.FC = () => {
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (error) {
-      console.warn('[GameEndModal] Haptics not supported:', error);
+      uiLogger.warn('[GameEndModal] Haptics not supported:', error);
     }
 
     // NOTE: The intermediate showInGameAlert confirmation was removed because it causes
@@ -274,7 +275,7 @@ export const GameEndModal: React.FC = () => {
       void Promise.resolve()
         .then(() => onReturnToMenu())
         .catch(err => {
-          console.warn('[GameEndModal] onReturnToMenu error:', err);
+          uiLogger.warn('[GameEndModal] onReturnToMenu error:', err);
           setToastMsg(i18n.t('common.error'));
         });
     }
@@ -282,7 +283,7 @@ export const GameEndModal: React.FC = () => {
 
   // CRITICAL FIX: Show loading state while waiting for data
   if (showGameEndModal && (finalScores.length === 0 || !gameWinnerName)) {
-    console.warn('⚠️ [GameEndModal] Showing loading state - missing data:', {
+    uiLogger.warn('⚠️ [GameEndModal] Showing loading state - missing data:', {
       hasFinalScores: finalScores.length > 0,
       hasWinnerName: !!gameWinnerName,
     });
