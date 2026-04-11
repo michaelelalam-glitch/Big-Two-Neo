@@ -58,7 +58,7 @@ BEGIN
     v_owner_id,
     '00000000-0000-0000-0000-000000000000'::uuid,
     'authenticated', 'authenticated',
-    'pgtap-owner@test.invalid',
+    format('pgtap-owner-%s@test.invalid', v_owner_id),  -- unique per run; avoids email collision
     crypt('test-password', gen_salt('bf')),
     now(), now(), now(),
     '{"provider":"email","providers":["email"]}'::jsonb,
@@ -75,7 +75,7 @@ BEGIN
     v_other_id,
     '00000000-0000-0000-0000-000000000000'::uuid,
     'authenticated', 'authenticated',
-    'pgtap-other@test.invalid',
+    format('pgtap-other-%s@test.invalid', v_other_id),  -- unique per run; avoids email collision
     crypt('test-password', gen_salt('bf')),
     now(), now(), now(),
     '{"provider":"email","providers":["email"]}'::jsonb,
