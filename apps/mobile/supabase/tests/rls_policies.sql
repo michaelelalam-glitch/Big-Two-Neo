@@ -32,55 +32,51 @@ SELECT plan(26);
 -- HELPERS
 -- ============================================================================
 
+-- Seed auth users; let on_auth_user_created fire and auto-create profiles.
+-- Then normalize the auto-created rows with plain DML (UPDATE) to avoid
+-- ALTER TABLE DDL which takes strong locks against a live database.
 DO $$
 BEGIN
-  -- Disable the on_auth_user_created trigger so that inserting into auth.users
-  -- does NOT auto-create rows in public.profiles. The profiles are inserted
-  -- manually below with deterministic usernames, and the collision guard further
-  -- below relies on profiles being absent at this point.
-  ALTER TABLE auth.users DISABLE TRIGGER on_auth_user_created;
+  INSERT INTO auth.users (
+    id, instance_id, aud, role, email,
+    encrypted_password, email_confirmed_at,
+    created_at, updated_at, raw_app_meta_data, raw_user_meta_data
+  )
+  VALUES (
+    'aaaaaaaa-0000-0000-0000-000000000001'::uuid,
+    '00000000-0000-0000-0000-000000000000'::uuid,
+    'authenticated', 'authenticated',
+    'pgtap-owner@test.invalid',
+    crypt('test-password', gen_salt('bf')),
+    now(), now(), now(),
+    '{"provider":"email","providers":["email"]}'::jsonb,
+    '{}'::jsonb
+  )
+  ON CONFLICT (id) DO NOTHING;
 
-  BEGIN
-    INSERT INTO auth.users (
-      id, instance_id, aud, role, email,
-      encrypted_password, email_confirmed_at,
-      created_at, updated_at, raw_app_meta_data, raw_user_meta_data
-    )
-    VALUES (
-      'aaaaaaaa-0000-0000-0000-000000000001'::uuid,
-      '00000000-0000-0000-0000-000000000000'::uuid,
-      'authenticated', 'authenticated',
-      'pgtap-owner@test.invalid',
-      crypt('test-password', gen_salt('bf')),
-      now(), now(), now(),
-      '{"provider":"email","providers":["email"]}'::jsonb,
-      '{}'::jsonb
-    )
-    ON CONFLICT (id) DO NOTHING;
+  INSERT INTO auth.users (
+    id, instance_id, aud, role, email,
+    encrypted_password, email_confirmed_at,
+    created_at, updated_at, raw_app_meta_data, raw_user_meta_data
+  )
+  VALUES (
+    'bbbbbbbb-0000-0000-0000-000000000002'::uuid,
+    '00000000-0000-0000-0000-000000000000'::uuid,
+    'authenticated', 'authenticated',
+    'pgtap-other@test.invalid',
+    crypt('test-password', gen_salt('bf')),
+    now(), now(), now(),
+    '{"provider":"email","providers":["email"]}'::jsonb,
+    '{}'::jsonb
+  )
+  ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO auth.users (
-      id, instance_id, aud, role, email,
-      encrypted_password, email_confirmed_at,
-      created_at, updated_at, raw_app_meta_data, raw_user_meta_data
-    )
-    VALUES (
-      'bbbbbbbb-0000-0000-0000-000000000002'::uuid,
-      '00000000-0000-0000-0000-000000000000'::uuid,
-      'authenticated', 'authenticated',
-      'pgtap-other@test.invalid',
-      crypt('test-password', gen_salt('bf')),
-      now(), now(), now(),
-      '{"provider":"email","providers":["email"]}'::jsonb,
-      '{}'::jsonb
-    )
-    ON CONFLICT (id) DO NOTHING;
-  EXCEPTION
-    WHEN OTHERS THEN
-      ALTER TABLE auth.users ENABLE TRIGGER on_auth_user_created;
-      RAISE;
-  END;
+  -- Normalize the trigger-created (or pre-existing) profile rows.
+  UPDATE public.profiles SET username = 'pgtap_owner', updated_at = now()
+  WHERE id = 'aaaaaaaa-0000-0000-0000-000000000001'::uuid;
 
-  ALTER TABLE auth.users ENABLE TRIGGER on_auth_user_created;
+  UPDATE public.profiles SET username = 'pgtap_other', updated_at = now()
+  WHERE id = 'bbbbbbbb-0000-0000-0000-000000000002'::uuid;
 END;
 $$;
 
@@ -90,22 +86,13 @@ DECLARE
   v_other_id uuid := 'bbbbbbbb-0000-0000-0000-000000000002'::uuid;
   v_room_id  uuid := 'cccccccc-0000-0000-0000-000000000003'::uuid;
 BEGIN
-  -- Abort early if test UUIDs already exist to avoid touching real rows / firing triggers.
-  IF EXISTS (SELECT 1 FROM public.profiles WHERE id IN (v_owner_id, v_other_id)) THEN
+  -- Guard against room UUID or room code collision.
+  -- rooms.code has a UNIQUE constraint; if 'PGTAP1' already exists the INSERT
+  -- would fail and abort the entire pgTAP run.
+  IF EXISTS (SELECT 1 FROM public.rooms WHERE id = v_room_id OR code = 'PGTAP1') THEN
     RAISE EXCEPTION
-      'Refusing to run RLS pgTAP seed: test profile UUIDs already exist in public.profiles';
+      'Refusing to run RLS pgTAP seed: room (id=cccccccc-... or code=PGTAP1) already exists in public.rooms';
   END IF;
-
-  IF EXISTS (SELECT 1 FROM public.rooms WHERE id = v_room_id) THEN
-    RAISE EXCEPTION
-      'Refusing to run RLS pgTAP seed: test room UUID already exists in public.rooms';
-  END IF;
-
-  INSERT INTO public.profiles (id, username, created_at, updated_at)
-  VALUES (v_owner_id, 'pgtap_owner', now(), now());
-
-  INSERT INTO public.profiles (id, username, created_at, updated_at)
-  VALUES (v_other_id, 'pgtap_other', now(), now());
 
   INSERT INTO public.rooms (id, code, host_id, status, created_at, updated_at)
   VALUES (v_room_id, 'PGTAP1', v_owner_id, 'waiting', now(), now());
