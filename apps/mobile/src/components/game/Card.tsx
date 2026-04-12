@@ -12,6 +12,7 @@ import Animated, {
 import { COLORS, SPACING, CARD_FONTS, TYPOGRAPHY } from '../../constants';
 import type { Card as CardType } from '../../game/types';
 import { i18n } from '../../i18n';
+import { gameLogger } from '../../utils/logger';
 
 interface CardProps {
   card: CardType;
@@ -513,11 +514,21 @@ const styles = StyleSheet.create({
 const Card = React.memo(function Card(props: CardProps) {
   if (!props.card || !props.card.rank || !props.card.suit) {
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
-      console.error('[Card] 🚨 INVALID CARD DATA: missing card, rank, or suit', props.card);
+      gameLogger.error('[Card] 🚨 INVALID CARD DATA: missing card, rank, or suit', props.card);
     }
     return null;
   }
   return <CardInner {...props} />;
 });
 
-export default Card;
+// P8-6 FIX: DEV-only Profiler wrapper — surfaces render timing in React
+// DevTools / Flipper without any overhead in production builds.
+export default __DEV__
+  ? function CardProfiled(props: React.ComponentProps<typeof Card>) {
+      return (
+        <React.Profiler id="Card" onRender={() => {}}>
+          <Card {...props} />
+        </React.Profiler>
+      );
+    }
+  : Card;

@@ -3,6 +3,7 @@ import { TouchableOpacity, Text, View, StyleSheet, Image } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../../services/supabase';
 import { authLogger } from '../../utils/logger';
+import { i18n } from '../../i18n';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -135,6 +136,8 @@ const GoogleSignInButton = () => {
       style={styles.button}
       activeOpacity={0.8}
       testID="google-sign-in-button"
+      accessibilityRole="button"
+      accessibilityLabel={i18n.t('auth.signInWithGoogle')}
     >
       <View style={styles.buttonContent}>
         <Image
@@ -144,7 +147,7 @@ const GoogleSignInButton = () => {
           style={styles.logo}
           resizeMode="contain"
         />
-        <Text style={styles.buttonText}>Sign in with Google</Text>
+        <Text style={styles.buttonText}>{i18n.t('auth.signInWithGoogle')}</Text>
       </View>
     </TouchableOpacity>
   );

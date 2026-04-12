@@ -6,7 +6,20 @@
 const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
 
-const config = getDefaultConfig(__dirname);
+// P8-4 FIX: Integrate Sentry source map support so production stack traces
+// remain readable. Use getSentryExpoConfig (the Expo-aware variant) instead of
+// getDefaultConfig + withSentryConfig — withSentryConfig crashes with Expo SDK 54
+// because Expo's customSerializer returns an object while Sentry expects a string.
+// getSentryExpoConfig handles this correctly. Wrapped in try/catch for graceful
+// degradation when @sentry/react-native is absent (e.g. bare Expo Go workflow).
+let config;
+try {
+  const { getSentryExpoConfig } = require('@sentry/react-native/metro');
+  config = getSentryExpoConfig(__dirname);
+} catch {
+  // @sentry/react-native not available — fall back to plain Expo config.
+  config = getDefaultConfig(__dirname);
+}
 
 // Allow Metro to follow pnpm symlinks into the virtual store.
 config.resolver.unstable_enableSymlinks = true;
@@ -23,5 +36,21 @@ config.watchFolders = [
   ...(config.watchFolders ?? []),
   path.resolve(__dirname, 'node_modules/.pnpm'),
 ];
+
+// Map optional native peer dependencies to a throwing stub so Metro can always
+// resolve them at bundle time. When the real package is absent from node_modules,
+// Metro would otherwise fail the bundle before any try/catch can run. The stub
+// throws at runtime so the try/catch in attestation.ts catches it and returns null.
+// To activate a flow: add the package to optionalDependencies, run pnpm install,
+// then remove its entry here.
+config.resolver.extraNodeModules = {
+  ...(config.resolver.extraNodeModules ?? {}),
+  '@infominds/react-native-play-integrity': require.resolve(
+    './src/stubs/optionalModuleStub.js',
+  ),
+  'react-native-app-attest': require.resolve(
+    './src/stubs/optionalModuleStub.js',
+  ),
+};
 
 module.exports = config;

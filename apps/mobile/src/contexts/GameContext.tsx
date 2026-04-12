@@ -8,7 +8,7 @@
  *
  * H4 Audit fix — Task #638.
  */
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
 import type { Card } from '../game/types';
 import type { ChatMessage } from '../types/chat';
 import type { GameStateManager } from '../game/state';
@@ -18,6 +18,7 @@ import type { LiveKitTrackRef } from '../hooks/useVideoChat';
 import type { ActiveThrowableEffect, IncomingThrowable } from '../hooks/useThrowables';
 import type { InGameAlertOptions } from '../components/game/InGameAlert';
 import type { ConnectionStatus } from '../components/ConnectionStatusIndicator';
+import { AutoPassTimerContextProvider } from './AutoPassTimerContext';
 
 // ---------------------------------------------------------------------------
 // Player type aliases (mirror the inline types in the old GameViewProps)
@@ -233,7 +234,30 @@ interface GameContextProviderProps {
 }
 
 export function GameContextProvider({ children, value }: GameContextProviderProps) {
-  return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
+  // P9-1: Expose timer state through a separate AutoPassTimerContext so components that
+  // only need the timer (e.g. InactivityCountdownRing) can subscribe to that narrower
+  // context instead of all GameContext updates.
+  //
+  // Note: this is only a partial isolation step. GameContext still carries
+  // effectiveAutoPassTimerState / turnClockOffsetMs for legacy consumers, so updates to
+  // those fields still change the GameContext provider value and can re-render
+  // useGameContext() consumers. Components that only need timer state should call
+  // useAutoPassTimer() (from AutoPassTimerContext).
+  const timerValue = useMemo(
+    () => ({
+      effectiveAutoPassTimerState: value.effectiveAutoPassTimerState,
+      turnClockOffsetMs: value.turnClockOffsetMs,
+    }),
+    [value.effectiveAutoPassTimerState, value.turnClockOffsetMs]
+  );
+  return (
+    <AutoPassTimerContextProvider
+      effectiveAutoPassTimerState={timerValue.effectiveAutoPassTimerState}
+      turnClockOffsetMs={timerValue.turnClockOffsetMs}
+    >
+      <GameContext.Provider value={value}>{children}</GameContext.Provider>
+    </AutoPassTimerContextProvider>
+  );
 }
 
 // ---------------------------------------------------------------------------

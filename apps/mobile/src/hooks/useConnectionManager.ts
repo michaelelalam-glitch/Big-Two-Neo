@@ -63,6 +63,12 @@ interface UseConnectionManagerOptions {
   /** room_players.id — NOT auth.uid() */
   playerId: string;
   enabled: boolean;
+  /**
+   * P2-6 FIX: Current game phase. When set to 'finished' or 'game_over' the
+   * heartbeat is stopped automatically to avoid wasted network traffic in
+   * completed rooms.
+   */
+  gamePhase?: string | null;
   /** Called when the server confirms a bot has taken this player's seat */
   onBotReplaced?: () => void;
   /** Called when the room was closed while the player was away */
@@ -107,6 +113,12 @@ const HEARTBEAT_NORMAL_INTERVAL = 5_000;
 const HEARTBEAT_BACKOFF_INTERVAL = 30_000;
 /** Number of consecutive failures before backoff + 'reconnecting' status kicks in. */
 const HEARTBEAT_BACKOFF_THRESHOLD = 3;
+/**
+ * P2-2 FIX: Debounce delay before transitioning away from 'connected' to 'reconnecting'.
+ * A briefly flaky network can cause rapid connected→reconnecting→connected flicker in
+ * the UI indicator. A 2-second debounce suppresses transient blips that self-resolve.
+ */
+const RECONNECTING_DEBOUNCE_MS = 2_000;
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
@@ -114,6 +126,7 @@ export function useConnectionManager({
   roomId,
   playerId,
   enabled,
+  gamePhase,
   onBotReplaced,
   onRoomClosed,
 }: UseConnectionManagerOptions): UseConnectionManagerReturn {
@@ -131,6 +144,10 @@ export function useConnectionManager({
   const consecutiveFailuresRef = useRef<number>(0);
   const heartbeatBackedOffRef = useRef<boolean>(false);
   const appStateRef = useRef<AppStateStatus>('active');
+  // P2-2 FIX: Pending timeout for debounced 'reconnecting' transition.
+  // Cleared immediately if a successful heartbeat arrives within the debounce window,
+  // preventing the indicator from flickering for brief network blips.
+  const reconnectingDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Refs for callbacks used inside AppState/Realtime listeners
   // to avoid stale closures when parent re-renders with new callback instances.
@@ -145,6 +162,41 @@ export function useConnectionManager({
     if (heartbeatIntervalRef.current) {
       clearInterval(heartbeatIntervalRef.current);
       heartbeatIntervalRef.current = null;
+    }
+    // P2-2: Also cancel any pending reconnecting debounce so it cannot fire
+    // after the heartbeat is intentionally stopped (e.g. on disconnect/unmount).
+    if (reconnectingDebounceRef.current) {
+      clearTimeout(reconnectingDebounceRef.current);
+      reconnectingDebounceRef.current = null;
+    }
+  }, []);
+
+  // P2-6 FIX: Stop heartbeats when the game has finished/ended to avoid wasted
+  // network traffic in rooms that are no longer active.
+  useEffect(() => {
+    if (gamePhase === 'finished' || gamePhase === 'game_over') {
+      networkLogger.debug(
+        '[ConnectionManager] Game ended — stopping heartbeats (phase=%s)',
+        gamePhase
+      );
+      stopHeartbeat();
+    }
+  }, [gamePhase, stopHeartbeat]);
+
+  // P2-2 FIX: Debounced transition to 'reconnecting'. Clears any pending debounce when
+  // the connection recovers so brief blips don't trigger the indicator.
+  const scheduleReconnectingStatus = useCallback(() => {
+    if (reconnectingDebounceRef.current) return; // already pending
+    reconnectingDebounceRef.current = setTimeout(() => {
+      reconnectingDebounceRef.current = null;
+      setConnectionStatus('reconnecting');
+    }, RECONNECTING_DEBOUNCE_MS);
+  }, []);
+
+  const cancelReconnectingDebounce = useCallback(() => {
+    if (reconnectingDebounceRef.current) {
+      clearTimeout(reconnectingDebounceRef.current);
+      reconnectingDebounceRef.current = null;
     }
   }, []);
 
@@ -194,7 +246,10 @@ export function useConnectionManager({
             );
           }
           // Mark connection as degraded so the UI shows the reconnecting indicator.
-          setConnectionStatus('reconnecting');
+          // P2-2 FIX: Debounced — a brief blip that self-resolves within 2s won't
+          // flicker the indicator. If the next heartbeat succeeds first it will
+          // call cancelReconnectingDebounce() before the timeout fires.
+          scheduleReconnectingStatus();
           heartbeatBackedOffRef.current = true;
           trackEvent('heartbeat_backoff', { consecutive_failures: failures });
           sentryCapture.breadcrumb('Heartbeat backoff', { failures }, 'connection');
@@ -216,6 +271,9 @@ export function useConnectionManager({
         }
         consecutiveFailuresRef.current = 0;
       }
+      // P2-2 FIX: Cancel any pending reconnecting debounce on success so a brief
+      // blip that self-resolved within 2 s doesn't trigger the indicator.
+      cancelReconnectingDebounce();
 
       // Server detected we were replaced by a bot (user_id no longer matches)
       if (data?.replaced_by_bot) {
@@ -249,13 +307,20 @@ export function useConnectionManager({
         if (failures === HEARTBEAT_BACKOFF_THRESHOLD) {
           networkLogger.warn('[useConnectionManager] heartbeat exception:', err);
         }
-        setConnectionStatus('reconnecting');
+        scheduleReconnectingStatus();
         heartbeatBackedOffRef.current = true;
         trackEvent('heartbeat_backoff', { consecutive_failures: failures });
         sentryCapture.breadcrumb('Heartbeat backoff (exception)', { failures }, 'connection');
       }
     }
-  }, [enabled, roomId, playerId, stopHeartbeat]);
+  }, [
+    enabled,
+    roomId,
+    playerId,
+    stopHeartbeat,
+    scheduleReconnectingStatus,
+    cancelReconnectingDebounce,
+  ]);
 
   const startHeartbeat = useCallback(() => {
     stopHeartbeat();
@@ -264,9 +329,12 @@ export function useConnectionManager({
     consecutiveFailuresRef.current = 0;
     heartbeatBackedOffRef.current = false;
     nextHeartbeatAllowedAtRef.current = 0; // allow immediately
+    // P2-2 FIX: Cancel any pending debounced reconnecting transition when the
+    // heartbeat explicitly restarts (foreground restore, reconnect complete).
+    cancelReconnectingDebounce();
     sendHeartbeat(); // immediate first beat
     heartbeatIntervalRef.current = setInterval(sendHeartbeat, HEARTBEAT_NORMAL_INTERVAL);
-  }, [sendHeartbeat, stopHeartbeat]);
+  }, [sendHeartbeat, stopHeartbeat, cancelReconnectingDebounce]);
 
   // ── Rejoin status check ───────────────────────────────────────────────────
 
@@ -478,7 +546,10 @@ export function useConnectionManager({
       stopHeartbeat();
     }
 
-    return stopHeartbeat;
+    return () => {
+      stopHeartbeat();
+      cancelReconnectingDebounce();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, roomId, playerId]);
 

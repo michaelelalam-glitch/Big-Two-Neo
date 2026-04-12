@@ -218,7 +218,12 @@ export function useAutoPassTimer({
       // Broadcast (non-blocking, best-effort)
       void broadcastMessageRef
         .current('auto_pass_executed', { player_index: myPlayer.player_index })
-        .catch(() => {});
+        .catch((broadcastErr: unknown) => {
+          networkLogger.warn(
+            '⏰ [Timer] Auto-pass broadcast error:',
+            broadcastErr instanceof Error ? broadcastErr.message : String(broadcastErr)
+          );
+        });
     } catch (fatalError) {
       networkLogger.error('⏰ [Timer] ❌ Self-pass fatal error:', fatalError);
     } finally {

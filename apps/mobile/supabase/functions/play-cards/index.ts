@@ -2,7 +2,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 // parseCards IS used at lines 718, 777, 800 for parsing card arrays
 import { parseCards } from '../_shared/parseCards.ts';
-import { checkRateLimit, rateLimitResponse } from '../_shared/rateLimiter.ts';
+import { checkRateLimit, rateLimitResponse, serviceUnavailableResponse } from '../_shared/rateLimiter.ts';
 import { concurrentModificationResponse } from '../_shared/responses.ts';
 import { checkMinimumVersion } from '../_shared/versionCheck.ts';
 // M12: CORS origin controlled by ALLOWED_ORIGIN env var
@@ -907,14 +907,17 @@ Deno.serve(async (req) => {
     // Prevents rapid-fire abuse of play-cards (e.g. scripted card spam).
     // Uses the shared rate_limit_tracking table — Task #556.
     if (!isServiceRole) {
+      // #29 failClosed=true: during DB degradation block play-cards rather than allow unlimited calls.
       const rl = await checkRateLimit(
         supabaseClient,
         player_id,
         'play_cards',
         PLAY_CARDS_RATE_LIMIT_MAX,
         PLAY_CARDS_RATE_LIMIT_WINDOW,
+        true, // failClosed — high-risk endpoint
       );
       if (!rl.allowed) {
+        if (rl.blockedByError) return serviceUnavailableResponse(corsHeaders);
         return rateLimitResponse(rl.retryAfterMs, corsHeaders);
       }
     }
@@ -1673,7 +1676,7 @@ Deno.serve(async (req) => {
       try {
         const { data: nextPlayer } = await supabaseClient
           .from('room_players')
-          .select('is_bot')
+          .select('is_bot, user_id')
           .eq('room_id', room.id)
           .eq('player_index', nextTurn)
           .single();
@@ -1705,7 +1708,28 @@ Deno.serve(async (req) => {
           try { (globalThis as any).EdgeRuntime?.waitUntil(botPromise); } catch (_) {
             // EdgeRuntime.waitUntil not available in test/local environments
           }
-        }
+        } else if (nextPlayer && !nextPlayer.is_bot && nextPlayer.user_id) {
+          // 15b. Notify the next human player it's their turn (fire-and-forget)
+          const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+          const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+          // Guard: skip if required env vars are not set to avoid an invalid-URL fetch
+          // error being silently swallowed by the .catch() — consistent with player-pass.
+          if (supabaseUrl && serviceKey) {
+            const notifPromise = fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${serviceKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                user_ids:  [nextPlayer.user_id],
+                title:     '⏰ Your Turn!',
+                body:      `It's your turn in room ${room_code}`,
+                data:      { type: 'your_turn', roomCode: room_code },
+              }),
+            }).catch(() => { /* non-critical — never block the response */ });
+            try { (globalThis as any).EdgeRuntime?.waitUntil(notifPromise); } catch (_) {}
+          }
       } catch (err) {
         console.error('[play-cards] ⚠️ Bot next-player check failed (non-critical):', err);
       }

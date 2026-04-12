@@ -351,7 +351,7 @@ export function MultiplayerGame() {
     customCardOrder,
     setCustomCardOrder,
     handleCardsReorder,
-  } = useCardSelection();
+  } = useCardSelection(roomInfo?.id);
 
   // Initialize multiplayer room data
   useMultiplayerRoomLoader({
@@ -532,8 +532,10 @@ export function MultiplayerGame() {
         } else {
           // Final attempt failed — allow the onError toast to show now.
           suppressConnectErrorsRef.current = false;
-          console.error('[MultiplayerGame] ❌ Failed to connect after 4 attempts:', err);
-          gameLogger.error('[MultiplayerGame] Failed to connect:', err?.message || String(err));
+          gameLogger.error(
+            '[MultiplayerGame] ❌ Failed to connect after 4 attempts:',
+            err?.message || String(err)
+          );
           showInGameAlert({ message: err?.message || 'Failed to connect to room' });
         }
       }
@@ -587,6 +589,7 @@ export function MultiplayerGame() {
     roomId: roomInfo?.id ?? '',
     playerId: myRoomPlayerId ?? '',
     enabled: !!roomInfo?.id && !!myRoomPlayerId,
+    gamePhase: multiplayerGameState?.game_phase ?? null,
     onBotReplaced: () => {
       gameLogger.warn('[MultiplayerGame] Player was replaced by a bot — showing rejoin dialog');
       setShowBotReplacedModal(true);
@@ -1003,6 +1006,7 @@ export function MultiplayerGame() {
     isMultiplayerGame: true,
     gameState: null,
     multiplayerGameState,
+    myPlayerIndex: multiplayerSeatIndex ?? undefined,
   });
 
   // Client-side pre-validation state supplier for Task #573

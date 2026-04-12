@@ -72,12 +72,23 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log('🔄 [reconnect-player] user:', user.id.substring(0, 8), 'room:', room_id.substring(0, 8));
+    // #27 — Validate UUID format (P5-10): consistent with mark-disconnected.
+    // Type-check and trim before regex to handle accidental whitespace from clients.
+    const roomId = typeof room_id === 'string' ? room_id.trim() : '';
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_REGEX.test(roomId)) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid room_id format' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('🔄 [reconnect-player] user:', user.id.substring(0, 8), 'room:', roomId.substring(0, 8));
 
     // Delegate entirely to the server-side RPC which handles both reconnect paths
     const { data: rpcResult, error: rpcError } = await supabaseClient
       .rpc('reconnect_player', {
-        p_room_id:  room_id,
+        p_room_id:  roomId,
         p_user_id:  user.id,
       });
 
@@ -120,7 +131,7 @@ Deno.serve(async (req) => {
     // Broadcast player_reconnected so all other clients know a human reclaimed
     // this seat and can stop waiting for a "bot" to make a move.
     // This is fire-and-forget — we do not block the response on it.
-    // IMPORTANT: channel name must be `room:${room_id}` (UUID) to match the
+    // IMPORTANT: channel name must be `room:${roomId}` (trimmed UUID) to match the
     // client's Realtime subscription in useRealtime.ts joinChannel().
     // Use subscribe→send→removeChannel pattern: supabase-js Realtime requires
     // a SUBSCRIBED channel before send() is reliable; calling send() on an
@@ -134,7 +145,7 @@ Deno.serve(async (req) => {
           was_replaced: result.was_replaced ?? false,
         };
         await new Promise<void>((resolve) => {
-          const broadcastChannel = supabaseClient.channel(`room:${room_id}`);
+          const broadcastChannel = supabaseClient.channel(`room:${roomId}`);
           let settled = false;
           const finish = (): void => {
             if (!settled) {
@@ -157,7 +168,7 @@ Deno.serve(async (req) => {
                   if (sendResult?.error) {
                     console.warn(`[reconnect-player] Reconnect broadcast delivery failure (non-critical):`, sendResult.error);
                   } else {
-                    console.log(`📡 [reconnect-player] Broadcast player_reconnected for room ${room_id} (index ${result.player_index})`);
+                    console.log(`📡 [reconnect-player] Broadcast player_reconnected for room ${roomId} (index ${result.player_index})`);
                   }
                   clearTimeout(safetyTimeout);
                   finish();

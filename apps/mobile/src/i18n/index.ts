@@ -250,6 +250,14 @@ export interface Translations {
     bugReportAndroidMessage: string;
   };
 
+  // Android notification channel names (P11-1)
+  notificationChannels: {
+    default: string;
+    gameUpdates: string;
+    turnNotifications: string;
+    social: string;
+  };
+
   // Bug Report Modal
   bugReportModal: {
     title: string;
@@ -860,6 +868,7 @@ export interface Translations {
     shareWithFriends: string;
     friendsCanJoin: string;
     signInRequired: string;
+    queueExpiresIn: string;
   };
 
   // Match History Screen
@@ -1148,6 +1157,12 @@ const en: Translations = {
     bugReportAndroidTitle: 'Report a Bug',
     bugReportAndroidMessage:
       'To report a bug, please email support@big2mobile.com with a description of the issue.',
+  },
+  notificationChannels: {
+    default: 'Default',
+    gameUpdates: 'Game Updates',
+    turnNotifications: 'Turn Notifications',
+    social: 'Social',
   },
   bugReportModal: {
     title: 'Report a Bug',
@@ -1723,6 +1738,7 @@ const en: Translations = {
     shareWithFriends: 'Share with Friends',
     friendsCanJoin: 'Friends can join your match using this code',
     signInRequired: 'You must be signed in to use matchmaking',
+    queueExpiresIn: 'Queue expires in {{count}}s',
   },
   matchHistory: {
     title: 'Match History',
@@ -1999,6 +2015,12 @@ const ar: Translations = {
     bugReportAndroidTitle: 'الإبلاغ عن خطأ',
     bugReportAndroidMessage:
       'للإبلاغ عن خطأ، يرجى إرسال بريد إلكتروني إلى support@big2mobile.com مع وصف المشكلة.',
+  },
+  notificationChannels: {
+    default: 'افتراضي',
+    gameUpdates: 'تحديثات اللعبة',
+    turnNotifications: 'إشعارات الدَّوْر',
+    social: 'اجتماعي',
   },
   bugReportModal: {
     title: 'الإبلاغ عن مشكلة',
@@ -2506,6 +2528,7 @@ const ar: Translations = {
     shareWithFriends: 'شارك مع الأصدقاء',
     friendsCanJoin: 'يمكن للأصدقاء الانضمام إلى مباراتك باستخدام هذا الرمز',
     signInRequired: 'يجب أن تكون مسجلاً للدخول لاستخدام البحث عن مباراة',
+    queueExpiresIn: 'تنتهي صلاحية قائمة الانتظار خلال {{count}} ثانية',
   },
   matchHistory: {
     title: 'سجل المباريات',
@@ -2879,6 +2902,12 @@ const de: Translations = {
     bugReportAndroidTitle: 'Einen Fehler melden',
     bugReportAndroidMessage:
       'Um einen Fehler zu melden, senden Sie bitte eine E-Mail an support@big2mobile.com mit einer Beschreibung des Problems.',
+  },
+  notificationChannels: {
+    default: 'Standard',
+    gameUpdates: 'Spielaktualisierungen',
+    turnNotifications: 'Zugbenachrichtigungen',
+    social: 'Soziales',
   },
   bugReportModal: {
     title: 'Problem melden',
@@ -3406,6 +3435,7 @@ const de: Translations = {
     shareWithFriends: 'Mit Freunden teilen',
     friendsCanJoin: 'Freunde können deinem Spiel mit diesem Code beitreten',
     signInRequired: 'Sie müssen angemeldet sein, um die Spielsuche zu nutzen',
+    queueExpiresIn: 'Warteschlange läuft ab in {{count}}s',
   },
   matchHistory: {
     title: 'Spielverlauf',
@@ -3598,7 +3628,7 @@ class I18nManager {
       }
       uiLogger.info('[i18n] Initialized with language:', currentLanguage);
     } catch (error) {
-      console.error('[i18n] Failed to load language:', error);
+      uiLogger.error('[i18n] Failed to load language:', error);
     }
   }
 
@@ -3630,7 +3660,7 @@ class I18nManager {
       uiLogger.info('[i18n] Language changed to:', language, { requiresRestart });
       return requiresRestart; // Return true if app restart is needed
     } catch (error) {
-      console.error('[i18n] Failed to set language:', error);
+      uiLogger.error('[i18n] Failed to set language:', error);
       return false;
     }
   }
@@ -3656,7 +3686,7 @@ class I18nManager {
       if (value && typeof value === 'object' && key in value) {
         value = (value as Record<string, unknown>)[key];
       } else {
-        console.warn(`[i18n] Translation not found: ${path}`);
+        uiLogger.warn(`[i18n] Translation not found: ${path}`);
         // Report to Sentry as a silent breadcrumb (lazy import to avoid circular deps).
         try {
           // eslint-disable-next-line @typescript-eslint/no-require-imports

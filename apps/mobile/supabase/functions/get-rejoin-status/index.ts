@@ -74,12 +74,23 @@ Deno.serve(async (req) => {
       );
     }
 
+    // #27 — Validate UUID format (P5-10): consistent with mark-disconnected.
+    // Type-check and trim before regex to handle accidental whitespace from clients.
+    const roomId = typeof room_id === 'string' ? room_id.trim() : '';
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_REGEX.test(roomId)) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid room_id format' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // P5-4 Fix: Verify the requesting user is actually a member of the room
     // before returning any status. Prevents information disclosure to non-members.
     const { data: membership, error: membershipError } = await supabaseClient
       .from('room_players')
       .select('id')
-      .eq('room_id', room_id)
+      .eq('room_id', roomId)
       .eq('user_id', user.id)
       .maybeSingle();
 
@@ -100,7 +111,7 @@ Deno.serve(async (req) => {
 
     const { data: statusResult, error: rpcError } = await supabaseClient
       .rpc('get_rejoin_status', {
-        p_room_id: room_id,
+        p_room_id: roomId,
         p_user_id: user.id,
       });
 

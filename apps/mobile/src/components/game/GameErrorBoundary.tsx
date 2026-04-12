@@ -16,6 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { sentryCapture } from '../../services/sentry';
+import { gameLogger } from '../../utils/logger';
 
 // ── Theme colors ──────────────────────────────────────────────────────────────
 const ERROR_COLOR = '#ff6b6b';
@@ -50,8 +51,8 @@ class GameErrorBoundaryBase extends Component<BaseProps, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     if (__DEV__) {
-      console.error('[GameErrorBoundary] Error caught:', error);
-      console.error('[GameErrorBoundary] Component stack:', errorInfo.componentStack);
+      gameLogger.error('[GameErrorBoundary] Error caught:', error);
+      gameLogger.error('[GameErrorBoundary] Component stack:', errorInfo.componentStack);
     }
     sentryCapture.exception(error, {
       context: 'GameErrorBoundary',

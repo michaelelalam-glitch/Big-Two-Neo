@@ -1,13 +1,14 @@
 import React from 'react';
 import { Platform, StyleSheet, TouchableOpacity, Text, View } from 'react-native';
 import { authLogger } from '../../utils/logger';
+import { i18n } from '../../i18n';
 
 /**
  * Apple Sign In - DISABLED (Backlogged)
- * 
+ *
  * This feature has been temporarily disabled and moved to backlog.
  * The button is shown but does nothing when pressed.
- * 
+ *
  * TODO: Implement Apple Authentication later
  * - Set up Apple Developer account
  * - Configure Sign in with Apple capability
@@ -22,14 +23,19 @@ const AppleSignInButton = () => {
   // iOS - Show disabled button
   if (Platform.OS === 'ios') {
     return (
-      <TouchableOpacity 
-        style={[styles.customButton, styles.disabledButton]} 
+      <TouchableOpacity
+        style={[styles.customButton, styles.disabledButton]}
         onPress={onAppleButtonPress}
         activeOpacity={0.7}
         disabled={true}
+        accessibilityRole="button"
+        accessibilityLabel={`${i18n.t('auth.signInWithApple')} (${i18n.t('common.comingSoon')})`}
+        accessibilityState={{ disabled: true }}
       >
         <View style={styles.buttonContent}>
-          <Text style={styles.buttonText}>Sign in with Apple (Coming Soon)</Text>
+          <Text style={styles.buttonText}>
+            {i18n.t('auth.signInWithApple')} ({i18n.t('common.comingSoon')})
+          </Text>
         </View>
       </TouchableOpacity>
     );
@@ -38,14 +44,19 @@ const AppleSignInButton = () => {
   // Android - Show disabled button
   if (Platform.OS === 'android') {
     return (
-      <TouchableOpacity 
-        style={[styles.customButton, styles.disabledButton]} 
+      <TouchableOpacity
+        style={[styles.customButton, styles.disabledButton]}
         onPress={onAppleButtonPress}
         activeOpacity={0.7}
         disabled={true}
+        accessibilityRole="button"
+        accessibilityLabel={`${i18n.t('auth.signInWithApple')} (${i18n.t('common.comingSoon')})`}
+        accessibilityState={{ disabled: true }}
       >
         <View style={styles.buttonContent}>
-          <Text style={styles.buttonText}>Sign in with Apple (Coming Soon)</Text>
+          <Text style={styles.buttonText}>
+            {i18n.t('auth.signInWithApple')} ({i18n.t('common.comingSoon')})
+          </Text>
         </View>
       </TouchableOpacity>
     );

@@ -14,6 +14,7 @@
 import React, { Component, ReactNode, ErrorInfo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { sentryCapture } from '../../services/sentry';
+import { uiLogger } from '../../utils/logger';
 
 interface Props {
   children: ReactNode;
@@ -50,8 +51,8 @@ export class GameEndErrorBoundary extends Component<Props, State> {
     // to forward to Sentry, which would create duplicate events alongside the
     // explicit sentryCapture.exception() call below.
     if (__DEV__) {
-      console.error('❌ [GameEndErrorBoundary] Caught error:', error);
-      console.error('📍 [GameEndErrorBoundary] Component stack:', errorInfo.componentStack);
+      uiLogger.error('❌ [GameEndErrorBoundary] Caught error:', error);
+      uiLogger.error('📍 [GameEndErrorBoundary] Component stack:', errorInfo.componentStack);
     }
 
     // Update state with error info

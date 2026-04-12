@@ -286,7 +286,7 @@ export function useRoomLobby({
 
           if (allReady && hostPlayer && hostPlayer.user_id) {
             notifyAllPlayersReady(hostPlayer.user_id, room.code, room.id).catch(err =>
-              console.error('Failed to send all players ready notification:', err)
+              networkLogger.error('Failed to send all players ready notification:', err)
             );
           }
         }

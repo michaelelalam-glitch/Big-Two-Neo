@@ -1,15 +1,15 @@
 /**
  * usePlayHistoryTracking - Hook for tracking play history from GameState
- * 
+ *
  * Converts GameState.roundHistory into PlayHistoryMatch format
  * for the scoreboard system and automatically updates ScoreboardContext.
- * 
+ *
  * RACE CONDITION FIX:
  * Tracks gameEnded state to ensure the final match is processed when the game ends.
  * Without this, the Game End modal may open before this hook processes the gameEnded
  * state change, resulting in the winning hand being missing from play history.
  * The lastProcessedRef includes gameEnded tracking to detect match completion reliably.
- * 
+ *
  * Created as part of Task #355: Play history tracking
  * Date: December 12, 2025
  */
@@ -17,12 +17,20 @@
 import { useEffect, useRef } from 'react';
 import { useScoreboard } from '../contexts/ScoreboardContext';
 import { type GameState, type RoundHistoryEntry } from '../game/state';
-import { type PlayHistoryMatch, type PlayHistoryHand, type PlayerPosition } from '../types/scoreboard';
+import {
+  type PlayHistoryMatch,
+  type PlayHistoryHand,
+  type PlayerPosition,
+} from '../types/scoreboard';
+import { statsLogger } from '../utils/logger';
 
 /**
  * Convert RoundHistoryEntry to PlayHistoryHand
  */
-function convertToPlayHistoryHand(entry: RoundHistoryEntry, playerIndex: number): PlayHistoryHand | null {
+function convertToPlayHistoryHand(
+  entry: RoundHistoryEntry,
+  playerIndex: number
+): PlayHistoryHand | null {
   // Skip passed entries (they don't represent actual card plays)
   if (entry.passed || entry.cards.length === 0) {
     return null;
@@ -56,12 +64,12 @@ function convertToPlayHistoryMatch(
 
   // Convert all non-pass entries to PlayHistoryHand
   const hands: PlayHistoryHand[] = [];
-  
+
   for (const entry of roundHistory) {
     const playerIndex = playerIdToIndex.get(entry.playerId);
-    
+
     if (playerIndex === undefined) {
-      console.warn(`[PlayHistory] Unknown player ID in history: ${entry.playerId}`);
+      statsLogger.warn(`[PlayHistory] Unknown player ID in history: ${entry.playerId}`);
       continue;
     }
 
@@ -82,22 +90,19 @@ function convertToPlayHistoryMatch(
 
 /**
  * Hook for tracking play history from GameState
- * 
+ *
  * @param gameState - Current game state (can be null if game not started)
  * @param enabled - Whether to track play history (default: true)
- * 
+ *
  * Usage:
  * ```tsx
  * const gameState = useGameStore(state => state.gameState);
  * usePlayHistoryTracking(gameState);
  * ```
  */
-export function usePlayHistoryTracking(
-  gameState: GameState | null,
-  enabled: boolean = true
-): void {
+export function usePlayHistoryTracking(gameState: GameState | null, enabled: boolean = true): void {
   const { addPlayHistory } = useScoreboard();
-  
+
   // Track last processed match and history length to detect changes
   const lastProcessedRef = useRef<{
     matchNumber: number;
@@ -120,7 +125,7 @@ export function usePlayHistoryTracking(
     const matchNumberChanged = currentMatch !== lastProcessed.matchNumber;
     const historyLengthChanged = currentHistoryLength !== lastProcessed.historyLength;
     const matchJustEnded = gameState.gameEnded && !lastProcessed.gameEnded;
-    
+
     const shouldUpdate = matchNumberChanged || historyLengthChanged || matchJustEnded;
 
     if (!shouldUpdate) {
@@ -128,7 +133,7 @@ export function usePlayHistoryTracking(
     }
 
     // Build player list with consistent indexing
-    const players = gameState.players.map((p) => ({
+    const players = gameState.players.map(p => ({
       id: p.id,
       name: p.name,
     }));
@@ -157,12 +162,7 @@ export function usePlayHistoryTracking(
       historyLength: currentHistoryLength,
       gameEnded: gameState.gameEnded,
     };
-
-  }, [
-    gameState,
-    enabled,
-    addPlayHistory,
-  ]);
+  }, [gameState, enabled, addPlayHistory]);
 }
 
 export default usePlayHistoryTracking;

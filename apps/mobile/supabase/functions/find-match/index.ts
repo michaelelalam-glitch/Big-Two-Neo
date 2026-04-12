@@ -4,7 +4,7 @@ import { checkMinimumVersion } from '../_shared/versionCheck.ts';
 // M12: CORS origin controlled by ALLOWED_ORIGIN env var
 import { buildCorsHeaders } from '../_shared/cors.ts';
 // P5-2 Fix: DB-backed rate limiter — enforced globally across all isolates.
-import { checkRateLimit, rateLimitResponse } from '../_shared/rateLimiter.ts';
+import { checkRateLimit, rateLimitResponse, serviceUnavailableResponse } from '../_shared/rateLimiter.ts';
 
 
 
@@ -15,9 +15,10 @@ import { checkRateLimit, rateLimitResponse } from '../_shared/rateLimiter.ts';
 
 interface FindMatchRequest {
   username: string;
-  skill_rating?: number;
+  // skill_rating from client is intentionally ignored (P5-9 fix #24):
+  // ELO is fetched server-side from profiles.elo_rating to prevent manipulation.
   region?: string;
-  match_type?: 'casual' | 'ranked';
+  match_type?: string;
 }
 
 interface FindMatchResponse {
@@ -25,6 +26,8 @@ interface FindMatchResponse {
   room_id?: string;
   room_code?: string;
   waiting_count: number;
+  /** ISO timestamp from the DB row — used by the client for an authoritative queue-expiry countdown. */
+  joined_at?: string;
 }
 
 // ==================== MAIN HANDLER ====================
@@ -67,12 +70,50 @@ Deno.serve(async (req) => {
     }
 
     // P5-2 Fix: Rate limit find-match to prevent matchmaking abuse (10 req/60s per user).
-    const rl = await checkRateLimit(supabaseClient, user.id, 'find_match', 10, 60);
+    // #29 failClosed=true: during DB degradation block find-match rather than open the queue to flooding.
+    const rl = await checkRateLimit(supabaseClient, user.id, 'find_match', 10, 60, true);
     if (!rl.allowed) {
+      if (rl.blockedByError) return serviceUnavailableResponse(corsHeaders);
       return rateLimitResponse(rl.retryAfterMs, corsHeaders);
     }
 
-    const { username, skill_rating = 1000, region = 'global', match_type = 'casual' }: FindMatchRequest = await req.json();
+    const { username, region = 'global', match_type = 'casual' }: FindMatchRequest = await req.json();
+
+    // #26 — Validate match_type enum (P5-13)
+    const VALID_MATCH_TYPES = ['casual', 'ranked'] as const;
+    if (!VALID_MATCH_TYPES.includes(match_type as typeof VALID_MATCH_TYPES[number])) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'match_type must be casual or ranked' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!username) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Username is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // #24 — Use server-side ELO from profiles (P5-9): ignore client-provided skill_rating
+    // to prevent cheating by manipulating ELO bracket.
+    const { data: profileData, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('elo_rating')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      console.error('❌ [find-match] Failed to fetch profile ELO:', {
+        user_id: user.id.substring(0, 8),
+        error: profileError.message,
+      });
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to fetch player rating' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const skill_rating: number = profileData?.elo_rating ?? 1000;
 
     console.log('🎮 [find-match] Request received:', {
       user_id: user.id.substring(0, 8),
@@ -81,13 +122,6 @@ Deno.serve(async (req) => {
       region,
       match_type,
     });
-
-    if (!username) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Username is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
 
     const userId = user.id;
     const isRanked = match_type === 'ranked';
@@ -206,7 +240,7 @@ Deno.serve(async (req) => {
     // insert, leaving the user stuck without feedback.
     const { data: existingEntry, error: existingEntryError } = await supabaseClient
       .from('waiting_room')
-      .select('status, matched_room_id')
+      .select('status, matched_room_id, joined_at')
       .eq('user_id', userId)
       .in('status', ['processing', 'matched'])
       .maybeSingle();
@@ -241,7 +275,7 @@ Deno.serve(async (req) => {
       // Status is 'processing' — another invocation is assembling a match
       console.log('ℹ️ [find-match] User is in processing state, returning waiting');
       return new Response(
-        JSON.stringify({ matched: false, waiting_count: 0 } as FindMatchResponse),
+        JSON.stringify({ matched: false, waiting_count: 0, joined_at: existingEntry.joined_at } as FindMatchResponse),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -386,7 +420,7 @@ Deno.serve(async (req) => {
             .eq('status', 'processing'); // Only revert rows we actually own
         }
         return new Response(
-          JSON.stringify({ success: false, matched: false, waiting_count: waitingCount }),
+          JSON.stringify({ matched: false, waiting_count: waitingCount, joined_at: entryData.joined_at }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -544,6 +578,7 @@ Deno.serve(async (req) => {
       const response: FindMatchResponse = {
         matched: false,
         waiting_count: waitingCount,
+        joined_at: entryData.joined_at,
       };
 
       return new Response(

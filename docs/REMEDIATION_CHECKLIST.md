@@ -147,88 +147,88 @@
 ## TIER 5 — Medium Backend Quality
 > Edge function hardening and data model cleanup.
 
-- [ ] **#24 🟡 P5-9** — `find-match` trusts **client-provided `skill_rating`** — a cheating user can manipulate their ELO bracket.  
-  **Fix:** Ignore client `skill_rating`; query `player_stats.elo_rating` server-side using `auth.uid()`.  
-  `apps/mobile/supabase/functions/find-match/index.ts` · L71
+- [x] **#24 🟡 P5-9** — `find-match` trusts **client-provided `skill_rating`** — a cheating user can manipulate their ELO bracket.  
+  **Fix:** Ignore client `skill_rating`; query `profiles.elo_rating` server-side using `auth.uid()` (ELO is stored in `profiles`, not `player_stats`).  
+  `apps/mobile/supabase/functions/find-match/index.ts`
 
-- [ ] **#25 🟡 P5-8** — `complete-game` uses SELECT-then-INSERT dedup with a 23505 fallback — a **narrow race window** exists between check and insert.  
-  **Fix:** Replace with `INSERT ... ON CONFLICT DO NOTHING` for atomic dedup.  
-  `apps/mobile/supabase/functions/complete-game/index.ts` · L380–430
+- [x] **#25 🟡 P5-8** — `complete-game` uses SELECT-then-INSERT dedup with a 23505 fallback — a **narrow race window** exists between check and insert.  
+  **Fix:** Rely on the DB unique partial index on `game_history(room_id)` (migration 20260313000001) with a plain `INSERT`; treat `23505` as the already-processed outcome for atomic dedup. (Note: `INSERT ... ON CONFLICT` was attempted but requires a non-partial UNIQUE constraint; reverted to plain INSERT + 23505 handler.)  
+  `apps/mobile/supabase/functions/complete-game/index.ts`
 
-- [ ] **#26 🟡 P5-13** — `find-match` has no runtime validation for `match_type` enum values or `skill_rating` bounds.  
-  **Fix:** Validate `match_type` ∈ `['casual', 'ranked']` and `skill_rating` ∈ [0, 5000] at function entry.  
-  `apps/mobile/supabase/functions/find-match/index.ts` · L71
+- [x] **#26 🟡 P5-13** — `find-match` has no runtime validation for `match_type` enum values or `skill_rating` bounds.  
+  **Fix:** Validate `match_type` ∈ `['casual', 'ranked']` at function entry. (Note: `skill_rating` bounds are no longer relevant as `skill_rating` is now fetched server-side and not accepted from the client.)  
+  `apps/mobile/supabase/functions/find-match/index.ts`
 
-- [ ] **#27 🟡 P5-10** — `reconnect-player` and `get-rejoin-status` accept `room_id` without UUID format validation (unlike `mark-disconnected` which has it).  
+- [x] **#27 🟡 P5-10** — `reconnect-player` and `get-rejoin-status` accept `room_id` without UUID format validation (unlike `mark-disconnected` which has it).  
   **Fix:** Add the same UUID regex check: `/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i`.  
-  `apps/mobile/supabase/functions/reconnect-player/index.ts` · L44 / `get-rejoin-status/index.ts` · L37
+  `apps/mobile/supabase/functions/reconnect-player/index.ts` / `get-rejoin-status/index.ts`
 
-- [ ] **#28 🟡 P5-11** — `player-pass` accepts service-role auth via a JSON body field `_bot_auth` — weaker than header-only auth used by other EFs.  
-  **Fix:** Move bot auth verification to the Authorization header; remove body-based auth path.  
-  `apps/mobile/supabase/functions/player-pass/index.ts` · L189
+- [x] **#28 🟡 P5-11** — `player-pass` accepts service-role auth via a JSON body field `_bot_auth` — weaker than header-only auth used by other EFs.  
+  **Fix:** Remove body-based `_bot_auth` JSON field. Keep header-only auth: bot coordinator uses the `X-Bot-Auth` custom header (`INTERNAL_BOT_AUTH_KEY`); service-role callers use the `Authorization: Bearer <service_role_key>` header.  
+  `apps/mobile/supabase/functions/player-pass/index.ts`
 
-- [ ] **#29 🟡 P5-14** — Rate limiter **allows ALL requests** if the `rate_limit_tracking` DB table is inaccessible (availability-first by design). This can be exploited during DB degradation.  
+- [x] **#29 🟡 P5-14** — Rate limiter **allows ALL requests** if the `rate_limit_tracking` DB table is inaccessible (availability-first by design). This can be exploited during DB degradation.  
   **Fix:** Consider a fail-closed option (return 503) for high-risk endpoints like `play-cards` and `find-match`, keeping fail-open for lower-risk ones.  
-  `apps/mobile/supabase/functions/_shared/rateLimiter.ts` · L50–65
+  `apps/mobile/supabase/functions/_shared/rateLimiter.ts`
 
-- [ ] **#30 🟡 P5-12** — 6 placeholder migration files exist with no content or documentation.  
+- [x] **#30 🟡 P5-12** — 6 placeholder migration files exist with no content or documentation.  
   **Fix:** Add `-- placeholder: reserved for <feature>` comments, or delete if no longer needed.  
   `apps/mobile/supabase/migrations/*_placeholder.sql`
 
-- [ ] **#31 🟡 P6-1** — `get-livekit-token` issues tokens for **already-ended or abandoned rooms** because it doesn't check `room.status`.  
+- [x] **#31 🟡 P6-1** — `get-livekit-token` issues tokens for **already-ended or abandoned rooms** because it doesn't check `room.status`.  
   **Fix:** Add `WHERE status = 'active'` to the room lookup query before issuing the token.  
-  `apps/mobile/supabase/functions/get-livekit-token/index.ts` · L206–217
+  `apps/mobile/supabase/functions/get-livekit-token/index.ts`
 
-- [ ] **#32 🟡 P6-2** — `get-livekit-token` has no rate limiting — users can hammer it to generate unlimited tokens.  
+- [x] **#32 🟡 P6-2** — `get-livekit-token` has no rate limiting — users can hammer it to generate unlimited tokens.  
   **Fix:** Add `rateLimiter` call: e.g., 5 tokens/minute per user.  
-  `apps/mobile/supabase/functions/get-livekit-token/index.ts` · Full scope
+  `apps/mobile/supabase/functions/get-livekit-token/index.ts`
 
 ---
 
 ## TIER 6 — Medium Client Reliability
 > Client-side bugs and UX gaps that affect real users in edge cases.
 
-- [ ] **#33 🟡 P4-6** — `matchNumber` and `isGameFinished` use manual setters in `gameSessionSlice` that can **drift from the DB state** if a Realtime update is missed.  
+- [x] **#33 🟡 P4-6** — `matchNumber` and `isGameFinished` use manual setters in `gameSessionSlice` that can **drift from the DB state** if a Realtime update is missed.  
   **Fix:** Derive both values from the Realtime `game_state.game_phase` subscription rather than manual setters.  
   `apps/mobile/src/store/gameSessionSlice.ts` · L41, L126
 
-- [ ] **#34 🟡 P4-7** — `GameContext` duplicates `layoutPlayers`, `layoutPlayersWithScores`, `playerTotalScores`, and `currentPlayerName` — all already in Zustand store.  
+- [x] **#34 🟡 P4-7** — `GameContext` duplicates `layoutPlayers`, `layoutPlayersWithScores`, `playerTotalScores`, and `currentPlayerName` — all already in Zustand store.  
   **Fix:** Remove duplicated state from `GameContext`; consume from Zustand selectors directly in components that need it.  
   `apps/mobile/src/contexts/GameContext.tsx` · L142–145
 
-- [ ] **#35 🟡 P1-1** — Separate `isPlayingRef` / `isPassingRef` guards don't share a mutex — a rapid tap could fire both `playCards` and `passCards` concurrently.  
+- [x] **#35 🟡 P1-1** — Separate `isPlayingRef` / `isPassingRef` guards don't share a mutex — a rapid tap could fire both `playCards` and `passCards` concurrently.  
   **Fix:** Merge into a single `isSubmittingRef` that gates both actions.  
   `apps/mobile/src/hooks/useGameActions.ts` · L193–310
 
-- [ ] **#36 🟡 P1-3** — Stats upload in `useGameStatsUploader` has **no retry logic** — a transient network error silently drops the player's game stats.  
+- [x] **#36 🟡 P1-3** — Stats upload in `useGameStatsUploader` has **no retry logic** — a transient network error silently drops the player's game stats.  
   **Fix:** Wrap the upload call in `edgeFunctionRetry` (already used elsewhere in the codebase).  
   `apps/mobile/src/hooks/useGameStatsUploader.ts` · ~L160
 
-- [ ] **#37 🟡 P2-2** — Connection status transitions have no debounce/hysteresis — a briefly flaky network causes rapid `connected → reconnecting → connected` flicker in the UI indicator.  
+- [x] **#37 🟡 P2-2** — Connection status transitions have no debounce/hysteresis — a briefly flaky network causes rapid `connected → reconnecting → connected` flicker in the UI indicator.  
   **Fix:** Add a 2-second debounce before transitioning away from `connected`.  
   `apps/mobile/src/hooks/useConnectionManager.ts` · L118–130
 
-- [ ] **#38 🟡 P2-3** — Disconnect timer start time is tracked by 4 different sources (client heartbeat, server sweep, pg_cron, mark-disconnected) — inconsistent anchors cause different countdown lengths per player.  
+- [x] **#38 🟡 P2-3** — Disconnect timer start time is tracked by 4 different sources (client heartbeat, server sweep, pg_cron, mark-disconnected) — inconsistent anchors cause different countdown lengths per player.  
   **Fix:** Treat `disconnect_timer_started_at` from DB as the single authority; ignore client-side anchor.  
   `apps/mobile/src/hooks/useDisconnectDetection.ts` · L295–330
 
-- [ ] **#39 🟡 P2-4** — HomeScreen active game banner **countdown jumps** when app re-focuses (re-reads `disconnect_timer_started_at` from DB on mount).  
+- [x] **#39 🟡 P2-4** — HomeScreen active game banner **countdown jumps** when app re-focuses (re-reads `disconnect_timer_started_at` from DB on mount).  
   **Fix:** Capture the remaining time at mount and count down from that; don't re-subtract elapsed time on re-mount.  
-  `apps/mobile/src/hooks/useActiveGameBanner.ts` · L197
+  `apps/mobile/src/components/home/ActiveGameBanner.tsx` · L197
 
-- [ ] **#40 🟡 P2-5** — `RejoinModal` silently abandons an in-flight `reconnect-player` RPC call if the component unmounts mid-request — leaves the player stranded in a half-reconnected state.  
+- [x] **#40 🟡 P2-5** — `RejoinModal` silently abandons an in-flight `reconnect-player` RPC call if the component unmounts mid-request — leaves the player stranded in a half-reconnected state.  
   **Fix:** Use `AbortController` to cancel the RPC on unmount, or set an `isMounted` ref to gate the `setState` call.  
   `apps/mobile/src/components/RejoinModal.tsx` · L40
 
 - [ ] **#41 🟡 P2-7** — Design-level: a user could deliberately disconnect at the right moment to force a bot to play a bad hand (exploit via timing).  
   **Fix:** Consider adding a brief "surrender penalty" (score penalty + stats mark) when a player disconnects >2× per session.  
-  Design-level discussion
+  Design-level discussion _(DEFERRED — design discussion required)_
 
-- [ ] **#42 🟡 P3-5** — `InactivityCountdownRing` does not clamp a positive clock offset — if the client clock is ahead of the server, the ring **starts already partially depleted**.  
+- [x] **#42 🟡 P3-5** — `InactivityCountdownRing` does not clamp a positive clock offset — if the client clock is ahead of the server, the ring **starts already partially depleted**.  
   **Fix:** `const elapsed = Math.max(0, getCorrectedNow() - serverTurnStart)` before computing ring fill.  
-  `apps/mobile/src/components/InactivityCountdownRing.tsx` · L80–88
+  `apps/mobile/src/components/game/InactivityCountdownRing.tsx` · L80–88
 
-- [ ] **#43 🟡 P7-2** — No explicit timeout UI — the matchmaking screen doesn't tell the user the queue expires in 5 minutes. Users don't know when to retry manually.  
+- [x] **#43 🟡 P7-2** — No explicit timeout UI — the matchmaking screen doesn't tell the user the queue expires in 5 minutes. Users don't know when to retry manually.  
   **Fix:** Show a countdown to queue expiration (use `joined_at + 5min` from the waiting_room record).  
   `apps/mobile/src/screens/MatchmakingScreen.tsx` · L119–127
 
@@ -339,7 +339,8 @@
 - [ ] **#69 🔵 P9-6** — `ChatDrawer` uses `FlatList` instead of `FlashList` — performance degrades for large chat histories.  
   `apps/mobile/src/components/ChatDrawer.tsx` · L77
 
-- [ ] **#70 🔵 P11-2** — No documented RTL layout testing pass for Arabic.  
+- [ ] **#70 🔵 P11-2** — No documented RTL layout testing pass for Arabic.
+  > RTL-aware implementation work is in place — all game screens use React Native's `I18nManager.isRTL` and `writingDirection`-aware StyleSheet properties — and manual RTL layout testing has been added as a **blocking gate** in the release pipeline checklist. This item remains open until QA completes and documents an Arabic RTL verification pass (date/devices/screens/results) and signs it off for release.
   QA process gap
 
 - [ ] **#71 🔵 P15-1** — No automated dependency updates (Renovate / Dependabot).  

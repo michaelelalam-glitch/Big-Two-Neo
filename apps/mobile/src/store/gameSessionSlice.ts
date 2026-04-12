@@ -48,8 +48,10 @@ export interface GameSessionState {
   setPlayerTotalScores: (scores: number[]) => void;
   setCurrentPlayerName: (name: string) => void;
   setIsPlayerReady: (ready: boolean) => void;
-  setIsGameFinished: (finished: boolean) => void;
-  setMatchNumber: (match: number) => void;
+  // P4-6 FIX: isGameFinished and matchNumber are derived from the Realtime
+  // game_state.game_phase subscription via syncSessionSnapshot only.
+  // Standalone setters have been removed to prevent drift caused by a missed
+  // Realtime update leaving the store in an inconsistent state.
   /** Atomically sync layout, score, and game-status session fields in a single named store action */
   syncSessionSnapshot: (snapshot: {
     layoutPlayers: LayoutPlayer[];
@@ -74,8 +76,6 @@ const INITIAL_STATE: Omit<
   | 'setPlayerTotalScores'
   | 'setCurrentPlayerName'
   | 'setIsPlayerReady'
-  | 'setIsGameFinished'
-  | 'setMatchNumber'
   | 'syncSessionSnapshot'
   | 'resetSession'
 > = {
@@ -113,11 +113,6 @@ export const useGameSessionStore = create<GameSessionState>()(
 
       setIsPlayerReady: ready =>
         set({ isPlayerReady: ready }, false, 'gameSession/setIsPlayerReady'),
-
-      setIsGameFinished: finished =>
-        set({ isGameFinished: finished }, false, 'gameSession/setIsGameFinished'),
-
-      setMatchNumber: match => set({ matchNumber: match }, false, 'gameSession/setMatchNumber'),
 
       syncSessionSnapshot: snapshot => set(snapshot, false, 'gameSession/syncSessionSnapshot'),
 

@@ -278,38 +278,42 @@ export function useDisconnectDetection({
           //   3. last_seen_at — matches Phase A's anchor; prevents ring expiry lag.
           //   4. now — last-resort fallback.
           const existingAnchor = clientDisconnectStartRef.current[rp.player_index];
+          const existingAnchorMs = existingAnchor ? new Date(existingAnchor).getTime() : null;
           const serverAnchorMs = rp.disconnect_timer_started_at
             ? new Date(rp.disconnect_timer_started_at).getTime()
             : null;
-          const existingAnchorMs = existingAnchor ? new Date(existingAnchor).getTime() : null;
-          // Seed if not set; or correct downward if server anchor is strictly earlier.
-          const needsUpdate =
-            !existingAnchor ||
-            (serverAnchorMs !== null &&
-              existingAnchorMs !== null &&
-              serverAnchorMs < existingAnchorMs);
+          // P2-3 FIX: Compute the desired anchor first so needsUpdate compares the
+          // stored anchor against the desired one — not serverAnchorMs. When
+          // turn_started_at is selected as the anchor, comparing serverAnchorMs to
+          // existingAnchorMs would always be true (they point at different timestamps),
+          // triggering a re-write and "CORRECTED" log on every interval tick.
+          const gs = multiplayerGameStateRef.current;
+          const isTheirTurn = gs?.current_turn === rp.player_index;
+          let desiredAnchor: string;
+          let anchorType: string;
+          if (isTheirTurn && gs?.turn_started_at) {
+            desiredAnchor = gs.turn_started_at;
+            anchorType = 'turn_started_at';
+          } else if (rp.disconnect_timer_started_at) {
+            desiredAnchor = rp.disconnect_timer_started_at;
+            anchorType = 'server_timer_ts';
+          } else if (rp.last_seen_at) {
+            desiredAnchor = rp.last_seen_at;
+            anchorType = 'last_seen_at';
+          } else {
+            // Stable fallback: reuse the existing anchor if one was already seeded
+            // so we don't continuously re-anchor to 'now' on every tick when all
+            // authoritative timestamps are absent (which would reset the ring every second).
+            desiredAnchor = existingAnchor ?? new Date().toISOString();
+            anchorType = 'now';
+          }
+
+          const needsUpdate = !existingAnchor || existingAnchor !== desiredAnchor;
 
           if (needsUpdate) {
-            const gs = multiplayerGameStateRef.current;
-            const isTheirTurn = gs?.current_turn === rp.player_index;
-            let anchor: string;
-            let anchorType: string;
-            if (isTheirTurn && gs?.turn_started_at) {
-              anchor = gs.turn_started_at;
-              anchorType = 'turn_started_at';
-            } else if (rp.disconnect_timer_started_at) {
-              anchor = rp.disconnect_timer_started_at;
-              anchorType = 'server_timer_ts';
-            } else if (rp.last_seen_at) {
-              anchor = rp.last_seen_at;
-              anchorType = 'last_seen_at';
-            } else {
-              anchor = new Date().toISOString();
-              anchorType = 'now';
-            }
-            clientDisconnectStartRef.current[rp.player_index] = anchor;
+            clientDisconnectStartRef.current[rp.player_index] = desiredAnchor;
             gameLogger.warn(
-              `[useDisconnectDetection] Client-side: ${existingAnchor ? 'CORRECTED' : 'seeding'} disconnect for player_index=${rp.player_index} (anchor=${anchorType}${existingAnchorMs !== null && serverAnchorMs !== null ? `, correction=${Math.round((existingAnchorMs - serverAnchorMs) / 1000)}s` : ''})`
+              `[useDisconnectDetection] Client-side: ${existingAnchor ? 'CORRECTED' : 'seeding'} disconnect for player_index=${rp.player_index} (anchor=${anchorType}${anchorType === 'server_timer_ts' && existingAnchorMs !== null && serverAnchorMs !== null ? `, correction=${Math.round((existingAnchorMs - serverAnchorMs) / 1000)}s` : ''})`
             );
           }
           newMap.set(rp.player_index, clientDisconnectStartRef.current[rp.player_index]);

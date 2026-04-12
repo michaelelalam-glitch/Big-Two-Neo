@@ -30,7 +30,24 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Big Two uses your camera for the opt-in in-game video chat feature.",
         "NSMicrophoneUsageDescription": "Big Two uses your microphone for the opt-in in-game video + audio chat feature.",
-        "NSPhotoLibraryUsageDescription": "Big Two needs access to your photo library to attach screenshots to bug reports."
+        "NSPhotoLibraryUsageDescription": "Big Two needs access to your photo library to attach screenshots to bug reports.",
+        "NSAppTransportSecurity": {
+          "NSPinnedDomains": {
+            "supabase.co": {
+              "NSIncludeSubdomains": true,
+              "NSPinnedLeafIdentities": [
+                {
+                  "SPKI-SHA256-BASE64": "GU2W4j1P24T3sqlI+o6YTnidzz0PI8fB/Gvd2ITfSZE="
+                }
+              ],
+              "NSPinnedCAIdentities": [
+                {
+                  "SPKI-SHA256-BASE64": "kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4="
+                }
+              ]
+            }
+          }
+        }
       }
     },
     "android": {
@@ -100,6 +117,7 @@
       ],
       "expo-screen-orientation",
       "./plugins/withAndroidSupportExclude",
+      "./plugins/withAndroidCertPinning",
       "./plugins/withBarcodeCompatStubs",
       "./plugins/withIOSBarcodeCompatStubs",
       "./plugins/withExpoCameraSwiftFix",

@@ -2,6 +2,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { checkMinimumVersion } from '../_shared/versionCheck.ts';
 // M12: CORS origin controlled by ALLOWED_ORIGIN env var
 import { buildCorsHeaders } from '../_shared/cors.ts';
+import { checkRateLimit } from '../_shared/rateLimiter.ts';
 
 const corsHeaders = buildCorsHeaders();
 
@@ -146,22 +147,12 @@ async function getAccessToken(): Promise<string> {
   return cachedAccessToken;
 }
 
-// ── Per-user per-event-type rate limiting ──────────────────────────────────
-// In-memory throttle: max 1 notification *batch* per user per event type per
-// 30 s.  A "batch" may deliver to multiple device tokens for the same user
-// (one push per registered device), but the 30 s window prevents repeated
-// bursts to the same user+event combination.
-// Stays warm across invocations while the Deno isolate is alive; a cold start
-// resets the map which is an acceptable loss (over-notify once at most).
-// NOTE: This limit is per-Deno-isolate only — concurrent isolates/regions each
-// maintain their own map (true cross-instance enforcement would require a shared
-// store such as a DB table with atomic upsert; that is out of scope for this PR).
-const RATE_LIMIT_WINDOW_MS = 30_000;
-const RATE_LIMIT_PRUNE_INTERVAL_MS = 30_000;
-const _lastSent = new Map<string, number>();
-let _lastPruneAt = 0;
+// ── Per-user per-event-type rate limiting (P12-2) ─────────────────────────
+// DB-backed throttle: max 1 notification per user per event type per 30 s.
+// Uses checkRateLimit (atomic DB upsert via upsert_rate_limit_counter) so
+// enforcement is correct across concurrent isolates and survives cold starts.
 
-/** Known event types used as distinct rate-limit buckets. Keep in sync with accepted `data.type` values. Anything else is mapped to 'default' to bound Map key growth. */
+/** Known event types used as distinct rate-limit buckets. Keep in sync with accepted `data.type` values. Anything else is mapped to 'default' to bound action key growth. */
 const KNOWN_EVENT_TYPES = new Set([
   'game_invite', 'friend_request', 'friend_accepted', 'game_started', 'game_ended', 'your_turn', 'player_turn', 'default',
 ]);
@@ -181,59 +172,6 @@ function normalizeEventType(raw: string | undefined): string {
   // M22: Apply alias mapping before checking known types
   const aliased = EVENT_TYPE_ALIASES[trimmed] ?? trimmed;
   return KNOWN_EVENT_TYPES.has(aliased) ? aliased : 'default';
-}
-
-function getRateLimitKey(userId: string, eventType: string): string {
-  return `${userId}:${eventType}`;
-}
-
-function pruneRateLimitEntries(now: number): void {
-  // Reset window start if clock moved backwards (e.g. NTP correction) so
-  // pruning is not skipped indefinitely.
-  if (now < _lastPruneAt) {
-    _lastPruneAt = now;
-    return;
-  }
-  if (now - _lastPruneAt < RATE_LIMIT_PRUNE_INTERVAL_MS) return;
-
-  _lastPruneAt = now;
-  for (const [k, ts] of _lastSent) {
-    if (now - ts > RATE_LIMIT_WINDOW_MS * 2) _lastSent.delete(k);
-  }
-}
-
-/** Returns true if the notification should be throttled (dropped). Read-only — does not record.
- *  Typeless notifications are throttled under a 'default' bucket so they can't bypass rate limiting. */
-function isThrottled(userId: string, eventType: string | undefined): boolean {
-  const resolvedType = normalizeEventType(eventType);
-  const now = Date.now();
-  const last = _lastSent.get(getRateLimitKey(userId, resolvedType));
-  pruneRateLimitEntries(now);
-  // Guard against clock skew: if last > now the timestamp was recorded with a
-  // future clock.  Treat as expired so the user isn't locked out indefinitely.
-  if (last !== undefined && last > now) {
-    _lastSent.delete(getRateLimitKey(userId, resolvedType));
-    return false;
-  }
-  return last !== undefined && now - last < RATE_LIMIT_WINDOW_MS;
-}
-
-/** Eagerly reserves a throttle slot so concurrent requests for the same user+event
- *  are suppressed while the send is in flight. Called BEFORE the actual FCM send.
- *  If all sends for this user later fail, the reservation is released via clearThrottleRecord.
- *  Typeless notifications are throttled under a 'default' bucket. */
-function reserveThrottleSlot(userId: string, eventType: string | undefined): void {
-  const resolvedType = normalizeEventType(eventType);
-  const now = Date.now();
-  _lastSent.set(getRateLimitKey(userId, resolvedType), now);
-  pruneRateLimitEntries(now);
-}
-
-/** Removes the throttle reservation for a user+event, called when a send fails
- *  so the user isn't falsely throttled despite receiving nothing. */
-function clearThrottleRecord(userId: string, eventType: string | undefined): void {
-  const resolvedType = normalizeEventType(eventType);
-  _lastSent.delete(getRateLimitKey(userId, resolvedType));
 }
 
 // Validate FCM token format (alphanumeric, colons, hyphens, underscores, reasonable length)
@@ -461,6 +399,29 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Runtime array-of-strings guard for the internal-caller path — the TypeScript
+    // type is string[], but req.json() is untyped at runtime and a malformed payload
+    // (e.g. string or object) would cause incorrect .length behaviour or a query error.
+    // The external-caller (user-JWT) path already validates this via peekBody at line ~341;
+    // internal callers (service-role / bot) bypass that path and need their own check.
+    if (!Array.isArray(user_ids) || !user_ids.every((id): id is string => typeof id === 'string')) {
+      return new Response(
+        JSON.stringify({ error: 'user_ids must be an array of strings' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Bound fan-out: each user incurs one DB round-trip for rate-limit checking (N+1).
+    // Cap at 50 recipients — a Big 2 game has 4 players and server-side fan-out is small.
+    // A batch-based rate-limit RPC would be the long-term fix for larger fan-out scenarios.
+    const MAX_RECIPIENT_IDS = 50;
+    if (user_ids.length > MAX_RECIPIENT_IDS) {
+      return new Response(
+        JSON.stringify({ error: `user_ids must not exceed ${MAX_RECIPIENT_IDS} recipients` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Validate required fields for game-related notifications
     if (data?.type && ['game_invite', 'your_turn', 'game_started'].includes(data.type)) {
       if (!data.roomCode) {
@@ -471,19 +432,56 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Rate-limit: drop users who were already notified for this event type within 30 s
+    // Rate-limit (P12-2): DB-backed throttle — max 1 notification per user per event type per 30 s.
+    // checkRateLimit uses an atomic DB upsert, so it works correctly across concurrent isolates
+    // and cold starts (unlike the former in-memory Map).
+    // Token check runs first so we only consume quota for users who actually have a push token,
+    // preventing transient token-fetch failures from burning the 30 s retry window.
     const eventType = data?.type;
+    const normalizedEventType = normalizeEventType(eventType);
+
+    // Step 1: Fetch tokens for all candidate users BEFORE rate limiting
+    const { data: allTokens, error: allTokensError } = await supabaseAdmin
+      .from('push_tokens')
+      .select('push_token, platform, user_id')
+      .in('user_id', user_ids)
+
+    if (allTokensError) {
+      console.error('[send-push-notification] Error fetching push tokens:', allTokensError)
+      return new Response(
+        JSON.stringify({ error: 'Failed to fetch push tokens' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Only rate-limit users who have at least one registered token
+    const usersWithTokens = [...new Set((allTokens ?? []).map((t: { user_id: string }) => t.user_id))]
+
+    if (usersWithTokens.length === 0) {
+      console.log('No push tokens found for specified users')
+      return new Response(
+        JSON.stringify({ message: 'No push tokens found', sent: 0 }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Step 2: Apply rate limiting only to users with tokens (quota consumed only when delivery is possible).
+    // Trade-off: the rate-limit counter is committed to the DB atomically before the FCM send
+    // attempt. If the FCM send fails (e.g. transient FCM error), the 30-second quota for that
+    // user/event bucket is still consumed even though no notification was delivered. This is
+    // the conservative / pessimistic approach: it prevents a flood of retries during FCM
+    // degradation at the cost of potentially delaying one notification per affected user.
+    // A reservation+rollback mechanism would be needed to only commit on successful delivery.
     const throttledIds: string[] = [];
-    const allowedIds = user_ids.filter((uid: string) => {
-      if (isThrottled(uid, eventType)) {
-        throttledIds.push(uid);
-        return false;
-      }
-      // Reserve immediately to prevent concurrent requests from passing the
-      // throttle check before the send completes.
-      reserveThrottleSlot(uid, eventType);
-      return true;
-    });
+    const rlChecks = await Promise.all(
+      usersWithTokens.map(async (uid: string) => {
+        const rl = await checkRateLimit(supabaseAdmin, uid, `push_${normalizedEventType}`, 1, 30, false);
+        return { uid, allowed: rl.allowed };
+      })
+    );
+    const allowedIds = rlChecks
+      .filter(({ uid, allowed }) => { if (!allowed) throttledIds.push(uid); return allowed; })
+      .map(({ uid }) => uid);
 
     if (allowedIds.length === 0) {
       console.log(`⏳ All ${user_ids.length} user(s) throttled for event type "${eventType ?? 'default'}"`)
@@ -497,26 +495,11 @@ Deno.serve(async (req) => {
       console.log(`⏳ Throttled ${throttledIds.length} user(s) for event type "${eventType ?? 'default'}"`)
     }
 
-    // Get push tokens for the specified users
-    const { data: tokens, error: tokensError } = await supabaseAdmin
-      .from('push_tokens')
-      .select('push_token, platform, user_id')
-      .in('user_id', allowedIds)
+    // Step 3: Filter to allowed users' tokens
+    const tokens = (allTokens ?? []).filter((t: { user_id: string }) => allowedIds.includes(t.user_id))
 
-    if (tokensError) {
-      console.error('Error fetching push tokens:', tokensError)
-      // Release eager reservations — nothing was sent
-      for (const uid of allowedIds) clearThrottleRecord(uid, eventType);
-      return new Response(
-        JSON.stringify({ error: 'Failed to fetch push tokens', details: tokensError }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    if (!tokens || tokens.length === 0) {
-      console.log('No push tokens found for specified users')
-      // Release eager reservations — nothing was sent
-      for (const uid of allowedIds) clearThrottleRecord(uid, eventType);
+    if (tokens.length === 0) {
+      console.log('No push tokens found for allowed users')
       return new Response(
         JSON.stringify({ message: 'No push tokens found', sent: 0 }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -569,8 +552,6 @@ Deno.serve(async (req) => {
       accessToken = await getAccessToken();
     } catch (tokenErr) {
       console.error('❌ Failed to obtain FCM access token:', tokenErr);
-      // Release eager reservations — nothing was sent
-      for (const uid of allowedIds) clearThrottleRecord(uid, eventType);
       return new Response(
         JSON.stringify({ error: 'Failed to obtain FCM access token' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -585,8 +566,6 @@ Deno.serve(async (req) => {
       return `${t.slice(0, 4)}…${t.slice(-4)}`;
     };
 
-    // Track per-user success: only keep throttle reservation for users with ≥1 successful send
-    const userHadSuccess = new Set<string>();
     const results = []
     for (const message of messages) {
       try {
@@ -644,7 +623,6 @@ Deno.serve(async (req) => {
         } else {
           console.log(`✅ Sent to ${redactToken(message.to)}`)
           results.push({ status: 'ok', id: result.name })
-          if (message.userId) userHadSuccess.add(message.userId);
         }
       } catch (error) {
         console.error(`❌ Error sending to ${redactToken(message.to)}:`, error)
@@ -653,14 +631,6 @@ Deno.serve(async (req) => {
     }
 
     console.log('✅ Notifications sent via FCM v1 API:', results)
-
-    // Release throttle reservations for users where ALL sends failed
-    // (so they aren't falsely suppressed). Users with ≥1 success keep their reservation.
-    for (const uid of allowedIds) {
-      if (!userHadSuccess.has(uid)) {
-        clearThrottleRecord(uid, eventType);
-      }
-    }
 
     // Return success response
     return new Response(
