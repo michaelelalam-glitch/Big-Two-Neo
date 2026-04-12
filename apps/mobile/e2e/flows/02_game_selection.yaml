@@ -12,6 +12,7 @@ appId: com.big2mobile.app
 tags:
   - smoke
   - navigation
+  - ci-authenticated
 ---
 # Step 1: Launch app (assumes user is authenticated from prior session)
 - launchApp

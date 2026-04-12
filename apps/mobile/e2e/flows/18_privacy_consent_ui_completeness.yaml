@@ -11,6 +11,7 @@
 appId: com.big2mobile.app
 tags:
   - smoke
+  - ci
 
 ---
 # ── Part A: Verify both buttons are present on cold launch ───────────────

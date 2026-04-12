@@ -12,6 +12,7 @@
 appId: com.big2mobile.app
 tags:
   - smoke
+  - ci
 
 ---
 # ── Step 1: Launch and reach sign-in screen ──────────────────────────────

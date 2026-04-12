@@ -13,6 +13,7 @@
 appId: com.big2mobile.app
 tags:
   - smoke
+  - ci
 
 ---
 # ── Step 1: Cold launch — may hit slow network ────────────────────────────

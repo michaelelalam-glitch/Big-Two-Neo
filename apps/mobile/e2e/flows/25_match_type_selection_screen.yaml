@@ -9,6 +9,7 @@ appId: com.big2mobile.app
 tags:
   - navigation
   - auth-required
+  - ci-authenticated
 ---
 # Step 1: Launch and navigate to Home
 - launchApp
