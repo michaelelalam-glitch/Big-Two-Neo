@@ -36,10 +36,10 @@ export function useCardSelection(roomId?: string | null) {
 
   // P4-8 FIX: Freeze the storage key on the first committed non-null roomId to
   // prevent a double-restore when the caller upgrades from a transient key
-  // (e.g. roomCode) to a stable UUID (e.g. roomInfo.id). In MultiplayerGame
-  // the arg is `roomInfo?.id ?? roomCode`; once roomInfo loads the value
-  // changes and without this freeze a second restore would fire, potentially
-  // overwriting the in-progress selection with stale persisted data.
+  // to a stable UUID. The caller (MultiplayerGame) passes only roomInfo?.id,
+  // which is null initially and becomes the stable UUID once the room loads.
+  // The freeze ensures the first non-null value (the UUID) is locked in and
+  // a re-render that re-passes the same UUID never triggers a second restore.
   // Using useState + useEffect instead of a render-phase ref mutation so this
   // runs only after commit (safe for React Concurrent Mode).
   const [frozenRoomId, setFrozenRoomId] = useState<string | null>(null);

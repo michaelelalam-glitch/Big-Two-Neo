@@ -91,8 +91,10 @@ export default function App() {
         if (update.isAvailable) {
           await Updates.fetchUpdateAsync();
           // Do not reload mid-game — wait until the user leaves the Game screen.
-          const currentRoute = rootNavigationRef.current?.getCurrentRoute()?.name;
-          if (currentRoute === 'Game') return;
+          if (rootNavigationRef.isReady()) {
+            const currentRoute = rootNavigationRef.getCurrentRoute()?.name;
+            if (currentRoute === 'Game') return;
+          }
           await Updates.reloadAsync();
         }
       } catch {
