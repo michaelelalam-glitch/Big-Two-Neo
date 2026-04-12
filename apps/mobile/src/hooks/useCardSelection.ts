@@ -68,7 +68,12 @@ export function useCardSelection(roomId?: string | null) {
             setSelectedCardIdsState(new Set(ids));
           }
         } catch {
-          // Ignore malformed stored value — selection starts empty.
+          // Reset ref so a subsequent restore can retry after malformed data,
+          // and remove the bad payload to avoid repeated parse failures.
+          if (lastRestoredStorageKeyRef.current === key) {
+            lastRestoredStorageKeyRef.current = null;
+          }
+          AsyncStorage.removeItem(key).catch(() => {});
         }
       })
       .catch(() => {
