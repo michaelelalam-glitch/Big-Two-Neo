@@ -18,7 +18,7 @@
  */
 
 import type { Card, ComboType, LastPlay } from '../../game/types';
-import type { GameState, Player, RoundHistoryEntry, PlayerMatchScore } from '../../game/state';
+import type { GameState, Player, PlayerMatchScore } from '../../game/state';
 import {
   sortHand,
   classifyCards,
@@ -28,7 +28,7 @@ import {
   isHighestPossiblePlay,
 } from '../../game/engine';
 import { createBotAI, type BotDifficulty, type BotPlayOptions } from '../../game/bot';
-import { RANKS, SUITS, RANK_VALUE, SUIT_VALUE } from '../../game/engine/constants';
+import { RANKS, SUITS } from '../../game/engine/constants';
 
 // ─── Card Factory ────────────────────────────────────────────────────────────
 
@@ -235,7 +235,7 @@ export class GameSandbox {
     this.state.lastPlay = play;
 
     if (play === null) {
-      this.state.lastPlayPlayerIndex = null;
+      // Keep lastPlayPlayerIndex unchanged — it tracks the trick winner for turn resolution
       return;
     }
 
@@ -286,6 +286,13 @@ export class GameSandbox {
       return { success: false, error: 'Must select at least one card' };
     }
 
+    // Verify all selected cards are in the player's hand
+    const handIds = new Set(p.hand.map(c => c.id));
+    const missing = selectedCards.filter(c => !handIds.has(c.id));
+    if (missing.length > 0) {
+      return { success: false, error: `Cards not in hand: ${missing.map(c => c.id).join(', ')}` };
+    }
+
     // Classify the combo
     const comboType = classifyCards(selectedCards);
     if (comboType === 'unknown') {
@@ -307,9 +314,15 @@ export class GameSandbox {
       }
     }
 
-    // One-card-left rule
-    const nextPlayerIndex = (idx + 1) % this.state.players.length;
-    const nextPlayerCardCount = this.state.players[nextPlayerIndex]?.hand.length ?? 0;
+    // One-card-left rule — find next active player (skip empty hands)
+    let nextPlayerCardCount = 0;
+    for (let offset = 1; offset < this.state.players.length; offset++) {
+      const nextIdx = (idx + offset) % this.state.players.length;
+      if (this.state.players[nextIdx].hand.length > 0) {
+        nextPlayerCardCount = this.state.players[nextIdx].hand.length;
+        break;
+      }
+    }
     const oneCardResult = validateOneCardLeftRule(
       selectedCards,
       p.hand,
@@ -459,8 +472,9 @@ export class GameSandbox {
             }
           }
           // No valid play possible — force play lowest card to ensure progress
+          const forcedCard = sortHand(p.hand)[0];
           this.forcePlayLowest(p);
-          return { action: 'play', cards: [sortHand(p.hand)[0]] };
+          return { action: 'play', cards: forcedCard ? [forcedCard] : [] };
         }
       } else {
         // Leading but bot returned null — play lowest single
@@ -503,12 +517,14 @@ export class GameSandbox {
       if (this.state.lastPlay) {
         const passResult = this.pass(p.id);
         if (!passResult.success) {
+          const forcedCard = sortHand(p.hand)[0];
           this.forcePlayLowest(p);
-          return { action: 'play', cards: p.hand.slice(0, 1) };
+          return { action: 'play', cards: forcedCard ? [forcedCard] : [] };
         }
       } else {
+        const forcedCard = sortHand(p.hand)[0];
         this.forcePlayLowest(p);
-        return { action: 'play', cards: p.hand.slice(0, 1) };
+        return { action: 'play', cards: forcedCard ? [forcedCard] : [] };
       }
       return { action: 'pass' };
     }
@@ -635,6 +651,17 @@ export class GameSandbox {
     this.state.isFirstPlayOfGame = false;
     this.state.played_cards.push(lowest);
 
+    // Record in round history for consistency
+    this.state.roundHistory.push({
+      playerId: p.id,
+      playerName: p.name,
+      cards: [lowest],
+      combo_type: 'Single' as ComboType,
+      timestamp: Date.now(),
+      passed: false,
+      matchNumber: this.state.currentMatch,
+    });
+
     // Check win
     if (p.hand.length === 0) {
       this.state.gameEnded = true;
@@ -753,11 +780,11 @@ export class MultiGameRunner {
     for (const [, game] of this.games) {
       if (game.state.gameEnded) {
         completed++;
+        totalTurns += game.state.roundHistory.length;
         if (game.state.winnerId) {
           wins[game.state.winnerId] = (wins[game.state.winnerId] ?? 0) + 1;
         }
       }
-      totalTurns += game.state.roundHistory.length;
     }
 
     const winRates: Record<string, number> = {};
