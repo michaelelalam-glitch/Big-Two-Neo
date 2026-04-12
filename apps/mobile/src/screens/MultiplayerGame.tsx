@@ -589,6 +589,7 @@ export function MultiplayerGame() {
     roomId: roomInfo?.id ?? '',
     playerId: myRoomPlayerId ?? '',
     enabled: !!roomInfo?.id && !!myRoomPlayerId,
+    gamePhase: multiplayerGameState?.game_phase ?? null,
     onBotReplaced: () => {
       gameLogger.warn('[MultiplayerGame] Player was replaced by a bot — showing rejoin dialog');
       setShowBotReplacedModal(true);

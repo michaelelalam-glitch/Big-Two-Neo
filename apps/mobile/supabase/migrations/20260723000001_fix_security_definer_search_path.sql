@@ -15,7 +15,7 @@
 -- (20260307000001) remain unpatched in the production database.
 
 ALTER FUNCTION public.cleanup_friendship_on_block()
-  SET search_path = public;
+  SET search_path = public, pg_catalog;
 
 -- sync_player_stats_to_profiles and trigger_refresh_leaderboard are legacy
 -- production functions that pre-date the repo's migration history and have no
@@ -29,7 +29,7 @@ BEGIN
     JOIN pg_namespace n ON n.oid = p.pronamespace
     WHERE n.nspname = 'public' AND p.proname = 'sync_player_stats_to_profiles'
   ) THEN
-    EXECUTE 'ALTER FUNCTION public.sync_player_stats_to_profiles() SET search_path = public';
+    EXECUTE 'ALTER FUNCTION public.sync_player_stats_to_profiles() SET search_path = public, pg_catalog';
   END IF;
 
   IF EXISTS (
@@ -37,6 +37,6 @@ BEGIN
     JOIN pg_namespace n ON n.oid = p.pronamespace
     WHERE n.nspname = 'public' AND p.proname = 'trigger_refresh_leaderboard'
   ) THEN
-    EXECUTE 'ALTER FUNCTION public.trigger_refresh_leaderboard() SET search_path = public';
+    EXECUTE 'ALTER FUNCTION public.trigger_refresh_leaderboard() SET search_path = public, pg_catalog';
   END IF;
 END $$;

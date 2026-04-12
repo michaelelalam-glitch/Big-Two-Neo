@@ -34,8 +34,20 @@ export function useCardSelection(roomId?: string | null) {
   // room key, while still allowing restoration when roomId/storageKey changes.
   const lastRestoredStorageKeyRef = useRef<string | null>(null);
 
+  // P4-8 FIX: Freeze the storage key on the first non-null roomId to prevent a
+  // double-restore when the caller upgrades from a transient key (e.g. roomCode)
+  // to a stable UUID (e.g. roomInfo.id). In MultiplayerGame the arg is
+  // `roomInfo?.id ?? roomCode`; once roomInfo loads the value changes and
+  // without this freeze a second restore would fire, potentially overwriting
+  // the in-progress selection with stale persisted data.
+  const frozenRoomIdRef = useRef<string | null>(null);
+  if (roomId && !frozenRoomIdRef.current) {
+    frozenRoomIdRef.current = roomId;
+  }
+  const stableRoomId = frozenRoomIdRef.current ?? roomId;
+
   // Build the AsyncStorage key for this room's selection.
-  const storageKey = roomId ? `${CARD_SELECTION_KEY_PREFIX}${roomId}` : null;
+  const storageKey = stableRoomId ? `${CARD_SELECTION_KEY_PREFIX}${stableRoomId}` : null;
 
   // P4-8: Restore persisted selection once per room key (only for multiplayer rooms with a roomId).
   useEffect(() => {
