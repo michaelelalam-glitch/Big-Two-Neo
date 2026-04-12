@@ -519,48 +519,52 @@ Deno.serve(async (req) => {
     // STEP 3: RECORD GAME HISTORY (for audit trail)
     // ============================================================================
 
-    // ── Determine voided player server-side (before insert so voided_user_id is stored) ──
-    // Must also run before Step 3b which deletes room_players rows.
-    //
-    // Do NOT trust the client for this — a malicious caller could name any player
-    // as voided to deny them an "abandoned" stat.  Instead, find the human with
-    // the most-recent heartbeat-anchored disconnect timestamp in the room.
-    //
-    // Two categories of "gone" humans:
-    //   1. is_bot=false, connection_status='disconnected': still-disconnected;
-    //      disconnect_timer_started_at is the Phase-A heartbeat-anchored anchor.
-    //   2. is_bot=true,  human_user_id IS NOT NULL:        replaced by bot;
-    //      disconnected_at and disconnect_timer_started_at were both cleared on
-    //      replacement; last_seen_at is updated by bot heartbeats (contaminated).
-    //      Do NOT use last_seen_at in the sort key — fall back to NULL so replaced
-    //      humans always sort AFTER still-disconnected humans.
+    // ── Determine voided player + fetch bot info server-side in parallel ─────
+    // P5-16 FIX: Run the two room_players queries concurrently so the combined
+    // latency is max(t_voided, t_bots) rather than t_voided + t_bots.
+    // - allGoneRows: determines which human was the last to leave (serverVoidedPlayerId)
+    //   for the voided_user_id audit column in game_history.
+    // - replacedRows: determines bot-replaced humans (ABANDONED stats) and
+    //   server-authoritative bot difficulty (prevents ELO manipulation).
+    // Both require only room_id and are independent of each other.
     let serverVoidedPlayerId: string | null = null;
-    if (!gameData.game_completed && gameData.room_id) {
-      const { data: allGoneRows, error: lastGoneError } = await supabaseAdmin
-        .from('room_players')
-        .select('user_id, human_user_id, disconnect_timer_started_at, disconnected_at, is_bot')
-        .eq('room_id', gameData.room_id)
-        .in('connection_status', ['disconnected', 'replaced_by_bot']);
+    let botReplacedHumanIds: string[] = [];
+    let serverBotDifficulty: string | null = null;
 
-      if (lastGoneError) {
-        console.error('[Complete Game] Failed to query voided player — all players will be recorded as abandoned:', lastGoneError.message);
+    if (gameData.room_id) {
+      // Fire both room_players queries in parallel.
+      const [goneResult, botResult] = await Promise.all([
+        // allGoneRows: only relevant when game was abandoned (not completed)
+        (!gameData.game_completed
+          ? supabaseAdmin
+              .from('room_players')
+              .select('user_id, human_user_id, disconnect_timer_started_at, disconnected_at, is_bot')
+              .eq('room_id', gameData.room_id)
+              .in('connection_status', ['disconnected', 'replaced_by_bot'])
+          : Promise.resolve({ data: null, error: null })),
+        // replacedRows: always needed to identify bot-replaced humans and difficulty
+        supabaseAdmin
+          .from('room_players')
+          .select('human_user_id, bot_difficulty')
+          .eq('room_id', gameData.room_id)
+          .eq('is_bot', true),
+      ]);
+
+      // ── Compute serverVoidedPlayerId from goneResult ──
+      if (goneResult.error) {
+        console.error('[Complete Game] Failed to query voided player — all players will be recorded as abandoned:', goneResult.error.message);
       }
-
+      const allGoneRows = goneResult.data;
       if (allGoneRows && allGoneRows.length > 0) {
-        // Sort by COALESCE(disconnect_timer_started_at, disconnected_at) DESC.
-        // last_seen_at is intentionally excluded: for replaced_by_bot rows it
-        // reflects bot heartbeats rather than the human's actual disconnect time.
         const candidates = allGoneRows
-          .map(r => ({
+          .map((r: { is_bot: boolean; human_user_id: string | null; user_id: string | null; disconnect_timer_started_at: string | null; disconnected_at: string | null }) => ({
             effectiveUserId: r.is_bot ? r.human_user_id : r.user_id,
             sortKey: r.disconnect_timer_started_at ?? r.disconnected_at as string | null,
           }))
-          .filter(c => c.effectiveUserId != null);
+          .filter((c: { effectiveUserId: string | null }) => c.effectiveUserId != null);
 
-        candidates.sort((a, b) => {
+        candidates.sort((a: { effectiveUserId: string | null; sortKey: string | null }, b: { effectiveUserId: string | null; sortKey: string | null }) => {
           if (!a.sortKey && !b.sortKey) {
-            // Deterministic tiebreak when both timers are null (e.g., all replaced_by_bot rows):
-            // sort by user_id string so the chosen voidedPlayerId is stable across re-runs.
             return (a.effectiveUserId ?? '').localeCompare(b.effectiveUserId ?? '');
           }
           if (!a.sortKey) return 1;
@@ -570,13 +574,36 @@ Deno.serve(async (req) => {
 
         const lastGone = candidates[0];
         if (lastGone?.effectiveUserId) {
-          // Sanity check: the player must be in the submitted player list
-          const inList = gameData.players.some(p => p.user_id === lastGone.effectiveUserId);
+          const inList = gameData.players.some((p: { user_id: string }) => p.user_id === lastGone.effectiveUserId);
           if (inList) {
             serverVoidedPlayerId = lastGone.effectiveUserId;
             console.log(`[Complete Game] Server-computed voided player: ${serverVoidedPlayerId}`);
           }
         }
+      }
+
+      // ── Compute botReplacedHumanIds + serverBotDifficulty from botResult ──
+      if (botResult.error) {
+        console.error('[Complete Game] Failed to query bot-replaced humans (abandoned stats may be missed):', botResult.error.message);
+        // Do not trust client-supplied bot_difficulty for room-backed games.
+        // If the authoritative room_players query fails, leave the difficulty
+        // unset rather than reintroducing a spoofable server-side ELO input.
+        console.warn(`[Complete Game] Skipping bot_difficulty fallback because room_players query failed for room ${gameData.room_id}.`);
+      } else {
+        const replacedRows = botResult.data ?? [];
+        botReplacedHumanIds = replacedRows
+          .filter((r: { human_user_id: string | null }) => r.human_user_id != null)
+          .map((r: { human_user_id: string | null }) => r.human_user_id as string);
+        if (botReplacedHumanIds.length > 0) {
+          console.log(`[Complete Game] Found ${botReplacedHumanIds.length} bot-replaced human(s) — will record ABANDONED:`, botReplacedHumanIds);
+        }
+
+        const difficulties = replacedRows
+          .map((r: { bot_difficulty: string | null }) => r.bot_difficulty)
+          .filter(Boolean) as string[];
+        if (difficulties.includes('hard'))        serverBotDifficulty = 'hard';
+        else if (difficulties.includes('medium')) serverBotDifficulty = 'medium';
+        else if (difficulties.length > 0)         serverBotDifficulty = 'easy';
       }
     }
 
@@ -629,8 +656,10 @@ Deno.serve(async (req) => {
         player_2_cards_left: gameData.players[1].cards_left,
         player_3_cards_left: gameData.players[2].cards_left,
         player_4_cards_left: gameData.players[3].cards_left,
-        // Bot difficulty (same for all bots in a game)
-        bot_difficulty: gameData.bot_difficulty ?? null,
+        // Bot difficulty: use server-authoritative value derived from room_players
+        // when a room_id is present so the audit trail matches the ELO multiplier
+        // logic and cannot be spoofed by a client-supplied value.
+        bot_difficulty: gameData.room_id ? (serverBotDifficulty ?? null) : (gameData.bot_difficulty ?? null),
         // Game completion
         game_completed: gameData.game_completed,
         winner_id: gameData.winner_id.startsWith('bot_') ? null : gameData.winner_id,
@@ -696,48 +725,8 @@ Deno.serve(async (req) => {
     // STEP 3: UPDATE PLAYER STATS (for each REAL player only, skip bots)
     // ============================================================================
 
-    // serverVoidedPlayerId is computed in STEP 3 above (before game_history insert)
-    // to allow storing voided_user_id in the audit trail.
-
-    // Query for humans who were replaced by bots BEFORE room_players is deleted in Step 3b.
-    // These players left mid-game and must receive an ABANDONED stat regardless of whether
-    // the game completed or not.  The client sends their slot as user_id="bot_X" which
-    // would otherwise be silently filtered out by the realPlayerData filter below.
-    // Must be queried here — after this point Step 3b deletes the room_players rows.
-    let botReplacedHumanIds: string[] = [];
-    // Server-authoritative bot difficulty: queried from room_players, never trusted from the client.
-    // This prevents ELO manipulation via a spoofed bot_difficulty=null payload.
-    let serverBotDifficulty: string | null = null;
-    if (gameData.room_id) {
-      // Fetch ALL bot rows (replacements + still-present bots) to get difficulty.
-      // Removing the human_user_id IS NOT NULL filter so regular bot rows also
-      // contribute their difficulty for the multiplier determination.
-      const { data: replacedRows, error: replacedError } = await supabaseAdmin
-        .from('room_players')
-        .select('human_user_id, bot_difficulty')
-        .eq('room_id', gameData.room_id)
-        .eq('is_bot', true);
-
-      if (replacedError) {
-        console.error('[Complete Game] Failed to query bot-replaced humans (abandoned stats may be missed):', replacedError.message);
-      } else {
-        // Collect human IDs that were replaced by bots.
-        botReplacedHumanIds = (replacedRows ?? [])
-          .filter(r => r.human_user_id != null)
-          .map(r => r.human_user_id as string);
-        if (botReplacedHumanIds.length > 0) {
-          console.log(`[Complete Game] Found ${botReplacedHumanIds.length} bot-replaced human(s) — will record ABANDONED:`, botReplacedHumanIds);
-        }
-
-        // Derive the hardest bot difficulty present in this game.
-        const difficulties = (replacedRows ?? [])
-          .map(r => r.bot_difficulty as string | null)
-          .filter(Boolean) as string[];
-        if (difficulties.includes('hard'))        serverBotDifficulty = 'hard';
-        else if (difficulties.includes('medium')) serverBotDifficulty = 'medium';
-        else if (difficulties.length > 0)         serverBotDifficulty = 'easy';
-      }
-    }
+    // serverVoidedPlayerId, botReplacedHumanIds, and serverBotDifficulty are
+    // all computed above in the parallel-query block before game_history insert.
 
     // Only update stats for real players (not bots)
     const realPlayerData = gameData.players.filter(p => !p.user_id.startsWith('bot_'));

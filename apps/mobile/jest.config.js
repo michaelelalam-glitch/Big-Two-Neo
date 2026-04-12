@@ -94,6 +94,8 @@ module.exports = {
     '^@livekit/react-native-webrtc$': '<rootDir>/src/__tests__/__mocks__/livekit-react-native-webrtc.ts',
     // @sentry/react-native uses native modules — mock entirely in tests
     '^@sentry/react-native$': '<rootDir>/src/__tests__/__mocks__/sentry-react-native.ts',
+    // @shopify/flash-list uses ESM and native modules — mock with FlatList wrapper
+    '^@shopify/flash-list$': '<rootDir>/src/__tests__/__mocks__/flash-list.ts',
     // expo-constants accesses native config — use lightweight mock
     '^expo-constants$': '<rootDir>/src/__tests__/__mocks__/expo-constants.ts',
     // expo-file-system uses ESM `export *` syntax which breaks Jest's CJS require().

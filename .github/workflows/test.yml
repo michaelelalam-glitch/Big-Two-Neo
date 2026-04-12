@@ -87,6 +87,19 @@ jobs:
           cd apps/mobile
           npx tsc --noEmit
       
+      - name: 🗑️ Check for unused dependencies
+        run: |
+          cd apps/mobile
+          # P8-8 FIX: Informational check for dependency drift — packages listed
+          # in package.json that are never imported via static analysis.
+          # The --ignores list covers build-time, type-only, config-only, and
+          # React Native packages that depcheck cannot detect via static imports.
+          # Non-blocking (|| true): RN/Expo projects have many runtime-loaded and
+          # native packages that depcheck flags as unused; blocking CI on this
+          # output produces false-positive failures. Results are visible in logs.
+          pnpm dlx depcheck \
+            --ignores="@types/*,ts-node,babel-jest,jest-*,metro-*,@expo/*,react-native,expo,@babel/*,eslint*,prettier*,@react-native*,@sentry/react-native" || true
+      
       - name: 🧪 Run unit tests
         run: |
           cd apps/mobile

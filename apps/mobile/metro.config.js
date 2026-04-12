@@ -6,7 +6,20 @@
 const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
 
-const config = getDefaultConfig(__dirname);
+// P8-4 FIX: Integrate Sentry source map support so production stack traces
+// remain readable. Use getSentryExpoConfig (the Expo-aware variant) instead of
+// getDefaultConfig + withSentryConfig — withSentryConfig crashes with Expo SDK 54
+// because Expo's customSerializer returns an object while Sentry expects a string.
+// getSentryExpoConfig handles this correctly. Wrapped in try/catch for graceful
+// degradation when @sentry/react-native is absent (e.g. bare Expo Go workflow).
+let config;
+try {
+  const { getSentryExpoConfig } = require('@sentry/react-native/metro');
+  config = getSentryExpoConfig(__dirname);
+} catch {
+  // @sentry/react-native not available — fall back to plain Expo config.
+  config = getDefaultConfig(__dirname);
+}
 
 // Allow Metro to follow pnpm symlinks into the virtual store.
 config.resolver.unstable_enableSymlinks = true;

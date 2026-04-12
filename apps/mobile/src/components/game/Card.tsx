@@ -521,4 +521,14 @@ const Card = React.memo(function Card(props: CardProps) {
   return <CardInner {...props} />;
 });
 
-export default Card;
+// P8-6 FIX: DEV-only Profiler wrapper — surfaces render timing in React
+// DevTools / Flipper without any overhead in production builds.
+export default __DEV__
+  ? function CardProfiled(props: React.ComponentProps<typeof Card>) {
+      return (
+        <React.Profiler id="Card" onRender={() => {}}>
+          <Card {...props} />
+        </React.Profiler>
+      );
+    }
+  : Card;

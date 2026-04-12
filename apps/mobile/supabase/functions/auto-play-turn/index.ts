@@ -138,10 +138,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ── Fetch room ──
+    // ── Fetch room + game state + players in one round-trip (P5-16 N+1 fix) ──
+    // Supabase embedded select combines the 3 previously-sequential queries into
+    // a single HTTP request, reducing latency under load from O(3) to O(1).
     const { data: room, error: roomError } = await supabaseClient
       .from('rooms')
-      .select('id, code')
+      .select('id, code, game_state(*), room_players(*)')
       .eq('code', room_code)
       .single();
 
@@ -152,33 +154,36 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ── Fetch game state ──
-    const { data: gameState, error: gsError } = await supabaseClient
-      .from('game_state')
-      .select('*')
-      .eq('room_id', room.id)
-      .single();
+    // Supabase returns 1-to-1 relations as an object (when a UNIQUE constraint
+    // exists on room_id) or as an array otherwise. Normalise to a single object.
+    const gameStateRaw = Array.isArray(room.game_state)
+      ? room.game_state[0]
+      : room.game_state;
+    const gameState = gameStateRaw as (typeof gameStateRaw) & Record<string, unknown>;
+    const players = (
+      Array.isArray(room.room_players)
+        ? room.room_players
+        : room.room_players
+          ? [room.room_players]
+          : []
+    ).filter(Boolean) as Array<Record<string, unknown>>;
 
-    if (gsError || !gameState) {
+    if (!gameState) {
       return new Response(
         JSON.stringify({ success: false, error: 'Game state not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
-    // ── Fetch current player ──
-    const { data: players, error: playersError } = await supabaseClient
-      .from('room_players')
-      .select('*')
-      .eq('room_id', room.id)
-      .order('player_index', { ascending: true });
-
-    if (playersError || !players || players.length === 0) {
+    if (!players || players.length === 0) {
       return new Response(
         JSON.stringify({ success: false, error: 'Players not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
+
+    // Sort players by player_index ascending (mirrors previous ORDER BY)
+    players.sort((a, b) => (a.player_index as number) - (b.player_index as number));
 
     const currentPlayer = players.find(p => p.player_index === gameState.current_turn);
     if (!currentPlayer) {

@@ -707,4 +707,16 @@ const styles = StyleSheet.create({
   },
 });
 
-export default React.memo(CardHandComponent);
+const CardHandMemo = React.memo(CardHandComponent);
+
+// P8-6 FIX: DEV-only Profiler wrapper — surfaces render timing in React
+// DevTools / Flipper without any overhead in production builds.
+export default __DEV__
+  ? function CardHandProfiled(props: React.ComponentProps<typeof CardHandMemo>) {
+      return (
+        <React.Profiler id="CardHand" onRender={() => {}}>
+          <CardHandMemo {...props} />
+        </React.Profiler>
+      );
+    }
+  : CardHandMemo;
