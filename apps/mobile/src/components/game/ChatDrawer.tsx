@@ -20,7 +20,8 @@ import {
   StyleSheet,
   useWindowDimensions,
 } from 'react-native';
-import { FlashList, FlashListRef } from '@shopify/flash-list';
+import { FlashList } from '@shopify/flash-list';
+import type { FlashListRef } from '@shopify/flash-list';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
