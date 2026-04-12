@@ -11,8 +11,8 @@
 appId: com.big2mobile.app
 tags:
   - smoke
+  - ci-authenticated
   - stability
-  - ci
 
 ---
 # ── Cycle 1: Base cold start ──────────────────────────────────────────────
