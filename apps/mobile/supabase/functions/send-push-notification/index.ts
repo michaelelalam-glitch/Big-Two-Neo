@@ -399,6 +399,18 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Runtime array-of-strings guard for the internal-caller path — the TypeScript
+    // type is string[], but req.json() is untyped at runtime and a malformed payload
+    // (e.g. string or object) would cause incorrect .length behaviour or a query error.
+    // The external-caller (user-JWT) path already validates this via peekBody at line ~341;
+    // internal callers (service-role / bot) bypass that path and need their own check.
+    if (!Array.isArray(user_ids) || !user_ids.every((id): id is string => typeof id === 'string')) {
+      return new Response(
+        JSON.stringify({ error: 'user_ids must be an array of strings' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Bound fan-out: each user incurs one DB round-trip for rate-limit checking (N+1).
     // Cap at 50 recipients — a Big 2 game has 4 players and server-side fan-out is small.
     // A batch-based rate-limit RPC would be the long-term fix for larger fan-out scenarios.

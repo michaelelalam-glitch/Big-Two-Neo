@@ -11,8 +11,12 @@
 --   AND (p.proconfig IS NULL OR NOT EXISTS (
 --     SELECT 1 FROM unnest(p.proconfig) c WHERE c LIKE 'search_path=%'));
 --
--- Only 3 baseline functions pre-dating the blanket hardening migration
--- (20260307000001) remain unpatched in the production database.
+-- Note: cleanup_friendship_on_block() is defined WITH SET search_path in
+-- migration 20260720000003, but that migration may not have been run on
+-- production databases that pre-date it (historical drift). The ALTER here
+-- is idempotent and acts as a belt-and-suspenders hardening pass: safe to
+-- run when the function already has the correct setting, and a required fix
+-- when it doesn't.
 
 -- SET search_path = public, pg_catalog is the correct pragmatic hardening
 -- choice for these legacy functions: it prevents schema-injection attacks
