@@ -19,24 +19,43 @@ ALTER FUNCTION public.cleanup_friendship_on_block()
 
 -- sync_player_stats_to_profiles and trigger_refresh_leaderboard are legacy
 -- production functions that pre-date the repo's migration history and have no
--- CREATE FUNCTION in these files.  Guard with an existence check so this
+-- CREATE FUNCTION in these files.  Iterate over matching signatures so this
 -- migration is idempotent on fresh environments (e.g. staging, CI) where the
--- functions may not yet exist.
+-- functions may not yet exist, and robust if the functions have parameters or
+-- are overloaded.
 DO $$
+DECLARE
+  target_func record;
 BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_proc p
+  FOR target_func IN
+    SELECT n.nspname AS schema_name,
+           p.proname AS function_name,
+           pg_get_function_identity_arguments(p.oid) AS identity_args
+    FROM pg_proc p
     JOIN pg_namespace n ON n.oid = p.pronamespace
     WHERE n.nspname = 'public' AND p.proname = 'sync_player_stats_to_profiles'
-  ) THEN
-    EXECUTE 'ALTER FUNCTION public.sync_player_stats_to_profiles() SET search_path = public, pg_catalog';
-  END IF;
+  LOOP
+    EXECUTE format(
+      'ALTER FUNCTION %I.%I(%s) SET search_path = public, pg_catalog',
+      target_func.schema_name,
+      target_func.function_name,
+      target_func.identity_args
+    );
+  END LOOP;
 
-  IF EXISTS (
-    SELECT 1 FROM pg_proc p
+  FOR target_func IN
+    SELECT n.nspname AS schema_name,
+           p.proname AS function_name,
+           pg_get_function_identity_arguments(p.oid) AS identity_args
+    FROM pg_proc p
     JOIN pg_namespace n ON n.oid = p.pronamespace
     WHERE n.nspname = 'public' AND p.proname = 'trigger_refresh_leaderboard'
-  ) THEN
-    EXECUTE 'ALTER FUNCTION public.trigger_refresh_leaderboard() SET search_path = public, pg_catalog';
-  END IF;
+  LOOP
+    EXECUTE format(
+      'ALTER FUNCTION %I.%I(%s) SET search_path = public, pg_catalog',
+      target_func.schema_name,
+      target_func.function_name,
+      target_func.identity_args
+    );
+  END LOOP;
 END $$;
