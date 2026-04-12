@@ -57,10 +57,10 @@ module.exports = {
   // Per-path thresholds: game/scoreboard at established levels, new paths collecting data.
   coverageThreshold: {
     global: {
-      statements: 40,
+      statements: 42,
       branches: 50,
-      functions: 44, // M27: lowered to reflect expanded collectCoverageFrom (screens + components added)
-      lines: 40,
+      functions: 46, // P14-L2: Raised from 40/44/40 → 42/46/42 (matches actual coverage)
+      lines: 42,
     },
     'src/game/': {
       branches: 80,

@@ -258,6 +258,26 @@ export interface Translations {
     social: string;
   };
 
+  // P11-M2: Push notification content strings (used by pushNotificationTriggers.ts)
+  pushContent: {
+    gameStartingTitle: string;
+    gameStartingBody: string;
+    yourTurnTitle: string;
+    yourTurnBody: string;
+    victoryTitle: string;
+    victoryBody: string;
+    gameOverTitle: string;
+    gameOverBody: string;
+    roomInviteTitle: string;
+    roomInviteBody: string;
+    playerJoinedTitle: string;
+    playerJoinedBody: string;
+    timeRunningOutTitle: string;
+    timeRunningOutBody: string;
+    readyToStartTitle: string;
+    readyToStartBody: string;
+  };
+
   // Bug Report Modal
   bugReportModal: {
     title: string;
@@ -523,6 +543,11 @@ export interface Translations {
     scoreboardError: string;
     scoreboardErrorMessage: string;
     scoreboardRetryHint: string;
+    // P11-L1: Accessibility labels for GameView toolbar buttons
+    a11yViewPlayHistory: string;
+    a11yToggleScoreboard: string;
+    a11yOpenSettings: string;
+    a11yToggleOrientation: string;
   };
 
   // Game End Modal
@@ -1164,6 +1189,24 @@ const en: Translations = {
     turnNotifications: 'Turn Notifications',
     social: 'Social',
   },
+  pushContent: {
+    gameStartingTitle: '🎮 Game Starting!',
+    gameStartingBody: 'Your game in room {{roomCode}} is beginning. Good luck!',
+    yourTurnTitle: '⏰ Your Turn!',
+    yourTurnBody: "It's your turn to play in room {{roomCode}}",
+    victoryTitle: '🎉 Victory!',
+    victoryBody: 'Congratulations! You won in room {{roomCode}}!',
+    gameOverTitle: '🏁 Game Over',
+    gameOverBody: '{{winnerName}} won the game in room {{roomCode}}',
+    roomInviteTitle: '🎴 Room Invite',
+    roomInviteBody: '{{inviterName}} invited you to join room {{roomCode}}',
+    playerJoinedTitle: '👋 Player Joined',
+    playerJoinedBody: '{{joinerName}} joined room {{roomCode}}',
+    timeRunningOutTitle: '⚠️ Time Running Out!',
+    timeRunningOutBody: '{{seconds}}s left to play in room {{roomCode}}',
+    readyToStartTitle: '✅ Ready to Start',
+    readyToStartBody: 'All players are ready in room {{roomCode}}. You can start the game!',
+  },
   bugReportModal: {
     title: 'Report a Bug',
     categoryLabel: 'Category',
@@ -1408,6 +1451,10 @@ const en: Translations = {
     scoreboardError: 'Scoreboard Error',
     scoreboardErrorMessage: 'Unable to display scoreboard data',
     scoreboardRetryHint: 'Attempts to reload the scoreboard',
+    a11yViewPlayHistory: 'View play history',
+    a11yToggleScoreboard: 'Toggle scoreboard',
+    a11yOpenSettings: 'Open settings menu',
+    a11yToggleOrientation: 'Toggle orientation',
   },
   gameEnd: {
     gameWinner: 'Game Winner',
@@ -2022,6 +2069,24 @@ const ar: Translations = {
     turnNotifications: 'إشعارات الدَّوْر',
     social: 'اجتماعي',
   },
+  pushContent: {
+    gameStartingTitle: '🎮 اللعبة تبدأ!',
+    gameStartingBody: 'لعبتك في غرفة {{roomCode}} تبدأ الآن. حظًا سعيدًا!',
+    yourTurnTitle: '⏰ دورك!',
+    yourTurnBody: 'حان دورك للعب في غرفة {{roomCode}}',
+    victoryTitle: '🎉 فوز!',
+    victoryBody: 'تهانينا! لقد فزت في غرفة {{roomCode}}!',
+    gameOverTitle: '🏁 انتهت اللعبة',
+    gameOverBody: '{{winnerName}} فاز باللعبة في غرفة {{roomCode}}',
+    roomInviteTitle: '🎴 دعوة غرفة',
+    roomInviteBody: '{{inviterName}} دعاك للانضمام إلى غرفة {{roomCode}}',
+    playerJoinedTitle: '👋 انضم لاعب',
+    playerJoinedBody: '{{joinerName}} انضم إلى غرفة {{roomCode}}',
+    timeRunningOutTitle: '⚠️ الوقت ينفد!',
+    timeRunningOutBody: '{{seconds}} ثانية متبقية للعب في غرفة {{roomCode}}',
+    readyToStartTitle: '✅ جاهز للبدء',
+    readyToStartBody: 'جميع اللاعبين جاهزون في غرفة {{roomCode}}. يمكنك بدء اللعبة!',
+  },
   bugReportModal: {
     title: 'الإبلاغ عن مشكلة',
     categoryLabel: 'الفئة',
@@ -2201,6 +2266,10 @@ const ar: Translations = {
     scoreboardError: 'خطأ في لوحة النتائج',
     scoreboardErrorMessage: 'تعذر عرض بيانات لوحة النتائج',
     scoreboardRetryHint: 'يحاول إعادة تحميل لوحة النتائج',
+    a11yViewPlayHistory: 'عرض سجل اللعب',
+    a11yToggleScoreboard: 'تبديل لوحة النتائج',
+    a11yOpenSettings: 'فتح قائمة الإعدادات',
+    a11yToggleOrientation: 'تبديل الاتجاه',
   },
   gameEnd: {
     gameWinner: 'فائز اللعبة',
@@ -2909,6 +2978,24 @@ const de: Translations = {
     turnNotifications: 'Zugbenachrichtigungen',
     social: 'Soziales',
   },
+  pushContent: {
+    gameStartingTitle: '🎮 Spiel beginnt!',
+    gameStartingBody: 'Dein Spiel in Raum {{roomCode}} beginnt. Viel Glück!',
+    yourTurnTitle: '⏰ Du bist dran!',
+    yourTurnBody: 'Du bist in Raum {{roomCode}} am Zug',
+    victoryTitle: '🎉 Sieg!',
+    victoryBody: 'Herzlichen Glückwunsch! Du hast in Raum {{roomCode}} gewonnen!',
+    gameOverTitle: '🏁 Spiel beendet',
+    gameOverBody: '{{winnerName}} hat das Spiel in Raum {{roomCode}} gewonnen',
+    roomInviteTitle: '🎴 Raumeinladung',
+    roomInviteBody: '{{inviterName}} hat dich eingeladen, Raum {{roomCode}} beizutreten',
+    playerJoinedTitle: '👋 Spieler beigetreten',
+    playerJoinedBody: '{{joinerName}} ist Raum {{roomCode}} beigetreten',
+    timeRunningOutTitle: '⚠️ Zeit läuft ab!',
+    timeRunningOutBody: '{{seconds}}s verbleibend in Raum {{roomCode}}',
+    readyToStartTitle: '✅ Bereit zum Start',
+    readyToStartBody: 'Alle Spieler sind bereit in Raum {{roomCode}}. Du kannst das Spiel starten!',
+  },
   bugReportModal: {
     title: 'Problem melden',
     categoryLabel: 'Kategorie',
@@ -3096,6 +3183,10 @@ const de: Translations = {
     scoreboardError: 'Anzeigetafel-Fehler',
     scoreboardErrorMessage: 'Anzeigetafel-Daten können nicht angezeigt werden',
     scoreboardRetryHint: 'Versucht die Anzeigetafel neu zu laden',
+    a11yViewPlayHistory: 'Spielverlauf anzeigen',
+    a11yToggleScoreboard: 'Anzeigetafel umschalten',
+    a11yOpenSettings: 'Einstellungsmenü öffnen',
+    a11yToggleOrientation: 'Ausrichtung umschalten',
   },
   gameEnd: {
     gameWinner: 'Spielgewinner',

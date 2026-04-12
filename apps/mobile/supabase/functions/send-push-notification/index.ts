@@ -495,8 +495,39 @@ Deno.serve(async (req) => {
       console.log(`⏳ Throttled ${throttledIds.length} user(s) for event type "${eventType ?? 'default'}"`)
     }
 
-    // Step 3: Filter to allowed users' tokens
-    const tokens = (allTokens ?? []).filter((t: { user_id: string }) => allowedIds.includes(t.user_id))
+    // ── P12-H1: Server-side notification preference check ───────────────────
+    // Query profiles for notification opt-out settings. Users who disabled a
+    // notification type on the client sync their preference to the DB column.
+    // Default TRUE (opt-in) so existing users without a preference row are not blocked.
+    const PREFERENCE_COLUMN_MAP: Record<string, string> = {
+      game_invite: 'notify_game_invites',
+      your_turn: 'notify_your_turn',
+    };
+    const prefColumn = PREFERENCE_COLUMN_MAP[normalizedEventType];
+    let preferenceFilteredIds = allowedIds;
+    if (prefColumn && allowedIds.length > 0) {
+      const { data: prefRows, error: prefError } = await supabaseAdmin
+        .from('profiles')
+        .select(`id, ${prefColumn}`)
+        .in('id', allowedIds);
+      if (prefError) {
+        // Log but don't block — preference check is best-effort.
+        console.warn(`[send-push-notification] Preference check failed (proceeding): ${prefError.message}`);
+      } else if (prefRows) {
+        const optedOutIds = new Set(
+          prefRows
+            .filter((r: any) => r[prefColumn] === false)
+            .map((r: any) => r.id)
+        );
+        if (optedOutIds.size > 0) {
+          preferenceFilteredIds = allowedIds.filter((uid: string) => !optedOutIds.has(uid));
+          console.log(`🔕 Filtered ${optedOutIds.size} user(s) who opted out of "${normalizedEventType}" notifications`);
+        }
+      }
+    }
+
+    // Step 3: Filter to preference-allowed + rate-allowed users' tokens
+    const tokens = (allTokens ?? []).filter((t: { user_id: string }) => preferenceFilteredIds.includes(t.user_id))
 
     if (tokens.length === 0) {
       console.log('No push tokens found for allowed users')

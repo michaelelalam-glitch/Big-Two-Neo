@@ -725,9 +725,12 @@ Deno.serve(async (req) => {
       current_auto_pass_timer: gameState.auto_pass_timer,
     });
 
-    // 7. Check if 3 consecutive passes (new trick starts, reset passes)
-    if (newPasses >= 3) {
-      console.log('🎯 [player-pass] 3 consecutive passes - clearing trick');
+    // 7. Check if all OTHER players have passed (new trick starts, reset passes)
+    // P1-M1: Use totalPlayers (derived from hands object at L593) instead of
+    // hardcoded 3 so the logic is correct for 2/3/4-player games.
+    const passThreshold = Math.max(1, totalPlayers - 1);
+    if (newPasses >= passThreshold) {
+      console.log(`🎯 [player-pass] ${newPasses} consecutive passes (threshold ${passThreshold}) - clearing trick`);
 
       // ⚡ CRITICAL FIX: Determine correct next turn after 3 passes
       // If auto-pass timer is active, return to exempt player (who played highest card)

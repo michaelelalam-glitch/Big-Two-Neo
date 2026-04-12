@@ -1232,7 +1232,11 @@ Deno.serve(async (req) => {
             hint: validationError.hint,
             code: validationError.code,
           });
-          // Don't block gameplay if SQL function fails - just log and continue
+          // P1-H1: Reject play on SQL error — safer to block than allow a rule violation
+          return new Response(
+            JSON.stringify({ success: false, error: 'One Card Left validation failed — please retry' }),
+            { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         } else if (oneCardLeftValidation && !oneCardLeftValidation.valid) {
           console.log('❌ One Card Left Rule violation:', oneCardLeftValidation);
           return new Response(
@@ -1248,7 +1252,11 @@ Deno.serve(async (req) => {
         }
       } catch (err) {
         console.error('❌ One Card Left exception:', err);
-        // Don't block gameplay if validation throws - log and continue
+        // P1-H1: Reject play on timeout/exception — prevent rule bypass on slow DB
+        return new Response(
+          JSON.stringify({ success: false, error: 'One Card Left validation unavailable — please retry' }),
+          { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
     }
 

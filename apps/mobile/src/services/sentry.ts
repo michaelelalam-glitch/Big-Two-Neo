@@ -71,6 +71,18 @@ export function initSentry(): void {
       // eslint-disable-next-line no-console
       console.log('[Sentry] Initializing');
     }
+    // ── P8-H1: Per-event dedup cache + quota circuit breaker ──────────────
+    // Prevents crash loops from exhausting the Sentry quota.
+    // 1. Fingerprint-based dedup: same fingerprint within 60s → drop.
+    // 2. Circuit breaker: >30 events/min → drop all until window resets.
+    const _eventDedup = new Map<string, number>(); // fingerprint → last-sent timestamp
+    const _EVENT_DEDUP_WINDOW_MS = 60_000;
+    const _EVENT_DEDUP_MAX_SIZE = 200;
+    let _eventCountThisMinute = 0;
+    let _eventMinuteStart = Date.now();
+    const _EVENTS_PER_MINUTE_LIMIT = 30;
+    // ─────────────────────────────────────────────────────────────────────
+
     Sentry.init({
       dsn: SENTRY_DSN,
 
@@ -113,6 +125,7 @@ export function initSentry(): void {
 
       // Filter hook: runs before every event is transmitted to Sentry.
       // Return null to drop the event. Return the (optionally mutated) event to send.
+
       beforeSend(event) {
         // Drop ALL events from development environment. Dev sessions run on the
         // simulator with your own account — they generate noise (App Hang, network
@@ -122,6 +135,35 @@ export function initSentry(): void {
         if (event.environment === 'development' || __DEV__) {
           return null;
         }
+
+        // ── P8-H1: Quota circuit breaker ────────────────────────────────────
+        const now = Date.now();
+        if (now - _eventMinuteStart > 60_000) {
+          _eventCountThisMinute = 0;
+          _eventMinuteStart = now;
+        }
+        if (_eventCountThisMinute >= _EVENTS_PER_MINUTE_LIMIT) {
+          return null; // Drop — quota backoff active
+        }
+
+        // ── P8-H1: Fingerprint-based dedup ──────────────────────────────────
+        const fp = (event.fingerprint ?? [event.exception?.values?.[0]?.value ?? 'unknown']).join(
+          '|'
+        );
+        const lastSent = _eventDedup.get(fp);
+        if (lastSent && now - lastSent < _EVENT_DEDUP_WINDOW_MS) {
+          return null; // Drop duplicate within dedup window
+        }
+        // Evict oldest entries if cache is full
+        if (_eventDedup.size >= _EVENT_DEDUP_MAX_SIZE) {
+          const cutoff = now - _EVENT_DEDUP_WINDOW_MS;
+          for (const [key, ts] of _eventDedup) {
+            if (ts < cutoff) _eventDedup.delete(key);
+          }
+        }
+        _eventDedup.set(fp, now);
+        _eventCountThisMinute++;
+        // ─────────────────────────────────────────────────────────────────────
 
         const msg = event.exception?.values?.[0]?.value ?? '';
         const frames = event.exception?.values?.[0]?.stacktrace?.frames ?? [];

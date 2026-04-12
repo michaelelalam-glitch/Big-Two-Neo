@@ -24,10 +24,32 @@ import { SETTINGS_KEYS, DEFAULT_SETTINGS } from '../utils/settings';
 import { soundManager } from '../utils/soundManager';
 import { hapticManager } from '../utils/hapticManager';
 import { uiLogger } from '../utils/logger';
+import { supabase } from '../services/supabase';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 // Imported from the central settings utility to avoid type drift.
 import type { CardSortOrder, AnimationSpeed, AutoPassTimer } from '../utils/settings';
+
+// P12-H1: Fire-and-forget sync of notification preferences to the profiles
+// table so the send-push-notification edge function can enforce opt-out
+// server-side (including background/killed-state notifications).
+function _syncNotifyPreferenceToDb(column: string, value: boolean) {
+  supabase.auth
+    .getUser()
+    .then(({ data }) => {
+      if (!data?.user) return;
+      supabase
+        .from('profiles')
+        .update({ [column]: value })
+        .eq('id', data.user.id)
+        .then(({ error }) => {
+          if (error) uiLogger.error(`[UserPreferences] Failed to sync ${column} to DB`, error);
+        });
+    })
+    .catch(() => {
+      /* no-op if not authed */
+    });
+}
 export type { CardSortOrder, AnimationSpeed, AutoPassTimer };
 
 export type ProfilePhotoSize = 'small' | 'medium' | 'large';
@@ -135,8 +157,14 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       setProfileVisibility: visible => set({ profileVisibility: visible }),
       setShowOnlineStatus: show => set({ showOnlineStatus: show }),
       setProfilePhotoSize: size => set({ profilePhotoSize: size }),
-      setNotifyGameInvites: enabled => set({ notifyGameInvites: enabled }),
-      setNotifyYourTurn: enabled => set({ notifyYourTurn: enabled }),
+      setNotifyGameInvites: enabled => {
+        set({ notifyGameInvites: enabled });
+        _syncNotifyPreferenceToDb('notify_game_invites', enabled);
+      },
+      setNotifyYourTurn: enabled => {
+        set({ notifyYourTurn: enabled });
+        _syncNotifyPreferenceToDb('notify_your_turn', enabled);
+      },
       setNotifyGameStarted: enabled => set({ notifyGameStarted: enabled }),
       setNotifyFriendRequests: enabled => set({ notifyFriendRequests: enabled }),
 
@@ -190,3 +218,17 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
     }
   )
 );
+
+// ── P4-M1: Hydration gate ──────────────────────────────────────────────────
+// Zustand persist rehydrates from AsyncStorage asynchronously. Reads before
+// hydration completes return the in-memory defaults, not the user's saved
+// preferences. Expose a promise + boolean so callers can await or guard.
+let _resolveHydration: () => void;
+export const userPreferencesHydrated = new Promise<void>(r => {
+  _resolveHydration = r;
+});
+export let isUserPreferencesHydrated = false;
+useUserPreferencesStore.persist.onFinishHydration(() => {
+  isUserPreferencesHydrated = true;
+  _resolveHydration();
+});

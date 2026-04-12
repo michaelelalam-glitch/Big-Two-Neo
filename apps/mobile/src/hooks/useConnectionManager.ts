@@ -384,9 +384,14 @@ export function useConnectionManager({
    * Reconnect to the game. Works in two modes:
    *   1. Player was merely disconnected (not yet replaced)  → just resumes heartbeat
    *   2. Bot replaced the player                           → reclaims the seat first
+   *
+   * P2-M1: Guarded by isReconnecting — rapid disconnect/reconnect cycles cannot
+   * queue multiple concurrent reconnect-player calls.
    */
   const reconnect = useCallback(async () => {
     if (!roomId || !playerId) return;
+    // P2-M1: Deduplicate — skip if a reconnect call is already in-flight
+    if (isReconnecting) return;
 
     setIsReconnecting(true);
     setConnectionStatus('reconnecting');

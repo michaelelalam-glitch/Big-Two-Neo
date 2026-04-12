@@ -10,6 +10,7 @@ import {
   Modal,
   Share,
   Alert,
+  BackHandler,
   useWindowDimensions,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -953,6 +954,16 @@ export default function LobbyScreen() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- handleStartWithBots is not memoised; isStartingRef is a stable ref
   }, [humanPlayerCount, allNonHostHumansReady, isHost, isStarting, isGameInProgress]);
+
+  // P16-L3: Intercept Android hardware back button to show leave confirmation
+  useEffect(() => {
+    const onBackPress = () => {
+      handleLeaveRoom();
+      return true; // prevent default back navigation
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  });
 
   const handleLeaveRoom = () => {
     if (isLeavingRef.current || isLeaving || isLeaveConfirmOpenRef.current) return;
