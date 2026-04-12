@@ -51,25 +51,6 @@ function _syncNotifyPreferenceToDb(column: string, value: boolean) {
     });
 }
 
-/** Batch-sync all notification preferences in a single getUser + single update. */
-function _syncAllNotifyPreferencesToDb(prefs: Record<string, boolean>) {
-  supabase.auth
-    .getUser()
-    .then(({ data }) => {
-      if (!data?.user) return;
-      supabase
-        .from('profiles')
-        .update(prefs)
-        .eq('id', data.user.id)
-        .then(({ error }) => {
-          if (error)
-            uiLogger.error('[UserPreferences] Failed to batch-sync preferences to DB', error);
-        });
-    })
-    .catch(() => {
-      /* no-op if not authed */
-    });
-}
 export type { CardSortOrder, AnimationSpeed, AutoPassTimer };
 
 export type ProfilePhotoSize = 'small' | 'medium' | 'large';
@@ -265,13 +246,35 @@ useUserPreferencesStore.persist.onFinishHydration(() => {
   // immediately, without needing to toggle settings again.
   // Batched into a single getUser + single update to avoid 4× round-trips.
   // Guard prevents redundant writes if rehydrate() is called more than once.
+  // Flag is only set after confirming an authenticated user exists; if no user
+  // is present at hydration time the sync will retry on next rehydration/auth.
   if (_prefsSyncedToDb) return;
-  _prefsSyncedToDb = true;
+  _prefsSyncedToDb = true; // Prevent re-entrance during async auth check
   const state = useUserPreferencesStore.getState();
-  _syncAllNotifyPreferencesToDb({
-    notify_game_invites: state.notifyGameInvites,
-    notify_your_turn: state.notifyYourTurn,
-    notify_game_started: state.notifyGameStarted,
-    notify_friend_requests: state.notifyFriendRequests,
-  });
+  supabase.auth
+    .getUser()
+    .then(({ data }) => {
+      if (!data?.user) {
+        _prefsSyncedToDb = false; // No user → allow retry on next hydration
+        return;
+      }
+      supabase
+        .from('profiles')
+        .update({
+          notify_game_invites: state.notifyGameInvites,
+          notify_your_turn: state.notifyYourTurn,
+          notify_game_started: state.notifyGameStarted,
+          notify_friend_requests: state.notifyFriendRequests,
+        } as Record<string, boolean>)
+        .eq('id', data.user.id)
+        .then(({ error }) => {
+          if (error) {
+            _prefsSyncedToDb = false; // DB error → allow retry
+            uiLogger.error('[UserPreferences] Failed to batch-sync preferences to DB', error);
+          }
+        });
+    })
+    .catch(() => {
+      _prefsSyncedToDb = false; // Auth error → allow retry
+    });
 });
