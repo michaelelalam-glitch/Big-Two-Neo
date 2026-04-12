@@ -14,6 +14,12 @@
 -- Only 3 baseline functions pre-dating the blanket hardening migration
 -- (20260307000001) remain unpatched in the production database.
 
+-- SET search_path = public, pg_catalog is the correct pragmatic hardening
+-- choice for these legacy functions: it prevents schema-injection attacks
+-- (no user-controlled schema can appear before 'public') while preserving
+-- unqualified references to public-schema tables inside the function body.
+-- Using SET search_path = '' would require fully-qualifying every table
+-- reference inside functions we cannot inspect/rewrite here.
 ALTER FUNCTION public.cleanup_friendship_on_block()
   SET search_path = public, pg_catalog;
 
