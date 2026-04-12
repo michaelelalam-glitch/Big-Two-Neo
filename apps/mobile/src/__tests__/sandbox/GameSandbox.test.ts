@@ -3,7 +3,7 @@
  *
  * Tests every edge function scenario with full state control:
  *  - Custom hands, scores, and played cards
- *  - Rule validation (3♦ first play, one-card-left, pass restrictions)
+ *  - Rule validation (3♦ first play, pass restrictions)
  *  - Scoring (1/2/3 points per card tiers, 101+ game end)
  *  - Bot AI behavior at all difficulties
  *  - Multi-game simulation (20+ concurrent)
@@ -523,11 +523,11 @@ describe('GameSandbox: beat play', () => {
   it('straight flush beats four of a kind', () => {
     const sf = cards('3D', '4D', '5D', '6D', '7D');
     const foak = cards('3D', '3C', '3H', '3S', '4D');
-    // This depends on how the game handles cross-combo beating
     const sfType = classifyCards(sf);
     const foakType = classifyCards(foak);
     expect(sfType).toBe('Straight Flush');
     expect(foakType).toBe('Four of a Kind');
+    expect(canBeatPlay(sf, lp(foak, 'Four of a Kind'))).toBe(true);
   });
 });
 

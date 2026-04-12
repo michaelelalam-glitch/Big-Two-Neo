@@ -10,10 +10,10 @@
  *
  * Usage:
  *   const sb = GameSandbox.create({ players: 4 });
- *   sb.setHand('player-1', [card('3D'), card('4C')]);
- *   sb.setScores({ 'player-1': 50, 'player-2': 90 });
- *   sb.playCards('player-1', [card('3D')]);
- *   sb.pass('player-2');
+ *   sb.setHand('player-0', [card('3D'), card('4C')]);
+ *   sb.setScores({ 'player-0': 50, 'player-1': 90 });
+ *   sb.playCards('player-0', [card('3D')]);
+ *   sb.pass('player-1');
  *   expect(sb.state.currentPlayerIndex).toBe(2);
  */
 
@@ -233,6 +233,20 @@ export class GameSandbox {
   /** Override last play (trick to beat) */
   setLastPlay(play: LastPlay | null): void {
     this.state.lastPlay = play;
+
+    if (play === null) {
+      this.state.lastPlayPlayerIndex = null;
+      return;
+    }
+
+    // Try to match player from play.player_index if available
+    if (
+      play.player_index != null &&
+      play.player_index >= 0 &&
+      play.player_index < this.state.players.length
+    ) {
+      this.state.lastPlayPlayerIndex = play.player_index;
+    }
   }
 
   /** Set the first-play flag */
@@ -294,14 +308,16 @@ export class GameSandbox {
     }
 
     // One-card-left rule
+    const nextPlayerIndex = (idx + 1) % this.state.players.length;
+    const nextPlayerCardCount = this.state.players[nextPlayerIndex]?.hand.length ?? 0;
     const oneCardResult = validateOneCardLeftRule(
       selectedCards,
       p.hand,
-      this.state.lastPlay?.cards ?? null,
-      this.state.played_cards
+      nextPlayerCardCount,
+      this.state.lastPlay ?? null
     );
     if (!oneCardResult.valid) {
-      return { success: false, error: oneCardResult.reason ?? 'One-card-left rule violation' };
+      return { success: false, error: oneCardResult.error ?? 'One-card-left rule violation' };
     }
 
     // Execute the play
@@ -353,8 +369,25 @@ export class GameSandbox {
     }
 
     // One-card-left pass rule
-    if (!canPassWithOneCardLeftRule(p.hand, this.state.lastPlay.cards, this.state.played_cards)) {
-      return { success: false, error: 'Must play — one-card-left rule forces a play' };
+    let nextPlayerCardCount = 0;
+    for (let offset = 1; offset < this.state.players.length; offset++) {
+      const nextIdx = (idx + offset) % this.state.players.length;
+      const nextPlayer = this.state.players[nextIdx];
+      if (nextPlayer.hand.length > 0) {
+        nextPlayerCardCount = nextPlayer.hand.length;
+        break;
+      }
+    }
+    const passRuleResult = canPassWithOneCardLeftRule(
+      p.hand,
+      nextPlayerCardCount,
+      this.state.lastPlay
+    );
+    if (!passRuleResult.canPass) {
+      return {
+        success: false,
+        error: passRuleResult.error ?? 'Must play — one-card-left rule forces a play',
+      };
     }
 
     // Execute pass
@@ -366,7 +399,7 @@ export class GameSandbox {
       playerId: p.id,
       playerName: p.name,
       cards: [],
-      combo_type: 'Pass' as ComboType,
+      combo_type: 'unknown' as ComboType,
       timestamp: Date.now(),
       passed: true,
       matchNumber: this.state.currentMatch,
@@ -415,7 +448,20 @@ export class GameSandbox {
     if (!result.cards || result.cards.length === 0) {
       // Bot passes
       if (this.state.lastPlay) {
-        this.pass(p.id);
+        const passResult = this.pass(p.id);
+        if (!passResult.success) {
+          // One-card-left rule may prevent passing — force play highest single
+          const sorted = sortHand(p.hand);
+          for (let i = sorted.length - 1; i >= 0; i--) {
+            const playResult = this.playCards(p.id, [sorted[i]]);
+            if (playResult.success) {
+              return { action: 'play', cards: [sorted[i]], comboType: playResult.comboType };
+            }
+          }
+          // No valid play possible — force play lowest card to ensure progress
+          this.forcePlayLowest(p);
+          return { action: 'play', cards: [sortHand(p.hand)[0]] };
+        }
       } else {
         // Leading but bot returned null — play lowest single
         const lowest = sortHand(p.hand)[0];
@@ -434,16 +480,35 @@ export class GameSandbox {
 
     if (cardObjects.length === 0) {
       if (this.state.lastPlay) {
-        this.pass(p.id);
+        const passResult = this.pass(p.id);
+        if (!passResult.success) {
+          // Forced to play — try any single
+          const sorted = sortHand(p.hand);
+          for (let i = sorted.length - 1; i >= 0; i--) {
+            const playResult = this.playCards(p.id, [sorted[i]]);
+            if (playResult.success) {
+              return { action: 'play', cards: [sorted[i]], comboType: playResult.comboType };
+            }
+          }
+          this.forcePlayLowest(p);
+          return { action: 'play', cards: [sortHand(p.hand)[0]] };
+        }
       }
       return { action: 'pass' };
     }
 
     const playResult = this.playCards(p.id, cardObjects);
     if (!playResult.success) {
-      // Fallback: pass if play failed
+      // Fallback: try to pass, then force play lowest to ensure progress
       if (this.state.lastPlay) {
-        this.pass(p.id);
+        const passResult = this.pass(p.id);
+        if (!passResult.success) {
+          this.forcePlayLowest(p);
+          return { action: 'play', cards: p.hand.slice(0, 1) };
+        }
+      } else {
+        this.forcePlayLowest(p);
+        return { action: 'play', cards: p.hand.slice(0, 1) };
       }
       return { action: 'pass' };
     }
@@ -552,6 +617,33 @@ export class GameSandbox {
 
   // ─── Internal ────────────────────────────────────────────────────────────
 
+  /** Force play the lowest card bypassing all rule checks (ensures game progress) */
+  private forcePlayLowest(p: Player): void {
+    const sorted = sortHand(p.hand);
+    const lowest = sorted[0];
+    if (!lowest) return;
+
+    // Remove from hand
+    p.hand = p.hand.filter(c => c.id !== lowest.id);
+    p.passed = false;
+
+    // Update state as if a valid play occurred
+    const idx = this.state.players.indexOf(p);
+    this.state.lastPlay = { cards: [lowest], combo_type: 'Single' };
+    this.state.lastPlayPlayerIndex = idx;
+    this.state.consecutivePasses = 0;
+    this.state.isFirstPlayOfGame = false;
+    this.state.played_cards.push(lowest);
+
+    // Check win
+    if (p.hand.length === 0) {
+      this.state.gameEnded = true;
+      this.state.winnerId = p.id;
+    } else {
+      this.advanceTurn();
+    }
+  }
+
   private advanceTurn(): void {
     let next = (this.state.currentPlayerIndex + 1) % this.state.players.length;
     let attempts = 0;
@@ -568,7 +660,7 @@ export class GameSandbox {
 
 /**
  * Run multiple sandbox games in parallel (simulates 20+ devices).
- * Each game runs independently with its own RNG seed.
+ * Each game runs independently as a separate sandbox instance.
  */
 export class MultiGameRunner {
   private games: Map<string, GameSandbox> = new Map();
