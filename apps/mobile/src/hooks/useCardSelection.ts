@@ -40,8 +40,10 @@ export function useCardSelection(roomId?: string | null) {
   // P4-8: Restore persisted selection once per room key (only for multiplayer rooms with a roomId).
   useEffect(() => {
     if (!storageKey || lastRestoredStorageKeyRef.current === storageKey) return;
-    lastRestoredStorageKeyRef.current = storageKey;
-    AsyncStorage.getItem(storageKey)
+    // Mark early to prevent concurrent duplicate attempts for the same key.
+    const key = storageKey;
+    lastRestoredStorageKeyRef.current = key;
+    AsyncStorage.getItem(key)
       .then(value => {
         if (!value) return;
         try {
@@ -50,10 +52,15 @@ export function useCardSelection(roomId?: string | null) {
             setSelectedCardIdsState(new Set(ids));
           }
         } catch {
-          // Ignore malformed stored value.
+          // Ignore malformed stored value — selection starts empty.
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        // Reset ref so a subsequent mount can retry the restore if getItem failed.
+        if (lastRestoredStorageKeyRef.current === key) {
+          lastRestoredStorageKeyRef.current = null;
+        }
+      });
   }, [storageKey]);
 
   // P4-8: Public setter that also persists to AsyncStorage.
