@@ -527,7 +527,8 @@ Deno.serve(async (req) => {
     }
 
     // Step 3: Filter to preference-allowed + rate-allowed users' tokens
-    const tokens = (allTokens ?? []).filter((t: { user_id: string }) => preferenceFilteredIds.includes(t.user_id))
+    const preferenceFilteredIdSet = new Set(preferenceFilteredIds)
+    const tokens = (allTokens ?? []).filter((t: { user_id: string }) => preferenceFilteredIdSet.has(t.user_id))
 
     if (tokens.length === 0) {
       console.log('No push tokens found for allowed users')

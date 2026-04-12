@@ -233,54 +233,82 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
    * hand — other players' hands are replaced with placeholder arrays.
    * This prevents the C1 vulnerability where select('*') on game_state
    * exposed all players' cards via RLS.
+   *
+   * Retries once after 500 ms on transient network errors (matching fetchPlayers pattern).
    */
   const fetchGameState = useCallback(async (roomId: string) => {
-    const { data, error } = await supabase
-      .rpc('get_player_game_state', { p_room_id: roomId })
-      .single();
+    const attempt = async (): Promise<void> => {
+      const { data, error } = await supabase
+        .rpc('get_player_game_state', { p_room_id: roomId })
+        .single();
 
-    // Guard: component unmounted while fetch was in-flight — skip state updates.
-    if (!isMountedRef.current) return;
+      // Guard: component unmounted while fetch was in-flight — skip state updates.
+      if (!isMountedRef.current) return;
 
-    if (error) {
-      if (error.code !== 'PGRST116') {
-        networkLogger.error('[fetchGameState] Error:', error);
-        throw error;
-      }
-      setGameState(null);
-    } else if (data) {
-      // Map the DB row into GameState, explicitly assigning each field.
-      // Json-typed columns are cast to their app-layer types; the DB schema
-      // stores them as JSONB, so the runtime shape matches at read-time.
-      type GameStateRow = Database['public']['Tables']['game_state']['Row'];
-      const row = data as GameStateRow;
-      if (!row.room_id) {
-        networkLogger.error('[fetchGameState] game_state row has null room_id, skipping');
+      if (error) {
+        if (error.code !== 'PGRST116') {
+          networkLogger.error('[fetchGameState] Error:', error);
+          throw error;
+        }
         setGameState(null);
-        return;
+      } else if (data) {
+        // Map the DB row into GameState, explicitly assigning each field.
+        // Json-typed columns are cast to their app-layer types; the DB schema
+        // stores them as JSONB, so the runtime shape matches at read-time.
+        type GameStateRow = Database['public']['Tables']['game_state']['Row'];
+        const row = data as GameStateRow;
+        if (!row.room_id) {
+          networkLogger.error('[fetchGameState] game_state row has null room_id, skipping');
+          setGameState(null);
+          return;
+        }
+        const mapped: GameState = {
+          id: row.id,
+          room_id: row.room_id,
+          current_turn: row.current_turn,
+          turn_started_at: row.turn_started_at,
+          last_play: row.last_play as unknown as GameState['last_play'],
+          pass_count: row.pass_count ?? 0,
+          game_phase: row.game_phase as GameState['game_phase'],
+          winner: row.winner,
+          game_winner_index: row.game_winner_index,
+          match_number: row.match_number,
+          hands: (row.hands ?? {}) as unknown as GameState['hands'],
+          play_history: (row.play_history ?? []) as unknown as GameState['play_history'],
+          final_scores: row.final_scores as unknown as GameState['final_scores'],
+          scores_history: (row.scores_history ?? []) as unknown as GameState['scores_history'],
+          auto_pass_timer: row.auto_pass_timer as unknown as GameState['auto_pass_timer'],
+          played_cards: (row.played_cards ?? []) as unknown as GameState['played_cards'],
+          updated_at: row.updated_at ?? new Date().toISOString(),
+        };
+        setGameState(mapped);
+      } else {
+        setGameState(null);
       }
-      const mapped: GameState = {
-        id: row.id,
-        room_id: row.room_id,
-        current_turn: row.current_turn,
-        turn_started_at: row.turn_started_at,
-        last_play: row.last_play as unknown as GameState['last_play'],
-        pass_count: row.pass_count ?? 0,
-        game_phase: row.game_phase as GameState['game_phase'],
-        winner: row.winner,
-        game_winner_index: row.game_winner_index,
-        match_number: row.match_number,
-        hands: (row.hands ?? {}) as unknown as GameState['hands'],
-        play_history: (row.play_history ?? []) as unknown as GameState['play_history'],
-        final_scores: row.final_scores as unknown as GameState['final_scores'],
-        scores_history: (row.scores_history ?? []) as unknown as GameState['scores_history'],
-        auto_pass_timer: row.auto_pass_timer as unknown as GameState['auto_pass_timer'],
-        played_cards: (row.played_cards ?? []) as unknown as GameState['played_cards'],
-        updated_at: row.updated_at ?? new Date().toISOString(),
-      };
-      setGameState(mapped);
-    } else {
-      setGameState(null);
+    }; // end attempt()
+
+    try {
+      await attempt();
+    } catch (_err) {
+      // Single retry after 500 ms on transient network errors (same pattern as fetchPlayers M6).
+      const postgrestErr = _err as { code?: string; message?: string } | null;
+      const isNetworkError =
+        _err instanceof TypeError ||
+        /Failed to fetch|Network request failed/i.test(postgrestErr?.message ?? '');
+      const shouldRetry = isNetworkError || !NON_RETRYABLE_CODES.has(postgrestErr?.code ?? '');
+      if (!shouldRetry) {
+        networkLogger.error('[useRealtime] fetchGameState non-retryable error:', postgrestErr);
+        throw _err;
+      }
+      networkLogger.warn('[fetchGameState] Transient error, retrying in 500ms...');
+      await new Promise<void>(resolve => setTimeout(resolve, 500));
+      if (!isMountedRef.current) return;
+      try {
+        await attempt();
+      } catch (retryErr) {
+        networkLogger.error('[useRealtime] fetchGameState retry failed:', retryErr);
+        throw retryErr;
+      }
     }
   }, []);
 
@@ -412,6 +440,19 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           const warnFetch = (label: string) => (err: unknown) =>
             networkLogger.warn(`[Realtime] ${label} broadcast fetch error:`, err);
 
+          // Retry wrapper: if the first fetchGameState fails with a transient error,
+          // wait 1s and try once more. This prevents a single network blip from
+          // leaving game state stale (which causes bots to stall).
+          const fetchGameStateWithRetry = (rid: string, label: string): void => {
+            void fetchGameState(rid).catch((err: unknown) => {
+              networkLogger.warn(`[Realtime] ${label} fetch failed, scheduling retry...`, err);
+              setTimeout(() => {
+                if (!isMountedRef.current) return;
+                void fetchGameState(rid).catch(warnFetch(`${label} (retry)`));
+              }, 1000);
+            });
+          };
+
           channel
             .on('broadcast', { event: 'player_joined' }, _payload => {
               void fetchPlayers(roomId).catch(warnFetch('player_joined'));
@@ -427,24 +468,24 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
             .on('broadcast', { event: 'player_reconnected' }, payload => {
               networkLogger.info('🔄 [Realtime] player_reconnected broadcast received:', payload);
               void fetchPlayers(roomId).catch(warnFetch('player_reconnected/players'));
-              void fetchGameState(roomId).catch(warnFetch('player_reconnected/gameState'));
+              fetchGameStateWithRetry(roomId, 'player_reconnected/gameState');
             })
             .on('broadcast', { event: 'game_started' }, _payload => {
-              void fetchGameState(roomId).catch(warnFetch('game_started'));
+              fetchGameStateWithRetry(roomId, 'game_started');
             })
             .on('broadcast', { event: 'cards_played' }, _payload => {
-              void fetchGameState(roomId).catch(warnFetch('cards_played'));
+              fetchGameStateWithRetry(roomId, 'cards_played');
             })
             .on('broadcast', { event: 'player_passed' }, _payload => {
-              void fetchGameState(roomId).catch(warnFetch('player_passed'));
+              fetchGameStateWithRetry(roomId, 'player_passed');
             })
             .on('broadcast', { event: 'game_ended' }, payload => {
               networkLogger.info('🎉 [Realtime] game_ended broadcast received:', payload);
-              void fetchGameState(roomId).catch(warnFetch('game_ended'));
+              fetchGameStateWithRetry(roomId, 'game_ended');
             })
             .on('broadcast', { event: 'game_over' }, payload => {
               networkLogger.info('🎉 [Realtime] game_over broadcast received:', payload);
-              void fetchGameState(roomId).catch(warnFetch('game_over'));
+              fetchGameStateWithRetry(roomId, 'game_over');
               // Use onGameOverRef.current so the latest callback is always invoked
               // without needing to re-subscribe the channel when the prop changes.
               const broadcastData = ((payload as { data?: Record<string, unknown> })?.data ??
@@ -496,7 +537,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 { matchNumber }
               );
               // onMatchEnded call removed — useMultiplayerScoreHistory reads from DB scores_history.
-              void fetchGameState(roomId).catch(warnFetch('match_ended'));
+              fetchGameStateWithRetry(roomId, 'match_ended');
             })
             .on('broadcast', { event: 'auto_pass_timer_started' }, payload => {
               if (isValidTimerStatePayload(payload)) {
@@ -510,21 +551,21 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
               } else {
                 networkLogger.warn('[Timer] Invalid timer payload');
               }
-              void fetchGameState(roomId).catch(warnFetch('auto_pass_timer_started'));
+              fetchGameStateWithRetry(roomId, 'auto_pass_timer_started');
             })
             .on('broadcast', { event: 'auto_pass_timer_cancelled' }, _payload => {
               setGameState(prevState => {
                 if (!prevState) return prevState;
                 return { ...prevState, auto_pass_timer: null };
               });
-              void fetchGameState(roomId).catch(warnFetch('auto_pass_timer_cancelled'));
+              fetchGameStateWithRetry(roomId, 'auto_pass_timer_cancelled');
             })
             .on('broadcast', { event: 'auto_pass_executed' }, _payload => {
               setGameState(prevState => {
                 if (!prevState) return prevState;
                 return { ...prevState, auto_pass_timer: null };
               });
-              void fetchGameState(roomId).catch(warnFetch('auto_pass_executed'));
+              fetchGameStateWithRetry(roomId, 'auto_pass_executed');
             });
 
           // Subscribe to database changes
@@ -558,7 +599,7 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
                 // postgres_changes fires change events. Sprint 2 should migrate to
                 // broadcast or a notification table to fully close this vector.
                 if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-                  void fetchGameState(roomId).catch(warnFetch('game_state_change'));
+                  fetchGameStateWithRetry(roomId, 'game_state_change');
                 }
               }
             )

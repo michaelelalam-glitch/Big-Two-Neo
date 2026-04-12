@@ -548,6 +548,10 @@ export interface Translations {
     a11yToggleScoreboard: string;
     a11yOpenSettings: string;
     a11yToggleOrientation: string;
+    a11yPlayHistoryHint: string;
+    a11yScoreboardHint: string;
+    a11ySettingsHint: string;
+    a11yOrientationHint: string;
   };
 
   // Game End Modal
@@ -1455,6 +1459,10 @@ const en: Translations = {
     a11yToggleScoreboard: 'Toggle scoreboard',
     a11yOpenSettings: 'Open settings menu',
     a11yToggleOrientation: 'Toggle orientation',
+    a11yPlayHistoryHint: 'Opens the list of plays for this match',
+    a11yScoreboardHint: 'Expands or collapses the scoreboard',
+    a11ySettingsHint: 'Opens game settings and options',
+    a11yOrientationHint: 'Switch between portrait and landscape mode',
   },
   gameEnd: {
     gameWinner: 'Game Winner',
@@ -2270,6 +2278,10 @@ const ar: Translations = {
     a11yToggleScoreboard: 'تبديل لوحة النتائج',
     a11yOpenSettings: 'فتح قائمة الإعدادات',
     a11yToggleOrientation: 'تبديل الاتجاه',
+    a11yPlayHistoryHint: 'يفتح قائمة اللعبات لهذه المباراة',
+    a11yScoreboardHint: 'يوسع أو يطوي لوحة النتائج',
+    a11ySettingsHint: 'يفتح إعدادات اللعبة والخيارات',
+    a11yOrientationHint: 'التبديل بين الوضع العمودي والأفقي',
   },
   gameEnd: {
     gameWinner: 'فائز اللعبة',
@@ -3187,6 +3199,10 @@ const de: Translations = {
     a11yToggleScoreboard: 'Anzeigetafel umschalten',
     a11yOpenSettings: 'Einstellungsmenü öffnen',
     a11yToggleOrientation: 'Ausrichtung umschalten',
+    a11yPlayHistoryHint: 'Öffnet die Liste der Spielzüge für dieses Match',
+    a11yScoreboardHint: 'Erweitert oder reduziert die Anzeigetafel',
+    a11ySettingsHint: 'Öffnet Spieleinstellungen und Optionen',
+    a11yOrientationHint: 'Zwischen Hoch- und Querformat wechseln',
   },
   gameEnd: {
     gameWinner: 'Spielgewinner',

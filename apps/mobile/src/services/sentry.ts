@@ -154,12 +154,20 @@ export function initSentry(): void {
         if (lastSent && now - lastSent < _EVENT_DEDUP_WINDOW_MS) {
           return null; // Drop duplicate within dedup window
         }
-        // Evict oldest entries if cache is full
-        if (_eventDedup.size >= _EVENT_DEDUP_MAX_SIZE) {
-          const cutoff = now - _EVENT_DEDUP_WINDOW_MS;
-          for (const [key, ts] of _eventDedup) {
-            if (ts < cutoff) _eventDedup.delete(key);
-          }
+        // Evict expired entries first, then enforce a hard size cap by
+        // removing the oldest remaining fingerprints (Map iteration order = insertion order).
+        const cutoff = now - _EVENT_DEDUP_WINDOW_MS;
+        for (const [key, ts] of _eventDedup) {
+          if (ts < cutoff) _eventDedup.delete(key);
+        }
+        // Refresh insertion order for existing fingerprints
+        if (lastSent !== undefined) {
+          _eventDedup.delete(fp);
+        }
+        while (_eventDedup.size >= _EVENT_DEDUP_MAX_SIZE) {
+          const oldestKey = _eventDedup.keys().next().value;
+          if (oldestKey === undefined) break;
+          _eventDedup.delete(oldestKey);
         }
         _eventDedup.set(fp, now);
         _eventCountThisMinute++;

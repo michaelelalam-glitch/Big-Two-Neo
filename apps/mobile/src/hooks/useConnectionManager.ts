@@ -388,11 +388,13 @@ export function useConnectionManager({
    * P2-M1: Guarded by isReconnecting — rapid disconnect/reconnect cycles cannot
    * queue multiple concurrent reconnect-player calls.
    */
+  const isReconnectingRef = useRef(false);
   const reconnect = useCallback(async () => {
     if (!roomId || !playerId) return;
     // P2-M1: Deduplicate — skip if a reconnect call is already in-flight
-    if (isReconnecting) return;
+    if (isReconnectingRef.current) return;
 
+    isReconnectingRef.current = true;
     setIsReconnecting(true);
     setConnectionStatus('reconnecting');
 
@@ -429,6 +431,7 @@ export function useConnectionManager({
         context: 'Reconnect',
       });
     } finally {
+      isReconnectingRef.current = false;
       setIsReconnecting(false);
     }
   }, [roomId, playerId, startHeartbeat, onRoomClosed]);
