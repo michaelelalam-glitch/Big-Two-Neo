@@ -691,15 +691,15 @@ it('snapshot creates an independent copy of state', () => {
 
 ### Card Helpers
 
-| Function | What it does |
-|----------|-------------|
-| `card('3D')` | Create one card |
-| `cards('3D', '4C', '5H')` | Create array of cards |
-| `fullDeck()` | Get all 52 cards |
-| `dealCards(4)` | Deal random hands to N players |
-| `sortHand(cards(...))` | Sort cards by rank then suit |
-| `classifyCards(cards(...))` | Get combo type ('Single', 'Pair', etc.) |
-| `canBeatPlay(cards, lastPlay)` | Can these cards beat that play? |
+| Function | Import from | What it does |
+|----------|-------------|-------------|
+| `card('3D')` | `./GameSandbox` | Create one card |
+| `cards('3D', '4C', '5H')` | `./GameSandbox` | Create array of cards |
+| `fullDeck()` | `./GameSandbox` | Get all 52 cards |
+| `dealCards(4)` | `./GameSandbox` | Deal random hands to N players |
+| `sortHand(cards(...))` | `../../game/engine` | Sort cards by rank then suit |
+| `classifyCards(cards(...))` | `../../game/engine` | Get combo type ('Single', 'Pair', etc.) |
+| `canBeatPlay(cards, lastPlay)` | `../../game/engine` | Can these cards beat that play? |
 
 ### Multi-Game Runner
 
