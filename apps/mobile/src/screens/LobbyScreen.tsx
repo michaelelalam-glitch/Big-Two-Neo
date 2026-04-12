@@ -20,8 +20,7 @@ import { COLORS, SPACING, FONT_SIZES, MODAL_SUPPORTED_ORIENTATIONS } from '../co
 import { useAuth } from '../contexts/AuthContext';
 import { i18n } from '../i18n';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { notifyGameStarted } from '../services/pushNotificationTriggers';
-import { notifyGameInvite } from '../services/pushNotificationService';
+import { notifyGameStarted, notifyRoomInvite } from '../services/pushNotificationTriggers';
 import { supabase } from '../services/supabase';
 import { showError, showConfirm, extractErrorMessage } from '../utils';
 import { roomLogger } from '../utils/logger';
@@ -755,7 +754,11 @@ export default function LobbyScreen() {
     setIsSendingInvites(true);
     try {
       const senderName = profile?.username || user?.email || i18n.t('friends.unknownPlayer');
-      await notifyGameInvite(Array.from(selectedFriendIds), roomCode, senderName);
+      await Promise.all(
+        Array.from(selectedFriendIds).map(friendId =>
+          notifyRoomInvite(friendId, roomCode, roomId ?? '', senderName)
+        )
+      );
     } catch (err) {
       showError(err instanceof Error ? err.message : String(err));
     } finally {

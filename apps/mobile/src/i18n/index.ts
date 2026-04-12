@@ -276,6 +276,10 @@ export interface Translations {
     timeRunningOutBody: string;
     readyToStartTitle: string;
     readyToStartBody: string;
+    friendRequestTitle: string;
+    friendRequestBody: string;
+    friendAcceptedTitle: string;
+    friendAcceptedBody: string;
   };
 
   // Bug Report Modal
@@ -1210,6 +1214,10 @@ const en: Translations = {
     timeRunningOutBody: '{{seconds}}s left to play in room {{roomCode}}',
     readyToStartTitle: '✅ Ready to Start',
     readyToStartBody: 'All players are ready in room {{roomCode}}. You can start the game!',
+    friendRequestTitle: '👋 Friend Request',
+    friendRequestBody: '{{senderName}} sent you a friend request',
+    friendAcceptedTitle: '🤝 Friend Request Accepted',
+    friendAcceptedBody: '{{accepterName}} accepted your friend request',
   },
   bugReportModal: {
     title: 'Report a Bug',
@@ -2094,6 +2102,10 @@ const ar: Translations = {
     timeRunningOutBody: '{{seconds}} ثانية متبقية للعب في غرفة {{roomCode}}',
     readyToStartTitle: '✅ جاهز للبدء',
     readyToStartBody: 'جميع اللاعبين جاهزون في غرفة {{roomCode}}. يمكنك بدء اللعبة!',
+    friendRequestTitle: '👋 طلب صداقة',
+    friendRequestBody: '{{senderName}} أرسل لك طلب صداقة',
+    friendAcceptedTitle: '🤝 تم قبول طلب الصداقة',
+    friendAcceptedBody: '{{accepterName}} قبل طلب صداقتك',
   },
   bugReportModal: {
     title: 'الإبلاغ عن مشكلة',
@@ -3007,6 +3019,10 @@ const de: Translations = {
     timeRunningOutBody: '{{seconds}}s verbleibend in Raum {{roomCode}}',
     readyToStartTitle: '✅ Bereit zum Start',
     readyToStartBody: 'Alle Spieler sind bereit in Raum {{roomCode}}. Du kannst das Spiel starten!',
+    friendRequestTitle: '👋 Freundschaftsanfrage',
+    friendRequestBody: '{{senderName}} hat dir eine Freundschaftsanfrage gesendet',
+    friendAcceptedTitle: '🤝 Freundschaftsanfrage angenommen',
+    friendAcceptedBody: '{{accepterName}} hat deine Freundschaftsanfrage angenommen',
   },
   bugReportModal: {
     title: 'Problem melden',

@@ -254,6 +254,8 @@ export const userPreferencesHydrated = new Promise<void>(r => {
   _resolveHydration = r;
 });
 export let isUserPreferencesHydrated = false;
+/** Guard: ensure the one-time DB sync only fires once per process lifetime. */
+let _prefsSyncedToDb = false;
 useUserPreferencesStore.persist.onFinishHydration(() => {
   isUserPreferencesHydrated = true;
   _resolveHydration();
@@ -262,6 +264,9 @@ useUserPreferencesStore.persist.onFinishHydration(() => {
   // who opted out before the server-side columns existed are respected
   // immediately, without needing to toggle settings again.
   // Batched into a single getUser + single update to avoid 4× round-trips.
+  // Guard prevents redundant writes if rehydrate() is called more than once.
+  if (_prefsSyncedToDb) return;
+  _prefsSyncedToDb = true;
   const state = useUserPreferencesStore.getState();
   _syncAllNotifyPreferencesToDb({
     notify_game_invites: state.notifyGameInvites,

@@ -450,3 +450,45 @@ export async function notifyAllPlayersReady(
     badge: 1,
   });
 }
+
+/**
+ * Notify user when they receive a friend request
+ */
+export async function notifyFriendRequest(
+  recipientUserId: string,
+  senderName: string,
+  senderId: string
+): Promise<void> {
+  await sendPushNotification({
+    user_ids: [recipientUserId],
+    title: i18n.t('pushContent.friendRequestTitle'),
+    body: i18n.t('pushContent.friendRequestBody', { senderName }),
+    data: {
+      type: 'friend_request',
+      senderId,
+    },
+    sound: 'default',
+    badge: 1,
+  });
+}
+
+/**
+ * Notify user when their friend request is accepted
+ */
+export async function notifyFriendAccepted(
+  recipientUserId: string,
+  accepterName: string,
+  accepterId: string
+): Promise<void> {
+  await sendPushNotification({
+    user_ids: [recipientUserId],
+    title: i18n.t('pushContent.friendAcceptedTitle'),
+    body: i18n.t('pushContent.friendAcceptedBody', { accepterName }),
+    data: {
+      type: 'friend_accepted',
+      senderId: accepterId,
+    },
+    sound: 'default',
+    badge: 1,
+  });
+}
