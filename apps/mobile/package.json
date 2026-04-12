@@ -78,7 +78,7 @@
     "babel-preset-expo": "^54.0.8",
     "depcheck": "^1.4.7",
     "eslint": "^8.57.1",
-    "eslint-config-expo": "^10.0.0",
+    "eslint-config-expo": "^55.0.0",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
