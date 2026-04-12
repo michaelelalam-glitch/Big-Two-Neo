@@ -585,6 +585,14 @@ Deno.serve(async (req) => {
       // ── Compute botReplacedHumanIds + serverBotDifficulty from botResult ──
       if (botResult.error) {
         console.error('[Complete Game] Failed to query bot-replaced humans (abandoned stats may be missed):', botResult.error.message);
+        // Fall back to the client-supplied difficulty as a best-effort value so
+        // the ELO multiplier and audit trail are not silently zeroed for bot games
+        // when the room_players query fails (e.g. transient DB error). Log a
+        // warning so operators know the value is unverified.
+        if (gameData.room_id && gameData.bot_difficulty) {
+          serverBotDifficulty = gameData.bot_difficulty;
+          console.warn(`[Complete Game] Using client-supplied bot_difficulty '${serverBotDifficulty}' as fallback — server query failed. Verify audit row for room ${gameData.room_id}.`);
+        }
       } else {
         const replacedRows = botResult.data ?? [];
         botReplacedHumanIds = replacedRows

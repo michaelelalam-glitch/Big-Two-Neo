@@ -5,7 +5,7 @@
  * When isOpen=true the panel slides down from the top of the screen.
  * When isOpen=false the panel is animated off-screen (pointerEvents="none").
  *
- * GestureDetector wraps ONLY the header so the inner FlatList can scroll
+ * GestureDetector wraps ONLY the header so the inner FlashList can scroll
  * freely without gesture conflicts (Copilot PR-150 review fix).
  */
 
@@ -198,7 +198,7 @@ function ChatDrawerComponent({
   }, []);
 
   // Drag-to-close gesture: swipe up ≥ 30 px on the header closes the panel.
-  // GestureDetector is scoped to the header only so the FlatList scroll gesture
+  // GestureDetector is scoped to the header only so the FlashList scroll gesture
   // is unaffected (Copilot PR-150 r2947303858 fix).
   // Memoized so the Gesture object is only recreated when onToggle changes;
   // recreating it on every render can cause reattachment work and subtle
@@ -302,7 +302,7 @@ function ChatDrawerComponent({
     // and block touches when closed.
     <Animated.View style={[styles.panel, animatedStyle]} pointerEvents={isOpen ? 'auto' : 'none'}>
       {/* Header — GestureDetector wraps ONLY this bar to avoid stealing
-          scroll events from the FlatList below. */}
+          scroll events from the FlashList below. */}
       <GestureDetector gesture={headerPanGesture}>
         <Pressable
           style={styles.header}
