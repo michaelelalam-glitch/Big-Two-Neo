@@ -3,27 +3,25 @@
 #   AsyncStorage between cycles. Catches regressions in singleton re-init
 #   (SoundManager, Supabase client), navigation stack accumulation, and
 #   React Native bridge state bleed between launches.
-# Tags: smoke, stability
+# Tags: smoke, stability, ci
 #
-# CI-safe: no authentication required.
-# Complements flow 14 (which uses clearState: true between every cycle).
+# No auth required. Uses launchApp without clearState to avoid iOS simulator
+# instability (see CI_E2E_FAILURE_POSTMORTEM.md). Complements flow 14
+# (which uses clearState: true between every cycle).
 
 appId: com.big2mobile.app
 tags:
   - smoke
   - stability
+  - ci
 
 ---
-# ── Cycle 1: Base cold start ──────────────────────────────────────────────
-- launchApp:
-    clearState: true
+# ── Cycle 1: Base launch ─────────────────────────────────────────────────
+- launchApp
 
-- extendedWaitUntil:
-    visible:
-      id: "privacy-consent-decline"
-    timeout: 60000
 - tapOn:
     id: "privacy-consent-decline"
+    optional: true
 
 - extendedWaitUntil:
     visible:

@@ -4,7 +4,7 @@
 #   tap crashes the app.
 # Tags: smoke
 #
-# CI-safe: no authentication required.
+# No auth required. Smoke-only (not CI) — clearState causes iOS simulator instability (see CI_E2E_FAILURE_POSTMORTEM.md).
 # This flow exercises modal button existence directly — distinct from flows 01/13
 # which focus on what happens AFTER a button is tapped.
 

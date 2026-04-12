@@ -5,7 +5,7 @@
 #   and any text truncation or element overflow that breaks the UI.
 # Tags: smoke
 #
-# CI-safe: no authentication required.
+# No auth required. Smoke-only (not CI) — clearState causes iOS simulator instability (see CI_E2E_FAILURE_POSTMORTEM.md).
 # Note: Landscape orientation test is iOS Simulator only; Android emulator
 #   profile (pixel_6) also supports landscape via setDeviceOrientation.
 

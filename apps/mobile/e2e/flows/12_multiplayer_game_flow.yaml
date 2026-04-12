@@ -15,6 +15,7 @@ tags:
   - multiplayer
   - critical-path
   - e2e
+  - ci-authenticated
 ---
 # Step 1: Launch app and wait for home screen
 - launchApp
