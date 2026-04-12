@@ -129,8 +129,18 @@ export class GameSandbox {
     }
     this.enforceFirstPlay = config.enforceFirstPlayRule ?? true;
 
-    // Deal or assign hands
-    const allHands = dealCards(numPlayers);
+    // Deal or assign hands — remove overridden cards from deck to prevent duplication
+    const overriddenCardIds = new Set<string>();
+    if (config.hands) {
+      for (const h of Object.values(config.hands)) {
+        for (const c of h) overriddenCardIds.add(c.id);
+      }
+    }
+    const filteredDeck =
+      overriddenCardIds.size > 0
+        ? shuffle(fullDeck().filter(c => !overriddenCardIds.has(c.id)))
+        : undefined;
+    const allHands = dealCards(numPlayers, filteredDeck);
     const hands: Card[][] = [];
     for (let i = 0; i < numPlayers; i++) {
       hands.push(config.hands?.[i] ?? allHands[i]);
@@ -147,6 +157,17 @@ export class GameSandbox {
     if (startIdx === -1) {
       startIdx = players.findIndex(p => p.hand.some(c => c.id === '3D'));
       if (startIdx === -1) startIdx = 0;
+    }
+
+    // Ensure starting player has cards — skip to next non-empty hand if needed
+    if (players[startIdx].hand.length === 0) {
+      for (let offset = 1; offset < players.length; offset++) {
+        const next = (startIdx + offset) % players.length;
+        if (players[next].hand.length > 0) {
+          startIdx = next;
+          break;
+        }
+      }
     }
 
     // Initialize match scores
@@ -345,7 +366,11 @@ export class GameSandbox {
     // Execute the play
     const cardIds = new Set(selectedCards.map(c => c.id));
     p.hand = p.hand.filter(c => !cardIds.has(c.id));
-    p.passed = false;
+
+    // Clear all players' passed flags on successful play (matches production GameStateManager.executePlay)
+    this.state.players.forEach(pl => {
+      pl.passed = false;
+    });
 
     // Update state
     this.state.lastPlay = { cards: selectedCards, combo_type: comboType };
@@ -530,13 +555,15 @@ export class GameSandbox {
               return { action: 'play', cards: [sorted[i]], comboType: playResult.comboType };
             }
           }
+          const forcedCard2 = sortHand(p.hand)[0];
           this.forcePlayLowest(p);
-          return { action: 'play', cards: [sortHand(p.hand)[0]] };
+          return { action: 'play', cards: forcedCard2 ? [forcedCard2] : [] };
         }
       } else {
         // Leading with no matching cards — force play to ensure progress
+        const forcedCard3 = sortHand(p.hand)[0];
         this.forcePlayLowest(p);
-        return { action: 'play', cards: [sortHand(p.hand)[0]] };
+        return { action: 'play', cards: forcedCard3 ? [forcedCard3] : [] };
       }
       return { action: 'pass' };
     }

@@ -521,7 +521,7 @@ jobs:
           CI_PLATFORM: ios
 
       - name: ⚠️ Warn if auth seeding was skipped
-        if: steps.seed-auth.outcome != 'success'
+        if: env.E2E_TEST_EMAIL != '' && env.E2E_TEST_PASSWORD != '' && steps.seed-auth.outcome != 'success'
         run: |
           echo "::warning::Auth seeding skipped or failed (outcome=${{ steps.seed-auth.outcome }}). Authenticated E2E flows (ci-authenticated) will not run. CI coverage is reduced."
 
@@ -581,10 +581,11 @@ jobs:
             ~/.maestro/tests/
           retention-days: 7
       
-      - name: ✅ E2E tests passed
+      - name: 📊 E2E test summary
         run: |
           echo "🎉 Maestro E2E tests completed!"
-          CI_COUNT=$(grep -c "testcase" apps/mobile/e2e/results/results-ci.xml 2>/dev/null || echo "?")
+          CI_COUNT=$(grep -c "testcase" apps/mobile/e2e/results/results-ci.xml 2>/dev/null || true)
+          CI_COUNT=${CI_COUNT:-0}
 
           AUTH_RESULTS_FILE="apps/mobile/e2e/results/results-ci-authenticated.xml"
           AUTH_COUNT="n/a"
@@ -595,7 +596,8 @@ jobs:
 
             if [ "$SEED_AUTH_OUTCOME" = "success" ]; then
               if [ -f "$AUTH_RESULTS_FILE" ]; then
-                AUTH_COUNT=$(grep -c "testcase" "$AUTH_RESULTS_FILE" 2>/dev/null || echo "?")
+                AUTH_COUNT=$(grep -c "testcase" "$AUTH_RESULTS_FILE" 2>/dev/null || true)
+                AUTH_COUNT=${AUTH_COUNT:-0}
                 AUTH_STATUS="completed"
               else
                 AUTH_STATUS="results missing"

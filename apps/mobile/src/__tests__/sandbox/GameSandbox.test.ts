@@ -3,8 +3,8 @@
  *
  * Tests every edge function scenario with full state control:
  *  - Custom hands, scores, and played cards
- *  - Rule validation (3♦ first play, pass restrictions)
- *  - Scoring (1/2/3 points per card tiers, 101+ game end)
+ *  - Rule validation (3♦ first play, pass restrictions, one-card-left)
+ *  - Score state management (pre-set cumulative scores)
  *  - Bot AI behavior at all difficulties
  *  - Multi-game simulation (20+ concurrent)
  *  - Combo classification for all 8 types
