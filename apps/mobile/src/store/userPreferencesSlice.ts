@@ -165,8 +165,14 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
         set({ notifyYourTurn: enabled });
         _syncNotifyPreferenceToDb('notify_your_turn', enabled);
       },
-      setNotifyGameStarted: enabled => set({ notifyGameStarted: enabled }),
-      setNotifyFriendRequests: enabled => set({ notifyFriendRequests: enabled }),
+      setNotifyGameStarted: enabled => {
+        set({ notifyGameStarted: enabled });
+        _syncNotifyPreferenceToDb('notify_game_started', enabled);
+      },
+      setNotifyFriendRequests: enabled => {
+        set({ notifyFriendRequests: enabled });
+        _syncNotifyPreferenceToDb('notify_friend_requests', enabled);
+      },
 
       hydrate: partial => set(partial),
     }),
@@ -231,4 +237,13 @@ export let isUserPreferencesHydrated = false;
 useUserPreferencesStore.persist.onFinishHydration(() => {
   isUserPreferencesHydrated = true;
   _resolveHydration();
+
+  // One-time sync: write local notification preferences to the DB so users
+  // who opted out before the server-side columns existed are respected
+  // immediately, without needing to toggle settings again.
+  const state = useUserPreferencesStore.getState();
+  _syncNotifyPreferenceToDb('notify_game_invites', state.notifyGameInvites);
+  _syncNotifyPreferenceToDb('notify_your_turn', state.notifyYourTurn);
+  _syncNotifyPreferenceToDb('notify_game_started', state.notifyGameStarted);
+  _syncNotifyPreferenceToDb('notify_friend_requests', state.notifyFriendRequests);
 });

@@ -507,7 +507,7 @@ All 8 items verified fixed in this audit. Evidence:
 **Score: 8/10**
 
 **What's Verified Working:**
-- `checkAutomatically: "EAGER"` (changed from `ON_ERROR_RECOVERY`, PR #236)
+- `checkAutomatically: "ON_ERROR_RECOVERY"` currently configured in Expo updates
 - OTA foreground poll every 60 min, skips reload during active game (PR #236)
 - `runtimeVersion: appVersion` prevents incompatible bundles
 - Server-side min version gate: 426 Upgrade Required

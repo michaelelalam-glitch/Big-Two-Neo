@@ -147,9 +147,20 @@ export function initSentry(): void {
         }
 
         // ── P8-H1: Fingerprint-based dedup ──────────────────────────────────
-        const fp = (event.fingerprint ?? [event.exception?.values?.[0]?.value ?? 'unknown']).join(
-          '|'
-        );
+        // Build a stable fingerprint for dedup. Sentry Event types vary across
+        // SDKs; use bracket notation for optional standard fields.
+        const ev = event as unknown as Record<string, unknown>;
+        const fp = (
+          event.fingerprint ?? [
+            event.exception?.values?.[0]?.value ??
+              (typeof ev.message === 'string' ? ev.message : undefined) ??
+              (typeof (ev.logentry as Record<string, unknown> | undefined)?.message === 'string'
+                ? (ev.logentry as Record<string, unknown>).message
+                : undefined) ??
+              (typeof ev.transaction === 'string' ? ev.transaction : undefined) ??
+              'unknown',
+          ]
+        ).join('|');
         const lastSent = _eventDedup.get(fp);
         if (lastSent && now - lastSent < _EVENT_DEDUP_WINDOW_MS) {
           return null; // Drop duplicate within dedup window

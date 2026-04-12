@@ -499,20 +499,35 @@ Deno.serve(async (req) => {
     // Query profiles for notification opt-out settings. Users who disabled a
     // notification type on the client sync their preference to the DB column.
     // Default TRUE (opt-in) so existing users without a preference row are not blocked.
+    // Keep this mapping in sync with any user-facing notification toggles and
+    // their corresponding `profiles` columns so background/killed-state pushes
+    // respect the same opt-out settings as the client.
     const PREFERENCE_COLUMN_MAP: Record<string, string> = {
       game_invite: 'notify_game_invites',
       your_turn: 'notify_your_turn',
+      game_started: 'notify_game_started',
+      friend_request: 'notify_friend_requests',
     };
     const prefColumn = PREFERENCE_COLUMN_MAP[normalizedEventType];
     let preferenceFilteredIds = allowedIds;
+    if (!prefColumn && normalizedEventType && normalizedEventType !== 'default') {
+      console.warn(
+        `[send-push-notification] No preference column mapping for event type "${normalizedEventType}". ` +
+        'If this notification has a user-facing toggle, add its profiles column to PREFERENCE_COLUMN_MAP.'
+      );
+    }
     if (prefColumn && allowedIds.length > 0) {
       const { data: prefRows, error: prefError } = await supabaseAdmin
         .from('profiles')
         .select(`id, ${prefColumn}`)
         .in('id', allowedIds);
       if (prefError) {
-        // Log but don't block — preference check is best-effort.
-        console.warn(`[send-push-notification] Preference check failed (proceeding): ${prefError.message}`);
+        // Fail closed for preference-controlled notifications to avoid sending
+        // when opt-out status cannot be verified.
+        preferenceFilteredIds = [];
+        console.warn(
+          `[send-push-notification] Preference check failed; skipping "${normalizedEventType}" notifications for ${allowedIds.length} user(s): ${prefError.message}`
+        );
       } else if (prefRows) {
         const optedOutIds = new Set(
           prefRows

@@ -332,8 +332,8 @@ export async function notifyGameEnded(
   if (otherUserIds.length > 0) {
     await sendPushNotification({
       user_ids: otherUserIds,
-      title: '🏁 Game Over',
-      body: `${winnerName} won the game in room ${roomCode}`,
+      title: i18n.t('pushContent.gameOverTitle'),
+      body: i18n.t('pushContent.gameOverBody', { winnerName, roomCode }),
       data: {
         type: 'game_ended',
         roomCode: roomCode, // camelCase
