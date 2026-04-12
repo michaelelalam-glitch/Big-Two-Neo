@@ -3,27 +3,25 @@
 #   multiple times in rapid succession. Catches regressions in: button
 #   debounce logic, double-invocation of the Google OAuth flow, and any
 #   state corruption from rapid concurrent auth initiations.
-# Tags: smoke
+# Tags: smoke, ci
 #
-# No auth required. Smoke-only (not CI) — clearState causes iOS simulator instability — we only verify the app survives
-# the tap; we do not complete the OAuth flow.
-# The Google auth sheet / webview will appear and be dismissed via relaunch.
+# No auth required. Uses launchApp without clearState to avoid iOS simulator
+# instability. We only verify the app survives the tap; we do not complete
+# the OAuth flow. The Google auth sheet / webview will appear and be
+# dismissed via relaunch.
 
 appId: com.big2mobile.app
 tags:
   - smoke
+  - ci
 
 ---
 # ── Step 1: Launch and reach sign-in screen ──────────────────────────────
-- launchApp:
-    clearState: true
+- launchApp
 
-- extendedWaitUntil:
-    visible:
-      id: "privacy-consent-decline"
-    timeout: 60000
 - tapOn:
     id: "privacy-consent-decline"
+    optional: true
 
 - extendedWaitUntil:
     visible:

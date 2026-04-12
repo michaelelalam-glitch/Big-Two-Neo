@@ -1,0 +1,58 @@
+# Flow 93: Sign-In Screen — Comprehensive testID Verification
+# Validates: ALL testID-equipped elements on the sign-in screen render
+#   simultaneously. This is a regression guard for component tree changes
+#   that might remove or rename testIDs.
+# Tags: smoke, ci
+#
+# No auth required. No clearState.
+
+appId: com.big2mobile.app
+tags:
+  - smoke
+  - ci
+
+---
+# ── Step 1: Launch and reach sign-in screen ──────────────────────────────
+- launchApp
+
+- tapOn:
+    id: "privacy-consent-decline"
+    optional: true
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 120000
+
+# ── Step 2: Assert every testID is present ───────────────────────────────
+- assertVisible:
+    id: "sign-in-screen"
+- assertVisible:
+    id: "sign-in-title"
+- assertVisible:
+    id: "sign-in-subtitle"
+- assertVisible:
+    id: "google-sign-in-button"
+- assertVisible:
+    id: "sign-in-footer"
+- takeScreenshot: "93_all_testids_present"
+
+# ── Step 3: Relaunch and verify again (no state drift) ───────────────────
+- launchApp
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 60000
+
+- assertVisible:
+    id: "sign-in-screen"
+- assertVisible:
+    id: "sign-in-title"
+- assertVisible:
+    id: "sign-in-subtitle"
+- assertVisible:
+    id: "google-sign-in-button"
+- assertVisible:
+    id: "sign-in-footer"
+- takeScreenshot: "93_testids_stable_after_relaunch"

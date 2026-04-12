@@ -1,0 +1,78 @@
+# Flow 94: Rapid Relaunch Stress Test (5 cycles)
+# Validates: The app survives 5 consecutive relaunches without clearState.
+#   Tests singleton re-initialization (SoundManager, Supabase client),
+#   navigation stack accumulation, and React Native bridge state bleed.
+# Tags: smoke, stability, ci
+#
+# No auth required. No clearState. Complements flow 17 (hot relaunch).
+
+appId: com.big2mobile.app
+tags:
+  - smoke
+  - stability
+  - ci
+
+---
+# ── Launch 1 ─────────────────────────────────────────────────────────────
+- launchApp
+
+- tapOn:
+    id: "privacy-consent-decline"
+    optional: true
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 120000
+- assertVisible:
+    id: "google-sign-in-button"
+
+# ── Launch 2: Immediate relaunch ─────────────────────────────────────────
+- launchApp
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 60000
+- assertVisible:
+    id: "google-sign-in-button"
+
+# ── Launch 3 ─────────────────────────────────────────────────────────────
+- launchApp
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 60000
+- assertVisible:
+    id: "google-sign-in-button"
+
+# ── Launch 4 ─────────────────────────────────────────────────────────────
+- launchApp
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 60000
+- assertVisible:
+    id: "google-sign-in-button"
+
+# ── Launch 5: Full verification ──────────────────────────────────────────
+- launchApp
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 60000
+
+- assertVisible:
+    id: "sign-in-screen"
+- assertVisible:
+    id: "sign-in-title"
+- assertVisible:
+    id: "sign-in-subtitle"
+- assertVisible:
+    id: "google-sign-in-button"
+- assertVisible:
+    id: "sign-in-footer"
+- takeScreenshot: "94_stable_after_5_relaunches"

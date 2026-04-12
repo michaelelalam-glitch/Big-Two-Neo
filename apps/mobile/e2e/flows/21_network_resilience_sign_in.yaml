@@ -2,29 +2,25 @@
 # Validates: The sign-in screen renders correctly even when the initial
 #   AuthProvider session-check (Supabase network round-trip) takes longer
 #   than usual. The screen must not remain on an infinite loading spinner.
-# Tags: smoke
+# Tags: smoke, ci
 #
-# No auth required. Smoke-only (not CI) — clearState causes iOS simulator instability (see CI_E2E_FAILURE_POSTMORTEM.md).
-# Technique: launch the app and assert the sign-in screen appears within
-#   a conservative timeout (120s) even on network-degraded CI runners.
-#   Also validates that pressing the Home key mid-load and returning does
-#   not leave the app stuck on a loading state.
+# No auth required. Uses launchApp without clearState to avoid iOS simulator
+# instability (see CI_E2E_FAILURE_POSTMORTEM.md). Consent modal is dismissed
+# optionally. Tests the sign-in screen under conservative timeouts and
+# validates background/foreground recovery mid-load.
 
 appId: com.big2mobile.app
 tags:
   - smoke
+  - ci
 
 ---
-# ── Step 1: Cold launch — may hit slow network ────────────────────────────
-- launchApp:
-    clearState: true
+# ── Step 1: Launch — may hit slow network ─────────────────────────────────
+- launchApp
 
-- extendedWaitUntil:
-    visible:
-      id: "privacy-consent-decline"
-    timeout: 60000
 - tapOn:
     id: "privacy-consent-decline"
+    optional: true
 
 # Use maximum allowed timeout: AuthProvider session check can be slow in CI
 - extendedWaitUntil:
@@ -54,16 +50,12 @@ tags:
     id: "google-sign-in-button"
 - takeScreenshot: "21_after_background_during_load"
 
-# ── Step 3: Rapid relaunch with clearState to reset Supabase client ───────
-- launchApp:
-    clearState: true
+# ── Step 3: Relaunch to reset Supabase client ─────────────────────────────
+- launchApp
 
-- extendedWaitUntil:
-    visible:
-      id: "privacy-consent-decline"
-    timeout: 60000
 - tapOn:
     id: "privacy-consent-decline"
+    optional: true
 
 - extendedWaitUntil:
     visible:

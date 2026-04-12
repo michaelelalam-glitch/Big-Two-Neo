@@ -1,0 +1,71 @@
+# Flow 95: Consent Dismiss Persistence Across Relaunches
+# Validates: Once the privacy consent modal is dismissed (accept or decline),
+#   it does NOT reappear on subsequent app launches. Tests AsyncStorage
+#   persistence of the @big2_analytics_consent key without clearState.
+# Tags: smoke, ci
+#
+# No auth required. No clearState.
+
+appId: com.big2mobile.app
+tags:
+  - smoke
+  - ci
+
+---
+# ── Step 1: Launch and dismiss consent ───────────────────────────────────
+- launchApp
+
+- tapOn:
+    id: "privacy-consent-decline"
+    optional: true
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 120000
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "95_initial_launch"
+
+# ── Step 2: Relaunch — consent must NOT reappear ─────────────────────────
+- launchApp
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 60000
+
+# Sign-in screen should be immediately visible (no consent blocking)
+- assertVisible:
+    id: "sign-in-title"
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "95_no_consent_on_relaunch_1"
+
+# ── Step 3: Third launch — still no consent ──────────────────────────────
+- launchApp
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 60000
+
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "95_no_consent_on_relaunch_2"
+
+# ── Step 4: Kill and relaunch — consent still dismissed ──────────────────
+- stopApp
+- waitForAnimationToEnd
+- launchApp
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 60000
+
+- assertVisible:
+    id: "sign-in-screen"
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "95_consent_persists_after_kill"

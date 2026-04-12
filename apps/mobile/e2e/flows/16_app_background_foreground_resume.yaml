@@ -2,26 +2,24 @@
 # Validates: App survives being backgrounded and brought back to the foreground.
 #   Catches regressions in: React Navigation state persistence, AuthProvider
 #   re-initialization on resume, and Supabase session listener cleanup.
-# Tags: smoke
+# Tags: smoke, ci
 #
-# No auth required. Smoke-only (not CI) — clearState causes iOS simulator instability (see CI_E2E_FAILURE_POSTMORTEM.md).
-# Tests the app at the unauthenticated sign-in surface only.
+# No auth required. Uses launchApp without clearState to avoid iOS simulator
+# instability (see CI_E2E_FAILURE_POSTMORTEM.md). Consent modal is dismissed
+# optionally (may already have been handled by a prior flow).
 
 appId: com.big2mobile.app
 tags:
   - smoke
+  - ci
 
 ---
-# ── Step 1: Cold launch and dismiss consent ───────────────────────────────
-- launchApp:
-    clearState: true
+# ── Step 1: Launch and dismiss consent if visible ─────────────────────────
+- launchApp
 
-- extendedWaitUntil:
-    visible:
-      id: "privacy-consent-decline"
-    timeout: 60000
 - tapOn:
     id: "privacy-consent-decline"
+    optional: true
 
 - extendedWaitUntil:
     visible:

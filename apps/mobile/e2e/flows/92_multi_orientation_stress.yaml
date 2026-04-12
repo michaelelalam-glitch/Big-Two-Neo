@@ -1,0 +1,82 @@
+# Flow 92: Multi-Orientation Rotation Stress
+# Validates: The app survives 4 rapid orientation changes without crashing.
+#   Catches regressions in: SafeAreaView inset recalculation, StyleSheet
+#   dimension listeners, and any state corruption from rapid layout changes.
+# Tags: smoke, ci
+#
+# No auth required. No clearState.
+
+appId: com.big2mobile.app
+tags:
+  - smoke
+  - ci
+
+---
+# ── Step 1: Launch in portrait ───────────────────────────────────────────
+- launchApp
+
+- tapOn:
+    id: "privacy-consent-decline"
+    optional: true
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 120000
+
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "92_initial_portrait"
+
+# ── Step 2: Rotate to landscape ──────────────────────────────────────────
+- setOrientation: LANDSCAPE_LEFT
+
+- waitForAnimationToEnd
+- assertVisible:
+    id: "sign-in-screen"
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "92_landscape_left"
+
+# ── Step 3: Rotate to landscape right ────────────────────────────────────
+- setOrientation: LANDSCAPE_RIGHT
+
+- waitForAnimationToEnd
+- assertVisible:
+    id: "sign-in-screen"
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "92_landscape_right"
+
+# ── Step 4: Back to portrait ─────────────────────────────────────────────
+- setOrientation: portrait
+
+- waitForAnimationToEnd
+- assertVisible:
+    id: "sign-in-screen"
+- assertVisible:
+    id: "sign-in-title"
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "92_back_to_portrait"
+
+# ── Step 5: Rapid rotation cycle ─────────────────────────────────────────
+- setOrientation: LANDSCAPE_LEFT
+- setOrientation: portrait
+- setOrientation: LANDSCAPE_RIGHT
+- setOrientation: portrait
+
+- waitForAnimationToEnd
+
+# All elements must still render after rapid rotation
+- assertVisible:
+    id: "sign-in-screen"
+- assertVisible:
+    id: "sign-in-title"
+- assertVisible:
+    id: "sign-in-subtitle"
+- assertVisible:
+    id: "google-sign-in-button"
+- assertVisible:
+    id: "sign-in-footer"
+- takeScreenshot: "92_stable_after_rapid_rotation"

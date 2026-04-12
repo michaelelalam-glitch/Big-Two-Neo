@@ -1,0 +1,76 @@
+# Flow 91: App Process Kill & Recovery
+# Validates: The app recovers cleanly after being force-terminated (simulates
+#   a user swiping the app away from the task switcher or an OS kill). The
+#   sign-in screen must render correctly after termination + relaunch.
+# Tags: smoke, stability, ci
+#
+# No auth required. No clearState.
+
+appId: com.big2mobile.app
+tags:
+  - smoke
+  - stability
+  - ci
+
+---
+# ── Step 1: Launch app and verify initial state ──────────────────────────
+- launchApp
+
+- tapOn:
+    id: "privacy-consent-decline"
+    optional: true
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 120000
+
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "91_before_kill"
+
+# ── Step 2: Force-terminate the app process ──────────────────────────────
+- stopApp
+
+# Brief pause for OS to clean up
+- waitForAnimationToEnd
+
+# ── Step 3: Relaunch after kill ──────────────────────────────────────────
+- launchApp
+
+- tapOn:
+    id: "privacy-consent-decline"
+    optional: true
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 120000
+
+- assertVisible:
+    id: "sign-in-title"
+- assertVisible:
+    id: "sign-in-subtitle"
+- assertVisible:
+    id: "google-sign-in-button"
+- assertVisible:
+    id: "sign-in-footer"
+- takeScreenshot: "91_recovered_after_kill"
+
+# ── Step 4: Second kill → recover cycle ──────────────────────────────────
+- stopApp
+- waitForAnimationToEnd
+- launchApp
+
+- tapOn:
+    id: "privacy-consent-decline"
+    optional: true
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 120000
+
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "91_recovered_after_second_kill"

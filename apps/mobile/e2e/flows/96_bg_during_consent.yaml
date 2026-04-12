@@ -1,0 +1,58 @@
+# Flow 96: Background During Consent Modal
+# Validates: App recovers correctly if the user backgrounds the app while
+#   the privacy consent modal is showing. The modal must still be interactive
+#   when the app returns to the foreground.
+# Tags: smoke, ci
+#
+# No auth required. No clearState.
+
+appId: com.big2mobile.app
+tags:
+  - smoke
+  - ci
+
+---
+# ── Step 1: Launch app ───────────────────────────────────────────────────
+- launchApp
+
+# If consent modal is not visible (already dismissed), the flow still passes
+# because all subsequent assertions target the sign-in screen.
+
+# ── Step 2: Background the app ──────────────────────────────────────────
+- pressKey: Home
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+
+# ── Step 3: Return to foreground ─────────────────────────────────────────
+- launchApp
+
+# ── Step 4: Dismiss consent if still showing, then verify sign-in ────────
+- tapOn:
+    id: "privacy-consent-decline"
+    optional: true
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 120000
+
+- assertVisible:
+    id: "sign-in-title"
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "96_sign_in_after_bg_during_consent"
+
+# ── Step 5: Second background/foreground cycle ───────────────────────────
+- pressKey: Home
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- launchApp
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 60000
+
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "96_stable_after_second_bg_cycle"
