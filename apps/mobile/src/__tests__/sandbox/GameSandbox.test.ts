@@ -14,7 +14,7 @@
 
 import { GameSandbox, MultiGameRunner, card, cards, fullDeck, dealCards } from './GameSandbox';
 import { classifyCards, canBeatPlay, sortHand } from '../../game/engine';
-import type { ComboType, LastPlay } from '../../game/types';
+import type { Card, ComboType, LastPlay } from '../../game/types';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

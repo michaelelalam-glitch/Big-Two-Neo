@@ -112,6 +112,8 @@ export interface SandboxConfig {
   enforceFirstPlayRule?: boolean;
   /** Starting player index override (default: whoever has 3♦) */
   startingPlayerIndex?: number;
+  /** Whether it's the first play of the game (default: derived from state — true if no played cards) */
+  isFirstPlayOfGame?: boolean;
 }
 
 // ─── GameSandbox ─────────────────────────────────────────────────────────────
@@ -180,7 +182,7 @@ export class GameSandbox {
       lastPlay: null,
       lastPlayPlayerIndex: startIdx,
       consecutivePasses: 0,
-      isFirstPlayOfGame: true,
+      isFirstPlayOfGame: config.isFirstPlayOfGame ?? true,
       gameStarted: true,
       gameEnded: false,
       winnerId: null,
@@ -477,20 +479,37 @@ export class GameSandbox {
           return { action: 'play', cards: forcedCard ? [forcedCard] : [] };
         }
       } else {
-        // Leading but bot returned null — play lowest single
+        // Leading but bot returned null — must play (cannot pass on leadoff)
         const lowest = sortHand(p.hand)[0];
         if (lowest) {
-          this.playCards(p.id, [lowest]);
+          const playResult = this.playCards(p.id, [lowest]);
+          if (playResult.success) {
+            return { action: 'play', cards: [lowest], comboType: playResult.comboType };
+          }
+          // playCards failed (e.g. first-play 3♦ rule) — force play to ensure progress
+          this.forcePlayLowest(p);
           return { action: 'play', cards: [lowest] };
         }
       }
       return { action: 'pass' };
     }
 
-    // Convert card IDs to Card objects from hand
-    const cardObjects = result.cards
-      .map(id => p.hand.find(c => c.id === id))
-      .filter((c): c is Card => c !== undefined);
+    // Convert card IDs to Card objects from hand — warn on unmatched IDs
+    const cardObjects: Card[] = [];
+    const unmatchedIds: string[] = [];
+    for (const id of result.cards) {
+      const found = p.hand.find(c => c.id === id);
+      if (found) {
+        cardObjects.push(found);
+      } else {
+        unmatchedIds.push(id);
+      }
+    }
+    if (unmatchedIds.length > 0) {
+      console.warn(
+        `[GameSandbox] Bot ${p.id} returned card IDs not in hand: ${unmatchedIds.join(', ')}`
+      );
+    }
 
     if (cardObjects.length === 0) {
       if (this.state.lastPlay) {
@@ -507,6 +526,10 @@ export class GameSandbox {
           this.forcePlayLowest(p);
           return { action: 'play', cards: [sortHand(p.hand)[0]] };
         }
+      } else {
+        // Leading with no matching cards — force play to ensure progress
+        this.forcePlayLowest(p);
+        return { action: 'play', cards: [sortHand(p.hand)[0]] };
       }
       return { action: 'pass' };
     }
@@ -555,15 +578,16 @@ export class GameSandbox {
     return p;
   }
 
-  /** Get all valid plays for a player's hand */
+  /** Get all valid plays for a player's hand (accounts for first-play 3♦ and one-card-left rules) */
   getValidPlays(playerIdOrIndex: string | number): Card[][] {
     const p = this.getPlayer(playerIdOrIndex);
+    const idx = this.state.players.indexOf(p);
     const hand = sortHand(p.hand);
-    const validPlays: Card[][] = [];
+    const candidates: Card[][] = [];
 
     // Singles
     for (const c of hand) {
-      if (this.wouldBeatPlay([c])) validPlays.push([c]);
+      if (this.wouldBeatPlay([c])) candidates.push([c]);
     }
 
     // Pairs
@@ -571,7 +595,7 @@ export class GameSandbox {
       for (let j = i + 1; j < hand.length; j++) {
         const pair = [hand[i], hand[j]];
         if (classifyCards(pair) !== 'unknown' && this.wouldBeatPlay(pair)) {
-          validPlays.push(pair);
+          candidates.push(pair);
         }
       }
     }
@@ -582,7 +606,7 @@ export class GameSandbox {
         for (let k = j + 1; k < hand.length; k++) {
           const triple = [hand[i], hand[j], hand[k]];
           if (classifyCards(triple) !== 'unknown' && this.wouldBeatPlay(triple)) {
-            validPlays.push(triple);
+            candidates.push(triple);
           }
         }
       }
@@ -598,7 +622,7 @@ export class GameSandbox {
                 const combo = [hand[i], hand[j], hand[k], hand[l], hand[m]];
                 const ct = classifyCards(combo);
                 if (ct !== 'unknown' && this.wouldBeatPlay(combo)) {
-                  validPlays.push(combo);
+                  candidates.push(combo);
                 }
               }
             }
@@ -606,6 +630,31 @@ export class GameSandbox {
         }
       }
     }
+
+    // Filter: first-play 3♦ requirement
+    let validPlays = candidates;
+    if (this.state.isFirstPlayOfGame && this.enforceFirstPlay) {
+      validPlays = validPlays.filter(play => play.some(c => c.id === '3D'));
+    }
+
+    // Filter: one-card-left rule
+    let nextPlayerCardCount = 0;
+    for (let offset = 1; offset < this.state.players.length; offset++) {
+      const nextIdx = (idx + offset) % this.state.players.length;
+      if (this.state.players[nextIdx].hand.length > 0) {
+        nextPlayerCardCount = this.state.players[nextIdx].hand.length;
+        break;
+      }
+    }
+    validPlays = validPlays.filter(play => {
+      const result = validateOneCardLeftRule(
+        play,
+        p.hand,
+        nextPlayerCardCount,
+        this.state.lastPlay ?? null
+      );
+      return result.valid;
+    });
 
     return validPlays;
   }
@@ -632,6 +681,12 @@ export class GameSandbox {
   }
 
   // ─── Internal ────────────────────────────────────────────────────────────
+
+  /** Force play the lowest card bypassing all rule checks (public for MultiGameRunner) */
+  forcePlayLowestPublic(playerIdOrIndex: string | number): void {
+    const p = this.getPlayer(playerIdOrIndex);
+    this.forcePlayLowest(p);
+  }
 
   /** Force play the lowest card bypassing all rule checks (ensures game progress) */
   private forcePlayLowest(p: Player): void {
@@ -743,9 +798,27 @@ export class MultiGameRunner {
           // For human players, auto-play best card or pass
           const validPlays = game.getValidPlays(current.id);
           if (validPlays.length > 0) {
-            game.playCards(current.id, validPlays[0]);
+            const playResult = game.playCards(current.id, validPlays[0]);
+            if (!playResult.success) {
+              // Play rejected — fall through to pass or force
+              if (game.state.lastPlay) {
+                const passResult = game.pass(current.id);
+                if (!passResult.success) {
+                  game.forcePlayLowestPublic(current.id);
+                }
+              } else {
+                game.forcePlayLowestPublic(current.id);
+              }
+            }
           } else if (game.state.lastPlay) {
-            game.pass(current.id);
+            const passResult = game.pass(current.id);
+            if (!passResult.success) {
+              // One-card-left rule prevents passing — force play
+              game.forcePlayLowestPublic(current.id);
+            }
+          } else {
+            // Leading with no valid plays — force play to ensure progress
+            game.forcePlayLowestPublic(current.id);
           }
         }
         turns++;

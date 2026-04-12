@@ -4,7 +4,7 @@
 #   tap crashes the app.
 # Tags: smoke
 #
-# CI-safe: no authentication required.
+# No auth required. Tagged ci-authenticated (not ci) due to clearState iOS simulator instability.
 # This flow exercises modal button existence directly — distinct from flows 01/13
 # which focus on what happens AFTER a button is tapped.
 

@@ -5,7 +5,7 @@
 #   React Native bridge state bleed between launches.
 # Tags: smoke, stability
 #
-# CI-safe: no authentication required.
+# No auth required. Tagged ci-authenticated (not ci) due to clearState iOS simulator instability.
 # Complements flow 14 (which uses clearState: true between every cycle).
 
 appId: com.big2mobile.app
