@@ -112,7 +112,7 @@ export interface SandboxConfig {
   enforceFirstPlayRule?: boolean;
   /** Starting player index override (default: whoever has 3♦) */
   startingPlayerIndex?: number;
-  /** Whether it's the first play of the game (default: derived from state — true if no played cards) */
+  /** Whether it's the first play of the game (default: true — sandbox starts with no played cards) */
   isFirstPlayOfGame?: boolean;
 }
 
@@ -182,6 +182,8 @@ export class GameSandbox {
       lastPlay: null,
       lastPlayPlayerIndex: startIdx,
       consecutivePasses: 0,
+      // Sandbox always starts fresh — no cards played yet, so first-play rule applies.
+      // Override with config.isFirstPlayOfGame = false to simulate mid-game state.
       isFirstPlayOfGame: config.isFirstPlayOfGame ?? true,
       gameStarted: true,
       gameEnded: false,
@@ -232,17 +234,19 @@ export class GameSandbox {
     this.state.currentPlayerIndex = idx;
   }
 
-  /** Override last play (trick to beat) */
-  setLastPlay(play: LastPlay | null): void {
+  /** Override last play (trick to beat). Pass playerIndex to also update lastPlayPlayerIndex. */
+  setLastPlay(play: LastPlay | null, playerIndex?: number): void {
     this.state.lastPlay = play;
 
     if (play === null) {
-      // Keep lastPlayPlayerIndex unchanged — it tracks the trick winner for turn resolution
+      // Null resets the trick — keep lastPlayPlayerIndex unchanged so trick winner leads next
       return;
     }
 
-    // Try to match player from play.player_index if available
-    if (
+    // Explicit playerIndex takes priority, then play.player_index
+    if (playerIndex !== undefined) {
+      this.state.lastPlayPlayerIndex = playerIndex;
+    } else if (
       play.player_index != null &&
       play.player_index >= 0 &&
       play.player_index < this.state.players.length
@@ -288,14 +292,17 @@ export class GameSandbox {
       return { success: false, error: 'Must select at least one card' };
     }
 
-    // Verify all selected cards are in the player's hand
+    // Validate all selected cards exist in the player's hand before any classification
     const handIds = new Set(p.hand.map(c => c.id));
-    const missing = selectedCards.filter(c => !handIds.has(c.id));
-    if (missing.length > 0) {
-      return { success: false, error: `Cards not in hand: ${missing.map(c => c.id).join(', ')}` };
+    const missingCards = selectedCards.filter(c => !handIds.has(c.id));
+    if (missingCards.length > 0) {
+      return {
+        success: false,
+        error: `Cards not in hand: ${missingCards.map(c => c.id).join(', ')}`,
+      };
     }
 
-    // Classify the combo
+    // Classify the combo (only after hand-membership validation passes)
     const comboType = classifyCards(selectedCards);
     if (comboType === 'unknown') {
       return { success: false, error: 'Invalid card combination' };
@@ -409,12 +416,12 @@ export class GameSandbox {
     p.passed = true;
     this.state.consecutivePasses++;
 
-    // Record history
+    // Record pass in round history ('unknown' is the canonical combo_type for passes)
     this.state.roundHistory.push({
       playerId: p.id,
       playerName: p.name,
       cards: [],
-      combo_type: 'unknown' as ComboType,
+      combo_type: 'unknown',
       timestamp: Date.now(),
       passed: true,
       matchNumber: this.state.currentMatch,
@@ -688,13 +695,13 @@ export class GameSandbox {
     this.forcePlayLowest(p);
   }
 
-  /** Force play the lowest card bypassing all rule checks (ensures game progress) */
+  /** Force play the lowest card bypassing all rule checks (ensures game progress). Records to roundHistory. */
   private forcePlayLowest(p: Player): void {
     const sorted = sortHand(p.hand);
     const lowest = sorted[0];
     if (!lowest) return;
 
-    // Remove from hand
+    // Remove from hand and clear passed flag
     p.hand = p.hand.filter(c => c.id !== lowest.id);
     p.passed = false;
 
@@ -706,12 +713,12 @@ export class GameSandbox {
     this.state.isFirstPlayOfGame = false;
     this.state.played_cards.push(lowest);
 
-    // Record in round history for consistency
+    // Record forced play in round history for metric consistency (avgTurns, etc.)
     this.state.roundHistory.push({
       playerId: p.id,
       playerName: p.name,
       cards: [lowest],
-      combo_type: 'Single' as ComboType,
+      combo_type: 'Single',
       timestamp: Date.now(),
       passed: false,
       matchNumber: this.state.currentMatch,
@@ -795,12 +802,12 @@ export class MultiGameRunner {
         if (current.isBot) {
           game.runBotTurn();
         } else {
-          // For human players, auto-play best card or pass
+          // For human players, auto-play best valid card or pass/force
           const validPlays = game.getValidPlays(current.id);
           if (validPlays.length > 0) {
             const playResult = game.playCards(current.id, validPlays[0]);
             if (!playResult.success) {
-              // Play rejected — fall through to pass or force
+              // Valid-play was rejected (e.g. first-play 3♦) — fall through to pass or force
               if (game.state.lastPlay) {
                 const passResult = game.pass(current.id);
                 if (!passResult.success) {
@@ -851,6 +858,7 @@ export class MultiGameRunner {
     const wins: Record<string, number> = {};
 
     for (const [, game] of this.games) {
+      // Only count completed games to avoid inflating avgTurns with partial games
       if (game.state.gameEnded) {
         completed++;
         totalTurns += game.state.roundHistory.length;

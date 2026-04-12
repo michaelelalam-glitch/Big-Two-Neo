@@ -504,7 +504,7 @@ jobs:
       - name: 🔐 Seed E2E authentication session
         id: seed-auth
         if: env.E2E_TEST_EMAIL != '' && env.E2E_TEST_PASSWORD != ''
-        continue-on-error: true
+        continue-on-error: true  # Failure handled by "Warn if auth seeding was skipped" step below
         run: |
           cd apps/mobile
           # Terminate any running app instance first

@@ -489,9 +489,10 @@ describe('GameSandbox: combo classification', () => {
 // ─── 6. Beat Play Logic ──────────────────────────────────────────────────────
 
 describe('GameSandbox: beat play', () => {
-  const lp = (c: Card[], combo: string = 'Single'): LastPlay => ({
+  /** Helper to build a LastPlay (Card and LastPlay are imported from ../../game/types) */
+  const lp = (c: Card[], combo: ComboType = 'Single'): LastPlay => ({
     cards: c,
-    combo_type: combo as ComboType,
+    combo_type: combo,
   });
 
   it('higher single beats lower single', () => {
