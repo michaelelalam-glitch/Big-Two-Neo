@@ -4,7 +4,7 @@
 #   than usual. The screen must not remain on an infinite loading spinner.
 # Tags: smoke
 #
-# No auth required. Tagged ci-authenticated (not ci) due to clearState iOS simulator instability.
+# No auth required. Smoke-only (not CI) — clearState causes iOS simulator instability (see CI_E2E_FAILURE_POSTMORTEM.md).
 # Technique: launch the app and assert the sign-in screen appears within
 #   a conservative timeout (120s) even on network-degraded CI runners.
 #   Also validates that pressing the Home key mid-load and returning does
@@ -13,7 +13,6 @@
 appId: com.big2mobile.app
 tags:
   - smoke
-  - ci-authenticated
 
 ---
 # ── Step 1: Cold launch — may hit slow network ────────────────────────────

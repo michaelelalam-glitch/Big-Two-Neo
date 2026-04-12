@@ -5,14 +5,13 @@
 #   and any text truncation or element overflow that breaks the UI.
 # Tags: smoke
 #
-# No auth required. Tagged ci-authenticated (not ci) due to clearState iOS simulator instability.
+# No auth required. Smoke-only (not CI) — clearState causes iOS simulator instability (see CI_E2E_FAILURE_POSTMORTEM.md).
 # Note: Landscape orientation test is iOS Simulator only; Android emulator
 #   profile (pixel_6) also supports landscape via setDeviceOrientation.
 
 appId: com.big2mobile.app
 tags:
   - smoke
-  - ci-authenticated
 
 ---
 # ── Step 1: Cold launch in portrait ──────────────────────────────────────

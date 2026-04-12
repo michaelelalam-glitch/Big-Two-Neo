@@ -4,14 +4,13 @@
 #   tap crashes the app.
 # Tags: smoke
 #
-# No auth required. Tagged ci-authenticated (not ci) due to clearState iOS simulator instability.
+# No auth required. Smoke-only (not CI) — clearState causes iOS simulator instability (see CI_E2E_FAILURE_POSTMORTEM.md).
 # This flow exercises modal button existence directly — distinct from flows 01/13
 # which focus on what happens AFTER a button is tapped.
 
 appId: com.big2mobile.app
 tags:
   - smoke
-  - ci-authenticated
 
 ---
 # ── Part A: Verify both buttons are present on cold launch ───────────────

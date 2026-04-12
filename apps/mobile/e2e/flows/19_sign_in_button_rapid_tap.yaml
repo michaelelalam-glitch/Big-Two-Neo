@@ -5,14 +5,13 @@
 #   state corruption from rapid concurrent auth initiations.
 # Tags: smoke
 #
-# No auth required. Tagged ci-authenticated (not ci) due to clearState iOS instability — we only verify the app survives
+# No auth required. Smoke-only (not CI) — clearState causes iOS simulator instability — we only verify the app survives
 # the tap; we do not complete the OAuth flow.
 # The Google auth sheet / webview will appear and be dismissed via relaunch.
 
 appId: com.big2mobile.app
 tags:
   - smoke
-  - ci-authenticated
 
 ---
 # ── Step 1: Launch and reach sign-in screen ──────────────────────────────

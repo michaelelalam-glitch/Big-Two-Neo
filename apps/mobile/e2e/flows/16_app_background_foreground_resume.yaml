@@ -4,13 +4,12 @@
 #   re-initialization on resume, and Supabase session listener cleanup.
 # Tags: smoke
 #
-# No auth required. Tagged ci-authenticated (not ci) due to clearState iOS simulator instability.
+# No auth required. Smoke-only (not CI) — clearState causes iOS simulator instability (see CI_E2E_FAILURE_POSTMORTEM.md).
 # Tests the app at the unauthenticated sign-in surface only.
 
 appId: com.big2mobile.app
 tags:
   - smoke
-  - ci-authenticated
 
 ---
 # ── Step 1: Cold launch and dismiss consent ───────────────────────────────
