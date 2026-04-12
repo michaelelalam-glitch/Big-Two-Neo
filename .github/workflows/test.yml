@@ -469,7 +469,7 @@ jobs:
           cd apps/mobile
           # Create results directory (Maestro doesn't auto-create it)
           mkdir -p e2e/results
-          # Phase 1: Run CI-tagged flows (unauthenticated — clearState safe).
+          # Phase 1: Run CI-tagged flows (unauthenticated, some include clearState: true).
           # Retry logic: iOS simulator can crash on clearState: true (flaky).
           MAX_ATTEMPTS=2
           MAESTRO_EXIT=1

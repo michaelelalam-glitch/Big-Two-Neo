@@ -646,8 +646,8 @@ export class GameSandbox {
       }
     }
 
-    // Five-card combos (simplified — check all sorted 5-card subsets)
-    if (hand.length >= 5) {
+    // Five-card combos — only enumerate when lastPlay is null or exactly 5 cards
+    if (hand.length >= 5 && (!this.state.lastPlay || this.state.lastPlay.cards.length === 5)) {
       for (let i = 0; i < hand.length - 4; i++) {
         for (let j = i + 1; j < hand.length - 3; j++) {
           for (let k = j + 1; k < hand.length - 2; k++) {
@@ -728,9 +728,11 @@ export class GameSandbox {
     const lowest = sorted[0];
     if (!lowest) return;
 
-    // Remove from hand and clear passed flag
+    // Remove from hand and clear all players' passed flags (matches playCards behavior)
     p.hand = p.hand.filter(c => c.id !== lowest.id);
-    p.passed = false;
+    this.state.players.forEach(pl => {
+      pl.passed = false;
+    });
 
     // Update state as if a valid play occurred
     const idx = this.state.players.indexOf(p);
