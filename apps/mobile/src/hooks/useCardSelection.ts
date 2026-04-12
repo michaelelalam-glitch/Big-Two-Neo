@@ -84,19 +84,53 @@ export function useCardSelection(roomId?: string | null) {
       });
   }, [storageKey]);
 
-  // P4-8: Public setter that also persists to AsyncStorage.
+  // P4-8: Debounce state — holds the latest pending write so rapid selections coalesce.
+  const pendingWriteRef = useRef<{ ids: Set<string>; key: string } | null>(null);
+  const writeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // P4-8: Public setter — debounces AsyncStorage writes so rapid tap/drag
+  // selections coalesce into a single write (reduces IO jank on low-end devices).
   const setSelectedCardIds = useCallback(
     (ids: Set<string>) => {
       setSelectedCardIdsState(ids);
       if (!storageKey) return;
-      if (ids.size === 0) {
-        AsyncStorage.removeItem(storageKey).catch(() => {});
-      } else {
-        AsyncStorage.setItem(storageKey, JSON.stringify([...ids])).catch(() => {});
+      // Stage the latest value; any previous pending write is superseded.
+      pendingWriteRef.current = { ids, key: storageKey };
+      if (writeTimerRef.current !== null) {
+        clearTimeout(writeTimerRef.current);
       }
+      writeTimerRef.current = setTimeout(() => {
+        writeTimerRef.current = null;
+        const pending = pendingWriteRef.current;
+        if (!pending) return;
+        pendingWriteRef.current = null;
+        if (pending.ids.size === 0) {
+          AsyncStorage.removeItem(pending.key).catch(() => {});
+        } else {
+          AsyncStorage.setItem(pending.key, JSON.stringify([...pending.ids])).catch(() => {});
+        }
+      }, 300);
     },
     [storageKey]
   );
+
+  // Flush any pending debounced write on unmount so the final selection is not lost.
+  useEffect(() => {
+    return () => {
+      if (writeTimerRef.current !== null) {
+        clearTimeout(writeTimerRef.current);
+        writeTimerRef.current = null;
+      }
+      const pending = pendingWriteRef.current;
+      if (!pending) return;
+      pendingWriteRef.current = null;
+      if (pending.ids.size === 0) {
+        AsyncStorage.removeItem(pending.key).catch(() => {});
+      } else {
+        AsyncStorage.setItem(pending.key, JSON.stringify([...pending.ids])).catch(() => {});
+      }
+    };
+  }, []);
 
   // Handle card rearrangement
   // useCallback ensures stable reference across re-renders so gameContextValue
