@@ -584,7 +584,7 @@ jobs:
       - name: 📊 E2E test summary
         run: |
           echo "🎉 Maestro E2E tests completed!"
-          CI_COUNT=$(grep -c "testcase" apps/mobile/e2e/results/results-ci.xml 2>/dev/null || true)
+          CI_COUNT=$(grep -c "<testcase" apps/mobile/e2e/results/results-ci.xml 2>/dev/null || true)
           CI_COUNT=${CI_COUNT:-0}
 
           AUTH_RESULTS_FILE="apps/mobile/e2e/results/results-ci-authenticated.xml"
@@ -596,7 +596,7 @@ jobs:
 
             if [ "$SEED_AUTH_OUTCOME" = "success" ]; then
               if [ -f "$AUTH_RESULTS_FILE" ]; then
-                AUTH_COUNT=$(grep -c "testcase" "$AUTH_RESULTS_FILE" 2>/dev/null || true)
+                AUTH_COUNT=$(grep -c "<testcase" "$AUTH_RESULTS_FILE" 2>/dev/null || true)
                 AUTH_COUNT=${AUTH_COUNT:-0}
                 AUTH_STATUS="completed"
               else

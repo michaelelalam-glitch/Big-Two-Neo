@@ -133,7 +133,12 @@ export class GameSandbox {
     const overriddenCardIds = new Set<string>();
     if (config.hands) {
       for (const h of Object.values(config.hands)) {
-        for (const c of h) overriddenCardIds.add(c.id);
+        for (const c of h) {
+          if (overriddenCardIds.has(c.id)) {
+            throw new Error(`Duplicate card '${c.id}' in SandboxConfig.hands`);
+          }
+          overriddenCardIds.add(c.id);
+        }
       }
     }
     const filteredDeck =
@@ -264,7 +269,7 @@ export class GameSandbox {
       return;
     }
 
-    // Explicit playerIndex takes priority, then play.player_index
+    // Explicit playerIndex takes priority, then play.player_index, then deprecated play.position
     if (playerIndex !== undefined) {
       this.state.lastPlayPlayerIndex = playerIndex;
     } else if (
@@ -273,6 +278,12 @@ export class GameSandbox {
       play.player_index < this.state.players.length
     ) {
       this.state.lastPlayPlayerIndex = play.player_index;
+    } else if (
+      play.position != null &&
+      play.position >= 0 &&
+      play.position < this.state.players.length
+    ) {
+      this.state.lastPlayPlayerIndex = play.position;
     }
   }
 
@@ -311,6 +322,12 @@ export class GameSandbox {
 
     if (selectedCards.length === 0) {
       return { success: false, error: 'Must select at least one card' };
+    }
+
+    // Reject duplicate card selections (e.g., ['3D','3D'])
+    const selectedIds = new Set(selectedCards.map(c => c.id));
+    if (selectedIds.size !== selectedCards.length) {
+      return { success: false, error: 'Duplicate cards in selection' };
     }
 
     // Validate all selected cards exist in the player's hand before any classification
