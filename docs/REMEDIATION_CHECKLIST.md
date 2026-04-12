@@ -340,7 +340,7 @@
   `apps/mobile/src/components/ChatDrawer.tsx` · L77
 
 - [x] **#70 🔵 P11-2** — No documented RTL layout testing pass for Arabic.
-  > ✅ Addressed in Tier 9 — RTL layout testing documented as a required QA process item. All game screens use React Native's `I18nManager.isRTL` and `writingDirection`-aware StyleSheet properties. Manual RTL verification pass to be performed before Arabic locale goes live in App Store / Google Play; tracked as a QA checklist item in the release pipeline.
+  > ✅ Addressed in Tier 9 — All game screens use React Native's `I18nManager.isRTL` and `writingDirection`-aware StyleSheet properties. RTL layout testing has been added as a **blocking gate** in the release pipeline checklist: Arabic locale cannot ship until a manual RTL verification pass is signed off by QA. The process item is documented; its execution is gated on the Arabic locale launch milestone.
   QA process gap
 
 - [ ] **#71 🔵 P15-1** — No automated dependency updates (Renovate / Dependabot).  

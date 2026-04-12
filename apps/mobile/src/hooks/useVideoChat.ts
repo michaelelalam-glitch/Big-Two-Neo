@@ -427,7 +427,12 @@ export function useVideoChat({
           gameLogger.info(
             `[VideoChat] Scheduling reconnect attempt ${reconnectAttemptsRef.current + 1}/${MAX_RECONNECT_RETRIES} in ${delay}ms`
           );
-          // Store the handle so the cleanup function can clear it on unmount or room change.
+          // Clear any existing pending timer before scheduling a new one so
+          // multiple UnexpectedDisconnectError events cannot stack timers.
+          if (reconnectTimerRef.current) {
+            clearTimeout(reconnectTimerRef.current);
+            reconnectTimerRef.current = null;
+          }
           reconnectTimerRef.current = setTimeout(() => {
             reconnectTimerRef.current = null;
             setReconnectRetryKey(k => k + 1);
@@ -457,12 +462,28 @@ export function useVideoChat({
         if (cancelled) return;
         reconnectAttemptsRef.current = 0; // reset on success
         if (desiredCameraRef.current) {
-          await adapterRef.current.enableCamera().catch(() => {});
-          if (!cancelled) setIsLocalCameraOn(true);
+          try {
+            await adapterRef.current.enableCamera();
+            if (!cancelled) setIsLocalCameraOn(true);
+          } catch (camErr) {
+            gameLogger.warn(
+              '[VideoChat] Auto-reconnect: failed to restore camera:',
+              camErr instanceof Error ? camErr.message : String(camErr)
+            );
+            // Leave isLocalCameraOn as-is so UI stays in sync with actual track state.
+          }
         }
         if (desiredMicRef.current) {
-          await adapterRef.current.enableMicrophone().catch(() => {});
-          if (!cancelled) setIsLocalMicOn(true);
+          try {
+            await adapterRef.current.enableMicrophone();
+            if (!cancelled) setIsLocalMicOn(true);
+          } catch (micErr) {
+            gameLogger.warn(
+              '[VideoChat] Auto-reconnect: failed to restore microphone:',
+              micErr instanceof Error ? micErr.message : String(micErr)
+            );
+            // Leave isLocalMicOn as-is so UI stays in sync with actual track state.
+          }
         }
         if (!cancelled) {
           setRemoteParticipants(adapterRef.current.getParticipants());
