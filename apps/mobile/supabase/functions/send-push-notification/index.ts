@@ -157,11 +157,15 @@ const KNOWN_EVENT_TYPES = new Set([
   'game_invite', 'friend_request', 'friend_accepted', 'game_started', 'game_ended', 'your_turn', 'player_turn', 'default',
 ]);
 
-/** M22: Map legacy/alternate event type aliases to their canonical form for rate-limit bucketing.
- *  'player_turn' sent by older server versions must be treated as 'your_turn' so they share
- *  the same 30s bucket instead of each opening a new independent window. */
+/** M22: Map alternate event type names to their canonical form for both
+ *  rate-limit bucketing AND server-side preference checks.
+ *  - player_turn  → your_turn      (legacy client compatibility)
+ *  - room_invite   → game_invite    (client sends room_invite, pref column uses game_invite)
+ *  - friend_accepted → friend_request (both share notify_friend_requests preference) */
 const EVENT_TYPE_ALIASES: Record<string, string> = {
   player_turn: 'your_turn',
+  room_invite: 'game_invite',
+  friend_accepted: 'friend_request',
 };
 const MAX_EVENT_TYPE_LEN = 32;
 
@@ -502,6 +506,8 @@ Deno.serve(async (req) => {
     // Keep this mapping in sync with any user-facing notification toggles and
     // their corresponding `profiles` columns so background/killed-state pushes
     // respect the same opt-out settings as the client.
+    // NOTE: Alternate names like player_turn, room_invite, and friend_accepted
+    //       are normalised via EVENT_TYPE_ALIASES before reaching this map.
     const PREFERENCE_COLUMN_MAP: Record<string, string> = {
       game_invite: 'notify_game_invites',
       your_turn: 'notify_your_turn',

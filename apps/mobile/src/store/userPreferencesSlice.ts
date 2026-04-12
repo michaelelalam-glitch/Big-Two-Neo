@@ -50,6 +50,26 @@ function _syncNotifyPreferenceToDb(column: string, value: boolean) {
       /* no-op if not authed */
     });
 }
+
+/** Batch-sync all notification preferences in a single getUser + single update. */
+function _syncAllNotifyPreferencesToDb(prefs: Record<string, boolean>) {
+  supabase.auth
+    .getUser()
+    .then(({ data }) => {
+      if (!data?.user) return;
+      supabase
+        .from('profiles')
+        .update(prefs)
+        .eq('id', data.user.id)
+        .then(({ error }) => {
+          if (error)
+            uiLogger.error('[UserPreferences] Failed to batch-sync preferences to DB', error);
+        });
+    })
+    .catch(() => {
+      /* no-op if not authed */
+    });
+}
 export type { CardSortOrder, AnimationSpeed, AutoPassTimer };
 
 export type ProfilePhotoSize = 'small' | 'medium' | 'large';
@@ -241,9 +261,12 @@ useUserPreferencesStore.persist.onFinishHydration(() => {
   // One-time sync: write local notification preferences to the DB so users
   // who opted out before the server-side columns existed are respected
   // immediately, without needing to toggle settings again.
+  // Batched into a single getUser + single update to avoid 4× round-trips.
   const state = useUserPreferencesStore.getState();
-  _syncNotifyPreferenceToDb('notify_game_invites', state.notifyGameInvites);
-  _syncNotifyPreferenceToDb('notify_your_turn', state.notifyYourTurn);
-  _syncNotifyPreferenceToDb('notify_game_started', state.notifyGameStarted);
-  _syncNotifyPreferenceToDb('notify_friend_requests', state.notifyFriendRequests);
+  _syncAllNotifyPreferencesToDb({
+    notify_game_invites: state.notifyGameInvites,
+    notify_your_turn: state.notifyYourTurn,
+    notify_game_started: state.notifyGameStarted,
+    notify_friend_requests: state.notifyFriendRequests,
+  });
 });
