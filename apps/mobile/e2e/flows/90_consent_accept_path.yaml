@@ -14,8 +14,8 @@ tags:
 
 ---
 # ── Step 1: Launch fresh (clearState) and accept consent ─────────────────
-- clearState
-- launchApp
+- launchApp:
+    clearState: true
 
 # Consent modal must be visible after clearState
 - assertVisible:

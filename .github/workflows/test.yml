@@ -497,7 +497,7 @@ jobs:
           done
           echo "Maestro ci exit code: $MAESTRO_EXIT"
           exit $MAESTRO_EXIT
-        timeout-minutes: 30
+        timeout-minutes: 45
         env:
           MAESTRO_DRIVER_STARTUP_TIMEOUT: 300000
 

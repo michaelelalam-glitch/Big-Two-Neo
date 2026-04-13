@@ -14,8 +14,8 @@ tags:
 
 ---
 # ── Step 1: Launch fresh (clearState) — consent modal must be visible ────
-- clearState
-- launchApp
+- launchApp:
+    clearState: true
 
 # Assert consent modal is shown before backgrounding
 - assertVisible:
