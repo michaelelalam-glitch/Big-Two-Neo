@@ -32,7 +32,7 @@ interface NotificationRequest {
     // via the `(string & {})` extension (keeps the union open without widening to plain string).
     // When type is absent, isThrottled / reserveThrottleSlot use a 'default' bucket
     // so typeless notifications are still rate-limited.
-    type?: 'game_invite' | 'your_turn' | 'game_started' | 'friend_request' | 'friend_accepted' | 'game_ended' | (string & {});
+    type?: 'game_invite' | 'room_invite' | 'your_turn' | 'player_turn' | 'game_started' | 'friend_request' | 'friend_accepted' | 'game_ended' | (string & {});
     roomCode?: string;
     [key: string]: any;
   };
@@ -293,15 +293,21 @@ Deno.serve(async (req) => {
     // roomCode + caller membership + friendship with each target, but skip
     // target room-membership (targets are the invitees).
 
-    // Pre-validate user_ids format (shared by all user-JWT paths).
+    // Pre-validate user_ids: required, non-empty, and all strings.
+    // Validates early to avoid unnecessary DB work (room/friendship lookups)
+    // since the main handler hard-requires user_ids anyway.
     const rawIds = peekBody?.user_ids;
-    if (rawIds !== undefined && rawIds !== null) {
-      if (!Array.isArray(rawIds) || !rawIds.every((id): id is string => typeof id === 'string')) {
-        return new Response(
-          JSON.stringify({ error: 'user_ids must be an array of strings' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+    if (!rawIds || !Array.isArray(rawIds) || rawIds.length === 0) {
+      return new Response(
+        JSON.stringify({ error: 'user_ids is required and must be a non-empty array' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    if (!rawIds.every((id): id is string => typeof id === 'string')) {
+      return new Response(
+        JSON.stringify({ error: 'user_ids must be an array of strings' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Use the service-role key for DB authorization checks (bypasses RLS).

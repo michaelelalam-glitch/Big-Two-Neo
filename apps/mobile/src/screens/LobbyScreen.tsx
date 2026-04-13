@@ -753,10 +753,17 @@ export default function LobbyScreen() {
     if (selectedFriendIds.size === 0) return;
     setIsSendingInvites(true);
     try {
+      // Resolve roomId via DB lookup rather than falling back to empty string,
+      // which would break deep-link navigation in the push payload.
+      const resolvedRoomId = roomId || (await getRoomId({ suppressNavigation: true }));
+      if (!resolvedRoomId) {
+        showError(i18n.t('lobby.roomNotFound') || 'Room not found — cannot send invites');
+        return;
+      }
       const senderName = profile?.username || user?.email || i18n.t('friends.unknownPlayer');
       await Promise.all(
         Array.from(selectedFriendIds).map(friendId =>
-          notifyRoomInvite(friendId, roomCode, roomId ?? '', senderName)
+          notifyRoomInvite(friendId, roomCode, resolvedRoomId, senderName)
         )
       );
     } catch (err) {
