@@ -309,6 +309,15 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    // Validate each user_id is a well-formed UUID to prevent PostgREST
+    // filter injection via the `.or()` clause used in friendship/membership checks.
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!rawIds.every(id => UUID_RE.test(id))) {
+      return new Response(
+        JSON.stringify({ error: 'user_ids must contain valid UUIDs' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Use the service-role key for DB authorization checks (bypasses RLS).
     const adminClient = createClient(supabaseUrl, serviceKey, {
@@ -431,20 +440,28 @@ Deno.serve(async (req) => {
       }
     } else {
       // ── Friend notification path ────────────────────────────────────────
-      // Verify a friendships row (any status) exists between caller and each
-      // target so the notification type cannot be used to send pushes to
-      // arbitrary users.
+      // Enforce status-specific friendship checks:
+      // - friend_request: caller must be the requester (row exists in any status)
+      // - friend_accepted: friendship must be in 'accepted' status
+      // This prevents sending misleading push notifications (e.g. "accepted"
+      // when the request is still pending).
       if (rawIds && Array.isArray(rawIds)) {
         const targetIds = rawIds as string[];
         if (targetIds.length > 0) {
-          const { data: friendRows, error: friendErr } = await adminClient
+          const isFriendAccepted = peekType === 'friend_accepted';
+          let friendQuery = adminClient
             .from('friendships')
-            .select('requester_id, addressee_id')
+            .select('requester_id, addressee_id, status')
             .or(
               targetIds.map(tid =>
                 `and(requester_id.eq.${callerUser.id},addressee_id.eq.${tid}),and(requester_id.eq.${tid},addressee_id.eq.${callerUser.id})`
               ).join(',')
             );
+          if (isFriendAccepted) {
+            // friend_accepted: require accepted status
+            friendQuery = friendQuery.eq('status', 'accepted');
+          }
+          const { data: friendRows, error: friendErr } = await friendQuery;
           if (friendErr) {
             console.error('[send-push-notification] Friend relationship check failed:', friendErr);
             return new Response(
@@ -459,9 +476,22 @@ Deno.serve(async (req) => {
           const nonFriends = targetIds.filter(id => !friendSet.has(id));
           if (nonFriends.length > 0) {
             return new Response(
-              JSON.stringify({ error: 'Forbidden: no friendship exists with target user(s)' }),
+              JSON.stringify({ error: isFriendAccepted ? 'Forbidden: friendship is not accepted' : 'Forbidden: no friendship exists with target user(s)' }),
               { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
+          }
+          // friend_request: additionally verify caller is the requester (not the addressee
+          // sending unsolicited push) — only matters for friend_request type.
+          if (peekType === 'friend_request') {
+            const callerIsRequester = (friendRows ?? []).every(
+              (r: { requester_id: string; addressee_id: string }) => r.requester_id === callerUser.id
+            );
+            if (!callerIsRequester) {
+              return new Response(
+                JSON.stringify({ error: 'Forbidden: only the requester can send friend_request notifications' }),
+                { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
           }
         }
       }
