@@ -33,14 +33,23 @@ import type { CardSortOrder, AnimationSpeed, AutoPassTimer } from '../utils/sett
 // P12-H1: Fire-and-forget sync of notification preferences to the profiles
 // table so the send-push-notification edge function can enforce opt-out
 // server-side (including background/killed-state notifications).
-function _syncNotifyPreferenceToDb(column: string, value: boolean) {
+/** Allowed preference column names on the `profiles` table.
+ *  Keep in sync with the migration (20260724000001_notification_preferences.sql)
+ *  and PREFERENCE_COLUMN_MAP in send-push-notification/index.ts. */
+type NotifyPrefColumn =
+  | 'notify_game_invites'
+  | 'notify_your_turn'
+  | 'notify_game_started'
+  | 'notify_friend_requests';
+
+function _syncNotifyPreferenceToDb(column: NotifyPrefColumn, value: boolean) {
   supabase.auth
     .getUser()
     .then(({ data }) => {
       if (!data?.user) return;
       supabase
         .from('profiles')
-        .update({ [column]: value })
+        .update({ [column]: value } as Record<string, boolean>)
         .eq('id', data.user.id)
         .then(({ error }) => {
           if (error) uiLogger.error(`[UserPreferences] Failed to sync ${column} to DB`, error);
@@ -287,8 +296,18 @@ useUserPreferencesStore.persist.onFinishHydration(() => {
 // Also trigger sync on auth state transitions so preferences are synced when a
 // user signs in after hydration has already completed (e.g. app started while
 // logged out, then user signs in during the same process).
-supabase.auth.onAuthStateChange(event => {
+// Guard with globalThis to survive Fast Refresh module re-evaluation.
+declare const global: typeof globalThis & {
+  __userPrefs_authSyncSub__?: { unsubscribe: () => void };
+};
+if (global.__userPrefs_authSyncSub__) {
+  global.__userPrefs_authSyncSub__.unsubscribe();
+}
+const {
+  data: { subscription: _authSyncSub },
+} = supabase.auth.onAuthStateChange(event => {
   if (event === 'SIGNED_IN' && isUserPreferencesHydrated) {
     _attemptPreferenceSync();
   }
 });
+global.__userPrefs_authSyncSub__ = _authSyncSub;

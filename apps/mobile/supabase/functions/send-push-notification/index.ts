@@ -288,11 +288,29 @@ Deno.serve(async (req) => {
     const isInviteNotification = INVITE_TYPES.has(peekType);
 
     // Friend notifications (friend_request, friend_accepted) don't require
-    // room context — caller is authenticated and downstream rate limiting
-    // prevents abuse.  Room invites require roomCode + caller membership,
-    // but skip target membership (targets are the invitees).
+    // room context but DO require a verified friendship/request relationship
+    // between caller and each target to prevent abuse.  Room invites require
+    // roomCode + caller membership + friendship with each target, but skip
+    // target room-membership (targets are the invitees).
+
+    // Pre-validate user_ids format (shared by all user-JWT paths).
+    const rawIds = peekBody?.user_ids;
+    if (rawIds !== undefined && rawIds !== null) {
+      if (!Array.isArray(rawIds) || !rawIds.every((id): id is string => typeof id === 'string')) {
+        return new Response(
+          JSON.stringify({ error: 'user_ids must be an array of strings' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Use the service-role key for DB authorization checks (bypasses RLS).
+    const adminClient = createClient(supabaseUrl, serviceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
     if (!isFriendNotification) {
-      // User-JWT callers must supply a roomCode so targets can be constrained.
+      // ── Room-based notification path ────────────────────────────────────
       const roomCode = peekBody?.data?.roomCode;
       if (typeof roomCode !== 'string' || !roomCode) {
         return new Response(
@@ -300,11 +318,6 @@ Deno.serve(async (req) => {
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-
-      // Use the service-role key for DB authorization checks (bypasses RLS).
-      const adminClient = createClient(supabaseUrl, serviceKey, {
-        auth: { autoRefreshToken: false, persistSession: false },
-      });
 
       // Resolve room by code — distinguish DB errors (500) from not-found (403).
       const { data: room, error: roomError } = await adminClient
@@ -327,7 +340,7 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Caller must be a member of that room — distinguish DB errors (500) from non-member (403).
+      // Caller must be a member of that room.
       const { data: callerMembership, error: callerMembershipError } = await adminClient
         .from('room_players')
         .select('id')
@@ -349,20 +362,42 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Validate target user_ids format (applies to all types with room context).
-      const rawIds = peekBody?.user_ids;
-      if (rawIds !== undefined && rawIds !== null) {
-        if (!Array.isArray(rawIds) || !rawIds.every((id): id is string => typeof id === 'string')) {
-          return new Response(
-            JSON.stringify({ error: 'user_ids must be an array of strings' }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        // Invite types intentionally target users NOT in the room — skip
-        // target membership check.  All other room-based notification types
-        // require every target to be a room member.
-        if (!isInviteNotification) {
+      if (rawIds && Array.isArray(rawIds)) {
+        if (isInviteNotification) {
+          // Invite types: verify friendship (accepted) between caller and
+          // each target — prevents sending invites to arbitrary users.
+          const targetIds = rawIds as string[];
+          if (targetIds.length > 0) {
+            const { data: friendRows, error: friendErr } = await adminClient
+              .from('friendships')
+              .select('requester_id, addressee_id')
+              .eq('status', 'accepted')
+              .or(
+                targetIds.map(tid =>
+                  `and(requester_id.eq.${callerUser.id},addressee_id.eq.${tid}),and(requester_id.eq.${tid},addressee_id.eq.${callerUser.id})`
+                ).join(',')
+              );
+            if (friendErr) {
+              console.error('[send-push-notification] Invite friendship check failed:', friendErr);
+              return new Response(
+                JSON.stringify({ error: 'Failed to verify friendship for invite' }),
+                { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+            const friendSet = new Set(
+              (friendRows ?? []).flatMap((r: { requester_id: string; addressee_id: string }) => [r.requester_id, r.addressee_id])
+            );
+            friendSet.delete(callerUser.id); // Keep only target IDs
+            const nonFriends = targetIds.filter(id => !friendSet.has(id));
+            if (nonFriends.length > 0) {
+              return new Response(
+                JSON.stringify({ error: 'Forbidden: can only invite friends' }),
+                { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+          }
+        } else {
+          // Non-invite room types: all targets must be room members.
           const targetIds = rawIds as string[];
           if (targetIds.length > 0) {
             const { data: memberRows, error: memberCheckError } = await adminClient
@@ -389,14 +424,39 @@ Deno.serve(async (req) => {
         }
       }
     } else {
-      // Friend notification path: validate user_ids format only (no room context).
-      const rawIds = peekBody?.user_ids;
-      if (rawIds !== undefined && rawIds !== null) {
-        if (!Array.isArray(rawIds) || !rawIds.every((id): id is string => typeof id === 'string')) {
-          return new Response(
-            JSON.stringify({ error: 'user_ids must be an array of strings' }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      // ── Friend notification path ────────────────────────────────────────
+      // Verify a friendships row (any status) exists between caller and each
+      // target so the notification type cannot be used to send pushes to
+      // arbitrary users.
+      if (rawIds && Array.isArray(rawIds)) {
+        const targetIds = rawIds as string[];
+        if (targetIds.length > 0) {
+          const { data: friendRows, error: friendErr } = await adminClient
+            .from('friendships')
+            .select('requester_id, addressee_id')
+            .or(
+              targetIds.map(tid =>
+                `and(requester_id.eq.${callerUser.id},addressee_id.eq.${tid}),and(requester_id.eq.${tid},addressee_id.eq.${callerUser.id})`
+              ).join(',')
+            );
+          if (friendErr) {
+            console.error('[send-push-notification] Friend relationship check failed:', friendErr);
+            return new Response(
+              JSON.stringify({ error: 'Failed to verify friendship' }),
+              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          const friendSet = new Set(
+            (friendRows ?? []).flatMap((r: { requester_id: string; addressee_id: string }) => [r.requester_id, r.addressee_id])
           );
+          friendSet.delete(callerUser.id);
+          const nonFriends = targetIds.filter(id => !friendSet.has(id));
+          if (nonFriends.length > 0) {
+            return new Response(
+              JSON.stringify({ error: 'Forbidden: no friendship exists with target user(s)' }),
+              { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
         }
       }
     }
