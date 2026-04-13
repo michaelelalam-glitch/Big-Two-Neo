@@ -305,6 +305,10 @@ export class GameSandbox {
     if (play === null) {
       // Null resets the trick — trick winner (lastPlayPlayerIndex) leads next
       this.state.currentPlayerIndex = this.state.lastPlayPlayerIndex;
+      this.state.consecutivePasses = 0;
+      this.state.players.forEach(p => {
+        p.passed = false;
+      });
       return;
     }
 
