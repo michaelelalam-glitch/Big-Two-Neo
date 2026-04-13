@@ -223,9 +223,9 @@ export class GameSandbox {
       lastPlay: null,
       lastPlayPlayerIndex: startIdx,
       consecutivePasses: 0,
-      // Sandbox always starts fresh — no cards played yet, so first-play rule applies.
-      // Override with config.isFirstPlayOfGame = false to simulate mid-game state.
-      isFirstPlayOfGame: config.isFirstPlayOfGame ?? true,
+      // First-play rule (3♦ must start) only applies to match 1.
+      // For match 2+, default to false to match production behavior.
+      isFirstPlayOfGame: config.isFirstPlayOfGame ?? (config.currentMatch ?? 1) === 1,
       gameStarted: true,
       gameEnded: false,
       winnerId: null,
