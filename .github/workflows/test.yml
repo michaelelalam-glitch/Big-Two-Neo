@@ -502,7 +502,7 @@ jobs:
           MAESTRO_DRIVER_STARTUP_TIMEOUT: 300000
 
       - name: 🔐 Seed E2E authentication session
-        id: seed-auth
+        id: seed_auth
         if: env.E2E_TEST_EMAIL != '' && env.E2E_TEST_PASSWORD != ''
         continue-on-error: true  # Failure handled by "Warn if auth seeding was skipped" step below
         run: |
@@ -521,12 +521,12 @@ jobs:
           CI_PLATFORM: ios
 
       - name: ⚠️ Warn if auth seeding was skipped
-        if: env.E2E_TEST_EMAIL != '' && env.E2E_TEST_PASSWORD != '' && steps.seed-auth.outcome != 'success'
+        if: env.E2E_TEST_EMAIL != '' && env.E2E_TEST_PASSWORD != '' && steps.seed_auth.outcome != 'success'
         run: |
-          echo "::warning::Auth seeding skipped or failed (outcome=${{ steps.seed-auth.outcome }}). Authenticated E2E flows (ci-authenticated) will not run. CI coverage is reduced."
+          echo "::warning::Auth seeding skipped or failed (outcome=${{ steps.seed_auth.outcome }}). Authenticated E2E flows (ci-authenticated) will not run. CI coverage is reduced."
 
       - name: 🎭 Run Maestro E2E tests (authenticated — ci-authenticated tag)
-        if: steps.seed-auth.outcome == 'success'
+        if: steps.seed_auth.outcome == 'success'
         run: |
           cd apps/mobile
           mkdir -p e2e/results
@@ -600,7 +600,7 @@ jobs:
           AUTH_STATUS="not configured"
 
           if [ -n "$E2E_TEST_EMAIL" ] && [ -n "$E2E_TEST_PASSWORD" ]; then
-            SEED_AUTH_OUTCOME="${{ steps.seed-auth.outcome }}"
+            SEED_AUTH_OUTCOME="${{ steps.seed_auth.outcome }}"
 
             if [ "$SEED_AUTH_OUTCOME" = "success" ]; then
               if [ -f "$AUTH_RESULTS_FILE" ]; then
