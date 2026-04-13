@@ -237,17 +237,11 @@ export const userPreferencesHydrated = new Promise<void>(r => {
 export let isUserPreferencesHydrated = false;
 /** Guard: ensure the one-time DB sync only fires once per process lifetime. */
 let _prefsSyncedToDb = false;
-useUserPreferencesStore.persist.onFinishHydration(() => {
-  isUserPreferencesHydrated = true;
-  _resolveHydration();
 
-  // One-time sync: write local notification preferences to the DB so users
-  // who opted out before the server-side columns existed are respected
-  // immediately, without needing to toggle settings again.
-  // Batched into a single getUser + single update to avoid 4× round-trips.
-  // Guard prevents redundant writes if rehydrate() is called more than once.
-  // Flag is only set after confirming an authenticated user exists; if no user
-  // is present at hydration time the sync will retry on next rehydration/auth.
+/** Attempt a one-time sync of local notification preferences to the DB.
+ *  Called from both hydration completion and auth state changes so the sync
+ *  fires whichever event arrives with an authenticated user first. */
+function _attemptPreferenceSync(): void {
   if (_prefsSyncedToDb) return;
   _prefsSyncedToDb = true; // Prevent re-entrance during async auth check
   const state = useUserPreferencesStore.getState();
@@ -255,7 +249,7 @@ useUserPreferencesStore.persist.onFinishHydration(() => {
     .getUser()
     .then(({ data }) => {
       if (!data?.user) {
-        _prefsSyncedToDb = false; // No user → allow retry on next hydration
+        _prefsSyncedToDb = false; // No user → allow retry
         return;
       }
       supabase
@@ -277,4 +271,24 @@ useUserPreferencesStore.persist.onFinishHydration(() => {
     .catch(() => {
       _prefsSyncedToDb = false; // Auth error → allow retry
     });
+}
+
+useUserPreferencesStore.persist.onFinishHydration(() => {
+  isUserPreferencesHydrated = true;
+  _resolveHydration();
+
+  // One-time sync: write local notification preferences to the DB so users
+  // who opted out before the server-side columns existed are respected
+  // immediately, without needing to toggle settings again.
+  // Batched into a single getUser + single update to avoid 4× round-trips.
+  _attemptPreferenceSync();
+});
+
+// Also trigger sync on auth state transitions so preferences are synced when a
+// user signs in after hydration has already completed (e.g. app started while
+// logged out, then user signs in during the same process).
+supabase.auth.onAuthStateChange(event => {
+  if (event === 'SIGNED_IN' && isUserPreferencesHydrated) {
+    _attemptPreferenceSync();
+  }
 });
