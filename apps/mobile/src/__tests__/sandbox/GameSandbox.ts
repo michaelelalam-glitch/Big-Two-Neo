@@ -153,7 +153,11 @@ export class GameSandbox {
         : undefined;
     // Deal only for non-overridden seats so overridden cards don't reduce
     // card counts for other players.
-    const overriddenIndices = new Set(Object.keys(config.hands ?? {}).map(Number));
+    const overriddenIndices = new Set(
+      Object.keys(config.hands ?? {})
+        .map(Number)
+        .filter(idx => idx >= 0 && idx < numPlayers && Number.isInteger(idx))
+    );
     const nonOverriddenCount = numPlayers - overriddenIndices.size;
     const dealtHands = nonOverriddenCount > 0 ? dealCards(nonOverriddenCount, filteredDeck) : [];
     const hands: Card[][] = [];

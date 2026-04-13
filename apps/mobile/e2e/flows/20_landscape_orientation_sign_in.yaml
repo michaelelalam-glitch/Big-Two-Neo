@@ -3,15 +3,18 @@
 #   when the device is rotated to landscape orientation. Catches regressions
 #   in: SafeAreaView inset handling, StyleSheet layout (flex/column to row),
 #   and any text truncation or element overflow that breaks the UI.
-# Tags: smoke
+# Tags: smoke, ci
 #
-# No auth required. Smoke-only (not CI) — clearState causes iOS simulator instability (see CI_E2E_FAILURE_POSTMORTEM.md).
+# No auth required. CI-safe: clearState is used by other CI flows (10, 11, 13)
+#   without issue. Landscape orientation is supported by Maestro on both iOS
+#   Simulator and Android emulator.
 # Note: Landscape orientation test is iOS Simulator only; Android emulator
 #   profile (pixel_6) also supports landscape via setDeviceOrientation.
 
 appId: com.big2mobile.app
 tags:
   - smoke
+  - ci
 
 ---
 # ── Step 1: Cold launch in portrait ──────────────────────────────────────
