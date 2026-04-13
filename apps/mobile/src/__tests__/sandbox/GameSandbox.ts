@@ -18,7 +18,8 @@
  */
 
 import type { Card, ComboType, LastPlay } from '../../game/types';
-import type { GameState, Player, PlayerMatchScore } from '../../game/state';
+import type { GameState, Player } from '../../game/state';
+import type { PlayerMatchScore } from '../../game/types';
 import {
   sortHand,
   classifyCards,
