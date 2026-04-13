@@ -151,10 +151,19 @@ export class GameSandbox {
       overriddenCardIds.size > 0
         ? shuffle(fullDeck().filter(c => !overriddenCardIds.has(c.id)))
         : undefined;
-    const allHands = dealCards(numPlayers, filteredDeck);
+    // Deal only for non-overridden seats so overridden cards don't reduce
+    // card counts for other players.
+    const overriddenIndices = new Set(Object.keys(config.hands ?? {}).map(Number));
+    const nonOverriddenCount = numPlayers - overriddenIndices.size;
+    const dealtHands = nonOverriddenCount > 0 ? dealCards(nonOverriddenCount, filteredDeck) : [];
     const hands: Card[][] = [];
+    let dealIdx = 0;
     for (let i = 0; i < numPlayers; i++) {
-      hands.push(config.hands?.[i] ?? allHands[i]);
+      if (config.hands?.[i]) {
+        hands.push(config.hands[i]);
+      } else {
+        hands.push(dealtHands[dealIdx++] ?? []);
+      }
     }
 
     // Create players
@@ -839,7 +848,7 @@ export class MultiGameRunner {
     {
       winnerId: string | null;
       turns: number;
-      finalScores: Record<string, number>;
+      cardsRemaining: Record<string, number>;
     }
   > {
     const results = new Map<
@@ -847,7 +856,7 @@ export class MultiGameRunner {
       {
         winnerId: string | null;
         turns: number;
-        finalScores: Record<string, number>;
+        cardsRemaining: Record<string, number>;
       }
     >();
 
@@ -887,15 +896,15 @@ export class MultiGameRunner {
         turns++;
       }
 
-      const finalScores: Record<string, number> = {};
+      const cardsRemaining: Record<string, number> = {};
       game.state.players.forEach(p => {
-        finalScores[p.id] = p.hand.length;
+        cardsRemaining[p.id] = p.hand.length;
       });
 
       results.set(id, {
         winnerId: game.state.winnerId,
         turns,
-        finalScores,
+        cardsRemaining,
       });
     }
 

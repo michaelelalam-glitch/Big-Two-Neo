@@ -54,7 +54,7 @@ tags:
     id: "sign-in-footer"
 - takeScreenshot: "91_recovered_after_kill"
 
-# ── Step 4: Second kill → recover cycle ──────────────────────────────────
+# ── Step 3: Second kill → recover cycle ──────────────────────────────────
 # launchApp default stopApp:true handles the kill atomically.
 - launchApp
 - waitForAnimationToEnd

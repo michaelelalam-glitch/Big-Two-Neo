@@ -4,8 +4,8 @@
 #   navigation stack. Each cycle verifies all sign-in screen elements.
 # Tags: smoke, stability, ci
 #
-# No auth required. No clearState. Uses stopApp + launchApp (not clearState)
-# to exercise process lifecycle without wiping AsyncStorage.
+# No auth required. No clearState. launchApp (default stopApp:true) handles
+# process termination atomically to exercise lifecycle without wiping AsyncStorage.
 
 appId: com.big2mobile.app
 tags:
