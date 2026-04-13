@@ -138,6 +138,15 @@ export class GameSandbox {
     // Deal or assign hands — remove overridden cards from deck to prevent duplication
     const overriddenCardIds = new Set<string>();
     if (config.hands) {
+      // Validate all hands keys are valid player indices
+      for (const key of Object.keys(config.hands)) {
+        const idx = Number(key);
+        if (!Number.isInteger(idx) || idx < 0 || idx >= numPlayers) {
+          throw new Error(
+            `Invalid hands index ${key}: must be an integer in [0, ${numPlayers - 1}]`
+          );
+        }
+      }
       for (const h of Object.values(config.hands)) {
         for (const c of h) {
           if (overriddenCardIds.has(c.id)) {
@@ -153,11 +162,7 @@ export class GameSandbox {
         : undefined;
     // Deal only for non-overridden seats so overridden cards don't reduce
     // card counts for other players.
-    const overriddenIndices = new Set(
-      Object.keys(config.hands ?? {})
-        .map(Number)
-        .filter(idx => idx >= 0 && idx < numPlayers && Number.isInteger(idx))
-    );
+    const overriddenIndices = new Set(Object.keys(config.hands ?? {}).map(Number));
     const nonOverriddenCount = numPlayers - overriddenIndices.size;
     const dealtHands = nonOverriddenCount > 0 ? dealCards(nonOverriddenCount, filteredDeck) : [];
     const hands: Card[][] = [];
