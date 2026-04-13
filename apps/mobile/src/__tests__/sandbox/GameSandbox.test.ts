@@ -285,7 +285,8 @@ describe('GameSandbox: playCards', () => {
       hands: { 0: cards('3D', '4D') },
     });
     sb.playCards(0, cards('3D'));
-    expect(sb.state.currentPlayerIndex).toBe(1);
+    // 4-player anticlockwise turn order: 0→3→1→2 (matches production TURN_ORDER)
+    expect(sb.state.currentPlayerIndex).toBe(3);
   });
 
   it('detects win when hand empties', () => {

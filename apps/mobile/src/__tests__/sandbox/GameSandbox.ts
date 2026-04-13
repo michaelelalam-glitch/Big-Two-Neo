@@ -125,6 +125,9 @@ export class GameSandbox {
   state: GameState;
   private enforceFirstPlay: boolean;
 
+  /** Anticlockwise turn order for 4-player games (matches production GameStateManager.TURN_ORDER) */
+  private static readonly TURN_ORDER_4P = [3, 2, 0, 1] as const;
+
   private constructor(config: SandboxConfig) {
     const numPlayers = config.players ?? 4;
     if (numPlayers < 2 || numPlayers > 4) {
@@ -287,6 +290,9 @@ export class GameSandbox {
       play.position < this.state.players.length
     ) {
       this.state.lastPlayPlayerIndex = play.position;
+    } else {
+      // Default to current player to prevent stale lastPlayPlayerIndex
+      this.state.lastPlayPlayerIndex = this.state.currentPlayerIndex;
     }
   }
 
@@ -364,15 +370,9 @@ export class GameSandbox {
       }
     }
 
-    // One-card-left rule — find next active player (skip empty hands)
-    let nextPlayerCardCount = 0;
-    for (let offset = 1; offset < this.state.players.length; offset++) {
-      const nextIdx = (idx + offset) % this.state.players.length;
-      if (this.state.players[nextIdx].hand.length > 0) {
-        nextPlayerCardCount = this.state.players[nextIdx].hand.length;
-        break;
-      }
-    }
+    // One-card-left rule — find next active player using production turn order
+    const nextActiveForPlay = this.findNextActive(idx);
+    const nextPlayerCardCount = this.state.players[nextActiveForPlay].hand.length;
     const oneCardResult = validateOneCardLeftRule(
       selectedCards,
       p.hand,
@@ -437,16 +437,9 @@ export class GameSandbox {
       return { success: false, error: 'Cannot pass when leading — must play' };
     }
 
-    // One-card-left pass rule
-    let nextPlayerCardCount = 0;
-    for (let offset = 1; offset < this.state.players.length; offset++) {
-      const nextIdx = (idx + offset) % this.state.players.length;
-      const nextPlayer = this.state.players[nextIdx];
-      if (nextPlayer.hand.length > 0) {
-        nextPlayerCardCount = nextPlayer.hand.length;
-        break;
-      }
-    }
+    // One-card-left pass rule — find next active player using production turn order
+    const nextActiveForPass = this.findNextActive(idx);
+    const nextPlayerCardCount = this.state.players[nextActiveForPass].hand.length;
     const passRuleResult = canPassWithOneCardLeftRule(
       p.hand,
       nextPlayerCardCount,
@@ -695,15 +688,9 @@ export class GameSandbox {
       validPlays = validPlays.filter(play => play.some(c => c.id === '3D'));
     }
 
-    // Filter: one-card-left rule
-    let nextPlayerCardCount = 0;
-    for (let offset = 1; offset < this.state.players.length; offset++) {
-      const nextIdx = (idx + offset) % this.state.players.length;
-      if (this.state.players[nextIdx].hand.length > 0) {
-        nextPlayerCardCount = this.state.players[nextIdx].hand.length;
-        break;
-      }
-    }
+    // Filter: one-card-left rule — use production turn order
+    const nextActiveIdx = this.findNextActive(idx);
+    const nextPlayerCardCount = this.state.players[nextActiveIdx].hand.length;
     validPlays = validPlays.filter(play => {
       const result = validateOneCardLeftRule(
         play,
@@ -767,15 +754,17 @@ export class GameSandbox {
     this.state.played_cards.push(lowest);
 
     // Record forced play in round history for metric consistency (avgTurns, etc.)
-    this.state.roundHistory.push({
+    const forceEntry = {
       playerId: p.id,
       playerName: p.name,
       cards: [lowest],
-      combo_type: 'Single',
+      combo_type: 'Single' as ComboType,
       timestamp: Date.now(),
       passed: false,
       matchNumber: this.state.currentMatch,
-    });
+    };
+    this.state.roundHistory.push(forceEntry);
+    this.state.gameRoundHistory.push(forceEntry);
 
     // Check win
     if (p.hand.length === 0) {
@@ -786,15 +775,29 @@ export class GameSandbox {
     }
   }
 
-  private advanceTurn(): void {
-    let next = (this.state.currentPlayerIndex + 1) % this.state.players.length;
+  /** Find next active player from a given index, using production turn order for 4 players */
+  private findNextActive(fromIndex: number): number {
+    const numPlayers = this.state.players.length;
+    let next: number;
+    if (numPlayers === 4) {
+      next = GameSandbox.TURN_ORDER_4P[fromIndex];
+    } else {
+      next = (fromIndex + 1) % numPlayers;
+    }
     let attempts = 0;
-    // Skip players with empty hands
-    while (this.state.players[next].hand.length === 0 && attempts < this.state.players.length) {
-      next = (next + 1) % this.state.players.length;
+    while (this.state.players[next].hand.length === 0 && attempts < numPlayers) {
+      if (numPlayers === 4) {
+        next = GameSandbox.TURN_ORDER_4P[next];
+      } else {
+        next = (next + 1) % numPlayers;
+      }
       attempts++;
     }
-    this.state.currentPlayerIndex = next;
+    return next;
+  }
+
+  private advanceTurn(): void {
+    this.state.currentPlayerIndex = this.findNextActive(this.state.currentPlayerIndex);
   }
 }
 
