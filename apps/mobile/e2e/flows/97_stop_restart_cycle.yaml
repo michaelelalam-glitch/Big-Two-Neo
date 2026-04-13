@@ -35,9 +35,9 @@ tags:
 - takeScreenshot: "97_cycle1_initial"
 
 # ── Cycle 2: Stop → Start ───────────────────────────────────────────────
-- stopApp
-- waitForAnimationToEnd
+# launchApp default stopApp:true handles the kill atomically.
 - launchApp
+- waitForAnimationToEnd
 
 - extendedWaitUntil:
     visible:
@@ -55,9 +55,9 @@ tags:
 - takeScreenshot: "97_cycle2_after_stop"
 
 # ── Cycle 3: Stop → Start → Background → Foreground ─────────────────────
-- stopApp
-- waitForAnimationToEnd
+# launchApp default stopApp:true handles the kill atomically.
 - launchApp
+- waitForAnimationToEnd
 
 - extendedWaitUntil:
     visible:

@@ -55,9 +55,9 @@ tags:
 - takeScreenshot: "95_no_consent_on_relaunch_2"
 
 # ── Step 4: Kill and relaunch — consent still dismissed ──────────────────
-- stopApp
-- waitForAnimationToEnd
+# launchApp default stopApp:true handles the kill atomically.
 - launchApp
+- waitForAnimationToEnd
 
 - extendedWaitUntil:
     visible:

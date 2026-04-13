@@ -36,16 +36,16 @@ describe('GameSandbox: creation', () => {
   it('creates a 2-player game', () => {
     const sb = GameSandbox.create({ players: 2 });
     expect(sb.state.players).toHaveLength(2);
-    expect(sb.state.players[0].hand.length).toBe(26);
-    expect(sb.state.players[1].hand.length).toBe(26);
+    expect(sb.state.players[0].hand.length).toBe(13);
+    expect(sb.state.players[1].hand.length).toBe(13);
   });
 
   it('creates a 3-player game', () => {
     const sb = GameSandbox.create({ players: 3 });
     expect(sb.state.players).toHaveLength(3);
-    // 52 / 3 = 17, 17, 18
+    // 13 per player, matching production (CARDS_PER_PLAYER)
     const totalCards = sb.state.players.reduce((s, p) => s + p.hand.length, 0);
-    expect(totalCards).toBe(52);
+    expect(totalCards).toBe(39);
   });
 
   it('rejects invalid player counts', () => {

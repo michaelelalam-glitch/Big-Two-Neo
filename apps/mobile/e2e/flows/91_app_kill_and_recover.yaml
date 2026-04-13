@@ -29,14 +29,11 @@ tags:
     id: "google-sign-in-button"
 - takeScreenshot: "91_before_kill"
 
-# ── Step 2: Force-terminate the app process ──────────────────────────────
-- stopApp
-
-# Brief pause for OS to clean up
-- waitForAnimationToEnd
-
-# ── Step 3: Relaunch after kill ──────────────────────────────────────────
+# ── Step 2: Force-terminate and relaunch ─────────────────────────────────
+# launchApp uses stopApp:true by default, avoiding the iOS AXServer race
+# that can occur with an explicit stopApp → launchApp sequence.
 - launchApp
+- waitForAnimationToEnd
 
 - tapOn:
     id: "privacy-consent-decline"
@@ -58,9 +55,9 @@ tags:
 - takeScreenshot: "91_recovered_after_kill"
 
 # ── Step 4: Second kill → recover cycle ──────────────────────────────────
-- stopApp
-- waitForAnimationToEnd
+# launchApp default stopApp:true handles the kill atomically.
 - launchApp
+- waitForAnimationToEnd
 
 - tapOn:
     id: "privacy-consent-decline"

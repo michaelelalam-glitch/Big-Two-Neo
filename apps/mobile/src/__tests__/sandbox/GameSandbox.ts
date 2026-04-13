@@ -69,11 +69,14 @@ export function shuffle<T>(arr: T[]): T[] {
   return copy;
 }
 
-/** Deal cards to N players from a deck (optionally pre-shuffled) */
+/** Deal cards to N players from a deck (optionally pre-shuffled), 13 per player (matches production). */
 export function dealCards(numPlayers: number, deck?: Card[]): Card[][] {
   const d = deck ?? shuffle(fullDeck());
   const hands: Card[][] = Array.from({ length: numPlayers }, () => []);
-  d.forEach((c, i) => hands[i % numPlayers].push(c));
+  const limit = Math.min(d.length, numPlayers * 13);
+  for (let i = 0; i < limit; i++) {
+    hands[i % numPlayers].push(d[i]);
+  }
   return hands.map(h => sortHand(h));
 }
 
