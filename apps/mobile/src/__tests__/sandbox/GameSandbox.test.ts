@@ -1,7 +1,7 @@
 /**
  * Sandbox Tests — Full-control game testing
  *
- * Tests every edge function scenario with full state control:
+ * Tests every edge-case scenario with full state control:
  *  - Custom hands, scores, and played cards
  *  - Rule validation (3♦ first play, pass restrictions, one-card-left)
  *  - Score state management (pre-set cumulative scores)

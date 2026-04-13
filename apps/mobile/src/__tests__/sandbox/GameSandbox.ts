@@ -444,7 +444,7 @@ export class GameSandbox {
     });
 
     // Update state
-    this.state.lastPlay = { cards: canonical, combo_type: comboType };
+    this.state.lastPlay = { cards: canonical, combo_type: comboType, player_index: idx };
     this.state.lastPlayPlayerIndex = idx;
     this.state.consecutivePasses = 0;
     this.state.isFirstPlayOfGame = false;
@@ -803,7 +803,7 @@ export class GameSandbox {
 
     // Update state as if a valid play occurred
     const idx = this.state.players.indexOf(p);
-    this.state.lastPlay = { cards: [lowest], combo_type: 'Single' };
+    this.state.lastPlay = { cards: [lowest], combo_type: 'Single', player_index: idx };
     this.state.lastPlayPlayerIndex = idx;
     this.state.consecutivePasses = 0;
     this.state.isFirstPlayOfGame = false;
