@@ -528,11 +528,15 @@ Deno.serve(async (req) => {
         .select(`id, ${prefColumn}`)
         .in('id', allowedIds);
       if (prefError) {
-        // Fail closed for preference-controlled notifications to avoid sending
-        // when opt-out status cannot be verified.
-        preferenceFilteredIds = [];
+        // Fail open on transient DB/PostgREST errors so core gameplay
+        // notifications (e.g. your_turn) are not silently suppressed by
+        // infrastructure hiccups or partial deploys where the preference
+        // columns may not yet exist.  Opted-out users may receive an extra
+        // notification during the error window, which is preferable to
+        // dropping all notifications for the event type.
+        // preferenceFilteredIds remains === allowedIds (fail-open).
         console.warn(
-          `[send-push-notification] Preference check failed; skipping "${normalizedEventType}" notifications for ${allowedIds.length} user(s): ${prefError.message}`
+          `[send-push-notification] Preference query error for "${normalizedEventType}" — failing open for ${allowedIds.length} user(s): ${prefError.message}`
         );
       } else if (prefRows) {
         const optedOutIds = new Set(
