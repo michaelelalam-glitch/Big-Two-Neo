@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useCallback, useEffect, useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
   BackHandler,
   useWindowDimensions,
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES, MODAL_SUPPORTED_ORIENTATIONS } from '../constants';
@@ -761,11 +761,9 @@ export default function LobbyScreen() {
         return;
       }
       const senderName = profile?.username || user?.email || i18n.t('friends.unknownPlayer');
-      await Promise.all(
-        Array.from(selectedFriendIds).map(friendId =>
-          notifyRoomInvite(friendId, roomCode, resolvedRoomId, senderName)
-        )
-      );
+      // Batch all invites into a single edge function call to avoid
+      // N separate auth/DB round-trips and reduce rate-limit risk.
+      await notifyRoomInvite(Array.from(selectedFriendIds), roomCode, resolvedRoomId, senderName);
     } catch (err) {
       showError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -1034,16 +1032,20 @@ export default function LobbyScreen() {
   };
 
   // P16-L3: Intercept Android hardware back button to show leave confirmation
+  // Use useFocusEffect so the handler only runs while this screen is focused,
+  // preventing it from intercepting back presses on other stacked screens.
   const handleLeaveRoomRef = useRef(handleLeaveRoom);
   handleLeaveRoomRef.current = handleLeaveRoom;
-  useEffect(() => {
-    const onBackPress = () => {
-      handleLeaveRoomRef.current();
-      return true; // prevent default back navigation
-    };
-    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-    return () => sub.remove();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        handleLeaveRoomRef.current();
+        return true; // prevent default back navigation
+      };
+      const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => sub.remove();
+    }, [])
+  );
 
   /**
    * Kick a human player from the lobby.

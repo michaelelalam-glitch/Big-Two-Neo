@@ -352,13 +352,15 @@ export async function notifyGameEnded(
  * Notify player when invited to room
  */
 export async function notifyRoomInvite(
-  recipientUserId: string,
+  recipientUserIds: string | string[],
   roomCode: string,
   roomId: string,
   inviterName: string
 ): Promise<void> {
+  const ids = Array.isArray(recipientUserIds) ? recipientUserIds : [recipientUserIds];
+  if (ids.length === 0) return;
   await sendPushNotification({
-    user_ids: [recipientUserId],
+    user_ids: ids,
     title: i18n.t('pushContent.roomInviteTitle'),
     body: i18n.t('pushContent.roomInviteBody', { inviterName, roomCode }),
     data: {

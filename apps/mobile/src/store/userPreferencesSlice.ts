@@ -51,9 +51,14 @@ function _syncNotifyPreferenceToDb(column: NotifyPrefColumn, value: boolean) {
         .from('profiles')
         .update({ [column]: value } as Record<string, boolean>)
         .eq('id', data.user.id)
-        .then(({ error }) => {
-          if (error) uiLogger.error(`[UserPreferences] Failed to sync ${column} to DB`, error);
-        });
+        .then(
+          ({ error }) => {
+            if (error) uiLogger.error(`[UserPreferences] Failed to sync ${column} to DB`, error);
+          },
+          (err: unknown) => {
+            uiLogger.error(`[UserPreferences] Network error syncing ${column}`, err);
+          }
+        );
     })
     .catch(() => {
       /* no-op if not authed */
@@ -270,12 +275,18 @@ function _attemptPreferenceSync(): void {
           notify_friend_requests: state.notifyFriendRequests,
         } as Record<string, boolean>)
         .eq('id', data.user.id)
-        .then(({ error }) => {
-          if (error) {
-            _prefsSyncedToDb = false; // DB error → allow retry
-            uiLogger.error('[UserPreferences] Failed to batch-sync preferences to DB', error);
+        .then(
+          ({ error }) => {
+            if (error) {
+              _prefsSyncedToDb = false; // DB error → allow retry
+              uiLogger.error('[UserPreferences] Failed to batch-sync preferences to DB', error);
+            }
+          },
+          (err: unknown) => {
+            _prefsSyncedToDb = false; // Network error → allow retry
+            uiLogger.error('[UserPreferences] Network error batch-syncing preferences', err);
           }
-        });
+        );
     })
     .catch(() => {
       _prefsSyncedToDb = false; // Auth error → allow retry

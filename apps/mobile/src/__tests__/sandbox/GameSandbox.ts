@@ -217,14 +217,20 @@ export class GameSandbox {
       if (startIdx === -1) startIdx = 0;
     } else if (firstPlayActive && !players[startIdx].hand.some(c => c.id === '3D')) {
       // Explicit startingPlayerIndex but the player doesn't hold 3♦ — swap 3♦
-      // into their hand so the first-play rule can be satisfied. Remove it from
-      // wherever it currently lives to avoid duplicates.
+      // into their hand so the first-play rule can be satisfied.
+      // Use a swap (not add/remove) to preserve hand sizes (13 cards each).
       const threeDiamonds: Card = { id: '3D', rank: '3', suit: 'D' };
       const donor = players.find(p => p.hand.some(c => c.id === '3D'));
       if (donor) {
-        donor.hand = donor.hand.filter(c => c.id !== '3D');
+        const donorIdx = donor.hand.findIndex(c => c.id === '3D');
+        // Take a card from the target player to give to the donor
+        const targetHand = players[startIdx].hand;
+        const swapCard = targetHand[targetHand.length - 1]; // last card
+        // Replace 3♦ in donor with the swap card
+        donor.hand[donorIdx] = swapCard;
+        // Replace the swap card in target with 3♦
+        targetHand[targetHand.length - 1] = threeDiamonds;
       }
-      players[startIdx].hand = [threeDiamonds, ...players[startIdx].hand];
     }
 
     // Ensure starting player has cards — skip to next non-empty hand if needed
