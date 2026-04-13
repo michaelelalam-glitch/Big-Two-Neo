@@ -510,15 +510,43 @@ jobs:
           # Terminate any running app instance first
           xcrun simctl terminate booted com.big2mobile.app || true
           sleep 2
-          # Launch app once to initialise storage, then terminate
+          # Launch app once to initialise storage, then terminate.
+          # Use 15s (was 8s) — cold CI simulators need more time for
+          # AsyncStorage / RCTAsyncLocalStorage_V1 directory init.
           xcrun simctl launch booted com.big2mobile.app || true
-          sleep 8
+          sleep 15
           xcrun simctl terminate booted com.big2mobile.app || true
-          sleep 2
+          sleep 3
           # Inject Supabase session + consent bypass into AsyncStorage
           node scripts/ci-seed-e2e-auth.mjs
         env:
           CI_PLATFORM: ios
+
+      - name: 🔒 Verify seed — dismiss consent if shown (fallback)
+        if: steps.seed_auth.outcome == 'success'
+        continue-on-error: true
+        run: |
+          cd apps/mobile
+          # Launch the app to verify consent was properly seeded.
+          # If the consent modal still appears (seed wrote to wrong container),
+          # Maestro taps "No thanks" which writes @big2_analytics_consent=false
+          # to AsyncStorage via the app's own code — guaranteed to persist.
+          xcrun simctl launch booted com.big2mobile.app || true
+          sleep 10
+          set +e
+          maestro test e2e/shared/dismiss_consent_if_shown.yaml
+          VERIFY_EXIT=$?
+          set -e
+          xcrun simctl terminate booted com.big2mobile.app || true
+          sleep 3
+          if [ $VERIFY_EXIT -ne 0 ]; then
+            echo "::warning::Consent verification flow returned exit $VERIFY_EXIT — flows include defensive fallback"
+          else
+            echo "✅ Consent verification passed"
+          fi
+        timeout-minutes: 5
+        env:
+          MAESTRO_DRIVER_STARTUP_TIMEOUT: 300000
 
       - name: ⚠️ Warn if auth seeding was skipped
         if: env.E2E_TEST_EMAIL != '' && env.E2E_TEST_PASSWORD != '' && steps.seed_auth.outcome != 'success'

@@ -9,6 +9,9 @@ tags:
   - stability
 ---
 - launchApp
+
+# Dismiss consent modal if shown (defensive CI fallback — R32)
+- runFlow: ../shared/dismiss_consent_if_shown.yaml
 - extendedWaitUntil:
     visible: "Choose a game to play"
     timeout: 20000

@@ -1,0 +1,25 @@
+# Shared sub-flow: Dismiss consent modal if shown
+# Called from ci-authenticated flows via: runFlow: ../shared/dismiss_consent_if_shown.yaml
+# Also called standalone from CI workflow as a post-seed verification step.
+#
+# On iOS CI, the auth seed script may fail to inject @big2_analytics_consent
+# into the correct simulator container. When this happens, the privacy consent
+# modal blocks the home/game-selection screen. This sub-flow defensively taps
+# "No thanks" if the modal appears, which persists the consent decision to
+# AsyncStorage via App.tsx's handleConsentDecline callback.
+#
+# Both steps are optional — if consent was properly seeded, neither element
+# will be found and Maestro skips silently (~2-3s overhead per flow).
+
+appId: com.big2mobile.app
+---
+
+- extendedWaitUntil:
+    visible:
+      id: "privacy-consent-decline"
+    timeout: 5000
+  optional: true
+
+- tapOn:
+    id: "privacy-consent-decline"
+  optional: true

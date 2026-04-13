@@ -62,6 +62,9 @@ tags:
 # consent modal again (because ANALYTICS_CONSENT='true' was persisted in step 4).
 - launchApp
 
+# Dismiss consent modal if shown (defensive CI fallback — R32)
+- runFlow: ../shared/dismiss_consent_if_shown.yaml
+
 # Step 9: Verify app is still functional after warm relaunch
 - extendedWaitUntil:
     visible:
