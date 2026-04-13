@@ -196,6 +196,11 @@ export class GameSandbox {
       if (targetIdx !== -1) {
         const threeOfDiamonds = fullDeck().find(c => c.id === '3D')!;
         hands[targetIdx][0] = threeOfDiamonds;
+      } else {
+        // All seats are overridden and none contain 3D — game can't progress
+        throw new Error(
+          'First-play rule is active but no hand contains 3♦ and all seats are overridden — add 3D to a hand or set enforceFirstPlayRule: false'
+        );
       }
     }
 
@@ -324,6 +329,15 @@ export class GameSandbox {
 
     // Explicit playerIndex takes priority, then play.player_index, then deprecated play.position
     if (playerIndex !== undefined) {
+      if (
+        !Number.isInteger(playerIndex) ||
+        playerIndex < 0 ||
+        playerIndex >= this.state.players.length
+      ) {
+        throw new Error(
+          `setLastPlay: playerIndex ${playerIndex} out of range [0, ${this.state.players.length - 1}]`
+        );
+      }
       this.state.lastPlayPlayerIndex = playerIndex;
     } else if (
       play.player_index != null &&
