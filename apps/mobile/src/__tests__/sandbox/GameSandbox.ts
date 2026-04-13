@@ -605,9 +605,8 @@ export class GameSandbox {
           if (playResult.success) {
             return { action: 'play', cards: [lowest], comboType: playResult.comboType };
           }
-          // playCards failed (e.g. first-play 3♦ rule) — force play to ensure progress
-          this.forcePlayLowest(p);
-          return { action: 'play', cards: [lowest] };
+          // playCards failed — delegate to first-play-aware fallback
+          return this.handleLeadingFallback(p);
         }
       }
       return { action: 'pass' };
@@ -647,10 +646,8 @@ export class GameSandbox {
           return { action: 'play', cards: forcedCard2 ? [forcedCard2] : [] };
         }
       } else {
-        // Leading with no matching cards — force play to ensure progress
-        const forcedCard3 = sortHand(p.hand)[0];
-        this.forcePlayLowest(p);
-        return { action: 'play', cards: forcedCard3 ? [forcedCard3] : [] };
+        // Leading with no matching cards — delegate to first-play-aware fallback
+        return this.handleLeadingFallback(p);
       }
       return { action: 'pass' };
     }
@@ -666,9 +663,8 @@ export class GameSandbox {
           return { action: 'play', cards: forcedCard ? [forcedCard] : [] };
         }
       } else {
-        const forcedCard = sortHand(p.hand)[0];
-        this.forcePlayLowest(p);
-        return { action: 'play', cards: forcedCard ? [forcedCard] : [] };
+        // Leading but playCards failed — delegate to first-play-aware fallback
+        return this.handleLeadingFallback(p);
       }
       return { action: 'pass' };
     }
@@ -801,6 +797,34 @@ export class GameSandbox {
   forcePlayLowestPublic(playerIdOrIndex: string | number): void {
     const p = this.getPlayer(playerIdOrIndex);
     this.forcePlayLowest(p);
+  }
+
+  /**
+   * Handles a leading fallback when normal playCards has failed.
+   * When the first-play rule is active, tries to play 3♦ via playCards (preserving validation);
+   * throws if the player does not hold 3♦ (indicates a misconfigured test).
+   * Otherwise falls back to forcePlayLowest.
+   */
+  private handleLeadingFallback(p: Player): { action: 'play'; cards: Card[] } {
+    if (this.state.isFirstPlayOfGame && this.enforceFirstPlay) {
+      const threeDiamonds = p.hand.find(c => c.id === '3D');
+      if (!threeDiamonds) {
+        throw new Error(
+          `[GameSandbox] First-play rule is active but player ${p.id} does not hold 3♦ — ` +
+            `set enforceFirstPlayRule: false or ensure the starting player holds 3D.`
+        );
+      }
+      const result = this.playCards(p.id, [threeDiamonds]);
+      if (result.success) {
+        return { action: 'play', cards: [threeDiamonds] };
+      }
+      throw new Error(
+        `[GameSandbox] playCards rejected 3♦ for player ${p.id} during first-play enforcement — internal state inconsistency.`
+      );
+    }
+    const lowest = sortHand(p.hand)[0];
+    this.forcePlayLowest(p);
+    return { action: 'play', cards: lowest ? [lowest] : [] };
   }
 
   /** Force play the lowest card bypassing all rule checks (ensures game progress). Records to roundHistory. */
