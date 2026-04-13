@@ -397,7 +397,7 @@ export class GameSandbox {
     this.state.played_cards.push(...selectedCards);
 
     // Record history
-    this.state.roundHistory.push({
+    const playEntry = {
       playerId: p.id,
       playerName: p.name,
       cards: selectedCards,
@@ -405,7 +405,9 @@ export class GameSandbox {
       timestamp: Date.now(),
       passed: false,
       matchNumber: this.state.currentMatch,
-    });
+    };
+    this.state.roundHistory.push(playEntry);
+    this.state.gameRoundHistory.push(playEntry);
 
     // Check win
     if (p.hand.length === 0) {
@@ -459,15 +461,17 @@ export class GameSandbox {
     this.state.consecutivePasses++;
 
     // Record pass in round history ('unknown' is the canonical combo_type for passes)
-    this.state.roundHistory.push({
+    const passEntry = {
       playerId: p.id,
       playerName: p.name,
-      cards: [],
-      combo_type: 'unknown',
+      cards: [] as Card[],
+      combo_type: 'unknown' as ComboType,
       timestamp: Date.now(),
       passed: true,
       matchNumber: this.state.currentMatch,
-    });
+    };
+    this.state.roundHistory.push(passEntry);
+    this.state.gameRoundHistory.push(passEntry);
 
     // Check if all other players passed → trick winner starts new trick
     const activePlayers = this.state.players.filter(pl => pl.hand.length > 0);
