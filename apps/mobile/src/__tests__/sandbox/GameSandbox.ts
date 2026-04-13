@@ -13,8 +13,8 @@
  *   sb.setHand('player_0', [card('3D'), card('4C')]);
  *   sb.setScores({ 'player_0': 50, 'player_1': 90 });
  *   sb.playCards('player_0', [card('3D')]);
- *   sb.pass('player_1');
- *   expect(sb.state.currentPlayerIndex).toBe(2);
+ *   sb.pass('player_3');          // anticlockwise 4p: 0→3→1→2
+ *   expect(sb.state.currentPlayerIndex).toBe(1);
  */
 
 import type { Card, ComboType, LastPlay } from '../../game/types';
@@ -215,6 +215,16 @@ export class GameSandbox {
     if (startIdx === -1) {
       startIdx = players.findIndex(p => p.hand.some(c => c.id === '3D'));
       if (startIdx === -1) startIdx = 0;
+    } else if (firstPlayActive && !players[startIdx].hand.some(c => c.id === '3D')) {
+      // Explicit startingPlayerIndex but the player doesn't hold 3♦ — swap 3♦
+      // into their hand so the first-play rule can be satisfied. Remove it from
+      // wherever it currently lives to avoid duplicates.
+      const threeDiamonds: Card = { id: '3D', rank: '3', suit: 'D' };
+      const donor = players.find(p => p.hand.some(c => c.id === '3D'));
+      if (donor) {
+        donor.hand = donor.hand.filter(c => c.id !== '3D');
+      }
+      players[startIdx].hand = [threeDiamonds, ...players[startIdx].hand];
     }
 
     // Ensure starting player has cards — skip to next non-empty hand if needed
