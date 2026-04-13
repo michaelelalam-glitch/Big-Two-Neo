@@ -28,7 +28,7 @@ import {
   canPassWithOneCardLeftRule,
   isHighestPossiblePlay,
 } from '../../game/engine';
-import { createBotAI, type BotDifficulty, type BotPlayOptions } from '../../game/bot';
+import { getOrCreateBotAI, type BotDifficulty, type BotPlayOptions } from '../../game/bot';
 import { RANKS, SUITS } from '../../game/engine/constants';
 
 // ─── Card Factory ────────────────────────────────────────────────────────────
@@ -566,7 +566,7 @@ export class GameSandbox {
     if (!p.isBot) throw new Error(`Player ${p.id} is not a bot`);
 
     const difficulty = botDifficulty ?? p.botDifficulty ?? 'easy';
-    const botAI = createBotAI(difficulty);
+    const botAI = getOrCreateBotAI(difficulty);
     const playerCardCounts = this.state.players.map(pl => pl.hand.length);
     const botOptions: BotPlayOptions = {
       hand: p.hand,
