@@ -478,6 +478,11 @@ export class GameSandbox {
       return { success: false, error: 'Cannot pass when leading — must play' };
     }
 
+    // Can't pass on the first play of the game (production alignment)
+    if (this.state.isFirstPlayOfGame) {
+      return { success: false, error: 'Cannot pass on the first play of the game' };
+    }
+
     // One-card-left pass rule — find next active player using production turn order
     const nextActiveForPass = this.findNextActive(idx);
     const nextPlayerCardCount = this.state.players[nextActiveForPass].hand.length;
