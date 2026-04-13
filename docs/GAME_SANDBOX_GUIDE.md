@@ -663,7 +663,7 @@ it('snapshot creates an independent copy of state', () => {
 | `sb.setScores({ 'player_0': 50 })` | Update cumulative scores |
 | `sb.setCurrentPlayer(2)` | Change whose turn it is |
 | `sb.setLastPlay({ cards: cards('KS'), combo_type: 'Single' })` | Set the trick to beat |
-| `sb.setLastPlay(null)` | Clear the trick (new round) |
+| `sb.setLastPlay(null)` | Clear the trick (new round — also advances turn to the trick winner via `lastPlayPlayerIndex`) |
 | `sb.setIsFirstPlay(false)` | Toggle first-play flag |
 | `sb.setPlayedCards(cards('3D', '4D'))` | Set played card history |
 | `sb.resetPasses()` | Clear all pass flags |

@@ -290,7 +290,8 @@ export class GameSandbox {
     this.state.lastPlay = play;
 
     if (play === null) {
-      // Null resets the trick — keep lastPlayPlayerIndex unchanged so trick winner leads next
+      // Null resets the trick — trick winner (lastPlayPlayerIndex) leads next
+      this.state.currentPlayerIndex = this.state.lastPlayPlayerIndex;
       return;
     }
 
@@ -881,7 +882,7 @@ export class MultiGameRunner {
         if (current.isBot) {
           game.runBotTurn();
         } else {
-          // For human players, auto-play best valid card or pass/force
+          // For human players, auto-play first valid card or pass/force
           const validPlays = game.getValidPlays(current.id);
           if (validPlays.length > 0) {
             const playResult = game.playCards(current.id, validPlays[0]);
