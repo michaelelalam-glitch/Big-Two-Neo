@@ -145,7 +145,7 @@ sb.state.played_cards          // All cards that have been played
 
 Each player has:
 ```typescript
-sb.state.players[0].id         // "player-0" (or "bot-0" for bots)
+sb.state.players[0].id         // "player_0" (or "bot_0" for bots)
 sb.state.players[0].name       // "Player 0"
 sb.state.players[0].hand       // Array of Card objects (their current cards)
 sb.state.players[0].isBot      // false (human) or true (bot)
@@ -193,7 +193,7 @@ const sb = GameSandbox.create({
 ### With pre-set scores
 ```typescript
 const sb = GameSandbox.create({
-  scores: { 'player-0': 95, 'player-1': 100 },
+  scores: { 'player_0': 95, 'player_1': 100 },
 });
 ```
 
@@ -224,7 +224,7 @@ const sb = GameSandbox.create();
 sb.setHand(0, cards('3D', 'KS', '2S'));
 
 // Or use the player ID string
-sb.setHand('player-0', cards('3D', 'KS', '2S'));
+sb.setHand('player_0', cards('3D', 'KS', '2S'));
 
 // Check what they have
 console.log(sb.state.players[0].hand);
@@ -408,17 +408,17 @@ A Straight Flush can also beat a Four of a Kind (special rule).
 
 ```typescript
 const sb = GameSandbox.create({
-  scores: { 'player-0': 95, 'player-1': 100 },
+  scores: { 'player_0': 95, 'player_1': 100 },
 });
 
 // Read scores
-sb.getScore('player-0')   // 95
-sb.getScore('player-1')   // 100
+sb.getScore('player_0')   // 95
+sb.getScore('player_1')   // 100
 sb.getScore('nonexistent') // 0 (unknown players return 0)
 
 // Update scores mid-game
-sb.setScores({ 'player-0': 101 });
-sb.getScore('player-0')   // 101
+sb.setScores({ 'player_0': 101 });
+sb.getScore('player_0')   // 101
 ```
 
 ---
@@ -518,7 +518,7 @@ it('player wins by playing their only card', () => {
   sb.setIsFirstPlay(false);
   sb.playCards(0, cards('2S'));
   expect(sb.state.gameEnded).toBe(true);
-  expect(sb.state.winnerId).toBe('player-0');
+  expect(sb.state.winnerId).toBe('player_0');
 });
 ```
 
@@ -651,7 +651,7 @@ it('snapshot creates an independent copy of state', () => {
 | `GameSandbox.create({ players: 2 })` | 2-player game |
 | `GameSandbox.create({ hands: { 0: cards(...) } })` | Custom hands |
 | `GameSandbox.create({ bots: { 1: 'hard' } })` | Bot players |
-| `GameSandbox.create({ scores: { 'player-0': 99 } })` | Pre-set scores |
+| `GameSandbox.create({ scores: { 'player_0': 99 } })` | Pre-set scores |
 | `GameSandbox.create({ startingPlayerIndex: 2 })` | Choose who starts |
 | `GameSandbox.create({ enforceFirstPlayRule: false })` | Disable 3♦ rule |
 
@@ -660,7 +660,7 @@ it('snapshot creates an independent copy of state', () => {
 | Method | What it does |
 |--------|-------------|
 | `sb.setHand(0, cards(...))` | Replace a player's hand |
-| `sb.setScores({ 'player-0': 50 })` | Update cumulative scores |
+| `sb.setScores({ 'player_0': 50 })` | Update cumulative scores |
 | `sb.setCurrentPlayer(2)` | Change whose turn it is |
 | `sb.setLastPlay({ cards: cards('KS'), combo_type: 'Single' })` | Set the trick to beat |
 | `sb.setLastPlay(null)` | Clear the trick (new round) |
@@ -686,7 +686,7 @@ it('snapshot creates an independent copy of state', () => {
 | `sb.getValidPlays(0)` | `Card[][]` | All valid plays for a player |
 | `sb.wouldBeatPlay(cards('AS'))` | `boolean` | Would these cards beat the current trick? |
 | `sb.checkHighestPlay(cards('2S'))` | `boolean` | Is this the highest possible play? |
-| `sb.getScore('player-0')` | `number` | Get cumulative score |
+| `sb.getScore('player_0')` | `number` | Get cumulative score |
 | `sb.snapshot()` | `GameState` | Deep copy of current state |
 
 ### Card Helpers

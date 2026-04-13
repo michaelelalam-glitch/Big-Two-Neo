@@ -588,6 +588,7 @@ jobs:
           retention-days: 7
       
       - name: 📊 E2E test summary
+        if: always()
         run: |
           echo "🎉 Maestro E2E tests completed!"
           CI_COUNT=$(grep -c "<testcase" apps/mobile/e2e/results/results-ci.xml 2>/dev/null || true)
