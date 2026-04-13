@@ -165,6 +165,15 @@ export class GameSandbox {
     // card counts for other players.
     const overriddenIndices = new Set(Object.keys(config.hands ?? {}).map(Number));
     const nonOverriddenCount = numPlayers - overriddenIndices.size;
+    if (nonOverriddenCount > 0) {
+      const available = 52 - overriddenCardIds.size;
+      const needed = nonOverriddenCount * 13;
+      if (available < needed) {
+        throw new Error(
+          `Not enough cards to deal: ${available} available but ${needed} needed (${nonOverriddenCount} seats × 13)`
+        );
+      }
+    }
     const dealtHands = nonOverriddenCount > 0 ? dealCards(nonOverriddenCount, filteredDeck) : [];
     const hands: Card[][] = [];
     let dealIdx = 0;
@@ -411,7 +420,7 @@ export class GameSandbox {
       }
     }
 
-    // One-card-left rule — find next active player using production turn order
+    // One-card-left rule — find next active player (production turn order for 4p, sequential for 2-3p)
     const nextActiveForPlay = this.findNextActive(idx);
     const nextPlayerCardCount = this.state.players[nextActiveForPlay].hand.length;
     const oneCardResult = validateOneCardLeftRule(
@@ -734,7 +743,7 @@ export class GameSandbox {
       validPlays = validPlays.filter(play => play.some(c => c.id === '3D'));
     }
 
-    // Filter: one-card-left rule — use production turn order
+    // Filter: one-card-left rule (production turn order for 4p, sequential for 2-3p)
     const nextActiveIdx = this.findNextActive(idx);
     const nextPlayerCardCount = this.state.players[nextActiveIdx].hand.length;
     validPlays = validPlays.filter(play => {
@@ -863,8 +872,9 @@ export class MultiGameRunner {
     perGameOverrides?: (index: number) => Partial<SandboxConfig>
   ): string[] {
     const ids: string[] = [];
+    const offset = this.games.size;
     for (let i = 0; i < count; i++) {
-      const id = `game-${i}`;
+      const id = `game-${offset + i}`;
       const overrides = perGameOverrides?.(i) ?? {};
       this.games.set(id, GameSandbox.create({ ...baseConfig, ...overrides }));
       ids.push(id);
