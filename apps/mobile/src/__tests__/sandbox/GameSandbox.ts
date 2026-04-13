@@ -185,10 +185,11 @@ export class GameSandbox {
       }
     }
 
-    // When first-play rule is active and fewer than 4 players are dealt,
-    // 3D might not appear in any dealt hand. Swap it into the first
-    // non-overridden hand so the game can progress.
-    const isFirstPlay = (config.currentMatch ?? 1) === 1;
+    // When first-play rule is active, 3D might not appear in any dealt hand
+    // (e.g. fewer than 4 players). Swap it into the first non-overridden hand
+    // so the game can progress. Use the effective isFirstPlayOfGame flag
+    // rather than currentMatch alone, so explicit overrides are respected.
+    const isFirstPlay = config.isFirstPlayOfGame ?? (config.currentMatch ?? 1) === 1;
     const firstPlayActive = (config.enforceFirstPlayRule ?? true) && isFirstPlay;
     if (firstPlayActive && !hands.some(h => h.some(c => c.id === '3D'))) {
       const targetIdx = hands.findIndex((_, i) => !overriddenIndices.has(i) && hands[i].length > 0);

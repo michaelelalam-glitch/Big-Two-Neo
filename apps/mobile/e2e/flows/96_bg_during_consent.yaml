@@ -4,7 +4,8 @@
 #   when the app returns to the foreground.
 # Tags: smoke, ci
 #
-# No auth required. No clearState.
+# No auth required. clearState ensures consent key is unset so the
+# consent modal is deterministically shown.
 
 appId: com.big2mobile.app
 tags:
@@ -12,11 +13,13 @@ tags:
   - ci
 
 ---
-# ── Step 1: Launch app ───────────────────────────────────────────────────
+# ── Step 1: Launch fresh (clearState) — consent modal must be visible ────
+- clearState
 - launchApp
 
-# If consent modal is not visible (already dismissed), the flow still passes
-# because all subsequent assertions target the sign-in screen.
+# Assert consent modal is shown before backgrounding
+- assertVisible:
+    id: "privacy-consent-decline"
 
 # ── Step 2: Background the app ──────────────────────────────────────────
 - pressKey: Home
@@ -26,10 +29,12 @@ tags:
 # ── Step 3: Return to foreground ─────────────────────────────────────────
 - launchApp
 
-# ── Step 4: Dismiss consent if still showing, then verify sign-in ────────
+# ── Step 4: Consent modal must still be interactive — dismiss it ──────────
+- assertVisible:
+    id: "privacy-consent-decline"
+
 - tapOn:
     id: "privacy-consent-decline"
-    optional: true
 
 - extendedWaitUntil:
     visible:

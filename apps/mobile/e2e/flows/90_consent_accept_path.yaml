@@ -4,8 +4,8 @@
 #   which tests the decline path.
 # Tags: smoke, ci
 #
-# No auth required. No clearState (consent may already be dismissed by a
-# prior flow — optional tap handles both states).
+# No auth required. clearState ensures consent key is unset so the
+# consent modal is deterministically shown.
 
 appId: com.big2mobile.app
 tags:
@@ -13,13 +13,16 @@ tags:
   - ci
 
 ---
-# ── Step 1: Launch and optionally accept consent ─────────────────────────
+# ── Step 1: Launch fresh (clearState) and accept consent ─────────────────
+- clearState
 - launchApp
 
-# If consent modal is visible, accept it (instead of declining like most flows)
+# Consent modal must be visible after clearState
+- assertVisible:
+    id: "privacy-consent-accept"
+
 - tapOn:
     id: "privacy-consent-accept"
-    optional: true
 
 # ── Step 2: Verify sign-in screen is visible ─────────────────────────────
 - extendedWaitUntil:

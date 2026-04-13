@@ -566,11 +566,12 @@ jobs:
             fi
           done
           echo "Maestro ci-authenticated exit code: $MAESTRO_EXIT"
-          # Authenticated tests are non-blocking for now (stabilisation phase).
-          # Uncomment the line below once stable:
-          # exit $MAESTRO_EXIT
-          if [ $MAESTRO_EXIT -ne 0 ]; then
-            echo "::warning::Authenticated E2E tests failed (exit $MAESTRO_EXIT) — non-blocking during stabilisation"
+          # Authenticated tests are non-blocking during stabilisation unless
+          # E2E_AUTH_NON_BLOCKING is explicitly set to 'false'.
+          if [ "${E2E_AUTH_NON_BLOCKING:-true}" = "false" ]; then
+            exit $MAESTRO_EXIT
+          elif [ $MAESTRO_EXIT -ne 0 ]; then
+            echo "::warning::Authenticated E2E tests failed (exit $MAESTRO_EXIT) — non-blocking (set E2E_AUTH_NON_BLOCKING=false to enforce)"
           fi
         timeout-minutes: 45
         env:

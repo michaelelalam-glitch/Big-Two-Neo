@@ -1,10 +1,11 @@
 # Flow 95: Consent Dismiss Persistence Across Relaunches
 # Validates: Once the privacy consent modal is dismissed (accept or decline),
 #   it does NOT reappear on subsequent app launches. Tests AsyncStorage
-#   persistence of the @big2_analytics_consent key without clearState.
+#   persistence of the @big2_analytics_consent key.
 # Tags: smoke, ci
 #
-# No auth required. No clearState.
+# No auth required. clearState ensures consent key is unset so the
+# consent modal is deterministically shown on first launch.
 
 appId: com.big2mobile.app
 tags:
@@ -12,12 +13,16 @@ tags:
   - ci
 
 ---
-# ── Step 1: Launch and dismiss consent ───────────────────────────────────
+# ── Step 1: Launch fresh (clearState) and dismiss consent ────────────────
+- clearState
 - launchApp
+
+# Consent modal must be visible after clearState
+- assertVisible:
+    id: "privacy-consent-decline"
 
 - tapOn:
     id: "privacy-consent-decline"
-    optional: true
 
 - extendedWaitUntil:
     visible:
