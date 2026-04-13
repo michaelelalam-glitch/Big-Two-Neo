@@ -551,7 +551,13 @@ jobs:
               xcrun simctl terminate booted com.big2mobile.app || true
               sleep 5
               # Re-seed auth in case a flow accidentally cleared state
-              node scripts/ci-seed-e2e-auth.mjs || true
+              set +e
+              node scripts/ci-seed-e2e-auth.mjs
+              RESEED_EXIT=$?
+              set -e
+              if [ $RESEED_EXIT -ne 0 ]; then
+                echo "::warning::Auth re-seed failed (exit $RESEED_EXIT) — subsequent tests may run unauthenticated"
+              fi
               sleep 2
               xcrun simctl launch booted com.big2mobile.app || true
               sleep 10

@@ -66,10 +66,10 @@ describe('GameSandbox: creation', () => {
 
   it('assigns pre-set scores', () => {
     const sb = GameSandbox.create({
-      scores: { 'player-0': 50, 'player-1': 90 },
+      scores: { player_0: 50, player_1: 90 },
     });
-    expect(sb.getScore('player-0')).toBe(50);
-    expect(sb.getScore('player-1')).toBe(90);
+    expect(sb.getScore('player_0')).toBe(50);
+    expect(sb.getScore('player_1')).toBe(90);
   });
 
   it('creates bots with specified difficulty', () => {
@@ -117,15 +117,15 @@ describe('GameSandbox: state mutation', () => {
 
   it('setHand by player id', () => {
     const sb = GameSandbox.create();
-    sb.setHand('player-0', cards('3D'));
+    sb.setHand('player_0', cards('3D'));
     expect(sb.state.players[0].hand).toEqual(cards('3D'));
   });
 
   it('setScores updates cumulative scores', () => {
     const sb = GameSandbox.create();
-    sb.setScores({ 'player-0': 100, 'player-1': 50 });
-    expect(sb.getScore('player-0')).toBe(100);
-    expect(sb.getScore('player-1')).toBe(50);
+    sb.setScores({ player_0: 100, player_1: 50 });
+    expect(sb.getScore('player_0')).toBe(100);
+    expect(sb.getScore('player_1')).toBe(50);
   });
 
   it('setCurrentPlayer changes turn', () => {
@@ -296,7 +296,7 @@ describe('GameSandbox: playCards', () => {
     });
     sb.playCards(0, cards('3D'));
     expect(sb.state.gameEnded).toBe(true);
-    expect(sb.state.winnerId).toBe('player-0');
+    expect(sb.state.winnerId).toBe('player_0');
   });
 });
 
@@ -659,10 +659,10 @@ describe('GameSandbox: full game simulation', () => {
 describe('GameSandbox: scoring', () => {
   it('tracks scores set before game', () => {
     const sb = GameSandbox.create({
-      scores: { 'player-0': 99, 'player-1': 50 },
+      scores: { player_0: 99, player_1: 50 },
     });
-    expect(sb.getScore('player-0')).toBe(99);
-    expect(sb.getScore('player-1')).toBe(50);
+    expect(sb.getScore('player_0')).toBe(99);
+    expect(sb.getScore('player_1')).toBe(50);
   });
 
   it('returns 0 for unknown player', () => {
@@ -672,9 +672,9 @@ describe('GameSandbox: scoring', () => {
 
   it('can set scores above game-end threshold', () => {
     const sb = GameSandbox.create({
-      scores: { 'player-0': 150 },
+      scores: { player_0: 150 },
     });
-    expect(sb.getScore('player-0')).toBe(150);
+    expect(sb.getScore('player_0')).toBe(150);
   });
 });
 
@@ -817,7 +817,7 @@ describe('GameSandbox: edge cases', () => {
     sb.setIsFirstPlay(false);
     sb.playCards(0, cards('2S'));
     expect(sb.state.gameEnded).toBe(true);
-    expect(sb.state.winnerId).toBe('player-0');
+    expect(sb.state.winnerId).toBe('player_0');
   });
 
   it('full deck has 52 unique cards', () => {

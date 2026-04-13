@@ -10,10 +10,10 @@
  *
  * Usage:
  *   const sb = GameSandbox.create({ players: 4 });
- *   sb.setHand('player-0', [card('3D'), card('4C')]);
- *   sb.setScores({ 'player-0': 50, 'player-1': 90 });
- *   sb.playCards('player-0', [card('3D')]);
- *   sb.pass('player-1');
+ *   sb.setHand('player_0', [card('3D'), card('4C')]);
+ *   sb.setScores({ 'player_0': 50, 'player_1': 90 });
+ *   sb.playCards('player_0', [card('3D')]);
+ *   sb.pass('player_1');
  *   expect(sb.state.currentPlayerIndex).toBe(2);
  */
 
@@ -89,7 +89,7 @@ function createPlayer(
   botDifficulty?: BotDifficulty
 ): Player {
   return {
-    id: isBot ? `bot-${index}` : `player-${index}`,
+    id: isBot ? `bot_${index}` : `player_${index}`,
     name: isBot ? `Bot ${index}` : `Player ${index}`,
     hand: [...hand],
     isBot,
@@ -362,15 +362,19 @@ export class GameSandbox {
       };
     }
 
+    // Canonicalize to authoritative Card objects from hand (prevents caller
+    // from passing cards with correct id but wrong rank/suit)
+    const canonical = selectedCards.map(sc => p.hand.find(hc => hc.id === sc.id)!);
+
     // Classify the combo (only after hand-membership validation passes)
-    const comboType = classifyCards(selectedCards);
+    const comboType = classifyCards(canonical);
     if (comboType === 'unknown') {
       return { success: false, error: 'Invalid card combination' };
     }
 
     // First play — must include 3♦
     if (this.state.isFirstPlayOfGame && this.enforceFirstPlay) {
-      const has3D = selectedCards.some(c => c.id === '3D');
+      const has3D = canonical.some(c => c.id === '3D');
       if (!has3D) {
         return { success: false, error: 'First play must include 3♦' };
       }
@@ -378,7 +382,7 @@ export class GameSandbox {
 
     // Beat existing play
     if (this.state.lastPlay) {
-      if (!canBeatPlay(selectedCards, this.state.lastPlay)) {
+      if (!canBeatPlay(canonical, this.state.lastPlay)) {
         return { success: false, error: 'Cannot beat the current play' };
       }
     }
@@ -387,7 +391,7 @@ export class GameSandbox {
     const nextActiveForPlay = this.findNextActive(idx);
     const nextPlayerCardCount = this.state.players[nextActiveForPlay].hand.length;
     const oneCardResult = validateOneCardLeftRule(
-      selectedCards,
+      canonical,
       p.hand,
       nextPlayerCardCount,
       this.state.lastPlay ?? null
@@ -397,7 +401,7 @@ export class GameSandbox {
     }
 
     // Execute the play
-    const cardIds = new Set(selectedCards.map(c => c.id));
+    const cardIds = new Set(canonical.map(c => c.id));
     p.hand = p.hand.filter(c => !cardIds.has(c.id));
 
     // Clear all players' passed flags on successful play (matches production GameStateManager.executePlay)
@@ -406,17 +410,17 @@ export class GameSandbox {
     });
 
     // Update state
-    this.state.lastPlay = { cards: selectedCards, combo_type: comboType };
+    this.state.lastPlay = { cards: canonical, combo_type: comboType };
     this.state.lastPlayPlayerIndex = idx;
     this.state.consecutivePasses = 0;
     this.state.isFirstPlayOfGame = false;
-    this.state.played_cards.push(...selectedCards);
+    this.state.played_cards.push(...canonical);
 
     // Record history
     const playEntry = {
       playerId: p.id,
       playerName: p.name,
-      cards: selectedCards,
+      cards: canonical,
       combo_type: comboType,
       timestamp: Date.now(),
       passed: false,
