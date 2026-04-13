@@ -18,8 +18,8 @@ appId: com.big2mobile.app
     visible:
       id: "privacy-consent-decline"
     timeout: 5000
-  optional: true
+    optional: true
 
 - tapOn:
     id: "privacy-consent-decline"
-  optional: true
+    optional: true
