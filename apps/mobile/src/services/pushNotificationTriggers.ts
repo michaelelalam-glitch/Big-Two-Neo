@@ -8,7 +8,6 @@
 import { notificationLogger } from '../utils/logger';
 import { i18n } from '../i18n';
 import { supabase } from './supabase';
-import { registerForPushNotificationsAsync, savePushTokenToDatabase } from './notificationService';
 
 // ─── Rate Limiting ────────────────────────────────────────────────────────── //
 // Max 1 notification per user per event type per 30 seconds
@@ -170,28 +169,13 @@ async function sendPushNotification(payload: NotificationPayload): Promise<boole
           } else if (err.details?.error === 'DeviceNotRegistered') {
             notificationLogger.warn('⚠️ [sendPushNotification] Device token expired or invalid');
           } else if (err.details?.error === 'UNREGISTERED') {
+            // UNREGISTERED refers to a *recipient's* stale FCM token (already pruned
+            // server-side by the edge function). Do NOT re-register this sender's own
+            // token — that would overwrite an active token with a newly-rotated one
+            // and break future sends to this device.
             notificationLogger.warn(
-              '⚠️ [sendPushNotification] FCM UNREGISTERED — triggering background re-registration'
+              `⚠️ [sendPushNotification] FCM UNREGISTERED for recipient (server pruned stale token)`
             );
-            // Fire-and-forget: re-register this device's push token after FCM invalidated it
-            supabase.auth
-              .getUser()
-              .then(({ data: authData }) => {
-                if (!authData?.user) return;
-                const uid = authData.user.id;
-                registerForPushNotificationsAsync()
-                  .then(newToken => {
-                    if (newToken) return savePushTokenToDatabase(uid, newToken);
-                  })
-                  .then(ok => {
-                    if (ok)
-                      notificationLogger.info(
-                        '✅ [sendPushNotification] Push token re-registered after UNREGISTERED'
-                      );
-                  })
-                  .catch(() => {}); // non-critical
-              })
-              .catch(() => {});
           } else {
             notificationLogger.error(`❌ [sendPushNotification] Error ${idx + 1}:`, err.message);
           }
