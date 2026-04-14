@@ -200,6 +200,12 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  // For user-JWT callers: holds the membership-filtered subset of user_ids.
+  // Set when some targets have already left the room (race condition between
+  // getRoomPlayerIds() on the client and the edge function's membership check).
+  // Null for internal/service-role callers (no filtering needed).
+  let memberFilteredIds: string[] | null = null;
+
   // P5-1 Fix: Reject unauthenticated callers.  Two explicitly trusted paths:
   //   1. Service-role key   — other Edge Functions / server-side processes.
   //   2. Internal-bot key   — background bot via x-bot-auth header.
@@ -428,13 +434,23 @@ Deno.serve(async (req) => {
               );
             }
             const memberSet = new Set((memberRows ?? []).map((r: { user_id: string }) => r.user_id));
-            const nonMembers = targetIds.filter((id: string) => !memberSet.has(id));
-            if (nonMembers.length > 0) {
+            const validTargetIds = targetIds.filter((id: string) => memberSet.has(id));
+            if (validTargetIds.length === 0) {
+              // All targets have already left the room (race condition: player departed
+              // between getRoomPlayerIds() and this check). Return 200 to avoid noisy
+              // client-side errors — no notification needed for departed players.
+              console.log(`[send-push-notification] All ${targetIds.length} target(s) have left the room — skipping`);
               return new Response(
-                JSON.stringify({ error: 'Forbidden: some target users are not members of the room' }),
-                { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                JSON.stringify({ sent: 0, skipped_reason: 'all_targets_left_room' }),
+                { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
               );
             }
+            const droppedCount = targetIds.length - validTargetIds.length;
+            if (droppedCount > 0) {
+              console.log(`[send-push-notification] ${droppedCount} user(s) left the room — filtering from notification`);
+            }
+            // Store the filtered IDs so the main handler sends only to current members.
+            memberFilteredIds = validTargetIds;
           }
         }
       }
@@ -518,7 +534,11 @@ Deno.serve(async (req) => {
 
     // Parse request body
     const notificationRequest: NotificationRequest = await req.json()
-    const { user_ids, title, body, data, badge } = notificationRequest
+    const { user_ids: parsedUserIds, title, body, data, badge } = notificationRequest
+    // For user-JWT callers: use the membership-filtered list to handle the race
+    // condition where players leave between getRoomPlayerIds() and this check.
+    // For internal/service-role callers: use the full list as-is.
+    const user_ids = memberFilteredIds ?? parsedUserIds;
 
     if (!user_ids || user_ids.length === 0) {
       return new Response(
