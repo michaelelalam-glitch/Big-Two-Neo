@@ -81,10 +81,10 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
       return legacyValue;
     } catch {
       // SecureStore is unavailable (e.g. CI simulator without Keychain
-      // entitlements). In dev/CI builds, fall back to AsyncStorage so
-      // pre-seeded E2E sessions are not lost. In production, fail closed
-      // (return null → forces re-auth) to avoid reading plaintext tokens.
-      if (__DEV__) {
+      // entitlements). On real devices fail closed to avoid reading plaintext
+      // tokens. On simulators/emulators (__DEV__ or !Constants.isDevice),
+      // fall back to AsyncStorage so pre-seeded E2E sessions are not lost.
+      if (__DEV__ || !Constants.isDevice) {
         return AsyncStorage.getItem(key).catch(() => null);
       }
       return null;
