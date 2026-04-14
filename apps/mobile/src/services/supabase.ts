@@ -81,10 +81,13 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
       return legacyValue;
     } catch {
       // SecureStore is unavailable (e.g. CI simulator without Keychain
-      // entitlements). Fall back to AsyncStorage so pre-seeded or migrated
-      // sessions are not lost. On real devices SecureStore should never throw,
-      // so this path only fires in unusual environments.
-      return AsyncStorage.getItem(key).catch(() => null);
+      // entitlements). In dev/CI builds, fall back to AsyncStorage so
+      // pre-seeded E2E sessions are not lost. In production, fail closed
+      // (return null → forces re-auth) to avoid reading plaintext tokens.
+      if (__DEV__) {
+        return AsyncStorage.getItem(key).catch(() => null);
+      }
+      return null;
     }
   },
   setItem: async (key: string, value: string): Promise<void> => {
@@ -203,15 +206,20 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
           SecureStore.deleteItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`).catch(() => {})
         )
       );
-      // Fall back to AsyncStorage so the session is preserved (e.g. CI simulator
-      // where SecureStore/Keychain is unavailable). On real devices SecureStore
-      // should never fail so this path is only hit in unusual environments.
-      try {
-        await AsyncStorage.setItem(key, value);
-      } catch {
-        // AsyncStorage also failed — nothing we can do.
+      // In dev/CI builds, fall back to AsyncStorage so E2E sessions persist
+      // (SecureStore/Keychain is unavailable on CI simulators). In production,
+      // fail closed — no plaintext writes — and force re-auth on next launch.
+      if (__DEV__) {
+        try {
+          await AsyncStorage.setItem(key, value);
+        } catch {
+          networkLogger.error(
+            '[supabase:storage] SecureStore AND AsyncStorage write failed; auth token NOT persisted.'
+          );
+        }
+      } else {
         networkLogger.error(
-          '[supabase:storage] SecureStore AND AsyncStorage write failed; auth token NOT persisted.'
+          '[supabase:storage] SecureStore write failed in production; auth token NOT persisted.'
         );
       }
     }
