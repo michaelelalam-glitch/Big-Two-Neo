@@ -839,19 +839,19 @@ Deno.serve(async (req) => {
           )?.errorCode as string | undefined;
           if (fcmErrorCode === 'UNREGISTERED' || fcmErrorCode === 'INVALID_ARGUMENT') {
             const rawToken = message.to;
-            supabaseAdmin
+            // Await the delete so it completes before the Response is returned.
+            // Fire-and-forget is unreliable in edge function runtimes — the isolate
+            // can be terminated as soon as the Response is handed back.
+            const { error: delErr } = await supabaseAdmin
               .from('push_tokens')
               .delete()
-              .eq('push_token', rawToken)
-              .then(({ error: delErr }) => {
-                if (delErr) {
-                  console.error(`⚠️ Failed to delete stale token (${fcmErrorCode}):`, delErr.message);
-                } else {
-                  console.log(`🗑️ Deleted stale push token (${fcmErrorCode}): ${redactToken(rawToken)}`);
-                }
-              })
-              .catch(() => {/* non-critical */});
-            results.push({ status: 'error', message: result, details: { error: fcmErrorCode } });
+              .eq('push_token', rawToken);
+            if (delErr) {
+              console.error(`⚠️ Failed to delete stale token (${fcmErrorCode}):`, delErr.message);
+            } else {
+              console.log(`🗑️ Deleted stale push token (${fcmErrorCode}): ${redactToken(rawToken)}`);
+            }
+            results.push({ status: 'error', message: result, details: { error: fcmErrorCode, userId: message.userId } });
           } else {
             results.push({ status: 'error', message: result });
           }

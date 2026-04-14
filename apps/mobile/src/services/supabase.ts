@@ -207,9 +207,10 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
         )
       );
       // In dev/CI builds, fall back to AsyncStorage so E2E sessions persist
-      // (SecureStore/Keychain is unavailable on CI simulators). In production,
-      // fail closed — no plaintext writes — and force re-auth on next launch.
-      if (__DEV__) {
+      // (SecureStore/Keychain is unavailable on CI simulators). Gate on either
+      // __DEV__ OR !Constants.isDevice (simulator) because CI runs Release builds
+      // where __DEV__ is false but the process is still on a simulator.
+      if (__DEV__ || !Constants.isDevice) {
         try {
           await AsyncStorage.setItem(key, value);
         } catch {

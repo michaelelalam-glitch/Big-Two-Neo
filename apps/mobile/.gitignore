@@ -73,9 +73,6 @@ supabase/.temp/
 # migration scripts (one-time use only)
 fix-tests.sh
 
-# SECURITY NOTE: google-services.json is intentionally tracked (see above).
-# GoogleService-Info.plist (iOS) remains gitignored.
-GoogleService-Info.plist
 credentials.json
 credentials/
 *.apk
