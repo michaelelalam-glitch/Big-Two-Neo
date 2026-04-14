@@ -127,13 +127,26 @@ export function initSentry(): void {
       // Return null to drop the event. Return the (optionally mutated) event to send.
 
       beforeSend(event) {
-        // Drop ALL events from development environment. Dev sessions run on the
+        // Drop most events from development environment. Dev sessions run on the
         // simulator with your own account — they generate noise (App Hang, network
         // errors, ImagePicker, audio-session hang) that pollutes the issue list.
-        // Double-check both event.environment AND __DEV__ global to handle the
-        // edge case where a production build is compiled with __DEV__=true.
+        // EXCEPTION: Native crashes (SIGSEGV, SIGABRT, EXC_BAD_ACCESS) are always
+        // sent — these are critical and must not be silently dropped.
         if (event.environment === 'development' || __DEV__) {
-          return null;
+          const mechanism = event.exception?.values?.[0]?.mechanism;
+          const isNativeCrash =
+            mechanism?.type === 'signal' ||
+            mechanism?.type === 'mach' ||
+            event.exception?.values?.some(
+              e =>
+                e.type === 'EXC_BAD_ACCESS' ||
+                e.type === 'SIGSEGV' ||
+                e.type === 'SIGABRT' ||
+                e.type === 'SIGBUS'
+            );
+          if (!isNativeCrash) {
+            return null;
+          }
         }
 
         // ── P8-H1: Quota circuit breaker ────────────────────────────────────

@@ -16,7 +16,9 @@ Notifications.setNotificationHandler({
     const prefs = useUserPreferencesStore.getState();
     const typeMap: Record<string, boolean> = {
       game_invite: prefs.notifyGameInvites,
+      room_invite: prefs.notifyGameInvites,
       your_turn: prefs.notifyYourTurn,
+      player_turn: prefs.notifyYourTurn,
       game_started: prefs.notifyGameStarted,
       friend_request: prefs.notifyFriendRequests,
       friend_accepted: prefs.notifyFriendRequests,

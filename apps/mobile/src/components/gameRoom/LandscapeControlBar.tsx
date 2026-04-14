@@ -1,15 +1,15 @@
 /**
  * LandscapeControlBar Component
- * 
+ *
  * Bottom control bar for landscape game room
- * 
+ *
  * Features:
  * - 6 button groups (Help, Orientation, Sort, Actions, Hints, Settings)
  * - 44pt minimum touch targets (WCAG AA)
  * - Fixed bottom positioning with safe area
  * - Orientation toggle button (landscape ↔ portrait)
  * - Responsive button sizing
- * 
+ *
  * Task #451: Implement control bar with all button groups
  * Date: December 19, 2025
  */
@@ -90,9 +90,9 @@ export function LandscapeControlBar({
       variant === 'primary' && styles.buttonPrimary,
       variant === 'secondary' && styles.buttonSecondary,
       variant === 'ghost' && styles.buttonGhost,
-      variant === 'sort' && styles.buttonSort,  // MATCH PORTRAIT
-      variant === 'smart' && styles.buttonSmart,  // MATCH PORTRAIT
-      variant === 'hint' && styles.buttonHint,  // MATCH PORTRAIT
+      variant === 'sort' && styles.buttonSort, // MATCH PORTRAIT
+      variant === 'smart' && styles.buttonSmart, // MATCH PORTRAIT
+      variant === 'hint' && styles.buttonHint, // MATCH PORTRAIT
       isDisabled && styles.buttonDisabled,
     ];
 
@@ -101,21 +101,19 @@ export function LandscapeControlBar({
       variant === 'primary' && styles.buttonTextPrimary,
       variant === 'secondary' && styles.buttonTextSecondary,
       variant === 'ghost' && styles.buttonTextGhost,
-      variant === 'sort' && styles.buttonTextSort,  // MATCH PORTRAIT
-      variant === 'smart' && styles.buttonTextSmart,  // MATCH PORTRAIT
-      variant === 'hint' && styles.buttonTextHint,  // MATCH PORTRAIT
+      variant === 'sort' && styles.buttonTextSort, // MATCH PORTRAIT
+      variant === 'smart' && styles.buttonTextSmart, // MATCH PORTRAIT
+      variant === 'hint' && styles.buttonTextHint, // MATCH PORTRAIT
       isDisabled && styles.buttonTextDisabled,
     ];
 
     return (
       <Pressable
-        style={({ pressed }) => [
-          ...buttonStyle,
-          pressed && !isDisabled && styles.buttonPressed,
-        ]}
+        style={({ pressed }) => [...buttonStyle, pressed && !isDisabled && styles.buttonPressed]}
         onPress={handlePress}
         disabled={isDisabled}
         testID={testID}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
         <Text style={textStyle}>{label}</Text>
       </Pressable>
@@ -145,6 +143,7 @@ export function LandscapeControlBar({
         onPress={handlePress}
         disabled={isDisabled}
         testID={testID}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
         <Text style={[styles.iconButtonText, isDisabled && styles.iconButtonTextDisabled]}>
           {icon}
@@ -169,8 +168,20 @@ export function LandscapeControlBar({
 
         {/* Group 3: Action Buttons (Play & Pass + TRANSLATIONS) */}
         <View style={styles.buttonGroup}>
-          {renderButton(i18n.t('game.play'), onPlay, 'primary', !canPlay || disabled, 'play-button')}
-          {renderButton(i18n.t('game.pass'), onPass, 'secondary', !canPass || disabled, 'pass-button')}
+          {renderButton(
+            i18n.t('game.play'),
+            onPlay,
+            'primary',
+            !canPlay || disabled,
+            'play-button'
+          )}
+          {renderButton(
+            i18n.t('game.pass'),
+            onPass,
+            'secondary',
+            !canPass || disabled,
+            'pass-button'
+          )}
         </View>
 
         {/* Group 4: Hint Button (Match portrait styling + TRANSLATIONS) */}
@@ -203,8 +214,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    minHeight: 48,
+    paddingVertical: 6,
+    minHeight: 52,
   },
 
   // Button group
@@ -217,9 +228,9 @@ const styles = StyleSheet.create({
   // Standard button (text)
   button: {
     minWidth: 50,
-    height: 36,
-    paddingHorizontal: 12,
-    borderRadius: 12,  // MATCH PORTRAIT: 12pt radius (was 6)
+    minHeight: 44,
+    paddingHorizontal: 16,
+    borderRadius: 12, // MATCH PORTRAIT: 12pt radius (was 6)
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
@@ -230,7 +241,7 @@ const styles = StyleSheet.create({
   buttonPrimary: {
     backgroundColor: '#10b981', // Green (matches portrait Play button)
     borderColor: '#10b981',
-    borderWidth: 0,  // MATCH PORTRAIT: No border
+    borderWidth: 0, // MATCH PORTRAIT: No border
   },
 
   buttonSecondary: {

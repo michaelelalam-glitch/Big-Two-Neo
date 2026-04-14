@@ -404,15 +404,13 @@ async function _sendEventsImmediate(
 
   // NOTE: GA4 DebugView with the Measurement Protocol requires sending
   // `debug_mode: 1` at the TOP LEVEL of the request body (not inside event
-  // params). This service does NOT set `debug_mode` — all events land in
-  // standard GA4 Realtime reports. To use DebugView during local development,
-  // add `debug_mode: 1` to the `body` object below before the `events` key.
-  // You can also inspect live traffic via:
-  //   GA4 → Reports → Realtime → "Event count in last 30 min by Event name"
+  // params). Enabled automatically in dev builds so events appear in both
+  // GA4 DebugView AND Realtime reports during local development.
   const url = `${MP_ENDPOINT}?measurement_id=${encodeURIComponent(MEASUREMENT_ID)}&api_secret=${encodeURIComponent(API_SECRET)}`;
 
   const body: Record<string, unknown> = {
     client_id: getClientId(),
+    ...(__DEV__ ? { debug_mode: 1 } : {}),
     // NOTE: firebase_app_id is NOT valid for web streams (G- measurement IDs).
     // Sending it causes GA4 to reject the entire payload with VALUE_INVALID, so
     // events never appear in Realtime reports. Field omitted intentionally.
