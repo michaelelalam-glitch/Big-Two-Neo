@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
+import * as Notifications from 'expo-notifications';
 import {
   registerForPushNotificationsAsync,
   savePushTokenToDatabase,
@@ -703,9 +704,40 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
     });
 
+    // 🔔 FCM TOKEN ROTATION: Listen for push token changes from the device.
+    // When FCM invalidates a token (UNREGISTERED) or rotates it (periodic / app reinstall),
+    // expo-notifications fires this event with the new token.
+    // Without this listener the new token is never saved to the DB and notifications
+    // stop working permanently until the user reinstalls or re-logs in.
+    const pushTokenSubscription = Notifications.addPushTokenListener(async event => {
+      const newToken: string = event.data;
+      if (!newToken) return;
+      notificationLogger.info('🔄 [AuthContext] FCM token rotated — saving new token to DB...');
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+      if (currentUser) {
+        savePushTokenToDatabase(currentUser.id, newToken)
+          .then(ok => {
+            if (ok)
+              notificationLogger.info(
+                '✅ [AuthContext] Rotated push token saved for user:',
+                currentUser.id.substring(0, 8)
+              );
+            else
+              notificationLogger.error(
+                '❌ [AuthContext] Failed to save rotated push token for user:',
+                currentUser.id.substring(0, 8)
+              );
+          })
+          .catch(() => {});
+      }
+    });
+
     return () => {
       mounted = false;
       subscription.unsubscribe();
+      pushTokenSubscription.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchProfile and profile intentionally excluded from mount-only auth listener; this effect sets up a long-lived subscription that must not be torn down and re-created; fetchProfile is called inside the async handler which always captures the latest via direct call
   }, []);
