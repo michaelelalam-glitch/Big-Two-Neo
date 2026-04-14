@@ -52,7 +52,9 @@ e2e/results/
 *.backup
 
 # platform config (contains API keys)
-google-services.json
+# NOTE: google-services.json is intentionally committed — it's embedded in every APK
+# and is not a secret. Security comes from Firebase Security Rules, not hiding this file.
+# GoogleService-Info.plist (iOS) is still gitignored since it may contain more sensitive data.
 GoogleService-Info.plist
 
 # build logs (may contain sensitive data)
@@ -71,12 +73,8 @@ supabase/.temp/
 # migration scripts (one-time use only)
 fix-tests.sh
 
-# SECURITY: google-services.json was previously committed and its contents are visible in
-# git history and in PR diffs. The exposed Firebase credentials MUST be rotated/revoked
-# and the file MUST be purged from git history (git-filter-repo / BFG Repo Cleaner) before
-# any public release. Tracked as SEC-02 in docs/PRODUCTION_AUDIT_REPORT.md.
-# Do not commit Firebase config files; keep only local copies and/or committed *.example templates.
-google-services.json
+# SECURITY NOTE: google-services.json is intentionally tracked (see above).
+# GoogleService-Info.plist (iOS) remains gitignored.
 GoogleService-Info.plist
 credentials.json
 credentials/
