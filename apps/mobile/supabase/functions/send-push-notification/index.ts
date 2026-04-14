@@ -828,15 +828,40 @@ Deno.serve(async (req) => {
         const result = await response.json()
         
         if (!response.ok) {
-          console.error(`❌ FCM error for ${redactToken(message.to)}:`, result)
-          results.push({ status: 'error', message: result })
+          console.error(`❌ FCM error for ${redactToken(message.to)}:`, result);
+          // Auto-prune stale/invalid tokens so they are never retried.
+          // FCM v1 error codes that mean the token is permanently invalid:
+          //   UNREGISTERED   — app was uninstalled or token was rotated
+          //   INVALID_ARGUMENT — token is malformed (not a valid FCM registration token)
+          const fcmErrorCode = result?.error?.details?.find(
+            (d: { '@type': string; errorCode?: string }) =>
+              d['@type'] === 'type.googleapis.com/google.firebase.fcm.v1.FcmError'
+          )?.errorCode as string | undefined;
+          if (fcmErrorCode === 'UNREGISTERED' || fcmErrorCode === 'INVALID_ARGUMENT') {
+            const rawToken = message.to;
+            supabaseAdmin
+              .from('push_tokens')
+              .delete()
+              .eq('push_token', rawToken)
+              .then(({ error: delErr }) => {
+                if (delErr) {
+                  console.error(`⚠️ Failed to delete stale token (${fcmErrorCode}):`, delErr.message);
+                } else {
+                  console.log(`🗑️ Deleted stale push token (${fcmErrorCode}): ${redactToken(rawToken)}`);
+                }
+              })
+              .catch(() => {/* non-critical */});
+            results.push({ status: 'error', message: result, details: { error: fcmErrorCode } });
+          } else {
+            results.push({ status: 'error', message: result });
+          }
         } else {
-          console.log(`✅ Sent to ${redactToken(message.to)}`)
-          results.push({ status: 'ok', id: result.name })
+          console.log(`✅ Sent to ${redactToken(message.to)}`);
+          results.push({ status: 'ok', id: result.name });
         }
       } catch (error) {
-        console.error(`❌ Error sending to ${redactToken(message.to)}:`, error)
-        results.push({ status: 'error', message: error.message })
+        console.error(`❌ Error sending to ${redactToken(message.to)}:`, error);
+        results.push({ status: 'error', message: error.message });
       }
     }
 
