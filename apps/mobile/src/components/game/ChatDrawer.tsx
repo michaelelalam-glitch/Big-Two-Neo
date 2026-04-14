@@ -94,6 +94,15 @@ function ChatDrawerComponent({
   const isSendingRef = useRef(false);
   const sendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Guard against dispatching native commands (scrollToEnd, focus) on
+  // deallocated ShadowNodes after unmount — prevents EXC_BAD_ACCESS crash.
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // Derive panel offset from current orientation so the drawer sits at the
   // very top in landscape (no status-bar gap) and 110 px down in portrait.
@@ -156,7 +165,9 @@ function ChatDrawerComponent({
   // PR-150 r2950333902 — use inputRef intentionally).
   useEffect(() => {
     if (!isOpen) return;
-    const id = setTimeout(() => inputRef.current?.focus(), ANIMATION_DURATION + 50);
+    const id = setTimeout(() => {
+      if (isMountedRef.current) inputRef.current?.focus();
+    }, ANIMATION_DURATION + 50);
     return () => clearTimeout(id);
   }, [isOpen]);
 
@@ -165,7 +176,9 @@ function ChatDrawerComponent({
   // focus after every send (Copilot PR-151 r2951244855).
   useEffect(() => {
     if (!isOpen) return;
-    const id = setTimeout(() => inputRef.current?.focus(), 50);
+    const id = setTimeout(() => {
+      if (isMountedRef.current) inputRef.current?.focus();
+    }, 50);
     return () => clearTimeout(id);
   }, [inputKey, isOpen]);
 
@@ -179,7 +192,7 @@ function ChatDrawerComponent({
     if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
     scrollTimerRef.current = setTimeout(() => {
       scrollTimerRef.current = null;
-      listRef.current?.scrollToEnd({ animated: true });
+      if (isMountedRef.current) listRef.current?.scrollToEnd({ animated: true });
     }, 80);
   }, []);
 

@@ -822,8 +822,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 8,
     left: 130, // Leave space for Steve Peterson in FAR LEFT
-    right: 150, // Leave space for Play/Pass + helper buttons on right
-    zIndex: 100, // CRITICAL: Must be higher than buttons (60) to allow drag/drop
+    right: 220, // Leave space for Play/Pass + helper buttons on right (increased from 150)
+    zIndex: 100,
   },
 
   topRightButtons: {
@@ -874,10 +874,10 @@ const styles = StyleSheet.create({
   actionButtonsContainer: {
     position: 'absolute',
     bottom: 12,
-    right: -24,
+    right: 8,
     flexDirection: 'column',
     gap: 6,
-    zIndex: 60,
+    zIndex: 110, // Must be ABOVE yourPosition (100) so buttons receive touches
     pointerEvents: 'box-none', // CRITICAL: Allow touches to pass through container but buttons receive touches
   },
 

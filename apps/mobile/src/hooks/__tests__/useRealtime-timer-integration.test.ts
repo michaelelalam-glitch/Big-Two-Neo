@@ -1,12 +1,24 @@
 /**
  * WebSocket-to-UI Integration Tests for Auto-Pass Timer
- * 
+ *
  * Tests the connection between WebSocket events and the AutoPassTimer UI component,
  * verifying that timer state updates propagate correctly through the system.
  */
 
 // Mock Supabase BEFORE imports
 jest.mock('../../services/supabase');
+
+// Mock push notification triggers (fire-and-forget in realtimeActions)
+jest.mock('../../services/pushNotificationTriggers', () => ({
+  notifyPlayerTurn: jest.fn().mockResolvedValue(undefined),
+  notifyGameEnded: jest.fn().mockResolvedValue(undefined),
+  notifyGameStarted: jest.fn().mockResolvedValue(undefined),
+  notifyAllPlayersReady: jest.fn().mockResolvedValue(undefined),
+  notifyPlayerJoined: jest.fn().mockResolvedValue(undefined),
+  notifyRoomInvite: jest.fn().mockResolvedValue(undefined),
+  notifyFriendRequest: jest.fn().mockResolvedValue(undefined),
+  notifyFriendAccepted: jest.fn().mockResolvedValue(undefined),
+}));
 
 // Mock soundManager to prevent .m4a file parse errors
 jest.mock('../../utils/soundManager', () => ({
@@ -74,13 +86,13 @@ describe('useRealtime - Auto-Pass Timer Integration', () => {
       expect(timerState.active).toBe(true);
       expect(timerState.duration_ms).toBe(10000);
       expect(timerState.remaining_ms).toBe(7000);
-      
+
       // Verify countdown calculation logic
       const startedAt = new Date(timerState.started_at).getTime();
       const afterDelay = startedAt + 500;
       const elapsed = afterDelay - startedAt;
       const expectedRemaining = timerState.duration_ms - elapsed;
-      
+
       expect(expectedRemaining).toBeLessThan(10000);
       expect(expectedRemaining).toBeGreaterThan(9000);
     });
@@ -104,7 +116,7 @@ describe('useRealtime - Auto-Pass Timer Integration', () => {
       // Calculate remaining time
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, timerState.duration_ms - elapsed);
-      
+
       expect(remaining).toBe(0);
       // Timer should be deactivated when remaining is 0
       expect(remaining <= 0).toBe(true);

@@ -16,6 +16,18 @@
 // Mock Supabase BEFORE imports
 jest.mock('../../services/supabase');
 
+// Mock push notification triggers (fire-and-forget in realtimeActions)
+jest.mock('../../services/pushNotificationTriggers', () => ({
+  notifyPlayerTurn: jest.fn().mockResolvedValue(undefined),
+  notifyGameEnded: jest.fn().mockResolvedValue(undefined),
+  notifyGameStarted: jest.fn().mockResolvedValue(undefined),
+  notifyAllPlayersReady: jest.fn().mockResolvedValue(undefined),
+  notifyPlayerJoined: jest.fn().mockResolvedValue(undefined),
+  notifyRoomInvite: jest.fn().mockResolvedValue(undefined),
+  notifyFriendRequest: jest.fn().mockResolvedValue(undefined),
+  notifyFriendAccepted: jest.fn().mockResolvedValue(undefined),
+}));
+
 // Mock invokeWithRetry (Edge Function calls)
 jest.mock('../../utils/edgeFunctionRetry', () => ({
   invokeWithRetry: jest.fn().mockResolvedValue({
