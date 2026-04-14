@@ -50,8 +50,10 @@ const FALLBACK_GRACE_PERIOD_MS = 300;
 
 /**
  * Cooldown (ms) between fallback trigger attempts to prevent spam.
+ * Reduced from 2000ms to 800ms so bots recover faster from transient
+ * network errors while still avoiding excessive duplicate invocations.
  */
-const TRIGGER_COOLDOWN_MS = 2000;
+const TRIGGER_COOLDOWN_MS = 800;
 
 export function useServerBotCoordinator({
   roomCode,

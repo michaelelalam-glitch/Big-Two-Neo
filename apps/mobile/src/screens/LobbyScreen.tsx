@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useCallback, useEffect, useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,17 +10,17 @@ import {
   Modal,
   Share,
   Alert,
+  BackHandler,
   useWindowDimensions,
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES, MODAL_SUPPORTED_ORIENTATIONS } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { i18n } from '../i18n';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { notifyGameStarted } from '../services/pushNotificationTriggers';
-import { notifyGameInvite } from '../services/pushNotificationService';
+import { notifyGameStarted, notifyRoomInvite } from '../services/pushNotificationTriggers';
 import { supabase } from '../services/supabase';
 import { showError, showConfirm, extractErrorMessage } from '../utils';
 import { roomLogger } from '../utils/logger';
@@ -753,8 +753,17 @@ export default function LobbyScreen() {
     if (selectedFriendIds.size === 0) return;
     setIsSendingInvites(true);
     try {
+      // Resolve roomId via DB lookup rather than falling back to empty string,
+      // which would break deep-link navigation in the push payload.
+      const resolvedRoomId = roomId || (await getRoomId({ suppressNavigation: true }));
+      if (!resolvedRoomId) {
+        showError(i18n.t('lobby.roomNotFound') || 'Room not found — cannot send invites');
+        return;
+      }
       const senderName = profile?.username || user?.email || i18n.t('friends.unknownPlayer');
-      await notifyGameInvite(Array.from(selectedFriendIds), roomCode, senderName);
+      // Batch all invites into a single edge function call to avoid
+      // N separate auth/DB round-trips and reduce rate-limit risk.
+      await notifyRoomInvite(Array.from(selectedFriendIds), roomCode, resolvedRoomId, senderName);
     } catch (err) {
       showError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -1021,6 +1030,22 @@ export default function LobbyScreen() {
       },
     });
   };
+
+  // P16-L3: Intercept Android hardware back button to show leave confirmation
+  // Use useFocusEffect so the handler only runs while this screen is focused,
+  // preventing it from intercepting back presses on other stacked screens.
+  const handleLeaveRoomRef = useRef(handleLeaveRoom);
+  handleLeaveRoomRef.current = handleLeaveRoom;
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        handleLeaveRoomRef.current();
+        return true; // prevent default back navigation
+      };
+      const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => sub.remove();
+    }, [])
+  );
 
   /**
    * Kick a human player from the lobby.

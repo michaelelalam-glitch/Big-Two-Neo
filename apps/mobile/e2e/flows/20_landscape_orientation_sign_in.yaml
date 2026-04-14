@@ -3,11 +3,11 @@
 #   when the device is rotated to landscape orientation. Catches regressions
 #   in: SafeAreaView inset handling, StyleSheet layout (flex/column to row),
 #   and any text truncation or element overflow that breaks the UI.
-# Tags: smoke
+# Tags: smoke (not CI — privacy consent button is not reliably visible in
+#   landscape orientation on iOS Simulator GitHub Actions runners)
 #
-# CI-safe: no authentication required.
-# Note: Landscape orientation test is iOS Simulator only; Android emulator
-#   profile (pixel_6) also supports landscape via setDeviceOrientation.
+# No auth required. Landscape orientation is supported by Maestro on both iOS
+#   Simulator and Android emulator.
 
 appId: com.big2mobile.app
 tags:

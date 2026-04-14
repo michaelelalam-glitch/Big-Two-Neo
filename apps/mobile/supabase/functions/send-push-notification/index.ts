@@ -32,7 +32,7 @@ interface NotificationRequest {
     // via the `(string & {})` extension (keeps the union open without widening to plain string).
     // When type is absent, isThrottled / reserveThrottleSlot use a 'default' bucket
     // so typeless notifications are still rate-limited.
-    type?: 'game_invite' | 'your_turn' | 'game_started' | 'friend_request' | 'friend_accepted' | 'game_ended' | (string & {});
+    type?: 'game_invite' | 'room_invite' | 'your_turn' | 'player_turn' | 'game_started' | 'friend_request' | 'friend_accepted' | 'game_ended' | (string & {});
     roomCode?: string;
     [key: string]: any;
   };
@@ -157,11 +157,15 @@ const KNOWN_EVENT_TYPES = new Set([
   'game_invite', 'friend_request', 'friend_accepted', 'game_started', 'game_ended', 'your_turn', 'player_turn', 'default',
 ]);
 
-/** M22: Map legacy/alternate event type aliases to their canonical form for rate-limit bucketing.
- *  'player_turn' sent by older server versions must be treated as 'your_turn' so they share
- *  the same 30s bucket instead of each opening a new independent window. */
+/** M22: Map alternate event type names to their canonical form for both
+ *  rate-limit bucketing AND server-side preference checks.
+ *  - player_turn  → your_turn      (legacy client compatibility)
+ *  - room_invite   → game_invite    (client sends room_invite, pref column uses game_invite)
+ *  - friend_accepted → friend_request (both share notify_friend_requests preference) */
 const EVENT_TYPE_ALIASES: Record<string, string> = {
   player_turn: 'your_turn',
+  room_invite: 'game_invite',
+  friend_accepted: 'friend_request',
 };
 const MAX_EVENT_TYPE_LEN = 32;
 
@@ -264,7 +268,7 @@ Deno.serve(async (req) => {
     }
 
     // Peek at the body (clone preserves the stream for the main handler).
-    let peekBody: { data?: { roomCode?: unknown }; user_ids?: unknown } | null = null;
+    let peekBody: { data?: { roomCode?: unknown; type?: unknown }; user_ids?: unknown } | null = null;
     try {
       peekBody = await req.clone().json();
     } catch {
@@ -275,12 +279,43 @@ Deno.serve(async (req) => {
       );
     }
 
-    // User-JWT callers must supply a roomCode so targets can be constrained.
-    const roomCode = peekBody?.data?.roomCode;
-    if (typeof roomCode !== 'string' || !roomCode) {
+    // Determine auth requirements based on notification type.
+    // Friend-related types don't involve rooms; invite types target non-members.
+    const peekType = typeof peekBody?.data?.type === 'string' ? peekBody.data.type : '';
+    const FRIEND_TYPES = new Set(['friend_request', 'friend_accepted']);
+    const INVITE_TYPES = new Set(['room_invite', 'game_invite']);
+    const isFriendNotification = FRIEND_TYPES.has(peekType);
+    const isInviteNotification = INVITE_TYPES.has(peekType);
+
+    // Friend notifications (friend_request, friend_accepted) don't require
+    // room context but DO require a verified friendship/request relationship
+    // between caller and each target to prevent abuse.  Room invites require
+    // roomCode + caller membership + friendship with each target, but skip
+    // target room-membership (targets are the invitees).
+
+    // Pre-validate user_ids: required, non-empty, and all strings.
+    // Validates early to avoid unnecessary DB work (room/friendship lookups)
+    // since the main handler hard-requires user_ids anyway.
+    const rawIds = peekBody?.user_ids;
+    if (!rawIds || !Array.isArray(rawIds) || rawIds.length === 0) {
       return new Response(
-        JSON.stringify({ error: 'Forbidden: user callers must supply data.roomCode' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'user_ids is required and must be a non-empty array' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    if (!rawIds.every((id): id is string => typeof id === 'string')) {
+      return new Response(
+        JSON.stringify({ error: 'user_ids must be an array of strings' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    // Validate each user_id is a well-formed UUID to prevent PostgREST
+    // filter injection via the `.or()` clause used in friendship/membership checks.
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!rawIds.every(id => UUID_RE.test(id))) {
+      return new Response(
+        JSON.stringify({ error: 'user_ids must contain valid UUIDs' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -289,82 +324,175 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Resolve room by code — distinguish DB errors (500) from not-found (403).
-    const { data: room, error: roomError } = await adminClient
-      .from('rooms')
-      .select('id')
-      .eq('code', roomCode)
-      .maybeSingle();
-
-    if (roomError) {
-      console.error('[send-push-notification] Room lookup failed:', roomError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to verify room' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    if (!room) {
-      return new Response(
-        JSON.stringify({ error: 'Forbidden: invalid room code' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Caller must be a member of that room — distinguish DB errors (500) from non-member (403).
-    const { data: callerMembership, error: callerMembershipError } = await adminClient
-      .from('room_players')
-      .select('id')
-      .eq('room_id', room.id)
-      .eq('user_id', callerUser.id)
-      .maybeSingle();
-
-    if (callerMembershipError) {
-      console.error('[send-push-notification] Caller membership check failed:', callerMembershipError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to verify room membership' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    if (!callerMembership) {
-      return new Response(
-        JSON.stringify({ error: 'Forbidden: caller is not a member of the specified room' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Validate and check membership for all target user_ids.
-    // Any malformed user_ids (non-array or array with non-string elements) must be
-    // rejected here so the membership gate cannot be bypassed and the main handler
-    // cannot crash on unexpected types.
-    const rawIds = peekBody?.user_ids;
-    if (rawIds !== undefined && rawIds !== null) {
-      if (!Array.isArray(rawIds) || !rawIds.every((id): id is string => typeof id === 'string')) {
+    if (!isFriendNotification) {
+      // ── Room-based notification path ────────────────────────────────────
+      const roomCode = peekBody?.data?.roomCode;
+      if (typeof roomCode !== 'string' || !roomCode) {
         return new Response(
-          JSON.stringify({ error: 'user_ids must be an array of strings' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: 'Forbidden: user callers must supply data.roomCode' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      const targetIds = rawIds as string[];
-      if (targetIds.length > 0) {
-        const { data: memberRows, error: memberCheckError } = await adminClient
-          .from('room_players')
-          .select('user_id')
-          .eq('room_id', room.id)
-          .in('user_id', targetIds);
-        if (memberCheckError) {
-          console.error('[send-push-notification] Target membership check failed:', memberCheckError);
-          return new Response(
-            JSON.stringify({ error: 'Failed to verify target membership' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+
+      // Resolve room by code — distinguish DB errors (500) from not-found (403).
+      const { data: room, error: roomError } = await adminClient
+        .from('rooms')
+        .select('id')
+        .eq('code', roomCode)
+        .maybeSingle();
+
+      if (roomError) {
+        console.error('[send-push-notification] Room lookup failed:', roomError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to verify room' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (!room) {
+        return new Response(
+          JSON.stringify({ error: 'Forbidden: invalid room code' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Caller must be a member of that room.
+      const { data: callerMembership, error: callerMembershipError } = await adminClient
+        .from('room_players')
+        .select('id')
+        .eq('room_id', room.id)
+        .eq('user_id', callerUser.id)
+        .maybeSingle();
+
+      if (callerMembershipError) {
+        console.error('[send-push-notification] Caller membership check failed:', callerMembershipError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to verify room membership' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (!callerMembership) {
+        return new Response(
+          JSON.stringify({ error: 'Forbidden: caller is not a member of the specified room' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (rawIds && Array.isArray(rawIds)) {
+        if (isInviteNotification) {
+          // Invite types: verify friendship (accepted) between caller and
+          // each target — prevents sending invites to arbitrary users.
+          const targetIds = rawIds as string[];
+          if (targetIds.length > 0) {
+            const { data: friendRows, error: friendErr } = await adminClient
+              .from('friendships')
+              .select('requester_id, addressee_id')
+              .eq('status', 'accepted')
+              .or(
+                targetIds.map(tid =>
+                  `and(requester_id.eq.${callerUser.id},addressee_id.eq.${tid}),and(requester_id.eq.${tid},addressee_id.eq.${callerUser.id})`
+                ).join(',')
+              );
+            if (friendErr) {
+              console.error('[send-push-notification] Invite friendship check failed:', friendErr);
+              return new Response(
+                JSON.stringify({ error: 'Failed to verify friendship for invite' }),
+                { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+            const friendSet = new Set(
+              (friendRows ?? []).flatMap((r: { requester_id: string; addressee_id: string }) => [r.requester_id, r.addressee_id])
+            );
+            friendSet.delete(callerUser.id); // Keep only target IDs
+            const nonFriends = targetIds.filter(id => !friendSet.has(id));
+            if (nonFriends.length > 0) {
+              return new Response(
+                JSON.stringify({ error: 'Forbidden: can only invite friends' }),
+                { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+          }
+        } else {
+          // Non-invite room types: all targets must be room members.
+          const targetIds = rawIds as string[];
+          if (targetIds.length > 0) {
+            const { data: memberRows, error: memberCheckError } = await adminClient
+              .from('room_players')
+              .select('user_id')
+              .eq('room_id', room.id)
+              .in('user_id', targetIds);
+            if (memberCheckError) {
+              console.error('[send-push-notification] Target membership check failed:', memberCheckError);
+              return new Response(
+                JSON.stringify({ error: 'Failed to verify target membership' }),
+                { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+            const memberSet = new Set((memberRows ?? []).map((r: { user_id: string }) => r.user_id));
+            const nonMembers = targetIds.filter((id: string) => !memberSet.has(id));
+            if (nonMembers.length > 0) {
+              return new Response(
+                JSON.stringify({ error: 'Forbidden: some target users are not members of the room' }),
+                { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+          }
         }
-        const memberSet = new Set((memberRows ?? []).map((r: { user_id: string }) => r.user_id));
-        const nonMembers = targetIds.filter((id: string) => !memberSet.has(id));
-        if (nonMembers.length > 0) {
-          return new Response(
-            JSON.stringify({ error: 'Forbidden: some target users are not members of the room' }),
-            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      }
+    } else {
+      // ── Friend notification path ────────────────────────────────────────
+      // Enforce status-specific friendship checks:
+      // - friend_request: caller must be the requester (row exists in any status)
+      // - friend_accepted: friendship must be in 'accepted' status
+      // This prevents sending misleading push notifications (e.g. "accepted"
+      // when the request is still pending).
+      if (rawIds && Array.isArray(rawIds)) {
+        const targetIds = rawIds as string[];
+        if (targetIds.length > 0) {
+          const isFriendAccepted = peekType === 'friend_accepted';
+          let friendQuery = adminClient
+            .from('friendships')
+            .select('requester_id, addressee_id, status')
+            .or(
+              targetIds.map(tid =>
+                `and(requester_id.eq.${callerUser.id},addressee_id.eq.${tid}),and(requester_id.eq.${tid},addressee_id.eq.${callerUser.id})`
+              ).join(',')
+            );
+          if (isFriendAccepted) {
+            // friend_accepted: require accepted status
+            friendQuery = friendQuery.eq('status', 'accepted');
+          }
+          const { data: friendRows, error: friendErr } = await friendQuery;
+          if (friendErr) {
+            console.error('[send-push-notification] Friend relationship check failed:', friendErr);
+            return new Response(
+              JSON.stringify({ error: 'Failed to verify friendship' }),
+              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          const friendSet = new Set(
+            (friendRows ?? []).flatMap((r: { requester_id: string; addressee_id: string }) => [r.requester_id, r.addressee_id])
           );
+          friendSet.delete(callerUser.id);
+          const nonFriends = targetIds.filter(id => !friendSet.has(id));
+          if (nonFriends.length > 0) {
+            return new Response(
+              JSON.stringify({ error: isFriendAccepted ? 'Forbidden: friendship is not accepted' : 'Forbidden: no friendship exists with target user(s)' }),
+              { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          // friend_request: additionally verify caller is the requester (not the addressee
+          // sending unsolicited push) — only matters for friend_request type.
+          if (peekType === 'friend_request') {
+            const callerIsRequester = (friendRows ?? []).every(
+              (r: { requester_id: string; addressee_id: string }) => r.requester_id === callerUser.id
+            );
+            if (!callerIsRequester) {
+              return new Response(
+                JSON.stringify({ error: 'Forbidden: only the requester can send friend_request notifications' }),
+                { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+          }
         }
       }
     }
@@ -495,8 +623,63 @@ Deno.serve(async (req) => {
       console.log(`⏳ Throttled ${throttledIds.length} user(s) for event type "${eventType ?? 'default'}"`)
     }
 
-    // Step 3: Filter to allowed users' tokens
-    const tokens = (allTokens ?? []).filter((t: { user_id: string }) => allowedIds.includes(t.user_id))
+    // ── P12-H1: Server-side notification preference check ───────────────────
+    // Query profiles for notification opt-out settings. Users who disabled a
+    // notification type on the client sync their preference to the DB column.
+    // Default TRUE (opt-in) so existing users without a preference row are not blocked.
+    // Keep this mapping in sync with any user-facing notification toggles and
+    // their corresponding `profiles` columns so background/killed-state pushes
+    // respect the same opt-out settings as the client.
+    // NOTE: Alternate names like player_turn, room_invite, and friend_accepted
+    //       are normalised via EVENT_TYPE_ALIASES before reaching this map.
+    const PREFERENCE_COLUMN_MAP: Record<string, string> = {
+      game_invite: 'notify_game_invites',
+      your_turn: 'notify_your_turn',
+      game_started: 'notify_game_started',
+      friend_request: 'notify_friend_requests',
+    };
+    const prefColumn = PREFERENCE_COLUMN_MAP[normalizedEventType];
+    let preferenceFilteredIds = allowedIds;
+    // Event types without a preference mapping are expected (e.g. game_ended)
+    // and don't need a warning — they simply bypass preference filtering.
+    // Only log at debug level for operational visibility.
+    if (!prefColumn && normalizedEventType && normalizedEventType !== 'default') {
+      console.log(
+        `[send-push-notification] No preference column for "${normalizedEventType}" — skipping preference filter.`
+      );
+    }
+    if (prefColumn && allowedIds.length > 0) {
+      const { data: prefRows, error: prefError } = await supabaseAdmin
+        .from('profiles')
+        .select(`id, ${prefColumn}`)
+        .in('id', allowedIds);
+      if (prefError) {
+        // Fail open on transient DB/PostgREST errors so core gameplay
+        // notifications (e.g. your_turn) are not silently suppressed by
+        // infrastructure hiccups or partial deploys where the preference
+        // columns may not yet exist.  Opted-out users may receive an extra
+        // notification during the error window, which is preferable to
+        // dropping all notifications for the event type.
+        // preferenceFilteredIds remains === allowedIds (fail-open).
+        console.warn(
+          `[send-push-notification] Preference query error for "${normalizedEventType}" — failing open for ${allowedIds.length} user(s): ${prefError.message}`
+        );
+      } else if (prefRows) {
+        const optedOutIds = new Set(
+          prefRows
+            .filter((r: any) => r[prefColumn] === false)
+            .map((r: any) => r.id)
+        );
+        if (optedOutIds.size > 0) {
+          preferenceFilteredIds = allowedIds.filter((uid: string) => !optedOutIds.has(uid));
+          console.log(`🔕 Filtered ${optedOutIds.size} user(s) who opted out of "${normalizedEventType}" notifications`);
+        }
+      }
+    }
+
+    // Step 3: Filter to preference-allowed + rate-allowed users' tokens
+    const preferenceFilteredIdSet = new Set(preferenceFilteredIds)
+    const tokens = (allTokens ?? []).filter((t: { user_id: string }) => preferenceFilteredIdSet.has(t.user_id))
 
     if (tokens.length === 0) {
       console.log('No push tokens found for allowed users')

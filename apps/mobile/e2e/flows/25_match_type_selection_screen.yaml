@@ -9,9 +9,13 @@ appId: com.big2mobile.app
 tags:
   - navigation
   - auth-required
+  - ci-authenticated
 ---
 # Step 1: Launch and navigate to Home
 - launchApp
+
+# Dismiss consent modal if shown (defensive CI fallback — R32)
+- runFlow: ../shared/dismiss_consent_if_shown.yaml
 - extendedWaitUntil:
     visible: "Choose a game to play"
     timeout: 8000

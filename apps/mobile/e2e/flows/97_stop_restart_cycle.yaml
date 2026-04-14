@@ -1,0 +1,80 @@
+# Flow 97: Stop & Restart Cycle with Element Verification
+# Validates: Stopping the app (not just backgrounding) and restarting it
+#   correctly re-initializes the React Native bridge, AuthProvider, and
+#   navigation stack. Each cycle verifies all sign-in screen elements.
+# Tags: smoke, stability, ci
+#
+# No auth required. No clearState. launchApp (default stopApp:true) handles
+# process termination atomically to exercise lifecycle without wiping AsyncStorage.
+
+appId: com.big2mobile.app
+tags:
+  - smoke
+  - stability
+  - ci
+
+---
+# ── Cycle 1: Initial launch ─────────────────────────────────────────────
+- launchApp
+
+- tapOn:
+    id: "privacy-consent-decline"
+    optional: true
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 120000
+
+- assertVisible:
+    id: "sign-in-screen"
+- assertVisible:
+    id: "sign-in-title"
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "97_cycle1_initial"
+
+# ── Cycle 2: Stop → Start ───────────────────────────────────────────────
+# launchApp default stopApp:true handles the kill atomically.
+- launchApp
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 60000
+
+- assertVisible:
+    id: "sign-in-title"
+- assertVisible:
+    id: "sign-in-subtitle"
+- assertVisible:
+    id: "google-sign-in-button"
+- assertVisible:
+    id: "sign-in-footer"
+- takeScreenshot: "97_cycle2_after_stop"
+
+# ── Cycle 3: Stop → Start → Background → Foreground ─────────────────────
+# launchApp default stopApp:true handles the kill atomically.
+- launchApp
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 60000
+
+- pressKey: Home
+- waitForAnimationToEnd
+- launchApp
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 60000
+
+- assertVisible:
+    id: "sign-in-screen"
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "97_cycle3_stop_start_bgfg"

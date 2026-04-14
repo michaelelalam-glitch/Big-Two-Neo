@@ -496,7 +496,9 @@ function GameViewComponent() {
             <View style={scoreDisplayStyles.matchNumberContainer} pointerEvents="box-none">
               <View style={scoreDisplayStyles.matchNumberBadge}>
                 <Text style={scoreDisplayStyles.matchNumberText}>
-                  {isGameFinished ? 'Game Over' : `Match ${matchNumber}`}
+                  {isGameFinished
+                    ? i18n.t('game.gameOver')
+                    : i18n.t('game.matchNum', { n: matchNumber })}
                 </Text>
               </View>
             </View>
@@ -511,8 +513,8 @@ function GameViewComponent() {
                   onPress={togglePlayHistory}
                   activeOpacity={0.7}
                   accessibilityRole="button"
-                  accessibilityLabel="View play history"
-                  accessibilityHint="Opens the list of plays for this match"
+                  accessibilityLabel={i18n.t('game.a11yViewPlayHistory')}
+                  accessibilityHint={i18n.t('game.a11yPlayHistoryHint')}
                 >
                   <Text style={scoreDisplayStyles.scoreActionButtonText}>📜</Text>
                 </TouchableOpacity>
@@ -561,8 +563,8 @@ function GameViewComponent() {
                 onPress={toggleScoreboardExpanded}
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel="Toggle scoreboard"
-                accessibilityHint="Expands or collapses the scoreboard"
+                accessibilityLabel={i18n.t('game.a11yToggleScoreboard')}
+                accessibilityHint={i18n.t('game.a11yScoreboardHint')}
               >
                 <Text style={scoreDisplayStyles.scoreActionButtonText}>▶</Text>
               </TouchableOpacity>
@@ -574,8 +576,8 @@ function GameViewComponent() {
               onPress={() => setShowSettings(true)}
               testID="settings-button"
               accessibilityRole="button"
-              accessibilityLabel="Open settings menu"
-              accessibilityHint="Opens game settings and options"
+              accessibilityLabel={i18n.t('game.a11yOpenSettings')}
+              accessibilityHint={i18n.t('game.a11ySettingsHint')}
             >
               <View style={styles.menuIcon}>
                 <View style={styles.menuLine} />
@@ -592,8 +594,8 @@ function GameViewComponent() {
                 toggleOrientation();
               }}
               accessibilityRole="button"
-              accessibilityLabel="Toggle orientation"
-              accessibilityHint="Switch between portrait and landscape mode"
+              accessibilityLabel={i18n.t('game.a11yToggleOrientation')}
+              accessibilityHint={i18n.t('game.a11yOrientationHint')}
             >
               <Text style={styles.orientationToggleIcon}>🔄</Text>
             </Pressable>

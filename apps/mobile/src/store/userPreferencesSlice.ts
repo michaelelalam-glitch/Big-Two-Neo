@@ -24,10 +24,47 @@ import { SETTINGS_KEYS, DEFAULT_SETTINGS } from '../utils/settings';
 import { soundManager } from '../utils/soundManager';
 import { hapticManager } from '../utils/hapticManager';
 import { uiLogger } from '../utils/logger';
+import { supabase } from '../services/supabase';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 // Imported from the central settings utility to avoid type drift.
 import type { CardSortOrder, AnimationSpeed, AutoPassTimer } from '../utils/settings';
+
+// P12-H1: Fire-and-forget sync of notification preferences to the profiles
+// table so the send-push-notification edge function can enforce opt-out
+// server-side (including background/killed-state notifications).
+/** Allowed preference column names on the `profiles` table.
+ *  Keep in sync with the migration (20260724000001_notification_preferences.sql)
+ *  and PREFERENCE_COLUMN_MAP in send-push-notification/index.ts. */
+type NotifyPrefColumn =
+  | 'notify_game_invites'
+  | 'notify_your_turn'
+  | 'notify_game_started'
+  | 'notify_friend_requests';
+
+function _syncNotifyPreferenceToDb(column: NotifyPrefColumn, value: boolean) {
+  supabase.auth
+    .getUser()
+    .then(({ data }) => {
+      if (!data?.user) return;
+      supabase
+        .from('profiles')
+        .update({ [column]: value } as Record<string, boolean>)
+        .eq('id', data.user.id)
+        .then(
+          ({ error }) => {
+            if (error) uiLogger.error(`[UserPreferences] Failed to sync ${column} to DB`, error);
+          },
+          (err: unknown) => {
+            uiLogger.error(`[UserPreferences] Network error syncing ${column}`, err);
+          }
+        );
+    })
+    .catch(() => {
+      /* no-op if not authed */
+    });
+}
+
 export type { CardSortOrder, AnimationSpeed, AutoPassTimer };
 
 export type ProfilePhotoSize = 'small' | 'medium' | 'large';
@@ -135,10 +172,22 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       setProfileVisibility: visible => set({ profileVisibility: visible }),
       setShowOnlineStatus: show => set({ showOnlineStatus: show }),
       setProfilePhotoSize: size => set({ profilePhotoSize: size }),
-      setNotifyGameInvites: enabled => set({ notifyGameInvites: enabled }),
-      setNotifyYourTurn: enabled => set({ notifyYourTurn: enabled }),
-      setNotifyGameStarted: enabled => set({ notifyGameStarted: enabled }),
-      setNotifyFriendRequests: enabled => set({ notifyFriendRequests: enabled }),
+      setNotifyGameInvites: enabled => {
+        set({ notifyGameInvites: enabled });
+        _syncNotifyPreferenceToDb('notify_game_invites', enabled);
+      },
+      setNotifyYourTurn: enabled => {
+        set({ notifyYourTurn: enabled });
+        _syncNotifyPreferenceToDb('notify_your_turn', enabled);
+      },
+      setNotifyGameStarted: enabled => {
+        set({ notifyGameStarted: enabled });
+        _syncNotifyPreferenceToDb('notify_game_started', enabled);
+      },
+      setNotifyFriendRequests: enabled => {
+        set({ notifyFriendRequests: enabled });
+        _syncNotifyPreferenceToDb('notify_friend_requests', enabled);
+      },
 
       hydrate: partial => set(partial),
     }),
@@ -190,3 +239,86 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
     }
   )
 );
+
+// ── P4-M1: Hydration gate ──────────────────────────────────────────────────
+// Zustand persist rehydrates from AsyncStorage asynchronously. Reads before
+// hydration completes return the in-memory defaults, not the user's saved
+// preferences. Expose a promise + boolean so callers can await or guard.
+let _resolveHydration: () => void;
+export const userPreferencesHydrated = new Promise<void>(r => {
+  _resolveHydration = r;
+});
+export let isUserPreferencesHydrated = false;
+/** Guard: ensure the one-time DB sync only fires once per process lifetime. */
+let _prefsSyncedToDb = false;
+
+/** Attempt a one-time sync of local notification preferences to the DB.
+ *  Called from both hydration completion and auth state changes so the sync
+ *  fires whichever event arrives with an authenticated user first. */
+function _attemptPreferenceSync(): void {
+  if (_prefsSyncedToDb) return;
+  _prefsSyncedToDb = true; // Prevent re-entrance during async auth check
+  const state = useUserPreferencesStore.getState();
+  supabase.auth
+    .getUser()
+    .then(({ data }) => {
+      if (!data?.user) {
+        _prefsSyncedToDb = false; // No user → allow retry
+        return;
+      }
+      supabase
+        .from('profiles')
+        .update({
+          notify_game_invites: state.notifyGameInvites,
+          notify_your_turn: state.notifyYourTurn,
+          notify_game_started: state.notifyGameStarted,
+          notify_friend_requests: state.notifyFriendRequests,
+        } as Record<string, boolean>)
+        .eq('id', data.user.id)
+        .then(
+          ({ error }) => {
+            if (error) {
+              _prefsSyncedToDb = false; // DB error → allow retry
+              uiLogger.error('[UserPreferences] Failed to batch-sync preferences to DB', error);
+            }
+          },
+          (err: unknown) => {
+            _prefsSyncedToDb = false; // Network error → allow retry
+            uiLogger.error('[UserPreferences] Network error batch-syncing preferences', err);
+          }
+        );
+    })
+    .catch(() => {
+      _prefsSyncedToDb = false; // Auth error → allow retry
+    });
+}
+
+useUserPreferencesStore.persist.onFinishHydration(() => {
+  isUserPreferencesHydrated = true;
+  _resolveHydration();
+
+  // One-time sync: write local notification preferences to the DB so users
+  // who opted out before the server-side columns existed are respected
+  // immediately, without needing to toggle settings again.
+  // Batched into a single getUser + single update to avoid 4× round-trips.
+  _attemptPreferenceSync();
+});
+
+// Also trigger sync on auth state transitions so preferences are synced when a
+// user signs in after hydration has already completed (e.g. app started while
+// logged out, then user signs in during the same process).
+// Guard with globalThis to survive Fast Refresh module re-evaluation.
+declare const global: typeof globalThis & {
+  __userPrefs_authSyncSub__?: { unsubscribe: () => void };
+};
+if (global.__userPrefs_authSyncSub__) {
+  global.__userPrefs_authSyncSub__.unsubscribe();
+}
+const {
+  data: { subscription: _authSyncSub },
+} = supabase.auth.onAuthStateChange(event => {
+  if (event === 'SIGNED_IN' && isUserPreferencesHydrated) {
+    _attemptPreferenceSync();
+  }
+});
+global.__userPrefs_authSyncSub__ = _authSyncSub;

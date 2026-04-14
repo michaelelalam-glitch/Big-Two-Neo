@@ -9,9 +9,13 @@ appId: com.big2mobile.app
 tags:
   - smoke
   - navigation
+  - ci-authenticated
 ---
 # Step 1: Launch app
 - launchApp
+
+# Dismiss consent modal if shown (defensive CI fallback — R32)
+- runFlow: ../shared/dismiss_consent_if_shown.yaml
 
 # Step 2: Navigate to Home (tap PLAY → from game selection)
 - extendedWaitUntil:

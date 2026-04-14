@@ -233,54 +233,82 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
    * hand — other players' hands are replaced with placeholder arrays.
    * This prevents the C1 vulnerability where select('*') on game_state
    * exposed all players' cards via RLS.
+   *
+   * Retries once after 500 ms on transient network errors (matching fetchPlayers pattern).
    */
   const fetchGameState = useCallback(async (roomId: string) => {
-    const { data, error } = await supabase
-      .rpc('get_player_game_state', { p_room_id: roomId })
-      .single();
+    const attempt = async (): Promise<void> => {
+      const { data, error } = await supabase
+        .rpc('get_player_game_state', { p_room_id: roomId })
+        .single();
 
-    // Guard: component unmounted while fetch was in-flight — skip state updates.
-    if (!isMountedRef.current) return;
+      // Guard: component unmounted while fetch was in-flight — skip state updates.
+      if (!isMountedRef.current) return;
 
-    if (error) {
-      if (error.code !== 'PGRST116') {
-        networkLogger.error('[fetchGameState] Error:', error);
-        throw error;
-      }
-      setGameState(null);
-    } else if (data) {
-      // Map the DB row into GameState, explicitly assigning each field.
-      // Json-typed columns are cast to their app-layer types; the DB schema
-      // stores them as JSONB, so the runtime shape matches at read-time.
-      type GameStateRow = Database['public']['Tables']['game_state']['Row'];
-      const row = data as GameStateRow;
-      if (!row.room_id) {
-        networkLogger.error('[fetchGameState] game_state row has null room_id, skipping');
+      if (error) {
+        if (error.code !== 'PGRST116') {
+          networkLogger.error('[fetchGameState] Error:', error);
+          throw error;
+        }
         setGameState(null);
-        return;
+      } else if (data) {
+        // Map the DB row into GameState, explicitly assigning each field.
+        // Json-typed columns are cast to their app-layer types; the DB schema
+        // stores them as JSONB, so the runtime shape matches at read-time.
+        type GameStateRow = Database['public']['Tables']['game_state']['Row'];
+        const row = data as GameStateRow;
+        if (!row.room_id) {
+          networkLogger.error('[fetchGameState] game_state row has null room_id, skipping');
+          setGameState(null);
+          return;
+        }
+        const mapped: GameState = {
+          id: row.id,
+          room_id: row.room_id,
+          current_turn: row.current_turn,
+          turn_started_at: row.turn_started_at,
+          last_play: row.last_play as unknown as GameState['last_play'],
+          pass_count: row.pass_count ?? 0,
+          game_phase: row.game_phase as GameState['game_phase'],
+          winner: row.winner,
+          game_winner_index: row.game_winner_index,
+          match_number: row.match_number,
+          hands: (row.hands ?? {}) as unknown as GameState['hands'],
+          play_history: (row.play_history ?? []) as unknown as GameState['play_history'],
+          final_scores: row.final_scores as unknown as GameState['final_scores'],
+          scores_history: (row.scores_history ?? []) as unknown as GameState['scores_history'],
+          auto_pass_timer: row.auto_pass_timer as unknown as GameState['auto_pass_timer'],
+          played_cards: (row.played_cards ?? []) as unknown as GameState['played_cards'],
+          updated_at: row.updated_at ?? new Date().toISOString(),
+        };
+        setGameState(mapped);
+      } else {
+        setGameState(null);
       }
-      const mapped: GameState = {
-        id: row.id,
-        room_id: row.room_id,
-        current_turn: row.current_turn,
-        turn_started_at: row.turn_started_at,
-        last_play: row.last_play as unknown as GameState['last_play'],
-        pass_count: row.pass_count ?? 0,
-        game_phase: row.game_phase as GameState['game_phase'],
-        winner: row.winner,
-        game_winner_index: row.game_winner_index,
-        match_number: row.match_number,
-        hands: (row.hands ?? {}) as unknown as GameState['hands'],
-        play_history: (row.play_history ?? []) as unknown as GameState['play_history'],
-        final_scores: row.final_scores as unknown as GameState['final_scores'],
-        scores_history: (row.scores_history ?? []) as unknown as GameState['scores_history'],
-        auto_pass_timer: row.auto_pass_timer as unknown as GameState['auto_pass_timer'],
-        played_cards: (row.played_cards ?? []) as unknown as GameState['played_cards'],
-        updated_at: row.updated_at ?? new Date().toISOString(),
-      };
-      setGameState(mapped);
-    } else {
-      setGameState(null);
+    }; // end attempt()
+
+    try {
+      await attempt();
+    } catch (_err) {
+      // Single retry after 500 ms on transient network errors (same pattern as fetchPlayers M6).
+      const postgrestErr = _err as { code?: string; message?: string } | null;
+      const isNetworkError =
+        _err instanceof TypeError ||
+        /Failed to fetch|Network request failed/i.test(postgrestErr?.message ?? '');
+      const shouldRetry = isNetworkError || !NON_RETRYABLE_CODES.has(postgrestErr?.code ?? '');
+      if (!shouldRetry) {
+        networkLogger.error('[useRealtime] fetchGameState non-retryable error:', postgrestErr);
+        throw _err;
+      }
+      networkLogger.warn('[fetchGameState] Transient error, retrying in 500ms...');
+      await new Promise<void>(resolve => setTimeout(resolve, 500));
+      if (!isMountedRef.current) return;
+      try {
+        await attempt();
+      } catch (retryErr) {
+        networkLogger.error('[useRealtime] fetchGameState retry failed:', retryErr);
+        throw retryErr;
+      }
     }
   }, []);
 
@@ -411,6 +439,10 @@ export function useRealtime(options: UseRealtimeOptions): UseRealtimeReturn {
           // than unhandled promise rejections (addresses Copilot review comment).
           const warnFetch = (label: string) => (err: unknown) =>
             networkLogger.warn(`[Realtime] ${label} broadcast fetch error:`, err);
+
+          // fetchGameState already has a built-in 500ms retry for transient
+          // errors, so an additional outer retry is unnecessary and could amplify
+          // RPC attempts. Call fetchGameState directly and log on final failure.
 
           channel
             .on('broadcast', { event: 'player_joined' }, _payload => {

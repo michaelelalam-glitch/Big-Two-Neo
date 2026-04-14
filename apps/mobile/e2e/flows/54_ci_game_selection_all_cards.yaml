@@ -9,6 +9,9 @@ tags:
 ---
 - launchApp
 
+# Dismiss consent modal if shown (defensive CI fallback — R32)
+- runFlow: ../shared/dismiss_consent_if_shown.yaml
+
 # Game Selection Screen
 - extendedWaitUntil:
     visible: "Choose a game to play"

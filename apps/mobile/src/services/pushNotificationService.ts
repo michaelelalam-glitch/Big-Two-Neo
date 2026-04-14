@@ -1,8 +1,16 @@
 /**
  * Push Notification Service
  *
- * Utility functions to send push notifications via Supabase Edge Function
- * for game events (invites, turns, game start, etc.)
+ * @deprecated P10-M2: This module is DEPRECATED in favour of pushNotificationTriggers.ts,
+ * which uses the authenticated Supabase client (user JWT) instead of the anon key.
+ * Using SUPABASE_ANON_KEY here bypasses the room-membership check enforced by the
+ * send-push-notification edge function for user-JWT callers.
+ *
+ * All new call-sites should import from pushNotificationTriggers.ts. This file is
+ * retained only for backwards-compatibility during the migration period. It will be
+ * removed in a future release.
+ *
+ * @see pushNotificationTriggers.ts — the canonical push notification entry point.
  */
 
 import { notificationLogger } from '../utils/logger';

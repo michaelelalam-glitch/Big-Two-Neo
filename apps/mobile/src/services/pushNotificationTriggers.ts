@@ -6,6 +6,7 @@
  */
 
 import { notificationLogger } from '../utils/logger';
+import { i18n } from '../i18n';
 import { supabase } from './supabase';
 
 // ─── Rate Limiting ────────────────────────────────────────────────────────── //
@@ -250,8 +251,8 @@ export async function notifyGameStarted(roomId: string, roomCode: string): Promi
 
   const success = await sendPushNotification({
     user_ids: userIds,
-    title: '🎮 Game Starting!',
-    body: `Your game in room ${roomCode} is beginning. Good luck!`,
+    title: i18n.t('pushContent.gameStartingTitle'),
+    body: i18n.t('pushContent.gameStartingBody', { roomCode }),
     data: {
       type: 'game_started',
       roomCode: roomCode, // FIXED: Use 'roomCode' not 'room_code' (matches Edge Function validation)
@@ -280,8 +281,8 @@ export async function notifyPlayerTurn(
 ): Promise<void> {
   await sendPushNotification({
     user_ids: [userId],
-    title: '⏰ Your Turn!',
-    body: `It's your turn to play in room ${roomCode}`,
+    title: i18n.t('pushContent.yourTurnTitle'),
+    body: i18n.t('pushContent.yourTurnBody', { roomCode }),
     data: {
       type: 'player_turn',
       roomCode: roomCode, // camelCase
@@ -312,8 +313,8 @@ export async function notifyGameEnded(
   // Notify winner
   await sendPushNotification({
     user_ids: [winnerUserId],
-    title: '🎉 Victory!',
-    body: `Congratulations! You won in room ${roomCode}!`,
+    title: i18n.t('pushContent.victoryTitle'),
+    body: i18n.t('pushContent.victoryBody', { roomCode }),
     data: {
       type: 'game_ended',
       roomCode: roomCode, // camelCase
@@ -331,8 +332,8 @@ export async function notifyGameEnded(
   if (otherUserIds.length > 0) {
     await sendPushNotification({
       user_ids: otherUserIds,
-      title: '🏁 Game Over',
-      body: `${winnerName} won the game in room ${roomCode}`,
+      title: i18n.t('pushContent.gameOverTitle'),
+      body: i18n.t('pushContent.gameOverBody', { winnerName, roomCode }),
       data: {
         type: 'game_ended',
         roomCode: roomCode, // camelCase
@@ -351,15 +352,17 @@ export async function notifyGameEnded(
  * Notify player when invited to room
  */
 export async function notifyRoomInvite(
-  recipientUserId: string,
+  recipientUserIds: string | string[],
   roomCode: string,
   roomId: string,
   inviterName: string
 ): Promise<void> {
+  const ids = Array.isArray(recipientUserIds) ? recipientUserIds : [recipientUserIds];
+  if (ids.length === 0) return;
   await sendPushNotification({
-    user_ids: [recipientUserId],
-    title: '🎴 Room Invite',
-    body: `${inviterName} invited you to join room ${roomCode}`,
+    user_ids: ids,
+    title: i18n.t('pushContent.roomInviteTitle'),
+    body: i18n.t('pushContent.roomInviteBody', { inviterName, roomCode }),
     data: {
       type: 'room_invite',
       roomCode: roomCode, // camelCase
@@ -389,8 +392,8 @@ export async function notifyPlayerJoined(
 
   await sendPushNotification({
     user_ids: userIds,
-    title: '👋 Player Joined',
-    body: `${joinerName} joined room ${roomCode}`,
+    title: i18n.t('pushContent.playerJoinedTitle'),
+    body: i18n.t('pushContent.playerJoinedBody', { joinerName, roomCode }),
     data: {
       type: 'player_joined',
       roomCode: roomCode, // camelCase
@@ -413,8 +416,8 @@ export async function notifyAutoPassWarning(
 ): Promise<void> {
   await sendPushNotification({
     user_ids: [userId],
-    title: '⚠️ Time Running Out!',
-    body: `${secondsRemaining}s left to play in room ${roomCode}`,
+    title: i18n.t('pushContent.timeRunningOutTitle'),
+    body: i18n.t('pushContent.timeRunningOutBody', { seconds: secondsRemaining, roomCode }),
     data: {
       type: 'auto_pass_warning',
       roomCode: roomCode, // camelCase
@@ -437,13 +440,55 @@ export async function notifyAllPlayersReady(
 ): Promise<void> {
   await sendPushNotification({
     user_ids: [hostUserId],
-    title: '✅ Ready to Start',
-    body: `All players are ready in room ${roomCode}. You can start the game!`,
+    title: i18n.t('pushContent.readyToStartTitle'),
+    body: i18n.t('pushContent.readyToStartBody', { roomCode }),
     data: {
       type: 'all_players_ready',
       roomCode: roomCode, // camelCase
       roomId: roomId, // camelCase
       screen: 'Lobby',
+    },
+    sound: 'default',
+    badge: 1,
+  });
+}
+
+/**
+ * Notify user when they receive a friend request
+ */
+export async function notifyFriendRequest(
+  recipientUserId: string,
+  senderName: string,
+  senderId: string
+): Promise<void> {
+  await sendPushNotification({
+    user_ids: [recipientUserId],
+    title: i18n.t('pushContent.friendRequestTitle'),
+    body: i18n.t('pushContent.friendRequestBody', { senderName }),
+    data: {
+      type: 'friend_request',
+      senderId,
+    },
+    sound: 'default',
+    badge: 1,
+  });
+}
+
+/**
+ * Notify user when their friend request is accepted
+ */
+export async function notifyFriendAccepted(
+  recipientUserId: string,
+  accepterName: string,
+  accepterId: string
+): Promise<void> {
+  await sendPushNotification({
+    user_ids: [recipientUserId],
+    title: i18n.t('pushContent.friendAcceptedTitle'),
+    body: i18n.t('pushContent.friendAcceptedBody', { accepterName }),
+    data: {
+      type: 'friend_accepted',
+      senderId: accepterId,
     },
     sound: 'default',
     badge: 1,

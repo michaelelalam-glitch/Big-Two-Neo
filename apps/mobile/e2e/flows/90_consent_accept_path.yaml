@@ -1,0 +1,54 @@
+# Flow 90: Privacy Consent — Accept Path
+# Validates: Tapping "Accept & Continue" on the consent modal successfully
+#   dismisses the modal and shows the sign-in screen. Complements flow 15
+#   which tests the decline path.
+# Tags: smoke, ci
+#
+# No auth required. clearState ensures consent key is unset so the
+# consent modal is deterministically shown.
+
+appId: com.big2mobile.app
+tags:
+  - smoke
+  - ci
+
+---
+# ── Step 1: Launch fresh (clearState) and accept consent ─────────────────
+- launchApp:
+    clearState: true
+
+# Consent modal must be visible after clearState
+- assertVisible:
+    id: "privacy-consent-accept"
+
+- tapOn:
+    id: "privacy-consent-accept"
+
+# ── Step 2: Verify sign-in screen is visible ─────────────────────────────
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 120000
+
+- assertVisible:
+    id: "sign-in-title"
+- assertVisible:
+    id: "sign-in-subtitle"
+- assertVisible:
+    id: "google-sign-in-button"
+- assertVisible:
+    id: "sign-in-footer"
+- takeScreenshot: "90_consent_accept_sign_in"
+
+# ── Step 3: Relaunch — consent should NOT reappear ───────────────────────
+- launchApp
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 60000
+
+# Consent modal should not be visible after prior accept
+- assertVisible:
+    id: "google-sign-in-button"
+- takeScreenshot: "90_consent_not_shown_after_accept"

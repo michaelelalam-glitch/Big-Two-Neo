@@ -78,8 +78,8 @@ export default function App() {
   // Initial launch-time update behavior is controlled by Expo Updates configuration; this
   // effect catches updates for long-lived sessions after the app returns to the foreground.
   const lastOtaCheckRef = useRef<number>(0);
-  const OTA_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 60 minutes
   useEffect(() => {
+    const OTA_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 60 minutes
     const handleAppStateChange = async (nextState: AppStateStatus) => {
       if (nextState !== 'active') return;
       if (__DEV__) return; // Skip in dev — expo-updates is a no-op in Expo Go dev builds

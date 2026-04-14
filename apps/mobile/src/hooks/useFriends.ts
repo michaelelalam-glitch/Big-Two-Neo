@@ -24,7 +24,7 @@ import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { uiLogger } from '../utils/logger';
 import { i18n } from '../i18n';
-import { notifyFriendRequest, notifyFriendAccepted } from '../services/pushNotificationService';
+import { notifyFriendRequest, notifyFriendAccepted } from '../services/pushNotificationTriggers';
 
 export interface FriendProfile {
   id: string;

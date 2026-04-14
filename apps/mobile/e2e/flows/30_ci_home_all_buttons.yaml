@@ -12,6 +12,9 @@ tags:
 # Step 1: Launch with injected session
 - launchApp
 
+# Dismiss consent modal if shown (defensive CI fallback — R32)
+- runFlow: ../shared/dismiss_consent_if_shown.yaml
+
 # Step 2: Navigate past game selection to Home
 - extendedWaitUntil:
     visible: "Choose a game to play"

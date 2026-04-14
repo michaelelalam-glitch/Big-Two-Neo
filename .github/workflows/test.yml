@@ -39,7 +39,7 @@ jobs:
     
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       
       - name: 🔧 Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
@@ -199,7 +199,7 @@ jobs:
       # ────────────────────────────────────────────────────────────────────────
 
       - name: 📊 Upload test coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         if: always()
         with:
           directory: ./apps/mobile/coverage
@@ -217,7 +217,7 @@ jobs:
     
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
@@ -253,7 +253,7 @@ jobs:
     # runners are ~10× more expensive) and because fork PRs don't have access
     # to repository secrets which the app needs to boot without crashing.
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    timeout-minutes: 100
+    timeout-minutes: 150
 
     env:
       # App needs Supabase env vars to initialize without crashing.
@@ -267,7 +267,7 @@ jobs:
     
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
@@ -464,34 +464,28 @@ jobs:
           xcrun simctl terminate booted com.big2mobile.app || true
           sleep 5
 
-      - name: 🎭 Run Maestro E2E tests
+      - name: 🎭 Run Maestro E2E tests (unauthenticated — ci tag)
         run: |
           cd apps/mobile
           # Create results directory (Maestro doesn't auto-create it)
           mkdir -p e2e/results
-          # Run CI-tagged flows (tests that pass without authentication).
-          # Auth-dependent flows (ci-authenticated tag) require session injection
-          # which has not yet been stabilised on CI — they run locally only.
-          #
+          # Phase 1: Run CI-tagged flows (unauthenticated, some include clearState: true).
           # Retry logic: iOS simulator can crash on clearState: true (flaky).
-          # We attempt once, and if it fails we re-warm the simulator then retry.
           MAX_ATTEMPTS=2
           MAESTRO_EXIT=1
           for attempt in $(seq 1 $MAX_ATTEMPTS); do
-            echo "--- Maestro attempt $attempt/$MAX_ATTEMPTS ---"
+            echo "--- Maestro ci attempt $attempt/$MAX_ATTEMPTS ---"
             set +e
             maestro test --include-tags ci e2e/flows/ \
               --format junit \
-              --output e2e/results/results.xml
+              --output e2e/results/results-ci.xml
             MAESTRO_EXIT=$?
             set -e
             if [ $MAESTRO_EXIT -eq 0 ]; then
               break
             fi
             if [ $attempt -lt $MAX_ATTEMPTS ]; then
-              echo "Attempt $attempt failed (exit $MAESTRO_EXIT) — re-warming simulator before retry..."
-              # Kill any lingering native dialogs (e.g., Google OAuth Safari window)
-              # that clearState: true cannot dismiss on its own.
+              echo "Attempt $attempt failed (exit $MAESTRO_EXIT) — re-warming simulator..."
               xcrun simctl terminate booted com.apple.mobilesafari || true
               xcrun simctl terminate booted com.big2mobile.app || true
               sleep 10
@@ -501,18 +495,119 @@ jobs:
               sleep 5
             fi
           done
-          echo "Maestro exit code: $MAESTRO_EXIT"
-          echo "Results file: $(test -f e2e/results/results.xml && echo PRESENT || echo MISSING)"
+          echo "Maestro ci exit code: $MAESTRO_EXIT"
           exit $MAESTRO_EXIT
         timeout-minutes: 45
         env:
-          # Give Maestro's XCUITest driver up to 5 minutes to start the
-          # XCTest server on port 7001. Default (~90s) is too short on
-          # freshly-booted GitHub Actions macOS runners.
           MAESTRO_DRIVER_STARTUP_TIMEOUT: 300000
+
+      - name: 🔐 Seed E2E authentication session
+        id: seed_auth
+        if: env.E2E_TEST_EMAIL != '' && env.E2E_TEST_PASSWORD != ''
+        continue-on-error: true  # Failure handled by "Warn if auth seeding was skipped" step below
+        run: |
+          cd apps/mobile
+          # Terminate any running app instance first
+          xcrun simctl terminate booted com.big2mobile.app || true
+          sleep 2
+          # Launch app once to initialise storage, then terminate.
+          # Use 15s (was 8s) — cold CI simulators need more time for
+          # AsyncStorage / RCTAsyncLocalStorage_V1 directory init.
+          xcrun simctl launch booted com.big2mobile.app || true
+          sleep 15
+          xcrun simctl terminate booted com.big2mobile.app || true
+          sleep 3
+          # Inject Supabase session + consent bypass into AsyncStorage
+          node scripts/ci-seed-e2e-auth.mjs
+        env:
+          CI_PLATFORM: ios
+
+      - name: 🔒 Verify seed — dismiss consent if shown (fallback)
+        if: steps.seed_auth.outcome == 'success'
+        continue-on-error: true
+        run: |
+          cd apps/mobile
+          # Launch the app to verify consent was properly seeded.
+          # If the consent modal still appears (seed wrote to wrong container),
+          # Maestro taps "No thanks" which writes @big2_analytics_consent=false
+          # to AsyncStorage via the app's own code — guaranteed to persist.
+          xcrun simctl launch booted com.big2mobile.app || true
+          sleep 10
+          set +e
+          maestro test e2e/shared/dismiss_consent_if_shown.yaml
+          VERIFY_EXIT=$?
+          set -e
+          xcrun simctl terminate booted com.big2mobile.app || true
+          sleep 3
+          if [ $VERIFY_EXIT -ne 0 ]; then
+            echo "::warning::Consent verification flow returned exit $VERIFY_EXIT — flows include defensive fallback"
+          else
+            echo "✅ Consent verification passed"
+          fi
+        timeout-minutes: 5
+        env:
+          MAESTRO_DRIVER_STARTUP_TIMEOUT: 300000
+
+      - name: ⚠️ Warn if auth seeding was skipped
+        if: env.E2E_TEST_EMAIL != '' && env.E2E_TEST_PASSWORD != '' && steps.seed_auth.outcome != 'success'
+        run: |
+          echo "::warning::Auth seeding skipped or failed (outcome=${{ steps.seed_auth.outcome }}). Authenticated E2E flows (ci-authenticated) will not run. CI coverage is reduced."
+
+      - name: 🎭 Run Maestro E2E tests (authenticated — ci-authenticated tag)
+        if: steps.seed_auth.outcome == 'success'
+        run: |
+          cd apps/mobile
+          mkdir -p e2e/results
+          # Phase 2: Run authenticated flows now that session is injected.
+          # These flows use `launchApp` without clearState so the session persists.
+          MAX_ATTEMPTS=2
+          MAESTRO_EXIT=1
+          for attempt in $(seq 1 $MAX_ATTEMPTS); do
+            echo "--- Maestro ci-authenticated attempt $attempt/$MAX_ATTEMPTS ---"
+            set +e
+            maestro test --include-tags ci-authenticated e2e/flows/ \
+              --format junit \
+              --output e2e/results/results-ci-authenticated.xml
+            MAESTRO_EXIT=$?
+            set -e
+            if [ $MAESTRO_EXIT -eq 0 ]; then
+              break
+            fi
+            if [ $attempt -lt $MAX_ATTEMPTS ]; then
+              echo "Attempt $attempt failed (exit $MAESTRO_EXIT) — re-seeding and re-warming..."
+              xcrun simctl terminate booted com.apple.mobilesafari || true
+              xcrun simctl terminate booted com.big2mobile.app || true
+              sleep 5
+              # Re-seed auth in case a flow accidentally cleared state
+              set +e
+              node scripts/ci-seed-e2e-auth.mjs
+              RESEED_EXIT=$?
+              set -e
+              if [ $RESEED_EXIT -ne 0 ]; then
+                echo "::warning::Auth re-seed failed (exit $RESEED_EXIT) — subsequent tests may run unauthenticated"
+              fi
+              sleep 2
+              xcrun simctl launch booted com.big2mobile.app || true
+              sleep 10
+              xcrun simctl terminate booted com.big2mobile.app || true
+              sleep 3
+            fi
+          done
+          echo "Maestro ci-authenticated exit code: $MAESTRO_EXIT"
+          # Authenticated tests are non-blocking during stabilisation unless
+          # E2E_AUTH_NON_BLOCKING is explicitly set to 'false'.
+          if [ "${E2E_AUTH_NON_BLOCKING:-true}" = "false" ]; then
+            exit $MAESTRO_EXIT
+          elif [ $MAESTRO_EXIT -ne 0 ]; then
+            echo "::warning::Authenticated E2E tests failed (exit $MAESTRO_EXIT) — non-blocking (set E2E_AUTH_NON_BLOCKING=false to enforce)"
+          fi
+        timeout-minutes: 45
+        env:
+          MAESTRO_DRIVER_STARTUP_TIMEOUT: 300000
+          CI_PLATFORM: ios
       
       - name: 📸 Upload E2E screenshots & results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: e2e-results
@@ -521,8 +616,34 @@ jobs:
             ~/.maestro/tests/
           retention-days: 7
       
-      - name: ✅ E2E tests passed
-        run: echo "🎉 Maestro E2E tests completed!"
+      - name: 📊 E2E test summary
+        if: always()
+        run: |
+          echo "🎉 Maestro E2E tests completed!"
+          CI_COUNT=$(grep -c "<testcase" apps/mobile/e2e/results/results-ci.xml 2>/dev/null || true)
+          CI_COUNT=${CI_COUNT:-0}
+
+          AUTH_RESULTS_FILE="apps/mobile/e2e/results/results-ci-authenticated.xml"
+          AUTH_COUNT="n/a"
+          AUTH_STATUS="not configured"
+
+          if [ -n "$E2E_TEST_EMAIL" ] && [ -n "$E2E_TEST_PASSWORD" ]; then
+            SEED_AUTH_OUTCOME="${{ steps.seed_auth.outcome }}"
+
+            if [ "$SEED_AUTH_OUTCOME" = "success" ]; then
+              if [ -f "$AUTH_RESULTS_FILE" ]; then
+                AUTH_COUNT=$(grep -c "<testcase" "$AUTH_RESULTS_FILE" 2>/dev/null || true)
+                AUTH_COUNT=${AUTH_COUNT:-0}
+                AUTH_STATUS="completed"
+              else
+                AUTH_STATUS="results missing"
+              fi
+            else
+              AUTH_STATUS="seed phase ${SEED_AUTH_OUTCOME:-unknown}"
+            fi
+          fi
+
+          echo "📊 CI flows: $CI_COUNT | Authenticated flows: $AUTH_COUNT ($AUTH_STATUS)"
 
   android-e2e:
     name: E2E Tests (Android / Maestro)
@@ -541,7 +662,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
@@ -660,7 +781,7 @@ jobs:
         timeout-minutes: 55
 
       - name: 📸 Upload Android E2E results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: android-e2e-results
@@ -668,7 +789,7 @@ jobs:
           retention-days: 7
 
       - name: 📦 Upload Android APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: android-test-apk
@@ -710,7 +831,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: 🔧 Install k6
         run: |
