@@ -8,6 +8,7 @@
 import { notificationLogger } from '../utils/logger';
 import { i18n } from '../i18n';
 import { supabase } from './supabase';
+import { registerForPushNotificationsAsync, savePushTokenToDatabase } from './notificationService';
 
 // ─── Rate Limiting ────────────────────────────────────────────────────────── //
 // Max 1 notification per user per event type per 30 seconds
@@ -168,6 +169,29 @@ async function sendPushNotification(payload: NotificationPayload): Promise<boole
             );
           } else if (err.details?.error === 'DeviceNotRegistered') {
             notificationLogger.warn('⚠️ [sendPushNotification] Device token expired or invalid');
+          } else if (err.details?.error === 'UNREGISTERED') {
+            notificationLogger.warn(
+              '⚠️ [sendPushNotification] FCM UNREGISTERED — triggering background re-registration'
+            );
+            // Fire-and-forget: re-register this device's push token after FCM invalidated it
+            supabase.auth
+              .getUser()
+              .then(({ data: authData }) => {
+                if (!authData?.user) return;
+                const uid = authData.user.id;
+                registerForPushNotificationsAsync()
+                  .then(newToken => {
+                    if (newToken) return savePushTokenToDatabase(uid, newToken);
+                  })
+                  .then(ok => {
+                    if (ok)
+                      notificationLogger.info(
+                        '✅ [sendPushNotification] Push token re-registered after UNREGISTERED'
+                      );
+                  })
+                  .catch(() => {}); // non-critical
+              })
+              .catch(() => {});
           } else {
             notificationLogger.error(`❌ [sendPushNotification] Error ${idx + 1}:`, err.message);
           }

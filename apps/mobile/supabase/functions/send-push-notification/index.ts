@@ -865,13 +865,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log('✅ Notifications sent via FCM v1 API:', results)
+    const sentCount = results.filter((r: { status: string }) => r.status === 'ok').length;
+    console.log(`✅ Notifications sent via FCM v1 API: ${sentCount}/${messages.length} succeeded`, results)
 
     // Return success response
     return new Response(
       JSON.stringify({
         success: true,
-        sent: messages.length,
+        sent: sentCount,
         results: results,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

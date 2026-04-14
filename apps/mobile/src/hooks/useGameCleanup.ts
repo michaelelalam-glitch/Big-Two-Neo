@@ -98,8 +98,9 @@ export function useGameCleanup({
           // (before the component unmounts) so the server-side timer starts
           // immediately and HomeScreen can show the 60s countdown.
           // 7.10: Use preventDefault + await + dispatch so the call is guaranteed
-          // to reach the server before the screen unmounts. A 3s timeout ensures
+          // to reach the server before the screen unmounts. A 5s timeout ensures
           // we never block navigation indefinitely on network failure.
+          // (Increased from 3s — edge function needs ~4s on slow connections)
           const currentRoomId = roomIdRef.current;
           if (isOnlineRoom && currentRoomId) {
             cleanupInProgress = true;
@@ -127,7 +128,7 @@ export function useGameCleanup({
                   })
                   .catch((err: unknown) => ({ error: err })),
                 new Promise<{ error: Error }>(resolve =>
-                  setTimeout(() => resolve({ error: new Error('mark-disconnected timeout') }), 3000)
+                  setTimeout(() => resolve({ error: new Error('mark-disconnected timeout') }), 5000)
                 ),
               ]);
               if (markResult.error) {
