@@ -28,7 +28,7 @@ import {
 } from '../utils/edgeFunctionErrors';
 import { gameLogger } from '../utils/logger';
 import { soundManager, SoundType, showError } from '../utils';
-import { notifyPlayerTurn, notifyGameEnded } from '../services/pushNotificationTriggers';
+import { notifyGameEnded } from '../services/pushNotificationTriggers';
 
 // Alias for internal use
 type PlayerMatchScoreDetail = MultiplayerMatchScoreDetail;
@@ -292,18 +292,7 @@ export async function executePlayCards({
 
   // --- Push notification: notify next player it's their turn ---
   if (!matchWillEnd && result.next_turn !== undefined && !alreadyFinished) {
-    const nextPlayer = roomPlayers.find(p => p.player_index === result.next_turn);
-    // Only notify if the next player is NOT the current player (no self-notification)
-    if (
-      nextPlayer?.user_id &&
-      nextPlayer.user_id !== currentPlayer?.user_id &&
-      room?.id &&
-      room?.code
-    ) {
-      notifyPlayerTurn(nextPlayer.user_id, room.code, room.id).catch(err =>
-        gameLogger.warn('[useRealtime] ⚠️ notifyPlayerTurn failed (non-fatal):', err)
-      );
-    }
+    // Server-side Edge Functions (play-cards) already send your_turn push notification
   }
 
   // --- Match end / game over broadcasting ---
@@ -561,17 +550,7 @@ export async function executePass({
 
   // --- Push notification: notify next player it's their turn ---
   if (result.next_turn !== undefined) {
-    const nextPlayer = roomPlayers.find(p => p.player_index === result.next_turn);
-    if (
-      nextPlayer?.user_id &&
-      nextPlayer.user_id !== currentPlayer?.user_id &&
-      room?.id &&
-      room?.code
-    ) {
-      notifyPlayerTurn(nextPlayer.user_id, room.code, room.id).catch(err =>
-        gameLogger.warn('[useRealtime] ⚠️ notifyPlayerTurn failed (non-fatal):', err)
-      );
-    }
+    // Server-side Edge Functions (player-pass) already send your_turn push notification
   }
 
   // Wait for Realtime propagation
