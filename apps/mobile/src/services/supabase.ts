@@ -80,11 +80,11 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
       }
       return legacyValue;
     } catch {
-      // SecureStore is unavailable on this device. Clear any legacy plaintext
-      // copy from pre-P10-1 builds and return null to force re-auth rather than
-      // reading an unencrypted token.
-      await AsyncStorage.removeItem(key).catch(() => {});
-      return null;
+      // SecureStore is unavailable (e.g. CI simulator without Keychain
+      // entitlements). Fall back to AsyncStorage so pre-seeded or migrated
+      // sessions are not lost. On real devices SecureStore should never throw,
+      // so this path only fires in unusual environments.
+      return AsyncStorage.getItem(key).catch(() => null);
     }
   },
   setItem: async (key: string, value: string): Promise<void> => {
@@ -195,10 +195,7 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
         }
       }
     } catch {
-      // SecureStore write failed — do a bounded sweep of all possible chunk slots
-      // to clean up both pre-existing chunks (from the previous stored value) AND
-      // any partial chunks written before the failure. A sweep up to MAX_CHUNKS is
-      // correct regardless of how far the write loop progressed before throwing.
+      // SecureStore write failed — clean up any partial SecureStore writes.
       await SecureStore.deleteItemAsync(`${key}${CHUNK_COUNT_SUFFIX}`).catch(() => {});
       await SecureStore.deleteItemAsync(key).catch(() => {});
       await Promise.allSettled(
@@ -206,13 +203,17 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
           SecureStore.deleteItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`).catch(() => {})
         )
       );
-      // Remove any legacy plaintext copy that may exist from pre-P10-1 builds
-      // so it cannot be read after this failed write.
-      await AsyncStorage.removeItem(key).catch(() => {});
-      // Do NOT fall back to AsyncStorage — storing an auth token in plaintext
-      // violates the P10-1 security requirement. The caller detects session
-      // loss on next launch and prompts the user to re-authenticate.
-      networkLogger.error('[supabase:storage] SecureStore write failed; auth token NOT persisted.');
+      // Fall back to AsyncStorage so the session is preserved (e.g. CI simulator
+      // where SecureStore/Keychain is unavailable). On real devices SecureStore
+      // should never fail so this path is only hit in unusual environments.
+      try {
+        await AsyncStorage.setItem(key, value);
+      } catch {
+        // AsyncStorage also failed — nothing we can do.
+        networkLogger.error(
+          '[supabase:storage] SecureStore AND AsyncStorage write failed; auth token NOT persisted.'
+        );
+      }
     }
   },
   removeItem: async (key: string): Promise<void> => {

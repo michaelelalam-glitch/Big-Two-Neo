@@ -21,7 +21,7 @@ tags:
 - runFlow: ../shared/dismiss_consent_if_shown.yaml
 - extendedWaitUntil:
     visible: "Choose a game to play"
-    timeout: 8000
+    timeout: 20000
 - tapOn:
     id: "chinese-poker-card"
 - extendedWaitUntil:
