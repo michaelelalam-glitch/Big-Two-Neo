@@ -13,7 +13,15 @@
  */
 
 import React from 'react';
-import { View, StyleSheet, Text, Pressable, TouchableOpacity, Alert } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Text,
+  Pressable,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { i18n } from '../../i18n';
 import { scoreDisplayStyles } from '../../styles/scoreDisplayStyles';
@@ -101,6 +109,9 @@ export interface LandscapeGameLayoutProps {
   disabled?: boolean;
   canPlay?: boolean;
   canPass?: boolean;
+  /** Loading state for spinner feedback on Play/Pass buttons */
+  isPlaying?: boolean;
+  isPassing?: boolean;
 
   /** Throwables (multiplayer only) */
   onThrowPress?: () => void;
@@ -186,6 +197,8 @@ export const LandscapeGameLayout = React.memo(function LandscapeGameLayout({
   disabled = false,
   canPlay = false,
   canPass = false,
+  isPlaying = false,
+  isPassing = false,
   onThrowPress,
   isThrowCooldown = false,
   cooldownRemaining = 0,
@@ -648,12 +661,20 @@ export const LandscapeGameLayout = React.memo(function LandscapeGameLayout({
             <Pressable
               style={[styles.playButton, (!canPlay || disabled) && { opacity: 0.5 }]}
               onPress={onPlay}
-              disabled={!canPlay || disabled}
+              disabled={!canPlay || disabled || isPlaying}
               hitSlop={8}
               accessibilityLabel="Play cards"
               accessibilityRole="button"
             >
-              <Text style={styles.playButtonText}>{i18n.t('game.play')}</Text>
+              {isPlaying ? (
+                <ActivityIndicator
+                  size="small"
+                  color="#ffffff"
+                  accessibilityLabel="Playing cards"
+                />
+              ) : (
+                <Text style={styles.playButtonText}>{i18n.t('game.play')}</Text>
+              )}
             </Pressable>
             <Pressable
               style={[styles.smartButton, disabled && { opacity: 0.5 }]}
@@ -679,12 +700,16 @@ export const LandscapeGameLayout = React.memo(function LandscapeGameLayout({
             <Pressable
               style={[styles.passButton, (!canPass || disabled) && { opacity: 0.5 }]}
               onPress={onPass}
-              disabled={!canPass || disabled}
+              disabled={!canPass || disabled || isPassing}
               hitSlop={8}
               accessibilityLabel="Pass turn"
               accessibilityRole="button"
             >
-              <Text style={styles.passButtonText}>{i18n.t('game.pass')}</Text>
+              {isPassing ? (
+                <ActivityIndicator size="small" color="#cccccc" accessibilityLabel="Passing turn" />
+              ) : (
+                <Text style={styles.passButtonText}>{i18n.t('game.pass')}</Text>
+              )}
             </Pressable>
             <Pressable
               style={[styles.sortButton, disabled && { opacity: 0.5 }]}
