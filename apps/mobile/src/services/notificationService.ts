@@ -156,7 +156,9 @@ export async function savePushTokenToDatabase(userId: string, pushToken: string)
         updated_at: new Date().toISOString(),
       },
       {
-        onConflict: 'user_id',
+        // Must match the actual DB unique constraint: UNIQUE (user_id, push_token)
+        // Using just 'user_id' would fail — there is no unique constraint on user_id alone.
+        onConflict: 'user_id,push_token',
       }
     );
 
