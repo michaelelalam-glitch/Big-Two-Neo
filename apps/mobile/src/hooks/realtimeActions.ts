@@ -28,7 +28,6 @@ import {
 } from '../utils/edgeFunctionErrors';
 import { gameLogger } from '../utils/logger';
 import { soundManager, SoundType, showError } from '../utils';
-import { notifyGameEnded } from '../services/pushNotificationTriggers';
 
 // Alias for internal use
 type PlayerMatchScoreDetail = MultiplayerMatchScoreDetail;
@@ -300,22 +299,8 @@ export async function executePlayCards({
       });
       gameLogger.info('[useRealtime] 📡 Broadcast: GAME OVER');
 
-      // --- Push notification: notify all players game ended ---
-      if (room?.id && room?.code) {
-        const winnerPlayer = roomPlayers.find(p => p.player_index === finalWinnerIndex);
-        const winnerName = winnerPlayer?.username || 'Unknown';
-        const winnerUserId = winnerPlayer?.user_id;
-
-        if (winnerUserId) {
-          notifyGameEnded(room.id, room.code, winnerName, winnerUserId).catch(err =>
-            gameLogger.warn('[useRealtime] ⚠️ notifyGameEnded failed (non-fatal):', err)
-          );
-        } else {
-          gameLogger.warn(
-            '[useRealtime] ⚠️ Skipping notifyGameEnded — winner has no valid user_id'
-          );
-        }
-      }
+      // Server-side Edge Function (complete-game) already sends game_ended push notifications
+      // to winner and other human players. No client-side notification needed.
 
       // Score history is now managed exclusively by useMultiplayerScoreHistory (reads from
       // game_state.scores_history via Realtime).  Game-end modal is opened exclusively by
