@@ -649,6 +649,7 @@ export const LandscapeGameLayout = React.memo(function LandscapeGameLayout({
               style={[styles.playButton, (!canPlay || disabled) && { opacity: 0.5 }]}
               onPress={onPlay}
               disabled={!canPlay || disabled}
+              hitSlop={8}
               accessibilityLabel="Play cards"
               accessibilityRole="button"
             >
@@ -658,6 +659,7 @@ export const LandscapeGameLayout = React.memo(function LandscapeGameLayout({
               style={[styles.smartButton, disabled && { opacity: 0.5 }]}
               onPress={onSmartSort}
               disabled={disabled}
+              hitSlop={8}
               accessibilityLabel="Smart sort"
               accessibilityRole="button"
             >
@@ -678,6 +680,7 @@ export const LandscapeGameLayout = React.memo(function LandscapeGameLayout({
               style={[styles.passButton, (!canPass || disabled) && { opacity: 0.5 }]}
               onPress={onPass}
               disabled={!canPass || disabled}
+              hitSlop={8}
               accessibilityLabel="Pass turn"
               accessibilityRole="button"
             >
@@ -687,6 +690,7 @@ export const LandscapeGameLayout = React.memo(function LandscapeGameLayout({
               style={[styles.sortButton, disabled && { opacity: 0.5 }]}
               onPress={onSort}
               disabled={disabled}
+              hitSlop={8}
               accessibilityLabel="Sort cards"
               accessibilityRole="button"
             >
@@ -703,6 +707,7 @@ export const LandscapeGameLayout = React.memo(function LandscapeGameLayout({
               style={[styles.hintButton, disabled && { opacity: 0.5 }]}
               onPress={onHint}
               disabled={disabled}
+              hitSlop={8}
               accessibilityLabel="Get hint"
               accessibilityRole="button"
             >
@@ -822,7 +827,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 8,
     left: 130, // Leave space for Steve Peterson in FAR LEFT
-    right: 220, // Leave space for Play/Pass + helper buttons on right (increased from 150)
+    right: 150, // Leave space for Play/Pass + helper buttons on right
     zIndex: 100,
   },
 
@@ -874,7 +879,7 @@ const styles = StyleSheet.create({
   actionButtonsContainer: {
     position: 'absolute',
     bottom: 12,
-    right: 8,
+    right: -24,
     flexDirection: 'column',
     gap: 6,
     zIndex: 110, // Must be ABOVE yourPosition (100) so buttons receive touches
