@@ -551,7 +551,7 @@ Deno.serve(async (req) => {
     }
 
     // Validate required fields for game-related notifications
-    if (data?.type && ['game_invite', 'your_turn', 'game_started'].includes(data.type)) {
+    if (data?.type && ['game_invite', 'room_invite', 'your_turn', 'player_turn', 'game_started'].includes(data.type)) {
       if (!data.roomCode) {
         return new Response(
           JSON.stringify({ error: 'roomCode is required for game notification types' }),
