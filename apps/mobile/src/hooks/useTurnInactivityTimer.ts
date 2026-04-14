@@ -15,9 +15,11 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { Vibration, AppState } from 'react-native';
 import type { GameState, Player, BroadcastEvent, BroadcastData, Card } from '../types/multiplayer';
 import { invokeWithRetry } from '../utils/edgeFunctionRetry';
 import { networkLogger } from '../utils/logger';
+import { hapticManager } from '../utils/hapticManager';
 import { turnTimeStart, turnTimeEnd } from '../services/analytics';
 import type { ConnectionStatus } from '../components/ConnectionStatusIndicator';
 
@@ -332,6 +334,16 @@ export function useTurnInactivityTimer({
         lastAutoPlayAttemptRef.current = 0;
         // Start tracking how long the player takes for this turn.
         turnTimeStart();
+
+        // Vibrate to alert the player it's their turn (only when app is in foreground
+        // and user has haptics/vibration enabled)
+        if (AppState.currentState === 'active' && hapticManager.isHapticsEnabled()) {
+          try {
+            Vibration.vibrate([0, 400, 200, 400]);
+          } catch {
+            /* noop in test/unsupported */
+          }
+        }
 
         // CLOCK SKEW FIX: Use getCorrectedNow() (which applies the measured server
         // clock offset) to determine if the server timestamp is in the future.

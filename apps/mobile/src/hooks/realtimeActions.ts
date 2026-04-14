@@ -298,6 +298,10 @@ export async function executePlayCards({
         match_number: currentMatchNumber,
       });
       gameLogger.info('[useRealtime] 📡 Broadcast: GAME OVER');
+
+      // Server-side Edge Function (complete-game) already sends game_ended push notifications
+      // to winner and other human players. No client-side notification needed.
+
       // Score history is now managed exclusively by useMultiplayerScoreHistory (reads from
       // game_state.scores_history via Realtime).  Game-end modal is opened exclusively by
       // useMatchEndHandler (reads from multiplayerGameState after postgres_changes update).

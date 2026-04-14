@@ -11,6 +11,18 @@
 // Mock Supabase BEFORE imports
 jest.mock('../../services/supabase');
 
+// Mock push notification triggers (fire-and-forget in realtimeActions)
+jest.mock('../../services/pushNotificationTriggers', () => ({
+  notifyPlayerTurn: jest.fn().mockResolvedValue(undefined),
+  notifyGameEnded: jest.fn().mockResolvedValue(undefined),
+  notifyGameStarted: jest.fn().mockResolvedValue(undefined),
+  notifyAllPlayersReady: jest.fn().mockResolvedValue(undefined),
+  notifyPlayerJoined: jest.fn().mockResolvedValue(undefined),
+  notifyRoomInvite: jest.fn().mockResolvedValue(undefined),
+  notifyFriendRequest: jest.fn().mockResolvedValue(undefined),
+  notifyFriendAccepted: jest.fn().mockResolvedValue(undefined),
+}));
+
 // Mock Edge Function calls
 jest.mock('../../utils/edgeFunctionRetry', () => ({
   invokeWithRetry: jest.fn().mockResolvedValue({
@@ -129,17 +141,13 @@ describe('useRealtime', () => {
   describe('Error Handling', () => {
     it('should accept onError callback', () => {
       const onError = jest.fn();
-      const { result } = renderHook(() =>
-        useRealtime({ ...mockOptions, onError })
-      );
+      const { result } = renderHook(() => useRealtime({ ...mockOptions, onError }));
       expect(result.current.error).toBeNull();
     });
 
     it('should accept onDisconnect callback', () => {
       const onDisconnect = jest.fn();
-      const { result } = renderHook(() =>
-        useRealtime({ ...mockOptions, onDisconnect })
-      );
+      const { result } = renderHook(() => useRealtime({ ...mockOptions, onDisconnect }));
       expect(result.current.isConnected).toBe(false);
     });
   });
@@ -194,5 +202,4 @@ describe('useRealtime', () => {
       ).rejects.toThrow();
     });
   });
-
 });

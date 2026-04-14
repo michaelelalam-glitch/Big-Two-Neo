@@ -551,7 +551,7 @@ Deno.serve(async (req) => {
     }
 
     // Validate required fields for game-related notifications
-    if (data?.type && ['game_invite', 'your_turn', 'game_started'].includes(data.type)) {
+    if (data?.type && ['game_invite', 'room_invite', 'your_turn', 'player_turn', 'game_started'].includes(data.type)) {
       if (!data.roomCode) {
         return new Response(
           JSON.stringify({ error: 'roomCode is required for game notification types' }),
@@ -713,12 +713,15 @@ Deno.serve(async (req) => {
         switch (data.type) {
           case 'game_invite':
           case 'game_started':
+          case 'room_invite':
             message.channelId = 'game-updates'
             break
           case 'your_turn':
+          case 'player_turn':
             message.channelId = 'turn-notifications'
             break
           case 'friend_request':
+          case 'friend_accepted':
             message.channelId = 'social'
             break
           default:
@@ -778,7 +781,11 @@ Deno.serve(async (req) => {
               title: message.title,
               body: message.body,
             },
-            data: message.data || {},
+            // FCM v1 API requires ALL data values to be strings.
+            // Non-string values (booleans, numbers) cause silent message rejection.
+            data: Object.fromEntries(
+              Object.entries(message.data || {}).map(([k, v]) => [k, String(v)])
+            ),
             android: {
               priority: 'high',
               notification: {
