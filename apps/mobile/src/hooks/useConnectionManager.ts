@@ -171,17 +171,7 @@ export function useConnectionManager({
     }
   }, []);
 
-  // P2-6 FIX: Stop heartbeats when the game has finished/ended to avoid wasted
-  // network traffic in rooms that are no longer active.
-  useEffect(() => {
-    if (gamePhase === 'finished' || gamePhase === 'game_over') {
-      networkLogger.debug(
-        '[ConnectionManager] Game ended — stopping heartbeats (phase=%s)',
-        gamePhase
-      );
-      stopHeartbeat();
-    }
-  }, [gamePhase, stopHeartbeat]);
+  // P2-6 game-phase heartbeat management moved below startHeartbeat definition
 
   // P2-2 FIX: Debounced transition to 'reconnecting'. Clears any pending debounce when
   // the connection recovers so brief blips don't trigger the indicator.
@@ -335,6 +325,27 @@ export function useConnectionManager({
     sendHeartbeat(); // immediate first beat
     heartbeatIntervalRef.current = setInterval(sendHeartbeat, HEARTBEAT_NORMAL_INTERVAL);
   }, [sendHeartbeat, stopHeartbeat, cancelReconnectingDebounce]);
+
+  // P2-6 FIX: Stop heartbeats when the game has finished/ended to avoid wasted
+  // network traffic in rooms that are no longer active.
+  // CRITICAL: Restart heartbeats when a new match begins (gamePhase returns to
+  // 'playing') to prevent all players from appearing stale after the ~30s threshold,
+  // which causes a mass disconnect + bot-replacement cascade.
+  useEffect(() => {
+    if (gamePhase === 'finished' || gamePhase === 'game_over') {
+      networkLogger.debug(
+        '[ConnectionManager] Game ended — stopping heartbeats (phase=%s)',
+        gamePhase
+      );
+      stopHeartbeat();
+    } else if (gamePhase === 'playing') {
+      networkLogger.debug(
+        '[ConnectionManager] Match started — restarting heartbeats (phase=%s)',
+        gamePhase
+      );
+      startHeartbeat();
+    }
+  }, [gamePhase, stopHeartbeat, startHeartbeat]);
 
   // ── Rejoin status check ───────────────────────────────────────────────────
 
