@@ -320,9 +320,17 @@ export async function executePlayCards({
       if (room?.id && room?.code) {
         const winnerPlayer = roomPlayers.find(p => p.player_index === finalWinnerIndex);
         const winnerName = winnerPlayer?.username || 'Unknown';
-        notifyGameEnded(room.id, room.code, winnerName, winnerPlayer?.user_id || '').catch(err =>
-          gameLogger.warn('[useRealtime] ⚠️ notifyGameEnded failed (non-fatal):', err)
-        );
+        const winnerUserId = winnerPlayer?.user_id;
+
+        if (winnerUserId) {
+          notifyGameEnded(room.id, room.code, winnerName, winnerUserId).catch(err =>
+            gameLogger.warn('[useRealtime] ⚠️ notifyGameEnded failed (non-fatal):', err)
+          );
+        } else {
+          gameLogger.warn(
+            '[useRealtime] ⚠️ Skipping notifyGameEnded — winner has no valid user_id'
+          );
+        }
       }
 
       // Score history is now managed exclusively by useMultiplayerScoreHistory (reads from

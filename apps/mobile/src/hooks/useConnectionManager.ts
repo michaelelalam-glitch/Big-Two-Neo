@@ -338,14 +338,14 @@ export function useConnectionManager({
         gamePhase
       );
       stopHeartbeat();
-    } else if (gamePhase === 'playing') {
+    } else if (gamePhase === 'playing' && enabled && appStateRef.current === 'active') {
       networkLogger.debug(
         '[ConnectionManager] Match started — restarting heartbeats (phase=%s)',
         gamePhase
       );
       startHeartbeat();
     }
-  }, [gamePhase, stopHeartbeat, startHeartbeat]);
+  }, [gamePhase, enabled, stopHeartbeat, startHeartbeat]);
 
   // ── Rejoin status check ───────────────────────────────────────────────────
 
