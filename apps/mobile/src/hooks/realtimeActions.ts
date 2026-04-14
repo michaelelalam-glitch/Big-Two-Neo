@@ -290,11 +290,6 @@ export async function executePlayCards({
   gameLogger.info('[useRealtime] ⏳ Waiting 50ms for Realtime sync...');
   await new Promise(resolve => setTimeout(resolve, 50));
 
-  // --- Push notification: notify next player it's their turn ---
-  if (!matchWillEnd && result.next_turn !== undefined && !alreadyFinished) {
-    // Server-side Edge Functions (play-cards) already send your_turn push notification
-  }
-
   // --- Match end / game over broadcasting ---
   if (matchWillEnd && matchScores && !alreadyFinished) {
     if (gameOver && finalWinnerIndex !== null) {
@@ -547,11 +542,6 @@ export async function executePass({
 
   // Broadcast pass event
   await broadcastMessage('player_passed', { player_index: passingPlayer.player_index });
-
-  // --- Push notification: notify next player it's their turn ---
-  if (result.next_turn !== undefined) {
-    // Server-side Edge Functions (player-pass) already send your_turn push notification
-  }
 
   // Wait for Realtime propagation
   gameLogger.info('[useRealtime] ⏳ Waiting 50ms for Realtime sync after pass...');
