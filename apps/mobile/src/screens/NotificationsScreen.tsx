@@ -38,6 +38,12 @@ function notifIcon(type: AppNotification['type']): string {
       return '⏰';
     case 'game_ended':
       return '🏁';
+    case 'player_joined':
+      return '👋';
+    case 'auto_pass_warning':
+      return '⏱️';
+    case 'all_players_ready':
+      return '✅';
     default:
       return '🔔';
   }
@@ -76,6 +82,13 @@ export default function NotificationsScreen() {
       // or camelCase roomCode; support both.
       const rc = (item.data?.room_code ?? item.data?.roomCode) as string | undefined;
       if (rc) navigation.navigate('Game', { roomCode: rc });
+    } else if (
+      (item.type === 'player_joined' || item.type === 'all_players_ready') &&
+      item.data?.roomCode
+    ) {
+      navigation.navigate('Lobby', { roomCode: item.data.roomCode as string });
+    } else if (item.type === 'auto_pass_warning' && item.data?.roomCode) {
+      navigation.navigate('Game', { roomCode: item.data.roomCode as string });
     }
   };
 

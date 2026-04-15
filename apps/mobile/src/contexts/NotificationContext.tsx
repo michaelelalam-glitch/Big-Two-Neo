@@ -33,7 +33,10 @@ export interface AppNotification {
     | 'friend_accepted'
     | 'game_started'
     | 'your_turn'
-    | 'game_ended';
+    | 'game_ended'
+    | 'player_joined'
+    | 'auto_pass_warning'
+    | 'all_players_ready';
   title: string;
   body: string;
   data: Record<string, unknown>;
@@ -55,6 +58,9 @@ const VALID_NOTIFICATION_TYPES = new Set<AppNotification['type']>([
   'game_started',
   'your_turn',
   'game_ended',
+  'player_joined',
+  'auto_pass_warning',
+  'all_players_ready',
 ]);
 
 /** Maps raw FCM type strings sent by some Edge Function code paths to the
@@ -165,15 +171,13 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       const aliasedType = rawType ? (TYPE_ALIASES[rawType] ?? rawType) : undefined;
       const isKnownType =
         !!aliasedType && VALID_NOTIFICATION_TYPES.has(aliasedType as AppNotification['type']);
-      // For completely unrecognised types with no display text (e.g. internal server
-      // events) there is nothing useful to store — drop silently.
-      // Unknown types that DO carry a title/body (e.g. the in-app 'test' notification
-      // from NotificationSettingsScreen) are stored as 'game_invite' — a safe generic
-      // type that never navigates without a roomCode.
-      if (!isKnownType && !content.title && !content.body) {
+      // Drop unrecognised types — all real server-sent types are in VALID_NOTIFICATION_TYPES.
+      // Silently dropping unknown types avoids incorrect icon/navigation assignments
+      // that would result from mapping an unknown type to a known one (e.g. game_invite).
+      if (!isKnownType) {
         return;
       }
-      const type = isKnownType ? (aliasedType as AppNotification['type']) : 'game_invite';
+      const type = aliasedType as AppNotification['type'];
       const data = (content.data ?? {}) as Record<string, unknown>;
 
       // On Android, FCM background notifications sometimes don't populate
@@ -223,6 +227,22 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
           } else {
             body = i18n.t('pushContent.gameOverTitle'); // minimal safe fallback
           }
+        } else if (type === 'player_joined') {
+          // data.player_name is set by notifyPlayerJoined; data.roomCode is camelCase
+          const joinerName = data.player_name as string | undefined;
+          const roomCode = (data.roomCode as string | undefined) ?? '';
+          body = joinerName
+            ? i18n.t('pushContent.playerJoinedBody', { joinerName, roomCode })
+            : i18n.t('pushContent.playerJoinedTitle');
+        } else if (type === 'auto_pass_warning') {
+          // data.seconds_remaining and data.roomCode are set by notifyAutoPassWarning
+          const seconds = (data.seconds_remaining as number | undefined) ?? 0;
+          const roomCode = (data.roomCode as string | undefined) ?? '';
+          body = i18n.t('pushContent.timeRunningOutBody', { seconds, roomCode });
+        } else if (type === 'all_players_ready') {
+          // data.roomCode is set by notifyAllPlayersReady
+          const roomCode = (data.roomCode as string | undefined) ?? '';
+          body = i18n.t('pushContent.readyToStartBody', { roomCode });
         }
       }
 
@@ -242,6 +262,12 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
           title = isWinner
             ? i18n.t('pushContent.victoryTitle')
             : i18n.t('pushContent.gameOverTitle');
+        } else if (type === 'player_joined') {
+          title = i18n.t('pushContent.playerJoinedTitle');
+        } else if (type === 'auto_pass_warning') {
+          title = i18n.t('pushContent.timeRunningOutTitle');
+        } else if (type === 'all_players_ready') {
+          title = i18n.t('pushContent.readyToStartTitle');
         }
       }
 
@@ -403,6 +429,13 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
           // game_ended payload uses snake_case room_code; support camelCase fallback too.
           const rc = (data.room_code ?? data.roomCode) as string | undefined;
           if (rc) pendingUrl = `big2mobile://game/${rc}`;
+        } else if (
+          (notifType === 'player_joined' || notifType === 'all_players_ready') &&
+          data.roomCode
+        ) {
+          pendingUrl = `big2mobile://lobby/${data.roomCode as string}`;
+        } else if (notifType === 'auto_pass_warning' && data.roomCode) {
+          pendingUrl = `big2mobile://game/${data.roomCode as string}`;
         } else if (notifType === 'friend_request' || notifType === 'friend_accepted') {
           pendingUrl = 'big2mobile://profile';
         }
@@ -440,6 +473,13 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
           // game_ended payload uses snake_case room_code from complete-game edge function.
           const rc = (data.room_code ?? data.roomCode) as string | undefined;
           if (rc) navigation.navigate('Game', { roomCode: rc });
+        } else if (
+          (notifType === 'player_joined' || notifType === 'all_players_ready') &&
+          data.roomCode
+        ) {
+          navigation.navigate('Lobby', { roomCode: data.roomCode as string });
+        } else if (notifType === 'auto_pass_warning' && data.roomCode) {
+          navigation.navigate('Game', { roomCode: data.roomCode as string });
         } else if (notifType === 'friend_request' || notifType === 'friend_accepted') {
           // Don't yank user out of an active Lobby/Game session for friend
           // notifications — navigate to Notifications instead so they can see
