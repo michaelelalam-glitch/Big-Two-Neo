@@ -399,6 +399,10 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
           pendingUrl = `big2mobile://lobby/${data.roomCode as string}?joining=true`;
         } else if ((notifType === 'your_turn' || notifType === 'game_started') && data.roomCode) {
           pendingUrl = `big2mobile://game/${data.roomCode as string}`;
+        } else if (notifType === 'game_ended') {
+          // game_ended payload uses snake_case room_code; support camelCase fallback too.
+          const rc = (data.room_code ?? data.roomCode) as string | undefined;
+          if (rc) pendingUrl = `big2mobile://game/${rc}`;
         } else if (notifType === 'friend_request' || notifType === 'friend_accepted') {
           pendingUrl = 'big2mobile://profile';
         }
@@ -432,6 +436,10 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
           navigation.navigate('Game', { roomCode: data.roomCode as string });
         } else if (notifType === 'game_started' && data.roomCode) {
           navigation.navigate('Game', { roomCode: data.roomCode as string });
+        } else if (notifType === 'game_ended') {
+          // game_ended payload uses snake_case room_code from complete-game edge function.
+          const rc = (data.room_code ?? data.roomCode) as string | undefined;
+          if (rc) navigation.navigate('Game', { roomCode: rc });
         } else if (notifType === 'friend_request' || notifType === 'friend_accepted') {
           // Don't yank user out of an active Lobby/Game session for friend
           // notifications — navigate to Notifications instead so they can see
