@@ -55,6 +55,13 @@ const VALID_NOTIFICATION_TYPES = new Set<AppNotification['type']>([
   'your_turn',
 ]);
 
+/** Maps raw FCM type strings sent by some Edge Function code paths to the
+ *  canonical client-side type. Mirrors the alias table in
+ *  send-push-notification/index.ts so the mobile client stays in sync. */
+const TYPE_ALIASES: Record<string, AppNotification['type']> = {
+  player_turn: 'your_turn', // legacy alias used in send-push-notification
+};
+
 interface NotificationContextData {
   expoPushToken: string | null;
   notification: Notifications.Notification | null;
@@ -151,12 +158,14 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       if (!user?.id) return;
       const content = notif.request.content;
       const rawType = content.data?.type as string | undefined;
-      // Validate rawType against the known set so unknown values (e.g. 'test')
-      // from local test notifications don't bypass type safety or Android fallback logic.
-      const type: AppNotification['type'] =
-        rawType && VALID_NOTIFICATION_TYPES.has(rawType as AppNotification['type'])
-          ? (rawType as AppNotification['type'])
-          : 'game_invite';
+      // Apply Edge Function type aliases before validating (e.g. player_turn → your_turn)
+      const aliasedType = rawType ? (TYPE_ALIASES[rawType] ?? rawType) : undefined;
+      // Skip storage for unrecognised types (e.g. game_ended, 'test') rather than
+      // misclassifying them as game_invite.
+      if (!aliasedType || !VALID_NOTIFICATION_TYPES.has(aliasedType as AppNotification['type'])) {
+        return;
+      }
+      const type = aliasedType as AppNotification['type'];
       const data = (content.data ?? {}) as Record<string, unknown>;
 
       // On Android, FCM background notifications sometimes don't populate
@@ -330,6 +339,11 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
   const handleNotificationResponse = useCallback(
     (response: Notifications.NotificationResponse) => {
       const data = response.notification.request.content.data;
+      // Normalise raw FCM type through aliases (mirrors addStoredNotification)
+      const rawNotifType = data.type as string | undefined;
+      const notifType: string | undefined = rawNotifType
+        ? (TYPE_ALIASES[rawNotifType] ?? rawNotifType)
+        : undefined;
       // Only log notification type and room code, redact user IDs and other sensitive data
       const sanitizedData = {
         type: data.type,
@@ -350,11 +364,11 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
         // AppNavigator's pendingLinkRef captures it and replays the navigation
         // after the user signs in.
         let pendingUrl: string | null = null;
-        if ((data.type === 'game_invite' || data.type === 'room_invite') && data.roomCode) {
+        if ((notifType === 'game_invite' || notifType === 'room_invite') && data.roomCode) {
           pendingUrl = `big2mobile://lobby/${data.roomCode as string}?joining=true`;
-        } else if ((data.type === 'your_turn' || data.type === 'game_started') && data.roomCode) {
+        } else if ((notifType === 'your_turn' || notifType === 'game_started') && data.roomCode) {
           pendingUrl = `big2mobile://game/${data.roomCode as string}`;
-        } else if (data.type === 'friend_request' || data.type === 'friend_accepted') {
+        } else if (notifType === 'friend_request' || notifType === 'friend_accepted') {
           pendingUrl = 'big2mobile://profile';
         }
         if (pendingUrl) {
@@ -381,13 +395,13 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       const isInGame = activeRoute === 'Game';
 
       const doNavigate = () => {
-        if ((data.type === 'game_invite' || data.type === 'room_invite') && data.roomCode) {
+        if ((notifType === 'game_invite' || notifType === 'room_invite') && data.roomCode) {
           navigation.navigate('Lobby', { roomCode: data.roomCode as string, joining: true });
-        } else if (data.type === 'your_turn' && data.roomCode) {
+        } else if (notifType === 'your_turn' && data.roomCode) {
           navigation.navigate('Game', { roomCode: data.roomCode as string });
-        } else if (data.type === 'game_started' && data.roomCode) {
+        } else if (notifType === 'game_started' && data.roomCode) {
           navigation.navigate('Game', { roomCode: data.roomCode as string });
-        } else if (data.type === 'friend_request' || data.type === 'friend_accepted') {
+        } else if (notifType === 'friend_request' || notifType === 'friend_accepted') {
           // Don't yank user out of an active Lobby/Game session for friend
           // notifications — navigate to Notifications instead so they can see
           // the update without losing their current game context.
@@ -408,10 +422,10 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       // if they are currently mid-game; social notifications navigate within app, no confirm.
       const requiresConfirm =
         isInGame &&
-        (data.type === 'game_invite' ||
-          data.type === 'room_invite' ||
-          data.type === 'your_turn' ||
-          data.type === 'game_started');
+        (notifType === 'game_invite' ||
+          notifType === 'room_invite' ||
+          notifType === 'your_turn' ||
+          notifType === 'game_started');
 
       if (requiresConfirm) {
         Alert.alert(

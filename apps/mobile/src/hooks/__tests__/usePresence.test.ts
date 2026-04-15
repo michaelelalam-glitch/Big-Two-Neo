@@ -200,6 +200,79 @@ describe('usePresence', () => {
     });
   });
 
+  describe('showOnlineStatus=false blocks presence events (guard)', () => {
+    /** Helper: builds a channel mock whose .on() captures callbacks by event name. */
+    function makeCapturingChannel() {
+      const handlers: Record<string, (payload?: unknown) => void> = {};
+      const presenceStateMock = jest.fn().mockReturnValue({ key1: [{ user_id: 'user-99' }] });
+      const ch = {
+        on: jest
+          .fn()
+          .mockImplementation(
+            (_type: string, opts: { event: string }, cb: (payload?: unknown) => void) => {
+              handlers[opts.event] = cb;
+              return ch;
+            }
+          ),
+        subscribe: jest.fn().mockReturnThis(),
+        untrack: jest.fn().mockResolvedValue({}),
+        track: jest.fn().mockResolvedValue({}),
+        presenceState: presenceStateMock,
+      };
+      return { ch, handlers };
+    }
+
+    it('does not populate onlineUserIds on sync when showOnlineStatus is false', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { useUserPreferencesStore } = require('../../store/userPreferencesSlice');
+      const mockState = (useUserPreferencesStore as any).__state;
+      mockState.showOnlineStatus = false;
+
+      (useAuth as jest.Mock).mockReturnValue({ user: { id: 'user-1' } });
+
+      const { ch, handlers } = makeCapturingChannel();
+      (supabase.channel as jest.Mock).mockReturnValue(ch);
+
+      const { result } = renderHook(() => usePresence());
+
+      // Fire the sync event — the guard should prevent onlineUserIds from being set
+      await act(async () => {
+        handlers['sync']?.();
+        await Promise.resolve();
+      });
+
+      expect(result.current.onlineUserIds.size).toBe(0);
+
+      // Restore
+      mockState.showOnlineStatus = true;
+    });
+
+    it('does not populate onlineUserIds on join when showOnlineStatus is false', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { useUserPreferencesStore } = require('../../store/userPreferencesSlice');
+      const mockState = (useUserPreferencesStore as any).__state;
+      mockState.showOnlineStatus = false;
+
+      (useAuth as jest.Mock).mockReturnValue({ user: { id: 'user-1' } });
+
+      const { ch, handlers } = makeCapturingChannel();
+      (supabase.channel as jest.Mock).mockReturnValue(ch);
+
+      const { result } = renderHook(() => usePresence());
+
+      // Fire the join event — the guard should prevent onlineUserIds from being updated
+      await act(async () => {
+        handlers['join']?.({ newPresences: [{ user_id: 'user-99' }] });
+        await Promise.resolve();
+      });
+
+      expect(result.current.onlineUserIds.size).toBe(0);
+
+      // Restore
+      mockState.showOnlineStatus = true;
+    });
+  });
+
   describe('showOnlineStatus toggle', () => {
     it('calls untrack when showOnlineStatus is disabled', async () => {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
