@@ -166,18 +166,18 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       let body = content.body || '';
 
       if (!body) {
-        if (rawType === 'room_invite' || rawType === 'game_invite') {
+        if (type === 'room_invite' || type === 'game_invite') {
           const inviter = (data.inviter ?? data.inviterName) as string | undefined;
           const roomCode = data.roomCode as string | undefined;
           if (inviter && roomCode) {
             body = i18n.t('pushContent.roomInviteBody', { inviterName: inviter, roomCode });
           }
-        } else if (rawType === 'friend_request') {
+        } else if (type === 'friend_request') {
           const senderName = (data.senderName ?? data.sender) as string | undefined;
           if (senderName) {
             body = i18n.t('pushContent.friendRequestBody', { senderName });
           }
-        } else if (rawType === 'friend_accepted') {
+        } else if (type === 'friend_accepted') {
           const accepterName = (data.accepterName ?? data.senderName) as string | undefined;
           if (accepterName) {
             body = i18n.t('pushContent.friendAcceptedBody', { accepterName });
@@ -186,11 +186,11 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       }
 
       if (!title) {
-        if (rawType === 'room_invite' || rawType === 'game_invite') {
+        if (type === 'room_invite' || type === 'game_invite') {
           title = i18n.t('pushContent.roomInviteTitle');
-        } else if (rawType === 'friend_request') {
+        } else if (type === 'friend_request') {
           title = i18n.t('pushContent.friendRequestTitle');
-        } else if (rawType === 'friend_accepted') {
+        } else if (type === 'friend_accepted') {
           title = i18n.t('pushContent.friendAcceptedTitle');
         }
       }
