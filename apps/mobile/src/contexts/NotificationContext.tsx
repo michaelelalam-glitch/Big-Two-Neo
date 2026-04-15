@@ -32,7 +32,8 @@ export interface AppNotification {
     | 'friend_request'
     | 'friend_accepted'
     | 'game_started'
-    | 'your_turn';
+    | 'your_turn'
+    | 'game_ended';
   title: string;
   body: string;
   data: Record<string, unknown>;
@@ -53,11 +54,13 @@ const VALID_NOTIFICATION_TYPES = new Set<AppNotification['type']>([
   'friend_accepted',
   'game_started',
   'your_turn',
+  'game_ended',
 ]);
 
 /** Maps raw FCM type strings sent by some Edge Function code paths to the
- *  canonical client-side type. Mirrors the alias table in
- *  send-push-notification/index.ts so the mobile client stays in sync. */
+ *  canonical client-side type. This is the subset of server-side aliases
+ *  needed for mobile client compatibility; the Edge Function may define
+ *  additional aliases for preference or rate-limit normalization. */
 const TYPE_ALIASES: Record<string, AppNotification['type']> = {
   player_turn: 'your_turn', // legacy alias used in send-push-notification
 };
@@ -160,8 +163,8 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       const rawType = content.data?.type as string | undefined;
       // Apply Edge Function type aliases before validating (e.g. player_turn → your_turn)
       const aliasedType = rawType ? (TYPE_ALIASES[rawType] ?? rawType) : undefined;
-      // Skip storage for unrecognised types (e.g. game_ended, 'test') rather than
-      // misclassifying them as game_invite.
+      // Skip storage for truly unrecognised types (e.g. 'test', internal server types)
+      // rather than misclassifying them as game_invite.
       if (!aliasedType || !VALID_NOTIFICATION_TYPES.has(aliasedType as AppNotification['type'])) {
         return;
       }
@@ -197,6 +200,14 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
         } else if (type === 'game_started') {
           const roomCode = (data.roomCode as string | undefined) ?? '';
           body = i18n.t('pushContent.gameStartingBody', { roomCode });
+        } else if (type === 'game_ended') {
+          const winnerName = data.winnerName as string | undefined;
+          const roomCode = (data.roomCode as string | undefined) ?? '';
+          if (winnerName) {
+            body = i18n.t('pushContent.gameOverBody', { winnerName, roomCode });
+          } else {
+            body = i18n.t('pushContent.victoryBody', { roomCode });
+          }
         }
       }
 
@@ -211,6 +222,11 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
           title = i18n.t('pushContent.yourTurnTitle');
         } else if (type === 'game_started') {
           title = i18n.t('pushContent.gameStartingTitle');
+        } else if (type === 'game_ended') {
+          const winnerName = data.winnerName as string | undefined;
+          title = winnerName
+            ? i18n.t('pushContent.gameOverTitle')
+            : i18n.t('pushContent.victoryTitle');
         }
       }
 
