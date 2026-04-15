@@ -163,12 +163,17 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       const rawType = content.data?.type as string | undefined;
       // Apply Edge Function type aliases before validating (e.g. player_turn → your_turn)
       const aliasedType = rawType ? (TYPE_ALIASES[rawType] ?? rawType) : undefined;
-      // Skip storage for truly unrecognised types (e.g. 'test', internal server types)
-      // rather than misclassifying them as game_invite.
-      if (!aliasedType || !VALID_NOTIFICATION_TYPES.has(aliasedType as AppNotification['type'])) {
+      const isKnownType =
+        !!aliasedType && VALID_NOTIFICATION_TYPES.has(aliasedType as AppNotification['type']);
+      // For completely unrecognised types with no display text (e.g. internal server
+      // events) there is nothing useful to store — drop silently.
+      // Unknown types that DO carry a title/body (e.g. the in-app 'test' notification
+      // from NotificationSettingsScreen) are stored as 'game_invite' — a safe generic
+      // type that never navigates without a roomCode.
+      if (!isKnownType && !content.title && !content.body) {
         return;
       }
-      const type = aliasedType as AppNotification['type'];
+      const type = isKnownType ? (aliasedType as AppNotification['type']) : 'game_invite';
       const data = (content.data ?? {}) as Record<string, unknown>;
 
       // On Android, FCM background notifications sometimes don't populate
@@ -185,15 +190,18 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
             body = i18n.t('pushContent.roomInviteBody', { inviterName: inviter, roomCode });
           }
         } else if (type === 'friend_request') {
+          // data payload only carries senderId (no name); use name if somehow present,
+          // otherwise fall back to the title string which is self-contained.
           const senderName = (data.senderName ?? data.sender) as string | undefined;
-          if (senderName) {
-            body = i18n.t('pushContent.friendRequestBody', { senderName });
-          }
+          body = senderName
+            ? i18n.t('pushContent.friendRequestBody', { senderName })
+            : i18n.t('pushContent.friendRequestTitle');
         } else if (type === 'friend_accepted') {
+          // Same: accepterName may not be in data payload.
           const accepterName = (data.accepterName ?? data.senderName) as string | undefined;
-          if (accepterName) {
-            body = i18n.t('pushContent.friendAcceptedBody', { accepterName });
-          }
+          body = accepterName
+            ? i18n.t('pushContent.friendAcceptedBody', { accepterName })
+            : i18n.t('pushContent.friendAcceptedTitle');
         } else if (type === 'your_turn') {
           const roomCode = (data.roomCode as string | undefined) ?? '';
           body = i18n.t('pushContent.yourTurnBody', { roomCode });
@@ -201,12 +209,19 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
           const roomCode = (data.roomCode as string | undefined) ?? '';
           body = i18n.t('pushContent.gameStartingBody', { roomCode });
         } else if (type === 'game_ended') {
-          const winnerName = data.winnerName as string | undefined;
-          const roomCode = (data.roomCode as string | undefined) ?? '';
-          if (winnerName) {
+          // Payload fields from complete-game edge function:
+          //   winner      – winner's username (string)
+          //   room_code   – snake_case room code
+          //   is_winner   – boolean: true for the winning player, false for others
+          const winnerName = (data.winner ?? data.winnerName) as string | undefined;
+          const roomCode = ((data.room_code ?? data.roomCode) as string | undefined) ?? '';
+          const isWinner = data.is_winner === true || data.is_winner === 'true';
+          if (isWinner) {
+            body = i18n.t('pushContent.victoryBody', { roomCode });
+          } else if (winnerName) {
             body = i18n.t('pushContent.gameOverBody', { winnerName, roomCode });
           } else {
-            body = i18n.t('pushContent.victoryBody', { roomCode });
+            body = i18n.t('pushContent.gameOverTitle'); // minimal safe fallback
           }
         }
       }
@@ -223,10 +238,10 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
         } else if (type === 'game_started') {
           title = i18n.t('pushContent.gameStartingTitle');
         } else if (type === 'game_ended') {
-          const winnerName = data.winnerName as string | undefined;
-          title = winnerName
-            ? i18n.t('pushContent.gameOverTitle')
-            : i18n.t('pushContent.victoryTitle');
+          const isWinner = data.is_winner === true || data.is_winner === 'true';
+          title = isWinner
+            ? i18n.t('pushContent.victoryTitle')
+            : i18n.t('pushContent.gameOverTitle');
         }
       }
 

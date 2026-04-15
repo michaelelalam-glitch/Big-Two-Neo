@@ -36,6 +36,8 @@ function notifIcon(type: AppNotification['type']): string {
       return '🚀';
     case 'your_turn':
       return '⏰';
+    case 'game_ended':
+      return '🏁';
     default:
       return '🔔';
   }
