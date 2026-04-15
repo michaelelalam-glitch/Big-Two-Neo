@@ -219,6 +219,11 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
           );
         }
       } else {
+        // Production: fail closed — no plaintext writes. Also purge any stale
+        // plaintext copy that may have been written by a prior dev/CI build to
+        // prevent it from being silently read on next launch (belt-and-suspenders
+        // with the read-path fail-close, but defence-in-depth).
+        await AsyncStorage.removeItem(key).catch(() => {});
         networkLogger.error(
           '[supabase:storage] SecureStore write failed in production; auth token NOT persisted.'
         );

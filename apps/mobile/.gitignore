@@ -52,8 +52,11 @@ e2e/results/
 *.backup
 
 # platform config (contains API keys)
-# NOTE: google-services.json is intentionally committed — it's embedded in every APK
-# and is not a secret. Security comes from Firebase Security Rules, not hiding this file.
+# NOTE: google-services.json is intentionally committed — it is embedded in every
+# Android APK and its Firebase API key is restricted to package com.big2mobile.app
+# + the release SHA-1 certificate, making it safe to track.
+# ⚠️  SEC-02 audit finding: keys were rotated and restricted before commit.
+#     If keys are ever rotated again, update google-services.json accordingly.
 # GoogleService-Info.plist (iOS) is still gitignored since it may contain more sensitive data.
 GoogleService-Info.plist
 

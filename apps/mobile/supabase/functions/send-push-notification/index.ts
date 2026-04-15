@@ -441,7 +441,7 @@ Deno.serve(async (req) => {
               // client-side errors — no notification needed for departed players.
               console.log(`[send-push-notification] All ${targetIds.length} target(s) have left the room — skipping`);
               return new Response(
-                JSON.stringify({ sent: 0, skipped_reason: 'all_targets_left_room' }),
+                JSON.stringify({ success: true, sent: 0, results: [], skipped_reason: 'all_targets_left_room' }),
                 { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
               );
             }
@@ -839,17 +839,26 @@ Deno.serve(async (req) => {
           )?.errorCode as string | undefined;
           if (fcmErrorCode === 'UNREGISTERED' || fcmErrorCode === 'INVALID_ARGUMENT') {
             const rawToken = message.to;
-            // Await the delete so it completes before the Response is returned.
-            // Fire-and-forget is unreliable in edge function runtimes — the isolate
-            // can be terminated as soon as the Response is handed back.
-            const { error: delErr } = await supabaseAdmin
-              .from('push_tokens')
-              .delete()
-              .eq('push_token', rawToken);
-            if (delErr) {
-              console.error(`⚠️ Failed to delete stale token (${fcmErrorCode}):`, delErr.message);
+            // Only auto-prune native FCM registration tokens.
+            // Expo-wrapped tokens (ExponentPushToken[...]) are served by Expo's
+            // push service, not FCM directly — deleting them on FCM errors would
+            // permanently disable iOS notifications for that user.
+            const isNativeFCMToken = !rawToken.startsWith('ExponentPushToken[');
+            if (isNativeFCMToken) {
+              // Await the delete so it completes before the Response is returned.
+              // Fire-and-forget is unreliable in edge function runtimes — the isolate
+              // can be terminated as soon as the Response is handed back.
+              const { error: delErr } = await supabaseAdmin
+                .from('push_tokens')
+                .delete()
+                .eq('push_token', rawToken);
+              if (delErr) {
+                console.error(`⚠️ Failed to delete stale token (${fcmErrorCode}):`, delErr.message);
+              } else {
+                console.log(`🗑️ Deleted stale push token (${fcmErrorCode}): ${redactToken(rawToken)}`);
+              }
             } else {
-              console.log(`🗑️ Deleted stale push token (${fcmErrorCode}): ${redactToken(rawToken)}`);
+              console.warn(`⚠️ Skipping auto-prune for Expo push token (${fcmErrorCode}): ${redactToken(rawToken)} — route via Expo Push API instead of FCM`);
             }
             results.push({ status: 'error', message: result, details: { error: fcmErrorCode, userId: message.userId } });
           } else {
