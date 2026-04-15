@@ -36,7 +36,8 @@ export interface AppNotification {
     | 'game_ended'
     | 'player_joined'
     | 'auto_pass_warning'
-    | 'all_players_ready';
+    | 'all_players_ready'
+    | 'generic';
   title: string;
   body: string;
   data: Record<string, unknown>;
@@ -171,10 +172,29 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       const aliasedType = rawType ? (TYPE_ALIASES[rawType] ?? rawType) : undefined;
       const isKnownType =
         !!aliasedType && VALID_NOTIFICATION_TYPES.has(aliasedType as AppNotification['type']);
-      // Drop unrecognised types — all real server-sent types are in VALID_NOTIFICATION_TYPES.
-      // Silently dropping unknown types avoids incorrect icon/navigation assignments
-      // that would result from mapping an unknown type to a known one (e.g. game_invite).
+      // For unrecognised types, store as a 'generic' entry using the raw payload
+      // title/body so future server-sent types are not silently lost before the
+      // client ships an explicit handler for them (forward-compatibility).
       if (!isKnownType) {
+        const genericEntry: AppNotification = {
+          id: notif.request.identifier,
+          type: 'generic',
+          title: content.title || 'Notification',
+          body: content.body || '',
+          data: (content.data ?? {}) as Record<string, unknown>,
+          receivedAt: new Date().toISOString(),
+          read: false,
+        };
+        setStoredNotifications(prev => {
+          const updated = [genericEntry, ...prev.filter(n => n.id !== genericEntry.id)].slice(
+            0,
+            MAX_STORED_NOTIFICATIONS
+          );
+          AsyncStorage.setItem(NOTIFICATIONS_STORAGE_KEY(user.id), JSON.stringify(updated)).catch(
+            () => {}
+          );
+          return updated;
+        });
         return;
       }
       const type = aliasedType as AppNotification['type'];

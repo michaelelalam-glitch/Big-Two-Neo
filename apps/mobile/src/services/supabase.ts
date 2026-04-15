@@ -87,6 +87,9 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
       if (__DEV__ || !Constants.isDevice) {
         return AsyncStorage.getItem(key).catch(() => null);
       }
+      // On real devices fail closed, but also purge any legacy plaintext token
+      // so it is not left on-disk indefinitely from a prior development build.
+      AsyncStorage.removeItem(key).catch(() => {});
       return null;
     }
   },
