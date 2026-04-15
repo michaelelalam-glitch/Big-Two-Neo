@@ -71,6 +71,11 @@ export default function NotificationsScreen() {
       navigation.navigate('Profile');
     } else if ((item.type === 'game_started' || item.type === 'your_turn') && item.data?.roomCode) {
       navigation.navigate('Game', { roomCode: item.data.roomCode as string });
+    } else if (item.type === 'game_ended') {
+      // Payload may use snake_case room_code (from complete-game edge function)
+      // or camelCase roomCode; support both.
+      const rc = (item.data?.room_code ?? item.data?.roomCode) as string | undefined;
+      if (rc) navigation.navigate('Game', { roomCode: rc });
     }
   };
 
