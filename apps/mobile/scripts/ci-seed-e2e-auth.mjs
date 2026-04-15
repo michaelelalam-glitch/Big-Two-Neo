@@ -376,9 +376,10 @@ function injectIOSv2(key, value, storageDir) {
     console.error(`[ci-seed-auth] ❌ iOS v2 verify failed — ${keyFilePath} not found after write`);
     process.exit(1);
   }
-  const writtenBytes = readFileSync(keyFilePath, 'utf8').length;
-  if (writtenBytes !== value.length) {
-    console.error(`[ci-seed-auth] ❌ iOS v2 verify failed — size mismatch (expected ${value.length} B, got ${writtenBytes} B)`);
+  const writtenBytes = Buffer.byteLength(readFileSync(keyFilePath, 'utf8'), 'utf8');
+  const expectedBytes = Buffer.byteLength(value, 'utf8');
+  if (writtenBytes !== expectedBytes) {
+    console.error(`[ci-seed-auth] ❌ iOS v2 verify failed — size mismatch (expected ${expectedBytes} B, got ${writtenBytes} B)`);
     process.exit(1);
   }
 

@@ -799,32 +799,40 @@ Deno.serve(async (req) => {
           body: JSON.stringify(expoBatch),
         });
         const expoResult = await expoResponse.json();
-        const expoItems: Array<{ status: string; id?: string; message?: string; details?: { error?: string } }> =
-          expoResult?.data ?? [];
-
-        for (let i = 0; i < expoMessages.length; i++) {
-          const item  = expoItems[i] ?? { status: 'error', message: 'No result from Expo' };
-          const rawTok = expoMessages[i].to;
-          if (item.status === 'ok') {
-            console.log(`✅ Expo sent to ${redactToken(rawTok)}`);
-            results.push({ status: 'ok', id: item.id });
-          } else {
-            console.error(`❌ Expo error for ${redactToken(rawTok)}:`, item);
-            // DeviceNotRegistered → token is permanently invalid; prune from DB
-            if (item.details?.error === 'DeviceNotRegistered') {
-              const { error: delErr } = await supabaseAdmin
-                .from('push_tokens')
-                .delete()
-                .eq('push_token', rawTok);
-              if (delErr) {
-                console.error(`⚠️ Failed to delete stale Expo token:`, delErr.message);
-              } else {
-                console.log(`🗑️ Deleted stale Expo push token: ${redactToken(rawTok)}`);
-              }
-            }
-            results.push({ status: 'error', message: item.message, details: item.details });
+        if (!expoResponse.ok) {
+          const errMsg = `Expo Push API HTTP ${expoResponse.status}: ${JSON.stringify(expoResult)}`;
+          console.error(`❌ ${errMsg}`);
+          for (const m of expoMessages) {
+            results.push({ status: 'error', message: errMsg, details: { token: redactToken(m.to) } });
           }
-        }
+        } else {
+          const expoItems: Array<{ status: string; id?: string; message?: string; details?: { error?: string } }> =
+            expoResult?.data ?? [];
+
+          for (let i = 0; i < expoMessages.length; i++) {
+            const item  = expoItems[i] ?? { status: 'error', message: 'No result from Expo' };
+            const rawTok = expoMessages[i].to;
+            if (item.status === 'ok') {
+              console.log(`✅ Expo sent to ${redactToken(rawTok)}`);
+              results.push({ status: 'ok', id: item.id });
+            } else {
+              console.error(`❌ Expo error for ${redactToken(rawTok)}:`, item);
+              // DeviceNotRegistered → token is permanently invalid; prune from DB
+              if (item.details?.error === 'DeviceNotRegistered') {
+                const { error: delErr } = await supabaseAdmin
+                  .from('push_tokens')
+                  .delete()
+                  .eq('push_token', rawTok);
+                if (delErr) {
+                  console.error(`⚠️ Failed to delete stale Expo token:`, delErr.message);
+                } else {
+                  console.log(`🗑️ Deleted stale Expo push token: ${redactToken(rawTok)}`);
+                }
+              }
+              results.push({ status: 'error', message: item.message, details: item.details });
+            }
+          }
+        } // end expoResponse.ok
       } catch (expoErr) {
         console.error('❌ Expo Push API request failed:', expoErr);
         for (const m of expoMessages) {
@@ -938,7 +946,10 @@ Deno.serve(async (req) => {
     }
 
     const sentCount = results.filter((r: { status: string }) => r.status === 'ok').length;
-    console.log(`✅ Notifications sent via FCM v1 API: ${sentCount}/${messages.length} succeeded`, results)
+    const expoSent = expoMessages.length > 0 ? `Expo: ${results.slice(0, expoMessages.length).filter((r: { status: string }) => r.status === 'ok').length}/${expoMessages.length}` : null;
+    const fcmSent  = fcmMessages.length  > 0 ? `FCM: ${results.slice(expoMessages.length).filter((r: { status: string }) => r.status === 'ok').length}/${fcmMessages.length}` : null;
+    const breakdown = [expoSent, fcmSent].filter(Boolean).join(', ');
+    console.log(`✅ Notifications sent (${breakdown}): ${sentCount}/${messages.length} total succeeded`, results)
 
     // Return success response
     return new Response(
