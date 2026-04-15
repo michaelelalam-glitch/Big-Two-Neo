@@ -717,35 +717,39 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     //             stored by registerForPushNotificationsAsync().  Re-calling that function
     //             returns the Expo-wrapped token so DB & backend stay in sync.
     const pushTokenSubscription = Notifications.addPushTokenListener(async event => {
-      let newToken: string | null;
-      if (Platform.OS === 'ios') {
-        // Re-derive the Expo push token via the standard registration path so the
-        // DB always holds an ExponentPushToken[...] that the backend can deliver with.
-        newToken = await registerForPushNotificationsAsync();
-      } else {
-        // Android: event.data is the native FCM registration token — correct format.
-        newToken = (event.data as string) || null;
-      }
-      if (!newToken) return;
-      notificationLogger.info('🔄 [AuthContext] FCM token rotated — saving new token to DB...');
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser();
-      if (currentUser) {
-        savePushTokenToDatabase(currentUser.id, newToken)
-          .then(ok => {
-            if (ok)
-              notificationLogger.info(
-                '✅ [AuthContext] Rotated push token saved for user:',
-                currentUser.id.substring(0, 8)
-              );
-            else
-              notificationLogger.error(
-                '❌ [AuthContext] Failed to save rotated push token for user:',
-                currentUser.id.substring(0, 8)
-              );
-          })
-          .catch(() => {});
+      try {
+        let newToken: string | null;
+        if (Platform.OS === 'ios') {
+          // Re-derive the Expo push token via the standard registration path so the
+          // DB always holds an ExponentPushToken[...] that the backend can deliver with.
+          newToken = await registerForPushNotificationsAsync();
+        } else {
+          // Android: event.data is the native FCM registration token — correct format.
+          newToken = (event.data as string) || null;
+        }
+        if (!newToken) return;
+        notificationLogger.info('🔄 [AuthContext] FCM token rotated — saving new token to DB...');
+        const {
+          data: { user: currentUser },
+        } = await supabase.auth.getUser();
+        if (currentUser) {
+          savePushTokenToDatabase(currentUser.id, newToken)
+            .then(ok => {
+              if (ok)
+                notificationLogger.info(
+                  '✅ [AuthContext] Rotated push token saved for user:',
+                  currentUser.id.substring(0, 8)
+                );
+              else
+                notificationLogger.error(
+                  '❌ [AuthContext] Failed to save rotated push token for user:',
+                  currentUser.id.substring(0, 8)
+                );
+            })
+            .catch(() => {});
+        }
+      } catch (err) {
+        notificationLogger.error('❌ [AuthContext] Push token rotation failed:', err);
       }
     });
 
