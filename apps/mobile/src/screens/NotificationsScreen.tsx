@@ -26,6 +26,7 @@ function formatRelativeTime(isoString: string): string {
 function notifIcon(type: AppNotification['type']): string {
   switch (type) {
     case 'game_invite':
+    case 'room_invite':
       return '🎮';
     case 'friend_request':
       return '👤';
@@ -59,7 +60,7 @@ export default function NotificationsScreen() {
   );
 
   const handleNotifPress = (item: AppNotification) => {
-    if (item.type === 'game_invite' && item.data?.roomCode) {
+    if ((item.type === 'game_invite' || item.type === 'room_invite') && item.data?.roomCode) {
       navigation.navigate('Lobby', {
         roomCode: item.data.roomCode as string,
         joining: true,

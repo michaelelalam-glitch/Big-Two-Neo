@@ -21,11 +21,18 @@ import {
   clearBadgeCount,
 } from '../services/notificationService';
 import { notificationLogger } from '../utils/logger';
+import { i18n } from '../i18n';
 import { useAuth } from './AuthContext';
 
 export interface AppNotification {
   id: string;
-  type: 'game_invite' | 'friend_request' | 'friend_accepted' | 'game_started' | 'your_turn';
+  type:
+    | 'game_invite'
+    | 'room_invite'
+    | 'friend_request'
+    | 'friend_accepted'
+    | 'game_started'
+    | 'your_turn';
   title: string;
   body: string;
   data: Record<string, unknown>;
@@ -131,13 +138,52 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
     (notif: Notifications.Notification) => {
       if (!user?.id) return;
       const content = notif.request.content;
-      const type = (content.data?.type as AppNotification['type']) || 'game_invite';
+      const rawType = content.data?.type as string | undefined;
+      const type = (rawType as AppNotification['type']) || 'game_invite';
+      const data = (content.data ?? {}) as Record<string, unknown>;
+
+      // On Android, FCM background notifications sometimes don't populate
+      // content.title / content.body from the FCM notification block.
+      // Fall back to constructing display text from the structured data payload.
+      let title = content.title || '';
+      let body = content.body || '';
+
+      if (!body) {
+        if (rawType === 'room_invite' || rawType === 'game_invite') {
+          const inviter = (data.inviter ?? data.inviterName) as string | undefined;
+          const roomCode = data.roomCode as string | undefined;
+          if (inviter && roomCode) {
+            body = i18n.t('pushContent.roomInviteBody', { inviterName: inviter, roomCode });
+          }
+        } else if (rawType === 'friend_request') {
+          const senderName = (data.senderName ?? data.sender) as string | undefined;
+          if (senderName) {
+            body = i18n.t('pushContent.friendRequestBody', { senderName });
+          }
+        } else if (rawType === 'friend_accepted') {
+          const accepterName = (data.accepterName ?? data.senderName) as string | undefined;
+          if (accepterName) {
+            body = i18n.t('pushContent.friendAcceptedBody', { accepterName });
+          }
+        }
+      }
+
+      if (!title) {
+        if (rawType === 'room_invite' || rawType === 'game_invite') {
+          title = i18n.t('pushContent.roomInviteTitle');
+        } else if (rawType === 'friend_request') {
+          title = i18n.t('pushContent.friendRequestTitle');
+        } else if (rawType === 'friend_accepted') {
+          title = i18n.t('pushContent.friendAcceptedTitle');
+        }
+      }
+
       const entry: AppNotification = {
         id: notif.request.identifier,
         type,
-        title: content.title || '',
-        body: content.body || '',
-        data: (content.data ?? {}) as Record<string, unknown>,
+        title,
+        body,
+        data,
         receivedAt: new Date().toISOString(),
         read: false,
       };
@@ -277,7 +323,7 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
         // AppNavigator's pendingLinkRef captures it and replays the navigation
         // after the user signs in.
         let pendingUrl: string | null = null;
-        if (data.type === 'game_invite' && data.roomCode) {
+        if ((data.type === 'game_invite' || data.type === 'room_invite') && data.roomCode) {
           pendingUrl = `big2mobile://lobby/${data.roomCode as string}?joining=true`;
         } else if ((data.type === 'your_turn' || data.type === 'game_started') && data.roomCode) {
           pendingUrl = `big2mobile://game/${data.roomCode as string}`;
@@ -308,7 +354,7 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       const isInGame = activeRoute === 'Game';
 
       const doNavigate = () => {
-        if (data.type === 'game_invite' && data.roomCode) {
+        if ((data.type === 'game_invite' || data.type === 'room_invite') && data.roomCode) {
           navigation.navigate('Lobby', { roomCode: data.roomCode as string, joining: true });
         } else if (data.type === 'your_turn' && data.roomCode) {
           navigation.navigate('Game', { roomCode: data.roomCode as string });

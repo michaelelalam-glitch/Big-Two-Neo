@@ -61,9 +61,13 @@ export function usePresence(): UsePresenceResult {
 
     channel
       .on('presence', { event: 'sync' }, () => {
+        // 7.12: Guard — when showOnlineStatus is off, ignore all presence events
+        // so the cleared Set (set in the toggle effect) is never repopulated.
+        if (!showOnlineStatusRef.current) return;
         updateOnlineSet(channel.presenceState<{ user_id?: string }>());
       })
       .on('presence', { event: 'join' }, ({ newPresences }) => {
+        if (!showOnlineStatusRef.current) return;
         setOnlineUserIds(prev => {
           const next = new Set(prev);
           for (const p of newPresences as { user_id?: string }[]) {
@@ -73,6 +77,7 @@ export function usePresence(): UsePresenceResult {
         });
       })
       .on('presence', { event: 'leave' }, ({ leftPresences }) => {
+        if (!showOnlineStatusRef.current) return;
         setOnlineUserIds(prev => {
           const next = new Set(prev);
           for (const p of leftPresences as { user_id?: string }[]) {
