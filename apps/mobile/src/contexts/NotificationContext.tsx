@@ -235,8 +235,17 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
             ? i18n.t('pushContent.playerJoinedBody', { joinerName, roomCode })
             : i18n.t('pushContent.playerJoinedTitle');
         } else if (type === 'auto_pass_warning') {
-          // data.seconds_remaining and data.roomCode are set by notifyAutoPassWarning
-          const seconds = (data.seconds_remaining as number | undefined) ?? 0;
+          // data.seconds_remaining and data.roomCode are set by notifyAutoPassWarning.
+          // FCM stringifies all message.data values, so seconds_remaining may arrive as
+          // a string (e.g. '5') — parse it to a number before passing to i18n.
+          const rawSeconds = data.seconds_remaining as string | number | undefined;
+          const parsedSeconds =
+            typeof rawSeconds === 'number'
+              ? rawSeconds
+              : typeof rawSeconds === 'string'
+                ? Number(rawSeconds)
+                : NaN;
+          const seconds = Number.isFinite(parsedSeconds) ? parsedSeconds : 0;
           const roomCode = (data.roomCode as string | undefined) ?? '';
           body = i18n.t('pushContent.timeRunningOutBody', { seconds, roomCode });
         } else if (type === 'all_players_ready') {
