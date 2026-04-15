@@ -43,6 +43,18 @@ export interface AppNotification {
 const NOTIFICATIONS_STORAGE_KEY = (userId: string) => `@big2_notifications_${userId}`;
 const MAX_STORED_NOTIFICATIONS = 50;
 
+// Module-level set of all valid notification types — used to validate raw
+// FCM/Expo payload types before storing or routing so unknown type strings
+// (e.g. 'test') are never cast into the typed union unsafely.
+const VALID_NOTIFICATION_TYPES = new Set<AppNotification['type']>([
+  'game_invite',
+  'room_invite',
+  'friend_request',
+  'friend_accepted',
+  'game_started',
+  'your_turn',
+]);
+
 interface NotificationContextData {
   expoPushToken: string | null;
   notification: Notifications.Notification | null;
@@ -139,7 +151,12 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       if (!user?.id) return;
       const content = notif.request.content;
       const rawType = content.data?.type as string | undefined;
-      const type = (rawType as AppNotification['type']) || 'game_invite';
+      // Validate rawType against the known set so unknown values (e.g. 'test')
+      // from local test notifications don't bypass type safety or Android fallback logic.
+      const type: AppNotification['type'] =
+        rawType && VALID_NOTIFICATION_TYPES.has(rawType as AppNotification['type'])
+          ? (rawType as AppNotification['type'])
+          : 'game_invite';
       const data = (content.data ?? {}) as Record<string, unknown>;
 
       // On Android, FCM background notifications sometimes don't populate
@@ -381,7 +398,10 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       // if they are currently mid-game; social notifications navigate within app, no confirm.
       const requiresConfirm =
         isInGame &&
-        (data.type === 'game_invite' || data.type === 'your_turn' || data.type === 'game_started');
+        (data.type === 'game_invite' ||
+          data.type === 'room_invite' ||
+          data.type === 'your_turn' ||
+          data.type === 'game_started');
 
       if (requiresConfirm) {
         Alert.alert(
