@@ -235,12 +235,17 @@ describe('usePresence', () => {
 
       const { result } = renderHook(() => usePresence());
 
+      // Verify the hook actually registered the sync handler before firing
+      expect(handlers['sync']).toBeDefined();
+
       // Fire the sync event — the guard should prevent onlineUserIds from being set
       await act(async () => {
         handlers['sync']?.();
         await Promise.resolve();
       });
 
+      // Guard must have blocked presenceState() call
+      expect(ch.presenceState).not.toHaveBeenCalled();
       expect(result.current.onlineUserIds.size).toBe(0);
 
       // Restore
@@ -260,13 +265,20 @@ describe('usePresence', () => {
 
       const { result } = renderHook(() => usePresence());
 
+      // Verify the hook actually registered the join handler before firing
+      expect(handlers['join']).toBeDefined();
+
+      const sizeBefore = result.current.onlineUserIds.size;
+
       // Fire the join event — the guard should prevent onlineUserIds from being updated
       await act(async () => {
         handlers['join']?.({ newPresences: [{ user_id: 'user-99' }] });
         await Promise.resolve();
       });
 
-      expect(result.current.onlineUserIds.size).toBe(0);
+      // State must not have changed
+      expect(result.current.onlineUserIds.size).toBe(sizeBefore);
+      expect(result.current.onlineUserIds.has('user-99')).toBe(false);
 
       // Restore
       mockState.showOnlineStatus = true;
