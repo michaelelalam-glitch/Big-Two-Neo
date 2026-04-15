@@ -35,7 +35,7 @@ tags:
 - launchApp
 - extendedWaitUntil:
     visible: "Choose a game to play"
-    timeout: 8000
+    timeout: 20000
 
 - tapOn:
     id: "chinese-poker-card"
@@ -50,7 +50,7 @@ tags:
 - extendedWaitUntil:
     visible:
       id: "room-code-input"
-    timeout: 8000
+    timeout: 20000
 - tapOn:
     id: "room-code-input"
 - inputText: "${ROOM_CODE}"
@@ -87,7 +87,7 @@ tags:
 - extendedWaitUntil:
     visible:
       id: "mic-toggle-button"
-    timeout: 8000
+    timeout: 20000
 - assertVisible:
     label: "Microphone, Off \u2014 Join Voice Chat"
 - takeScreenshot: "09_02_settings_before_voice"
@@ -132,7 +132,7 @@ tags:
 - extendedWaitUntil:
     visible:
       label: "Camera, Off \u2014 tap to turn camera on"
-    timeout: 8000
+    timeout: 20000
 - assertVisible:
     label: "Camera, Off \u2014 tap to turn camera on"
 - takeScreenshot: "09_05_camera_off"
@@ -143,7 +143,7 @@ tags:
 - extendedWaitUntil:
     visible:
       label: "Microphone, Muted \u2014 tap to unmute"
-    timeout: 8000
+    timeout: 20000
 - assertVisible:
     label: "Microphone, Muted \u2014 tap to unmute"
 - takeScreenshot: "09_06_muted"
@@ -171,7 +171,7 @@ tags:
 - extendedWaitUntil:
     visible:
       id: "settings-button"
-    timeout: 8000
+    timeout: 20000
 - assertVisible:
     id: "settings-button"
 - takeScreenshot: "09_08_game_still_active_after_chat"

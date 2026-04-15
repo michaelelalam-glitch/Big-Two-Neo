@@ -162,6 +162,10 @@ function GameViewComponent() {
   // Task #652: Track drag zone state for table perimeter glow
   const [dropZoneState, setDropZoneState] = useState<DragZoneState>('idle');
 
+  // Landscape spinner feedback for Play/Pass buttons
+  const [isLandscapePlaying, setIsLandscapePlaying] = useState(false);
+  const [isLandscapePassing, setIsLandscapePassing] = useState(false);
+
   // Throwables: two-step selection flow (pick type → pick target)
   const [showThrowablePicker, setShowThrowablePicker] = useState(false);
   const [pendingThrowableType, setPendingThrowableType] = useState<ThrowableType | null>(null);
@@ -406,6 +410,7 @@ function GameViewComponent() {
                 '🎴 [Landscape] Play button pressed with selected cards:',
                 selectedCards.length
               );
+              setIsLandscapePlaying(true);
               try {
                 await handlePlayCards(selectedCards);
               } catch (error) {
@@ -418,10 +423,13 @@ function GameViewComponent() {
                 if (typeof __DEV__ !== 'undefined' && __DEV__) {
                   gameLogger.debug('❌ [Landscape] Play button error details:', { error });
                 }
+              } finally {
+                setIsLandscapePlaying(false);
               }
             }}
             onPass={async () => {
               gameLogger.info('🎴 [Landscape] Pass button pressed');
+              setIsLandscapePassing(true);
               try {
                 await handlePass();
               } catch (error) {
@@ -434,6 +442,8 @@ function GameViewComponent() {
                 if (typeof __DEV__ !== 'undefined' && __DEV__) {
                   gameLogger.debug('❌ [Landscape] Pass action error details:', { error });
                 }
+              } finally {
+                setIsLandscapePassing(false);
               }
             }}
             onHint={handleHint}
@@ -442,6 +452,8 @@ function GameViewComponent() {
             disabled={false}
             canPlay={isPlayerReady && selectedCards.length > 0}
             canPass={isPlayerReady}
+            isPlaying={isLandscapePlaying}
+            isPassing={isLandscapePassing}
             // Chat (multiplayer only) — button placed in scoreActionContainer
             // next to the ▶ expand button so it never overlaps the menu icon.
             isMultiplayer={isMultiplayerGame}

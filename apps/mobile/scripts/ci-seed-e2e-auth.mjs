@@ -371,7 +371,19 @@ function injectIOSv2(key, value, storageDir) {
   manifest[key] = null; // null = value is in separate file (not inlined)
   writeFileSync(manifestPath, JSON.stringify(manifest), 'utf8');
 
-  console.log(`[ci-seed-auth] ✅ Session injected into iOS RCTAsyncLocalStorage_V1 (${md5})`);
+  // Verify file was written to the expected path (guards against wrong container)
+  if (!existsSync(keyFilePath)) {
+    console.error(`[ci-seed-auth] ❌ iOS v2 verify failed — ${keyFilePath} not found after write`);
+    process.exit(1);
+  }
+  const writtenBytes = Buffer.byteLength(readFileSync(keyFilePath, 'utf8'), 'utf8');
+  const expectedBytes = Buffer.byteLength(value, 'utf8');
+  if (writtenBytes !== expectedBytes) {
+    console.error(`[ci-seed-auth] ❌ iOS v2 verify failed — size mismatch (expected ${expectedBytes} B, got ${writtenBytes} B)`);
+    process.exit(1);
+  }
+
+  console.log(`[ci-seed-auth] ✅ Session injected into iOS RCTAsyncLocalStorage_V1 (${md5}, ${writtenBytes} B)`);
 }
 
 /** Find RKStorage SQLite file (async-storage v1 legacy). */

@@ -168,6 +168,14 @@ async function sendPushNotification(payload: NotificationPayload): Promise<boole
             );
           } else if (err.details?.error === 'DeviceNotRegistered') {
             notificationLogger.warn('⚠️ [sendPushNotification] Device token expired or invalid');
+          } else if (err.details?.error === 'UNREGISTERED') {
+            // UNREGISTERED refers to a *recipient's* stale FCM token (already pruned
+            // server-side by the edge function). Do NOT re-register this sender's own
+            // token — that would overwrite an active token with a newly-rotated one
+            // and break future sends to this device.
+            notificationLogger.warn(
+              `⚠️ [sendPushNotification] FCM UNREGISTERED for recipient (server pruned stale token)`
+            );
           } else {
             notificationLogger.error(`❌ [sendPushNotification] Error ${idx + 1}:`, err.message);
           }

@@ -11,6 +11,11 @@ const FCM_PROJECT_ID = Deno.env.get('FCM_PROJECT_ID') || 'big2-969bc'; // Fallba
 const FCM_API_URL = `https://fcm.googleapis.com/v1/projects/${FCM_PROJECT_ID}/messages:send`;
 const FCM_SCOPES = ['https://www.googleapis.com/auth/firebase.messaging']
 
+// Expo Push API configuration
+// iOS tokens are ExponentPushToken[...]; they must NOT be sent to FCM v1 —
+// they are routed via Expo's own push delivery infrastructure.
+const EXPO_PUSH_API_URL = 'https://exp.host/--/api/v2/push/send';
+
 interface PushMessage {
   to: string;
   userId?: string;
@@ -199,6 +204,12 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
+
+  // For user-JWT callers: holds the membership-filtered subset of user_ids.
+  // Set when some targets have already left the room (race condition between
+  // getRoomPlayerIds() on the client and the edge function's membership check).
+  // Null for internal/service-role callers (no filtering needed).
+  let memberFilteredIds: string[] | null = null;
 
   // P5-1 Fix: Reject unauthenticated callers.  Two explicitly trusted paths:
   //   1. Service-role key   — other Edge Functions / server-side processes.
@@ -428,13 +439,23 @@ Deno.serve(async (req) => {
               );
             }
             const memberSet = new Set((memberRows ?? []).map((r: { user_id: string }) => r.user_id));
-            const nonMembers = targetIds.filter((id: string) => !memberSet.has(id));
-            if (nonMembers.length > 0) {
+            const validTargetIds = targetIds.filter((id: string) => memberSet.has(id));
+            if (validTargetIds.length === 0) {
+              // All targets have already left the room (race condition: player departed
+              // between getRoomPlayerIds() and this check). Return 200 to avoid noisy
+              // client-side errors — no notification needed for departed players.
+              console.log(`[send-push-notification] All ${targetIds.length} target(s) have left the room — skipping`);
               return new Response(
-                JSON.stringify({ error: 'Forbidden: some target users are not members of the room' }),
-                { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                JSON.stringify({ success: true, sent: 0, results: [], skipped_reason: 'all_targets_left_room' }),
+                { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
               );
             }
+            const droppedCount = targetIds.length - validTargetIds.length;
+            if (droppedCount > 0) {
+              console.log(`[send-push-notification] ${droppedCount} user(s) left the room — filtering from notification`);
+            }
+            // Store the filtered IDs so the main handler sends only to current members.
+            memberFilteredIds = validTargetIds;
           }
         }
       }
@@ -518,7 +539,11 @@ Deno.serve(async (req) => {
 
     // Parse request body
     const notificationRequest: NotificationRequest = await req.json()
-    const { user_ids, title, body, data, badge } = notificationRequest
+    const { user_ids: parsedUserIds, title, body, data, badge } = notificationRequest
+    // For user-JWT callers: use the membership-filtered list to handle the race
+    // condition where players leave between getRoomPlayerIds() and this check.
+    // For internal/service-role callers: use the full list as-is.
+    const user_ids = memberFilteredIds ?? parsedUserIds;
 
     if (!user_ids || user_ids.length === 0) {
       return new Response(
@@ -732,18 +757,6 @@ Deno.serve(async (req) => {
       return message
     })
 
-    // Get OAuth2 token for FCM v1 API
-    let accessToken: string;
-    try {
-      accessToken = await getAccessToken();
-    } catch (tokenErr) {
-      console.error('❌ Failed to obtain FCM access token:', tokenErr);
-      return new Response(
-        JSON.stringify({ error: 'Failed to obtain FCM access token' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
     // Send notifications via FCM v1 API
     /** Redact a device token for safe logging (first 4 … last 4 chars). */
     const redactToken = (t: string | null | undefined): string => {
@@ -752,81 +765,197 @@ Deno.serve(async (req) => {
       return `${t.slice(0, 4)}…${t.slice(-4)}`;
     };
 
-    const results = []
-    for (const message of messages) {
+    // ── Partition messages by token type ──────────────────────────────────
+    // ExponentPushToken[...] = iOS Expo token  → Expo Push API
+    // anything else          = native FCM token → FCM v1 API
+    const expoMessages = messages.filter((m: PushMessage) => m.to.startsWith('ExponentPushToken['));
+    const fcmMessages  = messages.filter((m: PushMessage) => !m.to.startsWith('ExponentPushToken['));
+
+    const results: { status: string; id?: string; message?: unknown; details?: unknown }[] = [];
+
+    // ── Path A: Expo Push API (iOS ExponentPushToken) ─────────────────────
+    if (expoMessages.length > 0) {
+      console.log(`📨 Sending ${expoMessages.length} notification(s) via Expo Push API`);
+      const expoBatch = expoMessages.map((m: PushMessage) => ({
+        to:        m.to,
+        sound:     m.sound || 'default',
+        title:     m.title,
+        body:      m.body,
+        data:      Object.fromEntries(
+          Object.entries(m.data || {}).map(([k, v]) => [k, String(v)])
+        ),
+        badge:     m.badge,
+        channelId: m.channelId || 'default',
+        priority:  m.priority === 'high' ? 'high' : 'default',
+      }));
+
       try {
-        // Extract token: handle both wrapped (ExponentPushToken[...]) and native FCM tokens
-        let token = message.to;
-        if (token.startsWith('ExponentPushToken[') && token.endsWith(']')) {
-          token = token.slice(18, -1); // Remove wrapper
-        }
-        
-        // Validate token: must be non-empty, well-formed, and match FCM token format
-        if (!token || typeof token !== 'string' || token.trim() === '') {
-          console.error(`❌ Invalid push token (empty/null) for message:`, redactToken(message.to));
-          results.push({ status: 'error', message: 'Invalid push token (empty)' });
-          continue;
-        }
-        
-        if (!isValidFCMToken(token)) {
-          console.error(`❌ Invalid FCM token format for message:`, redactToken(message.to), '(length:', token.length, ')');
-          results.push({ status: 'error', message: 'Invalid FCM token format' });
-          continue;
-        }
-        
-        const fcmMessage = {
-          message: {
-            token: token,
-            notification: {
-              title: message.title,
-              body: message.body,
-            },
-            // FCM v1 API requires ALL data values to be strings.
-            // Non-string values (booleans, numbers) cause silent message rejection.
-            data: Object.fromEntries(
-              Object.entries(message.data || {}).map(([k, v]) => [k, String(v)])
-            ),
-            android: {
-              priority: 'high',
-              notification: {
-                channel_id: message.channelId || 'default',
-                sound: message.sound || 'default',
-              }
-            }
-          }
-        }
-        
-        const response = await fetch(FCM_API_URL, {
+        const expoResponse = await fetch(EXPO_PUSH_API_URL, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${accessToken}`,
+            'Accept':       'application/json',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(fcmMessage),
-        })
-        
-        const result = await response.json()
-        
-        if (!response.ok) {
-          console.error(`❌ FCM error for ${redactToken(message.to)}:`, result)
-          results.push({ status: 'error', message: result })
+          body: JSON.stringify(expoBatch),
+        });
+        const expoResult = await expoResponse.json();
+        if (!expoResponse.ok) {
+          const errMsg = `Expo Push API HTTP ${expoResponse.status}: ${JSON.stringify(expoResult)}`;
+          console.error(`❌ ${errMsg}`);
+          for (const m of expoMessages) {
+            results.push({ status: 'error', message: errMsg, details: { token: redactToken(m.to) } });
+          }
         } else {
-          console.log(`✅ Sent to ${redactToken(message.to)}`)
-          results.push({ status: 'ok', id: result.name })
+          const expoItems: Array<{ status: string; id?: string; message?: string; details?: { error?: string } }> =
+            expoResult?.data ?? [];
+
+          for (let i = 0; i < expoMessages.length; i++) {
+            const item  = expoItems[i] ?? { status: 'error', message: 'No result from Expo' };
+            const rawTok = expoMessages[i].to;
+            if (item.status === 'ok') {
+              console.log(`✅ Expo sent to ${redactToken(rawTok)}`);
+              results.push({ status: 'ok', id: item.id });
+            } else {
+              console.error(`❌ Expo error for ${redactToken(rawTok)}:`, item);
+              // DeviceNotRegistered → token is permanently invalid; prune from DB
+              if (item.details?.error === 'DeviceNotRegistered') {
+                const { error: delErr } = await supabaseAdmin
+                  .from('push_tokens')
+                  .delete()
+                  .eq('push_token', rawTok);
+                if (delErr) {
+                  console.error(`⚠️ Failed to delete stale Expo token:`, delErr.message);
+                } else {
+                  console.log(`🗑️ Deleted stale Expo push token: ${redactToken(rawTok)}`);
+                }
+              }
+              results.push({ status: 'error', message: item.message, details: item.details });
+            }
+          }
+        } // end expoResponse.ok
+      } catch (expoErr) {
+        console.error('❌ Expo Push API request failed:', expoErr);
+        for (const m of expoMessages) {
+          results.push({ status: 'error', message: String(expoErr), details: { token: redactToken(m.to) } });
         }
-      } catch (error) {
-        console.error(`❌ Error sending to ${redactToken(message.to)}:`, error)
-        results.push({ status: 'error', message: error.message })
       }
     }
 
-    console.log('✅ Notifications sent via FCM v1 API:', results)
+    // ── Path B: FCM v1 API (native Android FCM registration tokens) ───────
+    if (fcmMessages.length > 0) {
+      // Get OAuth2 token for FCM v1 API
+      let accessToken: string;
+      try {
+        accessToken = await getAccessToken();
+      } catch (tokenErr) {
+        console.error('❌ Failed to obtain FCM access token:', tokenErr);
+        return new Response(
+          JSON.stringify({ error: 'Failed to obtain FCM access token' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log(`📨 Sending ${fcmMessages.length} notification(s) via FCM v1 API`);
+      for (const message of fcmMessages) {
+        try {
+          const token = message.to;
+
+          // Validate token: must be non-empty, well-formed, and match FCM token format
+          if (!token || typeof token !== 'string' || token.trim() === '') {
+            console.error(`❌ Invalid push token (empty/null) for message:`, redactToken(message.to));
+            results.push({ status: 'error', message: 'Invalid push token (empty)' });
+            continue;
+          }
+
+          if (!isValidFCMToken(token)) {
+            console.error(`❌ Invalid FCM token format for message:`, redactToken(message.to), '(length:', token.length, ')');
+            results.push({ status: 'error', message: 'Invalid FCM token format' });
+            continue;
+          }
+
+          const fcmMessage = {
+            message: {
+              token: token,
+              notification: {
+                title: message.title,
+                body: message.body,
+              },
+              // FCM v1 API requires ALL data values to be strings.
+              // Non-string values (booleans, numbers) cause silent message rejection.
+              data: Object.fromEntries(
+                Object.entries(message.data || {}).map(([k, v]) => [k, String(v)])
+              ),
+              android: {
+                priority: 'high',
+                notification: {
+                  channel_id: message.channelId || 'default',
+                  sound: message.sound || 'default',
+                }
+              }
+            }
+          }
+
+          const response = await fetch(FCM_API_URL, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(fcmMessage),
+          })
+
+          const result = await response.json()
+
+          if (!response.ok) {
+            console.error(`❌ FCM error for ${redactToken(message.to)}:`, result);
+            // Auto-prune stale/invalid tokens so they are never retried.
+            // FCM v1 error codes that mean the token is permanently invalid:
+            //   UNREGISTERED   — app was uninstalled or token was rotated
+            //   INVALID_ARGUMENT — token is malformed (not a valid FCM registration token)
+            const fcmErrorCode = result?.error?.details?.find(
+              (d: { '@type': string; errorCode?: string }) =>
+                d['@type'] === 'type.googleapis.com/google.firebase.fcm.v1.FcmError'
+            )?.errorCode as string | undefined;
+            if (fcmErrorCode === 'UNREGISTERED' || fcmErrorCode === 'INVALID_ARGUMENT') {
+              const rawToken = message.to;
+              // Await the delete so it completes before the Response is returned.
+              // Fire-and-forget is unreliable in edge function runtimes — the isolate
+              // can be terminated as soon as the Response is handed back.
+              const { error: delErr } = await supabaseAdmin
+                .from('push_tokens')
+                .delete()
+                .eq('push_token', rawToken);
+              if (delErr) {
+                console.error(`⚠️ Failed to delete stale token (${fcmErrorCode}):`, delErr.message);
+              } else {
+                console.log(`🗑️ Deleted stale push token (${fcmErrorCode}): ${redactToken(rawToken)}`);
+              }
+              results.push({ status: 'error', message: result, details: { error: fcmErrorCode, userId: message.userId } });
+            } else {
+              results.push({ status: 'error', message: result });
+            }
+          } else {
+            console.log(`✅ Sent to ${redactToken(message.to)}`);
+            results.push({ status: 'ok', id: result.name });
+          }
+        } catch (error) {
+          console.error(`❌ Error sending to ${redactToken(message.to)}:`, error);
+          results.push({ status: 'error', message: error.message });
+        }
+      }
+    }
+
+    const sentCount = results.filter((r: { status: string }) => r.status === 'ok').length;
+    const expoSent = expoMessages.length > 0 ? `Expo: ${results.slice(0, expoMessages.length).filter((r: { status: string }) => r.status === 'ok').length}/${expoMessages.length}` : null;
+    const fcmSent  = fcmMessages.length  > 0 ? `FCM: ${results.slice(expoMessages.length).filter((r: { status: string }) => r.status === 'ok').length}/${fcmMessages.length}` : null;
+    const breakdown = [expoSent, fcmSent].filter(Boolean).join(', ');
+    console.log(`✅ Notifications sent (${breakdown}): ${sentCount}/${messages.length} total succeeded`, results)
 
     // Return success response
     return new Response(
       JSON.stringify({
         success: true,
-        sent: messages.length,
+        sent: sentCount,
         results: results,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

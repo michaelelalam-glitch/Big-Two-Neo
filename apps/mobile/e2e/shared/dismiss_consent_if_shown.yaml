@@ -14,12 +14,10 @@
 appId: com.big2mobile.app
 ---
 
-- extendedWaitUntil:
-    visible:
-      id: "privacy-consent-decline"
-    timeout: 5000
-    optional: true
-
+# `optional: true` is inside tapOn's parameter block (4-space indent) so Maestro
+# skips the step without aborting the flow when the element is not found.
+# When consent IS properly seeded (@big2_analytics_consent=false), this element
+# never appears and the step is silently skipped — correct behaviour.
 - tapOn:
     id: "privacy-consent-decline"
     optional: true

@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { Platform } from 'react-native';
 import { Session, User } from '@supabase/supabase-js';
+import * as Notifications from 'expo-notifications';
 import {
   registerForPushNotificationsAsync,
   savePushTokenToDatabase,
@@ -703,9 +705,58 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
     });
 
+    // 🔔 FCM TOKEN ROTATION: Listen for push token changes from the device.
+    // When FCM invalidates a token (UNREGISTERED) or rotates it (periodic / app reinstall),
+    // expo-notifications fires this event with the new token.
+    // Without this listener the new token is never saved to the DB and notifications
+    // stop working permanently until the user reinstalls or re-logs in.
+    //
+    // ⚠️  Platform difference:
+    //   Android — event.data is a native FCM registration token (correct format, matches DB).
+    //   iOS     — event.data is a raw APNS device token (bytes), NOT the ExponentPushToken[...]
+    //             stored by registerForPushNotificationsAsync().  Re-calling that function
+    //             returns the Expo-wrapped token so DB & backend stay in sync.
+    const pushTokenSubscription = Notifications.addPushTokenListener(async event => {
+      try {
+        let newToken: string | null;
+        if (Platform.OS === 'ios') {
+          // Re-derive the Expo push token via the standard registration path so the
+          // DB always holds an ExponentPushToken[...] that the backend can deliver with.
+          newToken = await registerForPushNotificationsAsync();
+        } else {
+          // Android: event.data is the native FCM registration token — correct format.
+          newToken = (event.data as string) || null;
+        }
+        if (!newToken) return;
+        notificationLogger.info('🔄 [AuthContext] FCM token rotated — saving new token to DB...');
+        const {
+          data: { user: currentUser },
+        } = await supabase.auth.getUser();
+        if (currentUser) {
+          savePushTokenToDatabase(currentUser.id, newToken)
+            .then(ok => {
+              if (ok)
+                notificationLogger.info(
+                  '✅ [AuthContext] Rotated push token saved for user:',
+                  currentUser.id.substring(0, 8)
+                );
+              else
+                notificationLogger.error(
+                  '❌ [AuthContext] Failed to save rotated push token for user:',
+                  currentUser.id.substring(0, 8)
+                );
+            })
+            .catch(() => {});
+        }
+      } catch (err) {
+        notificationLogger.error('❌ [AuthContext] Push token rotation failed:', err);
+      }
+    });
+
     return () => {
       mounted = false;
       subscription.unsubscribe();
+      pushTokenSubscription.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchProfile and profile intentionally excluded from mount-only auth listener; this effect sets up a long-lived subscription that must not be torn down and re-created; fetchProfile is called inside the async handler which always captures the latest via direct call
   }, []);
