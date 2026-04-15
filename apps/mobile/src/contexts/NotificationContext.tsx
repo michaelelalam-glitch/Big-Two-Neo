@@ -182,6 +182,12 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
           if (accepterName) {
             body = i18n.t('pushContent.friendAcceptedBody', { accepterName });
           }
+        } else if (type === 'your_turn') {
+          const roomCode = (data.roomCode as string | undefined) ?? '';
+          body = i18n.t('pushContent.yourTurnBody', { roomCode });
+        } else if (type === 'game_started') {
+          const roomCode = (data.roomCode as string | undefined) ?? '';
+          body = i18n.t('pushContent.gameStartingBody', { roomCode });
         }
       }
 
@@ -192,6 +198,10 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
           title = i18n.t('pushContent.friendRequestTitle');
         } else if (type === 'friend_accepted') {
           title = i18n.t('pushContent.friendAcceptedTitle');
+        } else if (type === 'your_turn') {
+          title = i18n.t('pushContent.yourTurnTitle');
+        } else if (type === 'game_started') {
+          title = i18n.t('pushContent.gameStartingTitle');
         }
       }
 
