@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { Platform } from 'react-native';
 import { Session, User } from '@supabase/supabase-js';
 import * as Notifications from 'expo-notifications';
 import {
@@ -709,8 +710,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // expo-notifications fires this event with the new token.
     // Without this listener the new token is never saved to the DB and notifications
     // stop working permanently until the user reinstalls or re-logs in.
+    //
+    // ⚠️  Platform difference:
+    //   Android — event.data is a native FCM registration token (correct format, matches DB).
+    //   iOS     — event.data is a raw APNS device token (bytes), NOT the ExponentPushToken[...]
+    //             stored by registerForPushNotificationsAsync().  Re-calling that function
+    //             returns the Expo-wrapped token so DB & backend stay in sync.
     const pushTokenSubscription = Notifications.addPushTokenListener(async event => {
-      const newToken: string = event.data;
+      let newToken: string | null;
+      if (Platform.OS === 'ios') {
+        // Re-derive the Expo push token via the standard registration path so the
+        // DB always holds an ExponentPushToken[...] that the backend can deliver with.
+        newToken = await registerForPushNotificationsAsync();
+      } else {
+        // Android: event.data is the native FCM registration token — correct format.
+        newToken = (event.data as string) || null;
+      }
       if (!newToken) return;
       notificationLogger.info('🔄 [AuthContext] FCM token rotated — saving new token to DB...');
       const {
