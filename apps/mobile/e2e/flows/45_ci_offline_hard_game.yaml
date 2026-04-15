@@ -13,7 +13,7 @@ tags:
 - runFlow: ../shared/dismiss_consent_if_shown.yaml
 - extendedWaitUntil:
     visible: "Choose a game to play"
-    timeout: 20000
+    timeout: 35000
 - tapOn:
     id: "chinese-poker-card"
 - extendedWaitUntil:
@@ -30,7 +30,7 @@ tags:
 - extendedWaitUntil:
     visible:
       id: "pass-button"
-    timeout: 20000
+    timeout: 35000
 - takeScreenshot: "45_game_hard_start"
 
 # Verify controls

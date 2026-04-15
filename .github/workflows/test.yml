@@ -511,8 +511,10 @@ jobs:
           xcrun simctl terminate booted com.big2mobile.app || true
           sleep 2
           # Launch app once to initialise storage, then terminate.
-          # Use 15s (was 8s) — cold CI simulators need more time for
+          # Use 25s (was 15s, 8s) — cold CI simulators need more time for
           # AsyncStorage / RCTAsyncLocalStorage_V1 directory init.
+          # NOTE: injection happens AFTER this terminate, so this launch cannot
+          # consume the injected session (no migration to simctl Keychain occurs).
           xcrun simctl launch booted com.big2mobile.app || true
           sleep 25
           xcrun simctl terminate booted com.big2mobile.app || true
@@ -522,32 +524,6 @@ jobs:
         env:
           CI_PLATFORM: ios
 
-      - name: 🔒 Verify seed — dismiss consent if shown (fallback)
-        if: steps.seed_auth.outcome == 'success'
-        continue-on-error: true
-        run: |
-          cd apps/mobile
-          # Launch the app to verify consent was properly seeded.
-          # If the consent modal still appears (seed wrote to wrong container),
-          # Maestro taps "No thanks" which writes @big2_analytics_consent=false
-          # to AsyncStorage via the app's own code — guaranteed to persist.
-          xcrun simctl launch booted com.big2mobile.app || true
-          sleep 10
-          set +e
-          maestro test e2e/shared/dismiss_consent_if_shown.yaml
-          VERIFY_EXIT=$?
-          set -e
-          xcrun simctl terminate booted com.big2mobile.app || true
-          sleep 3
-          if [ $VERIFY_EXIT -ne 0 ]; then
-            echo "::warning::Consent verification flow returned exit $VERIFY_EXIT — flows include defensive fallback"
-          else
-            echo "✅ Consent verification passed"
-          fi
-        timeout-minutes: 5
-        env:
-          MAESTRO_DRIVER_STARTUP_TIMEOUT: 300000
-
       - name: ⚠️ Warn if auth seeding was skipped
         if: env.E2E_TEST_EMAIL != '' && env.E2E_TEST_PASSWORD != '' && steps.seed_auth.outcome != 'success'
         run: |
@@ -555,13 +531,21 @@ jobs:
 
       - name: 🎭 Run Maestro E2E tests (authenticated — ci-authenticated tag)
         if: steps.seed_auth.outcome == 'success'
-        continue-on-error: true  # Timeout must not fail the job; non-blocking behaviour is handled inside the script
         run: |
           cd apps/mobile
           mkdir -p e2e/results
           # Phase 2: Run authenticated flows now that session is injected.
-          # These flows use `launchApp` without clearState so the session persists.
-          MAX_ATTEMPTS=2
+          # IMPORTANT: Do NOT launch the app between seed injection and this step.
+          # Launching the app in simctl context before Maestro/XCUITest runs
+          # triggers the AsyncStorage→SecureStore migration, which removes the
+          # injected session from AsyncStorage. When Maestro then launches the
+          # app via XCUITest (different Keychain namespace), SecureStore is empty
+          # and AsyncStorage was already cleared — session is lost.
+          # By skipping the pre-warm, Maestro's launchApp (XCUITest context) reads
+          # the session directly from AsyncStorage on every flow's first launch.
+          # MAX_ATTEMPTS=1 (single attempt) so that the worst-case time is
+          # 52 flows × 35s timeout = ~30 min, well within the 45-min step limit.
+          MAX_ATTEMPTS=1
           MAESTRO_EXIT=1
           for attempt in $(seq 1 $MAX_ATTEMPTS); do
             echo "--- Maestro ci-authenticated attempt $attempt/$MAX_ATTEMPTS ---"
@@ -573,25 +557,6 @@ jobs:
             set -e
             if [ $MAESTRO_EXIT -eq 0 ]; then
               break
-            fi
-            if [ $attempt -lt $MAX_ATTEMPTS ]; then
-              echo "Attempt $attempt failed (exit $MAESTRO_EXIT) — re-seeding and re-warming..."
-              xcrun simctl terminate booted com.apple.mobilesafari || true
-              xcrun simctl terminate booted com.big2mobile.app || true
-              sleep 5
-              # Re-seed auth in case a flow accidentally cleared state
-              set +e
-              node scripts/ci-seed-e2e-auth.mjs
-              RESEED_EXIT=$?
-              set -e
-              if [ $RESEED_EXIT -ne 0 ]; then
-                echo "::warning::Auth re-seed failed (exit $RESEED_EXIT) — subsequent tests may run unauthenticated"
-              fi
-              sleep 2
-              xcrun simctl launch booted com.big2mobile.app || true
-              sleep 10
-              xcrun simctl terminate booted com.big2mobile.app || true
-              sleep 3
             fi
           done
           echo "Maestro ci-authenticated exit code: $MAESTRO_EXIT"
