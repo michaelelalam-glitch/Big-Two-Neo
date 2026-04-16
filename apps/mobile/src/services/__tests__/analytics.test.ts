@@ -628,11 +628,38 @@ describe('featureDurationStart / featureDurationEnd', () => {
 });
 
 // ─── BigQuery Full-Fidelity Parameter Tests ────────────────────────────────── //
-// These tests verify that every event type is correctly emitted with all of its
-// expected parameters — exercising the full client → proxy → BigQuery pipeline.
-// In Jest, USE_PROXY=false (direct-to-GA4); long strings are truncated to 100
-// chars here. In production (USE_PROXY=true), the proxy receives full untruncated
-// params and saves them verbatim to analytics_raw_events before any GA4 truncation.
+// These tests verify that every event type emits the correct payload shape in the
+// direct-to-GA4 path (USE_PROXY=false in Jest). They do NOT exercise the proxy or
+// the analytics_raw_events DB insert — those paths require integration tests
+// against a live Supabase instance. In production (USE_PROXY=true), the proxy
+// receives full untruncated params and saves them verbatim to analytics_raw_events
+// before forwarding truncated data to GA4.
+
+/**
+ * Shared helper: fires a single analytics event in Jest's direct-to-GA4 mode
+ * (USE_PROXY=false) and returns the parsed fetch body so callers can assert on
+ * event name, params, and GA4 payload structure.
+ */
+async function expectEventSent(
+  name: import('../../services/analytics').AnalyticsEventName,
+  params?: Record<string, string | number>
+): Promise<{ events: Array<{ name: string; params: Record<string, unknown> }> }> {
+  setEnv('G-TESTMEASURE', 'testsecret');
+  jest.isolateModules(() => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } =
+      require('../../services/analytics') as typeof import('../../services/analytics');
+    isolatedSetConsent(true);
+    isolatedTrack(name, params);
+  });
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(mockFetch).toHaveBeenCalledTimes(1);
+  const [, options] = mockFetch.mock.calls[0] as [string, RequestInit & { body: string }];
+  return JSON.parse(options.body) as {
+    events: Array<{ name: string; params: Record<string, unknown> }>;
+  };
+}
 
 describe('BigQuery: client-side truncation IS enforced in direct-GA4 mode (USE_PROXY=false / Jest)', () => {
   it('enforces 100-char limit on long string params in direct-GA4 mode', async () => {
@@ -704,21 +731,7 @@ describe('BigQuery: comprehensive event coverage — core lifecycle', () => {
   ];
 
   it.each(EVENTS_TO_TEST)('$name fires with all expected params', async ({ name, params }) => {
-    setEnv('G-TESTMEASURE', 'testsecret');
-    jest.isolateModules(() => {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } =
-        require('../../services/analytics') as typeof import('../../services/analytics');
-      isolatedSetConsent(true);
-      isolatedTrack(name, params);
-    });
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit & { body: string }];
-    const body = JSON.parse(options.body) as {
-      events: Array<{ name: string; params: Record<string, unknown> }>;
-    };
+    const body = await expectEventSent(name, params);
     expect(body.events[0].name).toBe(name);
     expect(body.events[0].params).toHaveProperty('platform');
     expect(body.events[0].params).toHaveProperty('app_version');
@@ -768,21 +781,7 @@ describe('BigQuery: comprehensive event coverage — game lifecycle', () => {
   ];
 
   it.each(EVENTS_TO_TEST)('$name fires with all expected params', async ({ name, params }) => {
-    setEnv('G-TESTMEASURE', 'testsecret');
-    jest.isolateModules(() => {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } =
-        require('../../services/analytics') as typeof import('../../services/analytics');
-      isolatedSetConsent(true);
-      isolatedTrack(name, params);
-    });
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit & { body: string }];
-    const body = JSON.parse(options.body) as {
-      events: Array<{ name: string; params: Record<string, unknown> }>;
-    };
+    const body = await expectEventSent(name, params);
     expect(body.events[0].name).toBe(name);
     expect(body.events[0].params).toHaveProperty('platform');
     expect(body.events[0].params).toHaveProperty('app_version');
@@ -816,21 +815,7 @@ describe('BigQuery: comprehensive event coverage — gameplay actions', () => {
   ];
 
   it.each(EVENTS_TO_TEST)('$name fires with all expected params', async ({ name, params }) => {
-    setEnv('G-TESTMEASURE', 'testsecret');
-    jest.isolateModules(() => {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } =
-        require('../../services/analytics') as typeof import('../../services/analytics');
-      isolatedSetConsent(true);
-      isolatedTrack(name, params);
-    });
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit & { body: string }];
-    const body = JSON.parse(options.body) as {
-      events: Array<{ name: string; params: Record<string, unknown> }>;
-    };
+    const body = await expectEventSent(name, params);
     expect(body.events[0].name).toBe(name);
     if (params) {
       for (const key of Object.keys(params)) {
@@ -898,21 +883,7 @@ describe('BigQuery: comprehensive event coverage — game features', () => {
   ];
 
   it.each(EVENTS_TO_TEST)('$name fires with all expected params', async ({ name, params }) => {
-    setEnv('G-TESTMEASURE', 'testsecret');
-    jest.isolateModules(() => {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } =
-        require('../../services/analytics') as typeof import('../../services/analytics');
-      isolatedSetConsent(true);
-      isolatedTrack(name, params);
-    });
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit & { body: string }];
-    const body = JSON.parse(options.body) as {
-      events: Array<{ name: string; params: Record<string, unknown> }>;
-    };
+    const body = await expectEventSent(name, params);
     expect(body.events[0].name).toBe(name);
     if (params) {
       for (const key of Object.keys(params)) {
@@ -976,21 +947,7 @@ describe('BigQuery: comprehensive event coverage — social & connection & navig
   ];
 
   it.each(EVENTS_TO_TEST)('$name fires with all expected params', async ({ name, params }) => {
-    setEnv('G-TESTMEASURE', 'testsecret');
-    jest.isolateModules(() => {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } =
-        require('../../services/analytics') as typeof import('../../services/analytics');
-      isolatedSetConsent(true);
-      isolatedTrack(name, params);
-    });
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit & { body: string }];
-    const body = JSON.parse(options.body) as {
-      events: Array<{ name: string; params: Record<string, unknown> }>;
-    };
+    const body = await expectEventSent(name, params);
     expect(body.events[0].name).toBe(name);
     if (params) {
       for (const key of Object.keys(params)) {
@@ -1084,21 +1041,7 @@ describe('BigQuery: all events include mandatory base params (platform, app_vers
   it.each(ALL_EVENT_NAMES)(
     '%s includes platform, app_version, session_id, engagement_time_msec',
     async name => {
-      setEnv('G-TESTMEASURE', 'testsecret');
-      jest.isolateModules(() => {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } =
-          require('../../services/analytics') as typeof import('../../services/analytics');
-        isolatedSetConsent(true);
-        isolatedTrack(name);
-      });
-      await Promise.resolve();
-      await Promise.resolve();
-      expect(mockFetch).toHaveBeenCalledTimes(1);
-      const [, options] = mockFetch.mock.calls[0] as [string, RequestInit & { body: string }];
-      const body = JSON.parse(options.body) as {
-        events: Array<{ name: string; params: Record<string, unknown> }>;
-      };
+      const body = await expectEventSent(name);
       expect(body.events[0].name).toBe(name);
       // Every BigQuery row must have these base params for event attribution
       expect(body.events[0].params).toHaveProperty('platform');
