@@ -43,16 +43,42 @@ Deno.serve(async (req) => {
     return errorResponse(405, 'Method not allowed', corsHeaders, 'METHOD_NOT_ALLOWED', requestId);
   }
 
-  // ── Early request size pre-filter (Content-Length fast path) ────────────
-  // Reject oversized requests before JWT validation or rate-limit DB calls to
-  // prevent cheap DoS payloads from consuming expensive auth work. The streaming
-  // byte-cap below (after auth) handles requests that omit Content-Length.
+  // ── Early request size guard ──────────────────────────────────────────────
+  // Buffer the entire body (bounded to 64 KB) before JWT validation so both
+  // Content-Length-declared AND chunked oversized requests are rejected without
+  // paying for auth.getUser() or rate-limit DB round-trips. rawBodyText is
+  // reused for JSON.parse after auth succeeds.
   const AP_MAX_BODY_BYTES = 65_536; // 64 KB
   const clHeader = req.headers.get('content-length');
   if (clHeader !== null) {
     const cl = Number(clHeader);
     if (!Number.isFinite(cl) || cl < 0 || cl > AP_MAX_BODY_BYTES) {
       return errorResponse(413, 'Request body too large', corsHeaders, 'PAYLOAD_TOO_LARGE', requestId);
+    }
+  }
+  let rawBodyText = '';
+  if (req.body) {
+    const reader = req.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let totalBytes = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (!value) continue;
+        totalBytes += value.byteLength;
+        if (totalBytes > AP_MAX_BODY_BYTES) {
+          await reader.cancel().catch(() => undefined);
+          return errorResponse(413, 'Request body too large', corsHeaders, 'PAYLOAD_TOO_LARGE', requestId);
+        }
+        chunks.push(value);
+      }
+    } catch { /* fall through — rawBodyText stays '' */ } finally { reader.releaseLock(); }
+    if (chunks.length > 0) {
+      const bodyBytes = new Uint8Array(totalBytes);
+      let offset = 0;
+      for (const chunk of chunks) { bodyBytes.set(chunk, offset); offset += chunk.byteLength; }
+      rawBodyText = new TextDecoder().decode(bodyBytes);
     }
   }
 
@@ -97,34 +123,7 @@ Deno.serve(async (req) => {
     return errorResponse(500, 'Analytics not configured', corsHeaders, 'INTERNAL_ERROR', requestId);
   }
 
-  // Stream body with a hard byte cap (using AP_MAX_BODY_BYTES defined above) to
-  // reject oversized payloads that omit Content-Length (e.g. chunked transfer encoding).
-  let rawBodyText = '';
-  if (req.body) {
-    const reader = req.body.getReader();
-    const chunks: Uint8Array[] = [];
-    let totalBytes = 0;
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (!value) continue;
-        totalBytes += value.byteLength;
-        if (totalBytes > AP_MAX_BODY_BYTES) {
-          await reader.cancel().catch(() => undefined);
-          return errorResponse(413, 'Request body too large', corsHeaders, 'PAYLOAD_TOO_LARGE', requestId);
-        }
-        chunks.push(value);
-      }
-    } catch { /* fall through — rawBodyText stays '' */ } finally { reader.releaseLock(); }
-    if (chunks.length > 0) {
-      const bodyBytes = new Uint8Array(totalBytes);
-      let offset = 0;
-      for (const chunk of chunks) { bodyBytes.set(chunk, offset); offset += chunk.byteLength; }
-      rawBodyText = new TextDecoder().decode(bodyBytes);
-    }
-  }
-
+  // rawBodyText was buffered before auth (above) for DoS protection.
   let body: any;
   try {
     body = rawBodyText ? JSON.parse(rawBodyText) : null;
@@ -152,7 +151,6 @@ Deno.serve(async (req) => {
     // every parameter value is stored verbatim. This table is the authoritative
     // BigQuery source for detailed analytics queries (e.g. full standings JSON,
     // combo breakdowns, match score arrays).
-    const receivedAt = new Date().toISOString();
     const isDebug = body.debug_mode === 1;
     const rawRows = (body.events as any[]).map((event: any) => ({
       event_name:       event.name ?? 'unknown',
@@ -177,7 +175,8 @@ Deno.serve(async (req) => {
                           ? structuredClone(body.user_properties)
                           : {},
       debug_mode:       isDebug,
-      received_at:      receivedAt,
+      // received_at is intentionally omitted: the column DEFAULT now() provides an
+      // authoritative Postgres ingest timestamp without clock-skew from Edge isolates.
     }));
 
     // Register the insert with EdgeRuntime.waitUntil so the Supabase Edge runtime
