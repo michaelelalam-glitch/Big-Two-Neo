@@ -61,6 +61,7 @@ Deno.serve(async (req) => {
     const reader = req.body.getReader();
     const chunks: Uint8Array[] = [];
     let totalBytes = 0;
+    let bodyReadFailed = false;
     try {
       while (true) {
         const { done, value } = await reader.read();
@@ -73,7 +74,10 @@ Deno.serve(async (req) => {
         }
         chunks.push(value);
       }
-    } catch { /* fall through — rawBodyText stays '' */ } finally { reader.releaseLock(); }
+    } catch { bodyReadFailed = true; } finally { reader.releaseLock(); }
+    if (bodyReadFailed) {
+      return errorResponse(400, 'Failed to read request body', corsHeaders, 'BAD_REQUEST', requestId);
+    }
     if (chunks.length > 0) {
       const bodyBytes = new Uint8Array(totalBytes);
       let offset = 0;

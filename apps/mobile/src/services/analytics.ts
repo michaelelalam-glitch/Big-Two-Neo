@@ -102,92 +102,101 @@ let consentGiven = false;
 export type AnalyticsEventParams = Record<string, string | number>;
 
 /** Supported analytics event names. Extend as new features are added. */
-export type AnalyticsEventName =
+/**
+ * Canonical list of all analytics event names — single source of truth.
+ * The `AnalyticsEventName` union type is derived from this array so that
+ * tests (and other consumers) can import the list directly and stay in sync
+ * automatically when events are added or removed.
+ */
+export const ALL_ANALYTICS_EVENT_NAMES = [
   // ── Core lifecycle ──
-  | 'app_open'
-  | 'user_signed_in'
-  | 'user_signed_out'
-  | 'screen_view'
-  | 'screen_time'
-  | 'error_occurred'
-  | 'feature_used'
+  'app_open',
+  'user_signed_in',
+  'user_signed_out',
+  'screen_view',
+  'screen_time',
+  'error_occurred',
+  'feature_used',
   // ── Game lifecycle ──
-  | 'game_started'
-  | 'game_completed'
-  | 'game_abandoned'
-  | 'game_voided'
-  | 'game_not_completed'
-  | 'game_session_summary'
+  'game_started',
+  'game_completed',
+  'game_abandoned',
+  'game_voided',
+  'game_not_completed',
+  'game_session_summary',
   // ── Gameplay actions ──
-  | 'card_play'
-  | 'card_pass'
-  | 'combo_played'
-  | 'turn_started'
-  | 'turn_completed'
-  | 'play_error'
-  | 'play_validation_error'
-  | 'turn_duration'
+  'card_play',
+  'card_pass',
+  'combo_played',
+  'turn_started',
+  'turn_completed',
+  'play_error',
+  'play_validation_error',
+  'turn_duration',
   // ── Game features ──
-  | 'chat_opened'
-  | 'chat_message_sent'
-  | 'chat_closed'
-  | 'chat_session_duration'
-  | 'camera_toggled'
-  | 'camera_session_duration'
-  | 'microphone_toggled'
-  | 'microphone_session_duration'
-  | 'video_chat_connected'
-  | 'video_chat_disconnected'
-  | 'video_chat_session_duration'
-  | 'video_chat_permission_denied'
-  | 'throwable_sent'
-  | 'throwable_received'
-  | 'hint_used'
-  | 'hint_result_played'
-  | 'hint_result_ignored'
-  | 'hint_no_valid_play'
-  | 'sort_used'
-  | 'smart_sort_used'
-  | 'orientation_changed'
-  | 'orientation_session_duration'
-  | 'play_method_used'
-  | 'card_rearranged'
-  | 'room_join_method'
-  | 'play_history_viewed'
-  | 'play_history_session_duration'
-  | 'scoreboard_expanded'
-  | 'scoreboard_session_duration'
+  'chat_opened',
+  'chat_message_sent',
+  'chat_closed',
+  'chat_session_duration',
+  'camera_toggled',
+  'camera_session_duration',
+  'microphone_toggled',
+  'microphone_session_duration',
+  'video_chat_connected',
+  'video_chat_disconnected',
+  'video_chat_session_duration',
+  'video_chat_permission_denied',
+  'throwable_sent',
+  'throwable_received',
+  'hint_used',
+  'hint_result_played',
+  'hint_result_ignored',
+  'hint_no_valid_play',
+  'sort_used',
+  'smart_sort_used',
+  'orientation_changed',
+  'orientation_session_duration',
+  'play_method_used',
+  'card_rearranged',
+  'room_join_method',
+  'play_history_viewed',
+  'play_history_session_duration',
+  'scoreboard_expanded',
+  'scoreboard_session_duration',
   // ── Social ──
-  | 'friend_added'
-  | 'friend_removed'
-  | 'room_created'
-  | 'room_joined'
-  | 'matchmaking_started'
-  | 'matchmaking_cancelled'
-  | 'matchmaking_found'
+  'friend_added',
+  'friend_removed',
+  'room_created',
+  'room_joined',
+  'matchmaking_started',
+  'matchmaking_cancelled',
+  'matchmaking_found',
   // ── Connection ──
-  | 'disconnect'
-  | 'reconnect'
-  | 'reconnect_attempted'
-  | 'reconnect_succeeded'
-  | 'reconnect_failed'
-  | 'connection_status_changed'
-  | 'player_replaced_by_bot'
-  | 'heartbeat_backoff'
-  | 'app_state_changed'
-  | 'room_closed_while_away'
+  'disconnect',
+  'reconnect',
+  'reconnect_attempted',
+  'reconnect_succeeded',
+  'reconnect_failed',
+  'connection_status_changed',
+  'player_replaced_by_bot',
+  'heartbeat_backoff',
+  'app_state_changed',
+  'room_closed_while_away',
   // ── Navigation / session ──
-  | 'session_start'
-  | 'session_end'
-  | 'deep_link_received'
+  'session_start',
+  'session_end',
+  'deep_link_received',
   // ── Settings ──
-  | 'setting_changed'
-  | 'language_changed'
-  | 'cache_cleared'
-  | 'delete_account_initiated'
-  | 'delete_account_confirmed'
-  | 'bug_report_submitted'
-  | 'bug_report_opened';
+  'setting_changed',
+  'language_changed',
+  'cache_cleared',
+  'delete_account_initiated',
+  'delete_account_confirmed',
+  'bug_report_submitted',
+  'bug_report_opened',
+] as const;
+
+export type AnalyticsEventName = (typeof ALL_ANALYTICS_EVENT_NAMES)[number];
 
 // ─── Client ID (device-persistent) ─────────────────────────────────────────── //
 
