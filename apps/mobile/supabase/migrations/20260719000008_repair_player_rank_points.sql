@@ -179,33 +179,43 @@ BEGIN
 
   END LOOP;
 
-END $$;
+  -- ── Players with no post-reset casual games: reset to 1000 ──────────────────
+  -- Covers accounts created but never played, or accounts whose games predate
+  -- the reset date. Their casual_rank_points might have been drifted by the
+  -- previous (incorrect) recalculation in migration 000005.
+  -- Ranked history is preserved (only casual RP needs the reset); we keep
+  -- existing ranked entries from rank_points_history to avoid data loss for
+  -- players who only played ranked games after the reset.
+  UPDATE player_stats
+  SET
+    casual_rank_points  = 1000,
+    rank_points         = 1000,
+    rank_points_history = COALESCE(
+      (
+        SELECT jsonb_agg(e.entry ORDER BY (e.entry->>'timestamp')::timestamptz DESC NULLS LAST)
+        FROM jsonb_array_elements(rank_points_history) AS e(entry)
+        WHERE e.entry->>'game_type' = 'ranked'
+      ),
+      '[]'::jsonb
+    ),
+    updated_at          = NOW()
+  WHERE user_id NOT IN (
+    SELECT DISTINCT p_slot.player_id
+    FROM game_history g
+    CROSS JOIN LATERAL (
+      VALUES
+        (g.player_1_id),
+        (g.player_2_id),
+        (g.player_3_id),
+        (g.player_4_id)
+    ) AS p_slot(player_id)
+    WHERE p_slot.player_id IS NOT NULL
+      AND g.game_type = 'casual'
+      AND g.created_at >= v_reset_date
+  )
+  AND casual_rank_points != 1000;
 
--- ── Players with no post-reset casual games: reset to 1000 ──────────────────
--- Covers accounts created but never played, or accounts whose games predate
--- the reset date. Their casual_rank_points might have been drifted by the
--- previous (incorrect) recalculation in migration 000005.
-UPDATE player_stats
-SET
-  casual_rank_points  = 1000,
-  rank_points         = 1000,
-  rank_points_history = '[]'::jsonb,
-  updated_at          = NOW()
-WHERE user_id NOT IN (
-  SELECT DISTINCT p_slot.player_id
-  FROM game_history g
-  CROSS JOIN LATERAL (
-    VALUES
-      (g.player_1_id),
-      (g.player_2_id),
-      (g.player_3_id),
-      (g.player_4_id)
-  ) AS p_slot(player_id)
-  WHERE p_slot.player_id IS NOT NULL
-    AND g.game_type = 'casual'
-    AND g.created_at >= '2026-03-23 08:53:51+00'::TIMESTAMPTZ
-)
-AND casual_rank_points != 1000;
+END $$;
 
 -- ── Refresh leaderboard views ────────────────────────────────────────────────
 SELECT refresh_leaderboard();
