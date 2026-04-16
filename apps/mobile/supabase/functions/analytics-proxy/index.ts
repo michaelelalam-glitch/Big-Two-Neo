@@ -105,7 +105,49 @@ Deno.serve(async (req) => {
     // Overwrite user_id with authenticated user to prevent spoofing
     body.user_id = user.id;
 
-    // Enforce GA4 100-char string param limit server-side
+    // ── BigQuery-first: persist FULL (untruncated) event data ──────────────────
+    // Write to analytics_raw_events BEFORE the 100-char GA4 truncation so that
+    // every parameter value is stored verbatim. This table is the authoritative
+    // BigQuery source for detailed analytics queries (e.g. full standings JSON,
+    // combo breakdowns, match score arrays).
+    const receivedAt = new Date().toISOString();
+    const isDebug = body.debug_mode === 1;
+    const rawRows = (body.events as any[]).map((event: any) => ({
+      event_name:       event.name ?? 'unknown',
+      user_id:          user.id,
+      client_id:        body.client_id,
+      session_id:       typeof event.params?.session_id === 'number'
+                          ? event.params.session_id
+                          : null,
+      platform:         typeof event.params?.platform === 'string'
+                          ? event.params.platform
+                          : null,
+      app_version:      typeof event.params?.app_version === 'string'
+                          ? event.params.app_version
+                          : null,
+      // Deep-copy params so the subsequent GA4 truncation doesn't affect the stored value
+      event_params:     JSON.parse(JSON.stringify(event.params ?? {})),
+      user_properties:  body.user_properties
+                          ? JSON.parse(JSON.stringify(body.user_properties))
+                          : {},
+      debug_mode:       isDebug,
+      received_at:      receivedAt,
+    }));
+
+    // Fire-and-forget: do not await so GA4 forwarding is never delayed.
+    // Errors are logged but do not fail the response to the client.
+    supabaseAdmin
+      .from('analytics_raw_events')
+      .insert(rawRows)
+      .then(({ error: dbErr }: { error: any }) => {
+        if (dbErr) {
+          console.warn('[analytics-proxy] analytics_raw_events write failed:', dbErr.message);
+        }
+      });
+
+    // ── GA4: enforce 100-char string param limit ────────────────────────────────
+    // Applied only to the GA4 copy — the BigQuery store above already captured
+    // the full untruncated values.
     for (const event of body.events) {
       if (event.params && typeof event.params === 'object') {
         for (const [key, value] of Object.entries(event.params)) {
@@ -114,6 +156,15 @@ Deno.serve(async (req) => {
           }
         }
       }
+    }
+
+    // ── GA4: add timestamp_micros for accurate BigQuery event timing ────────────
+    // Without timestamp_micros GA4 uses server-receipt time (can lag up to 72h
+    // for daily exports). Setting it here gives BigQuery row timestamps accurate
+    // to the millisecond at the proxy receive time.
+    const nowMicros = Date.now() * 1000;
+    for (const event of body.events) {
+      event.timestamp_micros = nowMicros;
     }
 
     const url = `${MP_ENDPOINT}?measurement_id=${encodeURIComponent(GA4_MEASUREMENT_ID)}&api_secret=${encodeURIComponent(GA4_API_SECRET)}`;
