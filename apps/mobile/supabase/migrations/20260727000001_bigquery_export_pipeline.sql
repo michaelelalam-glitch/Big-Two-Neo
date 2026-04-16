@@ -50,20 +50,73 @@ CREATE INDEX IF NOT EXISTS analytics_raw_events_bq_export_idx
   WHERE exported_to_bigquery_at IS NULL;
 
 -- 3. pg_cron schedule — invoke analytics-bigquery-push Edge Function every 5 min
---    The Edge Function URL uses the project ref (dppybucldqufbqhwnkxu).
---    The Authorization header must carry the service_role key so the Edge Function
---    can create a Supabase admin client for the SELECT and UPDATE operations.
-SELECT cron.schedule(
-  'analytics-bigquery-push',
-  '*/5 * * * *',
-  $$
-  SELECT extensions.http_post(
-    url     := 'https://dppybucldqufbqhwnkxu.supabase.co/functions/v1/analytics-bigquery-push',
-    headers := jsonb_build_object(
-      'Content-Type',  'application/json',
-      'Authorization', 'Bearer ' || current_setting('app.service_role_key', true)
-    ),
-    body    := '{}'::jsonb
+--
+--    PORTABILITY: the Edge Function URL and bearer secret are read from database
+--    settings so this migration works across local / dev / staging / production
+--    without embedding project-specific values in SQL.
+--
+--    Set these before running this migration:
+--      ALTER DATABASE postgres
+--        SET "app.supabase_functions_base_url" = 'https://<project-ref>.supabase.co';
+--      ALTER DATABASE postgres
+--        SET "app.cron_secret" = '<your-cron-secret>';
+--    The CRON_SECRET Supabase secret must be set to the same value:
+--      supabase secrets set CRON_SECRET='<your-cron-secret>'
+
+-- Enable pg_cron (warns and skips if unavailable — safe for local/test envs)
+DO $$
+BEGIN
+  CREATE EXTENSION IF NOT EXISTS pg_cron SCHEMA extensions;
+EXCEPTION
+  WHEN OTHERS THEN
+    RAISE WARNING
+      'pg_cron extension unavailable; skipping analytics-bigquery-push cron registration: %',
+      SQLERRM;
+END
+$$;
+
+-- Register cron job — idempotent (unschedules existing job before re-registering)
+DO $$
+DECLARE
+  functions_base_url text := nullif(current_setting('app.supabase_functions_base_url', true), '');
+  cron_secret        text := nullif(current_setting('app.cron_secret', true), '');
+BEGIN
+  IF functions_base_url IS NULL THEN
+    RAISE EXCEPTION
+      'Missing required database setting app.supabase_functions_base_url. '
+      'Run: ALTER DATABASE postgres SET "app.supabase_functions_base_url" = ''https://<project-ref>.supabase.co'';';
+  END IF;
+
+  IF cron_secret IS NULL THEN
+    RAISE EXCEPTION
+      'Missing required database setting app.cron_secret. '
+      'Run: ALTER DATABASE postgres SET "app.cron_secret" = ''<your-cron-secret>'';';
+  END IF;
+
+  -- Idempotent: remove existing job before re-registering
+  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'analytics-bigquery-push') THEN
+    PERFORM cron.unschedule(
+      (SELECT jobid FROM cron.job WHERE jobname = 'analytics-bigquery-push')
+    );
+  END IF;
+
+  PERFORM cron.schedule(
+    'analytics-bigquery-push',
+    '*/5 * * * *',
+    format(
+      $cron$
+      SELECT extensions.http_post(
+        url     := %L,
+        headers := jsonb_build_object(
+          'Content-Type',  'application/json',
+          'Authorization', %L
+        ),
+        body    := '{}'::jsonb
+      );
+      $cron$,
+      functions_base_url || '/functions/v1/analytics-bigquery-push',
+      'Bearer ' || cron_secret
+    )
   );
-  $$
-);
+END
+$$;

@@ -2,8 +2,8 @@
 /**
  * analytics-bigquery-push — Scheduled Edge Function.
  *
- * Reads unexported rows from public.analytics_raw_events and streams them to
- * Google BigQuery via the BigQuery Storage Write API (or REST insertAll).
+ * Reads unexported rows from public.analytics_raw_events and sends them to
+ * Google BigQuery via the `tabledata.insertAll` REST endpoint.
  * Designed to run on a pg_cron schedule every 5 minutes.
  *
  * Required Supabase secrets:
@@ -12,12 +12,26 @@
  *   BIGQUERY_PROJECT_ID   — GCP project ID (e.g. "my-gcp-project")
  *   BIGQUERY_DATASET_ID   — BigQuery dataset ID (e.g. "big_two_analytics")
  *   BIGQUERY_TABLE_ID     — BigQuery table name (default: "analytics_raw_events")
+ *   CRON_SECRET           — Shared bearer secret; must match the app.cron_secret
+ *                            database setting used by the pg_cron migration
  *
  * BigQuery table schema (run once in BigQuery console):
- *   See docs/chinese-poker/architecture/BIGQUERY_SETUP.md
+ *   Create a table with these fields to match AnalyticsRow:
+ *     id              STRING    REQUIRED
+ *     event_name      STRING    REQUIRED
+ *     user_id         STRING    NULLABLE
+ *     client_id       STRING    REQUIRED
+ *     session_id      INT64     NULLABLE
+ *     platform        STRING    NULLABLE
+ *     app_version     STRING    NULLABLE
+ *     event_params    JSON      REQUIRED
+ *     user_properties JSON      REQUIRED
+ *     debug_mode      BOOL      REQUIRED
+ *     received_at     TIMESTAMP REQUIRED
+ *   Partitioning: received_at (DAY)   — cheap time-range queries
+ *   Clustering:   event_name, user_id — per-event / per-user analytics
  *
- * Security: only callable with SUPABASE_SERVICE_ROLE_KEY (authenticated internally
- * by the cron job — no public access needed).
+ * Security: requires Authorization: Bearer <CRON_SECRET> header; POST only.
  */
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
@@ -28,17 +42,24 @@ const GOOGLE_CLOUD_SA_KEY_RAW = Deno.env.get('GOOGLE_CLOUD_SA_KEY') ?? '';
 const BIGQUERY_PROJECT_ID = Deno.env.get('BIGQUERY_PROJECT_ID') ?? '';
 const BIGQUERY_DATASET_ID = Deno.env.get('BIGQUERY_DATASET_ID') ?? 'big_two_analytics';
 const BIGQUERY_TABLE_ID = Deno.env.get('BIGQUERY_TABLE_ID') ?? 'analytics_raw_events';
+const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? '';
 
 /** Max rows per BigQuery insertAll request (API limit: 50k rows / 10 MB) */
 const BATCH_SIZE = 500;
 
 // ── Google OAuth2 token (service account → access token) ─────────────────────
 
+// Base64url encoding (RFC 7515) — no padding, + → -, / → _.
+// Plain btoa() produces standard base64 which causes "invalid_grant" /
+// JWT parse errors from Google's token exchange endpoint.
+const base64url = (input: string): string =>
+  btoa(input).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
 async function getGcpAccessToken(saKeyJson: string): Promise<string> {
   const sa = JSON.parse(saKeyJson);
   const now = Math.floor(Date.now() / 1000);
-  const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
-  const payload = btoa(
+  const header = base64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const payload = base64url(
     JSON.stringify({
       iss: sa.client_email,
       scope: 'https://www.googleapis.com/auth/bigquery.insertdata',
@@ -67,7 +88,9 @@ async function getGcpAccessToken(saKeyJson: string): Promise<string> {
     cryptoKey,
     new TextEncoder().encode(signingInput)
   );
-  const jwt = `${signingInput}.${btoa(String.fromCharCode(...new Uint8Array(signature)))}`;
+  const sigBase64url = btoa(String.fromCharCode(...new Uint8Array(signature)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  const jwt = `${signingInput}.${sigBase64url}`;
 
   const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
@@ -120,10 +143,9 @@ async function pushToBigQuery(rows: AnalyticsRow[], accessToken: string): Promis
         session_id: r.session_id ?? null,
         platform: r.platform ?? null,
         app_version: r.app_version ?? null,
-        // Store params as JSON string for BigQuery JSON type, or flatten if using STRUCT.
-        // Using STRING column typed as JSON for maximum flexibility without a rigid schema.
-        event_params: JSON.stringify(r.event_params),
-        user_properties: JSON.stringify(r.user_properties),
+        // Send params/properties as native JSON values to match BigQuery JSON columns.
+        event_params: r.event_params,
+        user_properties: r.user_properties,
         debug_mode: r.debug_mode,
         received_at: r.received_at, // ISO-8601 UTC
       },
@@ -146,8 +168,8 @@ async function pushToBigQuery(rows: AnalyticsRow[], accessToken: string): Promis
 
   const result = await res.json();
   if (result.insertErrors && result.insertErrors.length > 0) {
-    // Log all insert errors but don't throw — we still mark the successfully
-    // inserted rows (identified by index) so they aren't retried next run.
+    // Log a sample of row-level insert errors, then throw so the caller treats
+    // the batch as failed and does not mark any rows as exported.
     console.error(
       '[analytics-bigquery-push] insertErrors:',
       JSON.stringify(result.insertErrors.slice(0, 10))
@@ -161,16 +183,30 @@ async function pushToBigQuery(rows: AnalyticsRow[], accessToken: string): Promis
 // ── Main handler ─────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
-  // Only accept POST (pg_cron HTTP call) or internal invocations
-  if (req.method !== 'POST' && req.method !== 'GET') {
+  // POST only — invoked by pg_cron via HTTP POST; other methods are rejected
+  // to minimise the attack surface on the GCP service account credentials.
+  if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
       headers: { 'Content-Type': 'application/json' },
     });
   }
 
+  // ── Auth guard — CRON_SECRET bearer token required ────────────────────────
+  // Prevents unauthorised callers from triggering BigQuery exports using the
+  // service account key stored in GOOGLE_CLOUD_SA_KEY.
+  const authHeader = req.headers.get('Authorization') ?? '';
+  if (!CRON_SECRET || authHeader !== `Bearer ${CRON_SECRET}`) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   // ── Validate required secrets ──────────────────────────────────────────────
   const missingSecrets: string[] = [];
+  if (!SUPABASE_URL) missingSecrets.push('SUPABASE_URL');
+  if (!SUPABASE_SERVICE_ROLE_KEY) missingSecrets.push('SUPABASE_SERVICE_ROLE_KEY');
   if (!GOOGLE_CLOUD_SA_KEY_RAW) missingSecrets.push('GOOGLE_CLOUD_SA_KEY');
   if (!BIGQUERY_PROJECT_ID) missingSecrets.push('BIGQUERY_PROJECT_ID');
   if (missingSecrets.length > 0) {
