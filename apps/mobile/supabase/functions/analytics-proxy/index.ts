@@ -43,6 +43,14 @@ Deno.serve(async (req) => {
     return errorResponse(405, 'Method not allowed', corsHeaders, 'METHOD_NOT_ALLOWED', requestId);
   }
 
+  // ── Fast-path: reject requests missing Authorization header ─────────────────
+  // Check header presence before buffering the body so unauthenticated POSTs are
+  // rejected immediately without burning I/O reading the payload.
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return errorResponse(401, 'Unauthorized', corsHeaders, 'UNAUTHORIZED', requestId);
+  }
+
   // ── Early request size guard ──────────────────────────────────────────────
   // Buffer the entire body (bounded to 64 KB) before JWT validation so both
   // Content-Length-declared AND chunked oversized requests are rejected without
@@ -86,11 +94,6 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Require valid Supabase JWT to prevent anonymous abuse
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return errorResponse(401, 'Unauthorized', corsHeaders, 'UNAUTHORIZED', requestId);
-  }
   const token = authHeader.slice(7);
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
   const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
@@ -150,13 +153,23 @@ Deno.serve(async (req) => {
     // Overwrite user_id with authenticated user to prevent spoofing
     body.user_id = user.id;
 
+    // Validate events: filter out entries without a non-empty string name.
+    // Malformed events would otherwise produce 'unknown' rows in analytics_raw_events
+    // and be rejected by GA4 anyway, so returning early keeps the raw table clean.
+    const validEvents = (body.events as any[]).filter(
+      (event: any) => typeof event.name === 'string' && event.name.length > 0,
+    );
+    if (validEvents.length === 0) {
+      return errorResponse(400, 'No valid events: each event must have a non-empty string name', corsHeaders, 'BAD_REQUEST', requestId);
+    }
+
     // ── BigQuery-first: persist FULL (untruncated) event data ──────────────────
     // Write to analytics_raw_events BEFORE the 100-char GA4 truncation so that
     // every parameter value is stored verbatim. This table is the authoritative
     // BigQuery source for detailed analytics queries (e.g. full standings JSON,
     // combo breakdowns, match score arrays).
     const isDebug = body.debug_mode === 1;
-    const rawRows = (body.events as any[]).map((event: any) => ({
+    const rawRows = validEvents.map((event: any) => ({
       event_name:       event.name ?? 'unknown',
       user_id:          user.id,
       client_id:        body.client_id,
@@ -203,7 +216,7 @@ Deno.serve(async (req) => {
     // ── GA4: enforce 100-char string param limit ────────────────────────────────
     // Applied only to the GA4 copy — the BigQuery store above already captured
     // the full untruncated values.
-    for (const event of body.events) {
+    for (const event of validEvents) {
       if (event.params && typeof event.params === 'object') {
         for (const [key, value] of Object.entries(event.params)) {
           if (typeof value === 'string' && value.length > 100) {
@@ -218,9 +231,11 @@ Deno.serve(async (req) => {
     // for daily exports). Setting it here gives BigQuery row timestamps accurate
     // to the millisecond at the proxy receive time.
     const nowMicros = Date.now() * 1000;
-    for (const event of body.events) {
+    for (const event of validEvents) {
       event.timestamp_micros = nowMicros;
     }
+    // Only forward validated events to GA4
+    body.events = validEvents;
 
     const url = `${MP_ENDPOINT}?measurement_id=${encodeURIComponent(GA4_MEASUREMENT_ID)}&api_secret=${encodeURIComponent(GA4_API_SECRET)}`;
 

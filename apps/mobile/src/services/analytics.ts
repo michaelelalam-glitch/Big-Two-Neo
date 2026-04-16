@@ -101,7 +101,6 @@ let consentGiven = false;
  */
 export type AnalyticsEventParams = Record<string, string | number>;
 
-/** Supported analytics event names. Extend as new features are added. */
 /**
  * Canonical list of all analytics event names — single source of truth.
  * The `AnalyticsEventName` union type is derived from this array so that
