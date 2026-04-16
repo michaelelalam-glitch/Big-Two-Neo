@@ -972,7 +972,23 @@ export class GameStateManager {
 
     // Check if this is the highest possible play BEFORE adding to played_cards
     // (needs to check against cards already played, not including current play)
-    const isHighest = isHighestPossiblePlay(cards, this.state!.played_cards);
+    //
+    // Hand-size shortcut: if no opponent has enough cards to physically respond
+    // with a same-size combo, the timer fires without card-level analysis.
+    //   pairs     — all opponents must have ≥2 cards to respond with a pair
+    //   triples   — all opponents must have ≥3 cards to respond with a triple
+    //   5-card    — all opponents must have ≥5 cards to respond with any 5-card combo
+    // Singles are excluded: any opponent with ≥1 card can respond with a single.
+    const comboSize = cards.length;
+    const maxOpponentCards =
+      comboSize > 1
+        ? Math.max(
+            0,
+            ...this.state!.players.filter(p => p.id !== player.id).map(p => p.hand.length)
+          )
+        : Infinity;
+    const isHighest =
+      maxOpponentCards < comboSize || isHighestPossiblePlay(cards, this.state!.played_cards);
 
     // Now add cards to played_cards history for future highest play detection
     this.state!.played_cards.push(...cards);

@@ -567,11 +567,71 @@ function isHighestRemainingFiveCardCombo(cards: Card[], comboType: ComboType | '
   if (comboType === 'Four of a Kind') {
     return isHighestRemainingFourOfAKind(cards, notInCurrent);
   }
-  // Conservative for Full House / Flush / Straight — enumeration is too expensive
-  // in an edge function context. This means auto-pass will NOT trigger for these
-  // combo types (only Straight Flush and Four of a Kind are checked). This is an
-  // intentional trade-off: false negatives are harmless (timer just doesn't fire),
-  // while false positives would incorrectly auto-pass when beatable plays exist.
+
+  // Full House — in Big Two, FH beats by triple rank only (pair rank is irrelevant).
+  if (comboType === 'Full House') {
+    const rc: Record<string, number> = {};
+    for (const c of cards) rc[c.rank] = (rc[c.rank] || 0) + 1;
+    const playedTripleRank = Object.keys(rc).find(r => rc[r] === 3) ?? null;
+    if (!playedTripleRank) return false;
+    // Rank keys sorted highest-to-lowest by Big Two rank value
+    const ranksDesc = Object.keys(RANK_VALUE).sort((a, b) => RANK_VALUE[b] - RANK_VALUE[a]);
+    const nc: Record<string, number> = {};
+    for (const c of notInCurrent) nc[c.rank] = (nc[c.rank] || 0) + 1;
+    // Find the highest triple rank in remaining cards that also has a valid pair partner
+    for (const tripleRank of ranksDesc) {
+      if ((nc[tripleRank] || 0) < 3) continue;
+      const hasPair = ranksDesc.some(r => r !== tripleRank && (nc[r] || 0) >= 2);
+      if (!hasPair) continue;
+      // A valid competing Full House exists — if its triple rank beats ours, not highest
+      if (RANK_VALUE[tripleRank] > RANK_VALUE[playedTripleRank]) return false;
+      break; // Highest possible triple rank found; it doesn't beat ours
+    }
+    return true;
+  }
+
+  // Flush — compare by highest card value (rank × 10 + suit).
+  if (comboType === 'Flush') {
+    // cards is pre-sorted; last card is the highest
+    const topCard = cards[cards.length - 1];
+    const myBestValue = RANK_VALUE[topCard.rank] * 10 + SUIT_VALUE[topCard.suit];
+    for (const suit of ['D', 'C', 'H', 'S']) {
+      const suitCards = notInCurrent.filter(c => c.suit === suit);
+      if (suitCards.length < 5) continue;
+      const sortedSuit = sortHand(suitCards);
+      const best = sortedSuit[sortedSuit.length - 1];
+      if (RANK_VALUE[best.rank] * 10 + SUIT_VALUE[best.suit] > myBestValue) return false;
+    }
+    return true;
+  }
+
+  // Straight — compare by sequence index (A-2-3-4-5 lowest → 10-J-Q-K-A highest),
+  // then by suit of the top-rank card within the same sequence.
+  if (comboType === 'Straight') {
+    const cardRanks = new Set(cards.map(c => c.rank));
+    let seqIdx = -1;
+    for (let i = 0; i < VALID_STRAIGHT_SEQUENCES.length; i++) {
+      if (VALID_STRAIGHT_SEQUENCES[i].every(r => cardRanks.has(r))) { seqIdx = i; break; }
+    }
+    if (seqIdx === -1) return false;
+    // Check if any higher-ranked sequence can be formed from remaining cards
+    for (let i = seqIdx + 1; i < VALID_STRAIGHT_SEQUENCES.length; i++) {
+      if (VALID_STRAIGHT_SEQUENCES[i].every(rank => notInCurrent.some(c => c.rank === rank))) {
+        return false;
+      }
+    }
+    // No higher sequence possible — check same sequence with a higher top-rank suit
+    const seq = VALID_STRAIGHT_SEQUENCES[seqIdx];
+    const topRank = seq[seq.length - 1];
+    const myTopCard = cards.find(c => c.rank === topRank) ?? cards[cards.length - 1];
+    const canFormSameSeq = seq.every(rank => notInCurrent.some(c => c.rank === rank));
+    if (!canFormSameSeq) return true;
+    for (const c of notInCurrent) {
+      if (c.rank === topRank && SUIT_VALUE[c.suit] > SUIT_VALUE[myTopCard.suit]) return false;
+    }
+    return true;
+  }
+
   return false;
 }
 
