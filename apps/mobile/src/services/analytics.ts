@@ -423,10 +423,15 @@ async function _sendEventsImmediate(
         engagement_time_msec: 100,
         session_id: getSessionId(),
       };
-      // Enforce GA4 100-char string param limit on all values
-      for (const [key, value] of Object.entries(params)) {
-        if (typeof value === 'string' && value.length > 100) {
-          params[key] = value.substring(0, 100);
+      // In proxy mode (production/dev): do NOT truncate here — the proxy saves
+      // full untruncated params to analytics_raw_events BEFORE applying GA4 limits
+      // server-side. Client-side truncation would corrupt the BigQuery raw store.
+      // In direct-to-GA4 mode (Jest unit tests): enforce the 100-char limit here.
+      if (!USE_PROXY) {
+        for (const [key, value] of Object.entries(params)) {
+          if (typeof value === 'string' && value.length > 100) {
+            params[key] = value.substring(0, 100);
+          }
         }
       }
       return { name: e.name, params };

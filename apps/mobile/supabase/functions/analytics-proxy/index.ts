@@ -84,9 +84,51 @@ Deno.serve(async (req) => {
     return errorResponse(500, 'Analytics not configured', corsHeaders, 'INTERNAL_ERROR', requestId);
   }
 
+  // ── Request size guard (DoS mitigation) ─────────────────────────────────
+  // analytics_raw_events persists arbitrary JSON; cap at 64 KB to prevent a
+  // single authenticated user from ingesting very large payloads into the table.
+  // 25 events × ~2 KB each (with rich JSONB params) ≈ 50 KB; 64 KB is generous.
+  const AP_MAX_BODY_BYTES = 65_536; // 64 KB
+  const clHeader = req.headers.get('content-length');
+  if (clHeader !== null) {
+    const cl = Number(clHeader);
+    if (!Number.isFinite(cl) || cl < 0 || cl > AP_MAX_BODY_BYTES) {
+      return errorResponse(413, 'Request body too large', corsHeaders, 'PAYLOAD_TOO_LARGE', requestId);
+    }
+  }
+
+  // Stream body with a hard byte cap to reject oversized payloads that omit
+  // Content-Length (e.g. chunked transfer encoding).
+  let rawBodyText = '';
+  if (req.body) {
+    const reader = req.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let totalBytes = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (!value) continue;
+        totalBytes += value.byteLength;
+        if (totalBytes > AP_MAX_BODY_BYTES) {
+          await reader.cancel().catch(() => undefined);
+          return errorResponse(413, 'Request body too large', corsHeaders, 'PAYLOAD_TOO_LARGE', requestId);
+        }
+        chunks.push(value);
+      }
+    } catch { /* fall through — rawBodyText stays '' */ } finally { reader.releaseLock(); }
+    if (chunks.length > 0) {
+      const bodyBytes = new Uint8Array(totalBytes);
+      let offset = 0;
+      for (const chunk of chunks) { bodyBytes.set(chunk, offset); offset += chunk.byteLength; }
+      rawBodyText = new TextDecoder().decode(bodyBytes);
+    }
+  }
+
   let body: any;
   try {
-    body = await req.json();
+    body = rawBodyText ? JSON.parse(rawBodyText) : null;
+    if (!body) return errorResponse(400, 'Invalid JSON body', corsHeaders, 'BAD_REQUEST', requestId);
   } catch {
     return errorResponse(400, 'Invalid JSON body', corsHeaders, 'BAD_REQUEST', requestId);
   }
@@ -125,25 +167,34 @@ Deno.serve(async (req) => {
       app_version:      typeof event.params?.app_version === 'string'
                           ? event.params.app_version
                           : null,
-      // Deep-copy params so the subsequent GA4 truncation doesn't affect the stored value
-      event_params:     JSON.parse(JSON.stringify(event.params ?? {})),
+      // Deep-copy params so the subsequent GA4 truncation doesn't affect the stored value.
+      // structuredClone is safer and faster than JSON.parse(JSON.stringify(...)):
+      // it handles non-JSON-serialisable values, avoids type coercion, and never throws
+      // on values that JSON.stringify would silently drop or stringify incorrectly.
+      event_params:     structuredClone(event.params ?? {}),
       user_properties:  body.user_properties
-                          ? JSON.parse(JSON.stringify(body.user_properties))
+                          ? structuredClone(body.user_properties)
                           : {},
       debug_mode:       isDebug,
       received_at:      receivedAt,
     }));
 
-    // Fire-and-forget: do not await so GA4 forwarding is never delayed.
-    // Errors are logged but do not fail the response to the client.
-    supabaseAdmin
+    // Register the insert with EdgeRuntime.waitUntil so the Supabase Edge runtime
+    // keeps the Promise alive even after the HTTP response is returned. Without
+    // this, the isolate may be terminated before the write completes (fire-and-
+    // forget promises are not guaranteed to finish in Deno Deploy / Supabase EF).
+    const insertPromise = supabaseAdmin
       .from('analytics_raw_events')
       .insert(rawRows)
       .then(({ error: dbErr }: { error: any }) => {
         if (dbErr) {
           console.warn('[analytics-proxy] analytics_raw_events write failed:', dbErr.message);
         }
+      })
+      .catch((insertErr: unknown) => {
+        console.warn('[analytics-proxy] analytics_raw_events insert threw:', insertErr);
       });
+    (globalThis as any).EdgeRuntime?.waitUntil(insertPromise);
 
     // ── GA4: enforce 100-char string param limit ────────────────────────────────
     // Applied only to the GA4 copy — the BigQuery store above already captured

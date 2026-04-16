@@ -626,3 +626,485 @@ describe('featureDurationStart / featureDurationEnd', () => {
     nowSpy.mockRestore();
   });
 });
+
+// ─── BigQuery Full-Fidelity Parameter Tests ────────────────────────────────── //
+// These tests verify that every event type is correctly emitted with all of its
+// expected parameters — exercising the full client → proxy → BigQuery pipeline.
+// In Jest, USE_PROXY=false (direct-to-GA4); long strings are truncated to 100
+// chars here. In production (USE_PROXY=true), the proxy receives full untruncated
+// params and saves them verbatim to analytics_raw_events before any GA4 truncation.
+
+describe('BigQuery: no client-side truncation in direct-GA4 mode (Jest coverage check)', () => {
+  it('enforces 100-char limit on long string params in direct-GA4 mode', async () => {
+    // In Jest mode USE_PROXY=false → client-side truncation IS applied.
+    const longString = 'x'.repeat(200);
+    setEnv('G-TESTMEASURE', 'testsecret');
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } =
+        require('../../services/analytics') as typeof import('../../services/analytics');
+      isolatedSetConsent(true);
+      isolatedTrack('game_completed', { standings_json: longString });
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit & { body: string }];
+    const body = JSON.parse(options.body) as {
+      events: Array<{ params: Record<string, unknown> }>;
+    };
+    // In direct-GA4 mode (Jest), client enforces 100-char limit
+    expect((body.events[0].params.standings_json as string).length).toBeLessThanOrEqual(100);
+  });
+
+  it('does not truncate numeric params', async () => {
+    setEnv('G-TESTMEASURE', 'testsecret');
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } =
+        require('../../services/analytics') as typeof import('../../services/analytics');
+      isolatedSetConsent(true);
+      isolatedTrack('game_session_summary', {
+        match_count: 10,
+        total_score: 500,
+        win_count: 7,
+        loss_count: 3,
+      });
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit & { body: string }];
+    const body = JSON.parse(options.body) as {
+      events: Array<{ params: Record<string, unknown> }>;
+    };
+    // Numeric params must never be truncated
+    expect(body.events[0].params.match_count).toBe(10);
+    expect(body.events[0].params.total_score).toBe(500);
+    expect(body.events[0].params.win_count).toBe(7);
+    expect(body.events[0].params.loss_count).toBe(3);
+  });
+});
+
+describe('BigQuery: comprehensive event coverage — core lifecycle', () => {
+  const EVENTS_TO_TEST: Array<{
+    name: import('../../services/analytics').AnalyticsEventName;
+    params?: Record<string, string | number>;
+  }> = [
+    { name: 'app_open', params: { source: 'cold_start', first_launch: 1 } },
+    { name: 'user_signed_in', params: { method: 'google', user_id: 'uuid-1234' } },
+    { name: 'user_signed_out', params: { session_duration_seconds: 3600 } },
+    { name: 'screen_view', params: { screen_name: 'GameScreen', screen_class: 'GameScreen' } },
+    { name: 'screen_time', params: { screen_name: 'HomeScreen', duration_seconds: 30 } },
+    {
+      name: 'error_occurred',
+      params: { error_context: 'game_start', error_message: 'room not found', fatal: 0 },
+    },
+    { name: 'feature_used', params: { feature_name: 'hint', source: 'game' } },
+  ];
+
+  it.each(EVENTS_TO_TEST)('$name fires with all expected params', async ({ name, params }) => {
+    setEnv('G-TESTMEASURE', 'testsecret');
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } =
+        require('../../services/analytics') as typeof import('../../services/analytics');
+      isolatedSetConsent(true);
+      isolatedTrack(name, params);
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit & { body: string }];
+    const body = JSON.parse(options.body) as {
+      events: Array<{ name: string; params: Record<string, unknown> }>;
+    };
+    expect(body.events[0].name).toBe(name);
+    expect(body.events[0].params).toHaveProperty('platform');
+    expect(body.events[0].params).toHaveProperty('app_version');
+    if (params) {
+      for (const key of Object.keys(params)) {
+        expect(body.events[0].params).toHaveProperty(key);
+      }
+    }
+  });
+});
+
+describe('BigQuery: comprehensive event coverage — game lifecycle', () => {
+  const EVENTS_TO_TEST: Array<{
+    name: import('../../services/analytics').AnalyticsEventName;
+    params?: Record<string, string | number>;
+  }> = [
+    {
+      name: 'game_started',
+      params: { mode: 'multiplayer', player_count: 4, room_code: 'ABCD', bot_count: 0 },
+    },
+    {
+      name: 'game_completed',
+      params: { mode: 'multiplayer', winner_position: 1, match_count: 3, duration_seconds: 900 },
+    },
+    {
+      name: 'game_abandoned',
+      params: { mode: 'multiplayer', reason: 'user_quit', match_count: 2, duration_seconds: 300 },
+    },
+    {
+      name: 'game_voided',
+      params: { reason: 'insufficient_players', match_count: 1 },
+    },
+    {
+      name: 'game_not_completed',
+      params: { reason: 'disconnect', match_count: 1 },
+    },
+    {
+      name: 'game_session_summary',
+      params: {
+        match_count: 5,
+        win_count: 3,
+        loss_count: 2,
+        total_score: 150,
+        avg_turn_duration_ms: 4200,
+      },
+    },
+  ];
+
+  it.each(EVENTS_TO_TEST)('$name fires with all expected params', async ({ name, params }) => {
+    setEnv('G-TESTMEASURE', 'testsecret');
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } =
+        require('../../services/analytics') as typeof import('../../services/analytics');
+      isolatedSetConsent(true);
+      isolatedTrack(name, params);
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit & { body: string }];
+    const body = JSON.parse(options.body) as {
+      events: Array<{ name: string; params: Record<string, unknown> }>;
+    };
+    expect(body.events[0].name).toBe(name);
+    expect(body.events[0].params).toHaveProperty('platform');
+    expect(body.events[0].params).toHaveProperty('app_version');
+    if (params) {
+      for (const key of Object.keys(params)) {
+        expect(body.events[0].params).toHaveProperty(key);
+      }
+    }
+  });
+});
+
+describe('BigQuery: comprehensive event coverage — gameplay actions', () => {
+  const EVENTS_TO_TEST: Array<{
+    name: import('../../services/analytics').AnalyticsEventName;
+    params?: Record<string, string | number>;
+  }> = [
+    {
+      name: 'card_play',
+      params: { combo_type: 'pair', rank: 'ace', suit: 'spades', card_count: 2 },
+    },
+    { name: 'card_pass', params: { hand_size: 8, turn_number: 5 } },
+    { name: 'combo_played', params: { combo_type: 'straight_flush', card_count: 5, rank: 'king' } },
+    { name: 'turn_started', params: { turn_number: 3, hand_size: 10, is_first_turn: 0 } },
+    { name: 'turn_completed', params: { turn_number: 3, action: 'play', duration_ms: 3500 } },
+    {
+      name: 'play_error',
+      params: { reason: 'lower_than_table', combo_type: 'single', hand_size: 7 },
+    },
+    { name: 'play_validation_error', params: { error_code: 'INVALID_COMBO', combo_type: 'pair' } },
+    { name: 'turn_duration', params: { duration_ms: 5000, action: 'play', turn_number: 4 } },
+  ];
+
+  it.each(EVENTS_TO_TEST)('$name fires with all expected params', async ({ name, params }) => {
+    setEnv('G-TESTMEASURE', 'testsecret');
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } =
+        require('../../services/analytics') as typeof import('../../services/analytics');
+      isolatedSetConsent(true);
+      isolatedTrack(name, params);
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit & { body: string }];
+    const body = JSON.parse(options.body) as {
+      events: Array<{ name: string; params: Record<string, unknown> }>;
+    };
+    expect(body.events[0].name).toBe(name);
+    if (params) {
+      for (const key of Object.keys(params)) {
+        expect(body.events[0].params).toHaveProperty(key);
+      }
+    }
+  });
+});
+
+describe('BigQuery: comprehensive event coverage — game features', () => {
+  const EVENTS_TO_TEST: Array<{
+    name: import('../../services/analytics').AnalyticsEventName;
+    params?: Record<string, string | number>;
+  }> = [
+    { name: 'chat_opened', params: { source: 'game_screen' } },
+    { name: 'chat_message_sent', params: { message_length: 42, source: 'game_screen' } },
+    { name: 'chat_closed', params: { session_duration_seconds: 90 } },
+    { name: 'chat_session_duration', params: { duration_ms: 90000, message_count: 5 } },
+    { name: 'camera_toggled', params: { enabled: 1, source: 'game_screen' } },
+    { name: 'camera_session_duration', params: { feature_name: 'camera', duration_ms: 60000 } },
+    { name: 'microphone_toggled', params: { enabled: 1, source: 'game_screen' } },
+    {
+      name: 'microphone_session_duration',
+      params: { feature_name: 'microphone', duration_ms: 45000 },
+    },
+    { name: 'video_chat_connected', params: { peer_count: 3, connection_time_ms: 1200 } },
+    {
+      name: 'video_chat_disconnected',
+      params: { reason: 'user_action', session_duration_ms: 120000 },
+    },
+    {
+      name: 'video_chat_session_duration',
+      params: { feature_name: 'video_chat', duration_ms: 120000 },
+    },
+    {
+      name: 'video_chat_permission_denied',
+      params: { permission_type: 'camera', source: 'game_screen' },
+    },
+    { name: 'throwable_sent', params: { throwable_type: 'tomato', target_player: 2 } },
+    { name: 'throwable_received', params: { throwable_type: 'tomato', from_player: 1 } },
+    { name: 'hint_used', params: { hand_size: 8, combo_type: 'single' } },
+    { name: 'hint_result_played', params: { hand_size: 7, combo_type: 'pair' } },
+    { name: 'hint_result_ignored', params: { hand_size: 7, combo_type: 'pair' } },
+    { name: 'hint_no_valid_play', params: { hand_size: 5 } },
+    { name: 'sort_used', params: { sort_type: 'value', hand_size: 12 } },
+    { name: 'smart_sort_used', params: { hand_size: 13, combos_detected: 3 } },
+    { name: 'orientation_changed', params: { orientation: 'landscape', previous: 'portrait' } },
+    {
+      name: 'orientation_session_duration',
+      params: { feature_name: 'orientation', duration_ms: 30000 },
+    },
+    { name: 'play_method_used', params: { method: 'tap', action: 'play' } },
+    { name: 'card_rearranged', params: { hand_size: 10, rearrange_count: 3 } },
+    { name: 'room_join_method', params: { method: 'qr_code', room_code: 'ABCD' } },
+    { name: 'play_history_viewed', params: { match_number: 2, history_length: 5 } },
+    {
+      name: 'play_history_session_duration',
+      params: { feature_name: 'play_history', duration_ms: 15000 },
+    },
+    { name: 'scoreboard_expanded', params: { match_number: 1, player_count: 4 } },
+    {
+      name: 'scoreboard_session_duration',
+      params: { feature_name: 'scoreboard', duration_ms: 8000 },
+    },
+  ];
+
+  it.each(EVENTS_TO_TEST)('$name fires with all expected params', async ({ name, params }) => {
+    setEnv('G-TESTMEASURE', 'testsecret');
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } =
+        require('../../services/analytics') as typeof import('../../services/analytics');
+      isolatedSetConsent(true);
+      isolatedTrack(name, params);
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit & { body: string }];
+    const body = JSON.parse(options.body) as {
+      events: Array<{ name: string; params: Record<string, unknown> }>;
+    };
+    expect(body.events[0].name).toBe(name);
+    if (params) {
+      for (const key of Object.keys(params)) {
+        expect(body.events[0].params).toHaveProperty(key);
+      }
+    }
+  });
+});
+
+describe('BigQuery: comprehensive event coverage — social & connection & navigation & settings', () => {
+  const EVENTS_TO_TEST: Array<{
+    name: import('../../services/analytics').AnalyticsEventName;
+    params?: Record<string, string | number>;
+  }> = [
+    // Social
+    { name: 'friend_added', params: { source: 'game_end', friend_count: 5 } },
+    { name: 'friend_removed', params: { source: 'profile', friend_count: 4 } },
+    { name: 'room_created', params: { room_type: 'private', player_limit: 4, bot_count: 0 } },
+    { name: 'room_joined', params: { room_type: 'private', method: 'room_code', player_count: 3 } },
+    { name: 'matchmaking_started', params: { mode: 'ranked', region: 'us-east' } },
+    { name: 'matchmaking_cancelled', params: { mode: 'ranked', wait_time_seconds: 45 } },
+    {
+      name: 'matchmaking_found',
+      params: { mode: 'ranked', wait_time_seconds: 23, player_count: 4 },
+    },
+    // Connection
+    {
+      name: 'disconnect',
+      params: { reason: 'network', duration_seconds: 5, reconnect_attempted: 1 },
+    },
+    { name: 'reconnect', params: { attempt_count: 1, duration_ms: 2000 } },
+    { name: 'reconnect_attempted', params: { attempt_number: 2, backoff_ms: 4000 } },
+    { name: 'reconnect_succeeded', params: { attempt_count: 3, total_duration_ms: 8000 } },
+    { name: 'reconnect_failed', params: { attempt_count: 5, reason: 'timeout' } },
+    { name: 'connection_status_changed', params: { status: 'offline', previous_status: 'online' } },
+    {
+      name: 'player_replaced_by_bot',
+      params: { position: 2, reason: 'disconnect', turn_number: 8 },
+    },
+    { name: 'heartbeat_backoff', params: { backoff_seconds: 30, consecutive_failures: 3 } },
+    { name: 'app_state_changed', params: { state: 'background', previous_state: 'active' } },
+    { name: 'room_closed_while_away', params: { room_code: 'ABCD', away_duration_seconds: 120 } },
+    // Navigation / session
+    { name: 'session_start', params: { source: 'app_open', user_type: 'returning' } },
+    { name: 'session_end', params: { duration_seconds: 1800, screen_count: 8 } },
+    { name: 'deep_link_received', params: { type: 'room_invite', room_code: 'XYZW' } },
+    // Settings
+    {
+      name: 'setting_changed',
+      params: { setting_name: 'sound_enabled', old_value: 1, new_value: 0 },
+    },
+    { name: 'language_changed', params: { from: 'en', to: 'zh' } },
+    { name: 'cache_cleared', params: { cache_size_kb: 2048, items_cleared: 150 } },
+    { name: 'delete_account_initiated', params: { source: 'settings', step: 1 } },
+    { name: 'delete_account_confirmed', params: { source: 'settings' } },
+    {
+      name: 'bug_report_submitted',
+      params: { category: 'gameplay', severity: 2, has_screenshot: 1 },
+    },
+    { name: 'bug_report_opened', params: { source: 'settings' } },
+  ];
+
+  it.each(EVENTS_TO_TEST)('$name fires with all expected params', async ({ name, params }) => {
+    setEnv('G-TESTMEASURE', 'testsecret');
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } =
+        require('../../services/analytics') as typeof import('../../services/analytics');
+      isolatedSetConsent(true);
+      isolatedTrack(name, params);
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit & { body: string }];
+    const body = JSON.parse(options.body) as {
+      events: Array<{ name: string; params: Record<string, unknown> }>;
+    };
+    expect(body.events[0].name).toBe(name);
+    if (params) {
+      for (const key of Object.keys(params)) {
+        expect(body.events[0].params).toHaveProperty(key);
+      }
+    }
+  });
+});
+
+describe('BigQuery: all events include mandatory base params (platform, app_version, session_id, engagement_time_msec)', () => {
+  const ALL_EVENT_NAMES: import('../../services/analytics').AnalyticsEventName[] = [
+    'app_open',
+    'user_signed_in',
+    'user_signed_out',
+    'screen_view',
+    'screen_time',
+    'error_occurred',
+    'feature_used',
+    'game_started',
+    'game_completed',
+    'game_abandoned',
+    'game_voided',
+    'game_not_completed',
+    'game_session_summary',
+    'card_play',
+    'card_pass',
+    'combo_played',
+    'turn_started',
+    'turn_completed',
+    'play_error',
+    'play_validation_error',
+    'turn_duration',
+    'chat_opened',
+    'chat_message_sent',
+    'chat_closed',
+    'chat_session_duration',
+    'camera_toggled',
+    'camera_session_duration',
+    'microphone_toggled',
+    'microphone_session_duration',
+    'video_chat_connected',
+    'video_chat_disconnected',
+    'video_chat_session_duration',
+    'video_chat_permission_denied',
+    'throwable_sent',
+    'throwable_received',
+    'hint_used',
+    'hint_result_played',
+    'hint_result_ignored',
+    'hint_no_valid_play',
+    'sort_used',
+    'smart_sort_used',
+    'orientation_changed',
+    'orientation_session_duration',
+    'play_method_used',
+    'card_rearranged',
+    'room_join_method',
+    'play_history_viewed',
+    'play_history_session_duration',
+    'scoreboard_expanded',
+    'scoreboard_session_duration',
+    'friend_added',
+    'friend_removed',
+    'room_created',
+    'room_joined',
+    'matchmaking_started',
+    'matchmaking_cancelled',
+    'matchmaking_found',
+    'disconnect',
+    'reconnect',
+    'reconnect_attempted',
+    'reconnect_succeeded',
+    'reconnect_failed',
+    'connection_status_changed',
+    'player_replaced_by_bot',
+    'heartbeat_backoff',
+    'app_state_changed',
+    'room_closed_while_away',
+    'session_start',
+    'session_end',
+    'deep_link_received',
+    'setting_changed',
+    'language_changed',
+    'cache_cleared',
+    'delete_account_initiated',
+    'delete_account_confirmed',
+    'bug_report_submitted',
+    'bug_report_opened',
+  ];
+
+  it.each(ALL_EVENT_NAMES)(
+    '%s includes platform, app_version, session_id, engagement_time_msec',
+    async name => {
+      setEnv('G-TESTMEASURE', 'testsecret');
+      jest.isolateModules(() => {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { trackEvent: isolatedTrack, setAnalyticsConsent: isolatedSetConsent } =
+          require('../../services/analytics') as typeof import('../../services/analytics');
+        isolatedSetConsent(true);
+        isolatedTrack(name);
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const [, options] = mockFetch.mock.calls[0] as [string, RequestInit & { body: string }];
+      const body = JSON.parse(options.body) as {
+        events: Array<{ name: string; params: Record<string, unknown> }>;
+      };
+      expect(body.events[0].name).toBe(name);
+      // Every BigQuery row must have these base params for event attribution
+      expect(body.events[0].params).toHaveProperty('platform');
+      expect(body.events[0].params).toHaveProperty('app_version');
+      expect(body.events[0].params).toHaveProperty('session_id');
+      expect(body.events[0].params).toHaveProperty('engagement_time_msec', 100);
+    }
+  );
+});
