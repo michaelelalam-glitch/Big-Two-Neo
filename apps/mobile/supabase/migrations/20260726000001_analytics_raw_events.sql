@@ -55,10 +55,13 @@ CREATE INDEX IF NOT EXISTS analytics_raw_events_event_name_idx
 CREATE INDEX IF NOT EXISTS analytics_raw_events_received_at_idx
   ON public.analytics_raw_events (received_at DESC);
 
--- JSONB gin index for ad-hoc param queries:
---   e.g. WHERE event_params @> '{"game_mode":"online_ranked"}'
+-- JSONB GIN index for containment queries (e.g. WHERE event_params @> '{"mode":"ranked"}').
+-- Uses jsonb_path_ops operator class: ~3-4x smaller index than the default jsonb_ops,
+-- supports @> (containment) queries, and has lower write amplification on high-ingest
+-- tables. Trade-off: does NOT support @? (jsonpath) or key-existence operators (?, ?|, ?&).
+-- If ad-hoc key-existence queries are needed in future, revisit to jsonb_ops.
 CREATE INDEX IF NOT EXISTS analytics_raw_events_params_gin_idx
-  ON public.analytics_raw_events USING gin (event_params);
+  ON public.analytics_raw_events USING gin (event_params jsonb_path_ops);
 
 -- ── Row-Level Security ─────────────────────────────────────────────────────── --
 -- Writes come exclusively from the service-role key inside analytics-proxy.

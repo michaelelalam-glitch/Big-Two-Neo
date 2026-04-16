@@ -168,9 +168,10 @@ Deno.serve(async (req) => {
                           ? event.params.app_version
                           : null,
       // Deep-copy params so the subsequent GA4 truncation doesn't affect the stored value.
-      // structuredClone is safer and faster than JSON.parse(JSON.stringify(...)):
-      // it handles non-JSON-serialisable values, avoids type coercion, and never throws
-      // on values that JSON.stringify would silently drop or stringify incorrectly.
+      // structuredClone is preferred over JSON.parse(JSON.stringify(...)): it is faster,
+      // avoids unnecessary serialization round-trips, and is equally safe here because
+      // event.params / body.user_properties arrive from JSON.parse so they are
+      // guaranteed to contain only JSON-safe values (no functions, symbols, or bigints).
       event_params:     structuredClone(event.params ?? {}),
       user_properties:  body.user_properties
                           ? structuredClone(body.user_properties)

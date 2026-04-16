@@ -634,7 +634,7 @@ describe('featureDurationStart / featureDurationEnd', () => {
 // chars here. In production (USE_PROXY=true), the proxy receives full untruncated
 // params and saves them verbatim to analytics_raw_events before any GA4 truncation.
 
-describe('BigQuery: no client-side truncation in direct-GA4 mode (Jest coverage check)', () => {
+describe('BigQuery: client-side truncation IS enforced in direct-GA4 mode (USE_PROXY=false / Jest)', () => {
   it('enforces 100-char limit on long string params in direct-GA4 mode', async () => {
     // In Jest mode USE_PROXY=false → client-side truncation IS applied.
     const longString = 'x'.repeat(200);
