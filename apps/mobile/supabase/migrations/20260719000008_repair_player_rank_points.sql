@@ -92,7 +92,7 @@ BEGIN
           g.player_3_id = v_player.user_id OR
           g.player_4_id = v_player.user_id
         )
-      ORDER BY g.finished_at ASC
+      ORDER BY COALESCE(g.finished_at, g.created_at) ASC, g.created_at ASC, g.id ASC
     LOOP
       -- Determine player status for this game
       v_is_voided    := COALESCE(v_game.voided_user_id = v_player.user_id, false);
@@ -125,26 +125,28 @@ BEGIN
         'timestamp', v_game.finished_at
       );
 
-      -- Keep only the 100 most-recent casual entries while building history.
-      -- This avoids repeatedly concatenating an ever-growing JSONB array, and
-      -- is safe because Step 3 only keeps the 100 most-recent combined entries.
-      SELECT COALESCE(
-        jsonb_agg(entry ORDER BY (entry->>'timestamp')::timestamptz DESC NULLS LAST),
-        '[]'::jsonb
-      )
-      INTO v_casual_history
-      FROM (
-        SELECT entry
-        FROM (
-          SELECT e.entry
-          FROM jsonb_array_elements(v_casual_history) AS e(entry)
-          UNION ALL
-          SELECT v_entry
-        ) casual_entries
-        ORDER BY (entry->>'timestamp')::timestamptz DESC NULLS LAST
-        LIMIT 100
-      ) limited_entries;
+      -- Cheap O(1) append per iteration; trim once per player after the loop.
+      v_casual_history := v_casual_history || jsonb_build_array(v_entry);
     END LOOP;
+
+    -- Keep only the 100 most-recent casual entries once per player.
+    -- Trimming here rather than inside the loop avoids executing a SELECT with
+    -- jsonb_array_elements + ORDER BY + LIMIT on every game iteration.
+    SELECT COALESCE(
+      (
+        SELECT jsonb_agg(
+          limited_entries.entry
+          ORDER BY (limited_entries.entry->>'timestamp')::timestamptz DESC NULLS LAST
+        )
+        FROM (
+          SELECT e.entry AS entry
+          FROM jsonb_array_elements(v_casual_history) AS e(entry)
+          ORDER BY (e.entry->>'timestamp')::timestamptz DESC NULLS LAST
+          LIMIT 100
+        ) limited_entries
+      ),
+      '[]'::jsonb
+    ) INTO v_casual_history;
 
     -- ── Step 3: Merge ranked + casual, keep 100 most-recent entries ──────────
     SELECT COALESCE(
