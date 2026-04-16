@@ -19,10 +19,13 @@
  *     rank_points_history (progression graph — 30 entries, tagged by mode)
  *     all 9 combo types (completed games only)
  *
- * Engine: TypeScript port of the CURRENT SQL function
- *   (migration 20260718000001_fix_avg_cards_left_completed_only.sql and later)
- *   Key rule: avg_cards_left_in_hand uses games_completed as denominator —
- *   abandoned and voided games do NOT count toward cards-left stats.
+ * Engine: simplified TypeScript simulation for sandbox testing of stats behavior.
+ *   It is inspired by update_player_stats_after_game(), but it is not an exact
+ *   port of the current SQL implementation for every rule.
+ *   In particular, rank-point changes in this sandbox are simplified and should
+ *   not be treated as SQL-accurate for casual, ranked, or private game modes.
+ *   Key rule preserved here: avg_cards_left_in_hand uses games_completed as the
+ *   denominator — abandoned and voided games do NOT count toward cards-left stats.
  */
 
 // ─── Engine types ─────────────────────────────────────────────────────────────

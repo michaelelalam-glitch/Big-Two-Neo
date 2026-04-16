@@ -38,7 +38,7 @@ module.exports = function withSentryNonFatalUpload(config) {
     const phases =
       xcodeProject.hash.project.objects['PBXShellScriptBuildPhase'] || {};
 
-    let patched = false;
+    let patchedAny = false;
 
     for (const key of Object.keys(phases)) {
       const phase = phases[key];
@@ -71,10 +71,11 @@ module.exports = function withSentryNonFatalUpload(config) {
       // Regex: capture up to and INCLUDING the closing ` in group1, the
       //        trailing " in group2.  The $ anchor ensures we get the LAST
       //        ` before the final " (the one that closes the substitution).
+      let didPatchThisPhase = false;
       const patchedScript = script.replace(
         /(sentry-xcode-debug-files\.sh[^`]*`)("$)/,
         (match, beforeClose, trailingQuote) => {
-          patched = true;
+          didPatchThisPhase = true;
           const fallback =
             ` || { echo 'Sentry symbol upload failed (non-fatal) — build continues'; exit 0; }` +
             ` # ${MARKER}`;
@@ -82,7 +83,7 @@ module.exports = function withSentryNonFatalUpload(config) {
         },
       );
 
-      if (!patched) {
+      if (!didPatchThisPhase) {
         console.warn(
           `[withSentryNonFatalUpload] regex did not match shellScript for "${name}".`,
         );
@@ -90,10 +91,11 @@ module.exports = function withSentryNonFatalUpload(config) {
       }
 
       phase.shellScript = patchedScript;
+      patchedAny = true;
       console.log(`[withSentryNonFatalUpload] Patched "${name}" to be non-fatal.`);
     }
 
-    if (!patched) {
+    if (!patchedAny) {
       console.warn(
         '[withSentryNonFatalUpload] No matching Sentry debug-files build phase patched.',
       );

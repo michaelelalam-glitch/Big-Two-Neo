@@ -45,10 +45,10 @@ BEGIN
     FROM player_stats
   LOOP
 
-    -- ── Step 1: Preserve existing ranked history, floor points at 0 ──────────
+    -- ── Step 1: Preserve existing ranked history as-is ───────────────────────
     -- Ranked ELO was computed correctly (K=32 pairwise in the edge function).
-    -- The only ranked bug was no floor guard, so cap negative points at 0.
-    -- Preserve existing ranked history as-is (ELO was computed correctly)
+    -- This step only keeps existing ranked entries from rank_points_history
+    -- and preserves them as-is; no flooring/capping is applied here.
     SELECT COALESCE(
       (
         SELECT jsonb_agg(e.entry ORDER BY (e.entry->>'timestamp')::timestamptz ASC NULLS LAST)
@@ -124,7 +124,26 @@ BEGIN
         'game_type', 'casual',
         'timestamp', v_game.finished_at
       );
-      v_casual_history := v_casual_history || jsonb_build_array(v_entry);
+
+      -- Keep only the 100 most-recent casual entries while building history.
+      -- This avoids repeatedly concatenating an ever-growing JSONB array, and
+      -- is safe because Step 3 only keeps the 100 most-recent combined entries.
+      SELECT COALESCE(
+        jsonb_agg(entry ORDER BY (entry->>'timestamp')::timestamptz DESC NULLS LAST),
+        '[]'::jsonb
+      )
+      INTO v_casual_history
+      FROM (
+        SELECT entry
+        FROM (
+          SELECT e.entry
+          FROM jsonb_array_elements(v_casual_history) AS e(entry)
+          UNION ALL
+          SELECT v_entry
+        ) casual_entries
+        ORDER BY (entry->>'timestamp')::timestamptz DESC NULLS LAST
+        LIMIT 100
+      ) limited_entries;
     END LOOP;
 
     -- ── Step 3: Merge ranked + casual, keep 100 most-recent entries ──────────
