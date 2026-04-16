@@ -43,6 +43,19 @@ Deno.serve(async (req) => {
     return errorResponse(405, 'Method not allowed', corsHeaders, 'METHOD_NOT_ALLOWED', requestId);
   }
 
+  // ── Early request size pre-filter (Content-Length fast path) ────────────
+  // Reject oversized requests before JWT validation or rate-limit DB calls to
+  // prevent cheap DoS payloads from consuming expensive auth work. The streaming
+  // byte-cap below (after auth) handles requests that omit Content-Length.
+  const AP_MAX_BODY_BYTES = 65_536; // 64 KB
+  const clHeader = req.headers.get('content-length');
+  if (clHeader !== null) {
+    const cl = Number(clHeader);
+    if (!Number.isFinite(cl) || cl < 0 || cl > AP_MAX_BODY_BYTES) {
+      return errorResponse(413, 'Request body too large', corsHeaders, 'PAYLOAD_TOO_LARGE', requestId);
+    }
+  }
+
   // Require valid Supabase JWT to prevent anonymous abuse
   const authHeader = req.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
@@ -84,21 +97,8 @@ Deno.serve(async (req) => {
     return errorResponse(500, 'Analytics not configured', corsHeaders, 'INTERNAL_ERROR', requestId);
   }
 
-  // ── Request size guard (DoS mitigation) ─────────────────────────────────
-  // analytics_raw_events persists arbitrary JSON; cap at 64 KB to prevent a
-  // single authenticated user from ingesting very large payloads into the table.
-  // 25 events × ~2 KB each (with rich JSONB params) ≈ 50 KB; 64 KB is generous.
-  const AP_MAX_BODY_BYTES = 65_536; // 64 KB
-  const clHeader = req.headers.get('content-length');
-  if (clHeader !== null) {
-    const cl = Number(clHeader);
-    if (!Number.isFinite(cl) || cl < 0 || cl > AP_MAX_BODY_BYTES) {
-      return errorResponse(413, 'Request body too large', corsHeaders, 'PAYLOAD_TOO_LARGE', requestId);
-    }
-  }
-
-  // Stream body with a hard byte cap to reject oversized payloads that omit
-  // Content-Length (e.g. chunked transfer encoding).
+  // Stream body with a hard byte cap (using AP_MAX_BODY_BYTES defined above) to
+  // reject oversized payloads that omit Content-Length (e.g. chunked transfer encoding).
   let rawBodyText = '';
   if (req.body) {
     const reader = req.body.getReader();

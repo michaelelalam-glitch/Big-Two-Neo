@@ -719,8 +719,10 @@ describe('BigQuery: comprehensive event coverage — core lifecycle', () => {
     params?: Record<string, string | number>;
   }> = [
     { name: 'app_open', params: { source: 'cold_start', first_launch: 1 } },
-    { name: 'user_signed_in', params: { method: 'google', user_id: 'uuid-1234' } },
-    { name: 'user_signed_out', params: { session_duration_seconds: 3600 } },
+    // trackAuthEvent('user_signed_in', method) only passes { method } to trackEvent
+    { name: 'user_signed_in', params: { method: 'google' } },
+    // trackAuthEvent('user_signed_out') passes no event-specific params
+    { name: 'user_signed_out' },
     { name: 'screen_view', params: { screen_name: 'GameScreen', screen_class: 'GameScreen' } },
     { name: 'screen_time', params: { screen_name: 'HomeScreen', duration_seconds: 30 } },
     {
