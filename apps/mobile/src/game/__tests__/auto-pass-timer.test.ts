@@ -73,6 +73,139 @@ describe('Auto-Pass Timer Manager', () => {
     });
   });
 
+  // ── 5-card combo shouldTriggerAutoPassTimer tests ────────────────────────────
+  //
+  // "Last-N-cards" approach: build allExcept(play) as playedCards so the
+  // remaining deck contains only the play → no stronger combo is formable.
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  describe('shouldTriggerAutoPassTimer — 5-card combos', () => {
+    type Rank = '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A' | '2';
+    type Suit = 'D' | 'C' | 'H' | 'S';
+
+    /** All 52 cards except the specified play cards */
+    function allExcept(cards: Card[]): Card[] {
+      const ids = new Set(cards.map(c => c.id));
+      const result: Card[] = [];
+      const ranks: Rank[] = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
+      const suits: Suit[] = ['D', 'C', 'H', 'S'];
+      for (const r of ranks) {
+        for (const s of suits) {
+          const id = `${r}${s}`;
+          if (!ids.has(id)) result.push({ id, rank: r, suit: s });
+        }
+      }
+      return result;
+    }
+
+    // ── Full House ────────────────────────────────────────────────────────────
+
+    it('should TRIGGER for Full House 2-2-2-A-A when it is the last 5 cards in the deck', () => {
+      const play: Card[] = [
+        { id: '2S', rank: '2', suit: 'S' },
+        { id: '2H', rank: '2', suit: 'H' },
+        { id: '2D', rank: '2', suit: 'D' },
+        { id: 'AS', rank: 'A', suit: 'S' },
+        { id: 'AH', rank: 'A', suit: 'H' },
+      ];
+      expect(shouldTriggerAutoPassTimer(play, allExcept(play))).toBe(true);
+    });
+
+    it('should TRIGGER for Full House A-A-A-K-K when it is the last 5 cards', () => {
+      const play: Card[] = [
+        { id: 'AS', rank: 'A', suit: 'S' },
+        { id: 'AH', rank: 'A', suit: 'H' },
+        { id: 'AD', rank: 'A', suit: 'D' },
+        { id: 'KS', rank: 'K', suit: 'S' },
+        { id: 'KH', rank: 'K', suit: 'H' },
+      ];
+      expect(shouldTriggerAutoPassTimer(play, allExcept(play))).toBe(true);
+    });
+
+    it('should NOT trigger for Full House K-K-K-Q-Q when higher combos are possible', () => {
+      const play: Card[] = [
+        { id: 'KS', rank: 'K', suit: 'S' },
+        { id: 'KH', rank: 'K', suit: 'H' },
+        { id: 'KD', rank: 'K', suit: 'D' },
+        { id: 'QS', rank: 'Q', suit: 'S' },
+        { id: 'QH', rank: 'Q', suit: 'H' },
+      ];
+      // With nothing played, triple-2 FH is still possible → NOT highest
+      expect(shouldTriggerAutoPassTimer(play, [])).toBe(false);
+    });
+
+    it('should NOT trigger for Full House 2-2-2-6-6 when SF is still possible', () => {
+      // Real false-positive guard from Screenshot 3 scenario
+      const play: Card[] = [
+        { id: '2S', rank: '2', suit: 'S' },
+        { id: '2H', rank: '2', suit: 'H' },
+        { id: '2D', rank: '2', suit: 'D' },
+        { id: '6S', rank: '6', suit: 'S' },
+        { id: '6H', rank: '6', suit: 'H' },
+      ];
+      expect(shouldTriggerAutoPassTimer(play, [])).toBe(false);
+    });
+
+    // ── Flush ─────────────────────────────────────────────────────────────────
+
+    it('should TRIGGER for Flush [2♠,A♠,K♠,Q♠,J♠] when it is the last 5 cards', () => {
+      const play: Card[] = [
+        { id: '2S', rank: '2', suit: 'S' },
+        { id: 'AS', rank: 'A', suit: 'S' },
+        { id: 'KS', rank: 'K', suit: 'S' },
+        { id: 'QS', rank: 'Q', suit: 'S' },
+        { id: 'JS', rank: 'J', suit: 'S' },
+      ];
+      expect(shouldTriggerAutoPassTimer(play, allExcept(play))).toBe(true);
+    });
+
+    it('should NOT trigger for Flush A♠-K♠-Q♠-J♠-9♠ when SF is still possible', () => {
+      const play: Card[] = [
+        { id: 'AS', rank: 'A', suit: 'S' },
+        { id: 'KS', rank: 'K', suit: 'S' },
+        { id: 'QS', rank: 'Q', suit: 'S' },
+        { id: 'JS', rank: 'J', suit: 'S' },
+        { id: '9S', rank: '9', suit: 'S' },
+      ];
+      expect(shouldTriggerAutoPassTimer(play, [])).toBe(false);
+    });
+
+    // ── Straight ──────────────────────────────────────────────────────────────
+
+    it('should TRIGGER for Straight 10-J-Q-K-A (mixed suits) when it is the last 5 cards', () => {
+      const play: Card[] = [
+        { id: '10D', rank: '10', suit: 'D' },
+        { id: 'JC', rank: 'J', suit: 'C' },
+        { id: 'QH', rank: 'Q', suit: 'H' },
+        { id: 'KS', rank: 'K', suit: 'S' },
+        { id: 'AD', rank: 'A', suit: 'D' },
+      ];
+      expect(shouldTriggerAutoPassTimer(play, allExcept(play))).toBe(true);
+    });
+
+    it('should NOT trigger for Straight 3-4-5-6-7 when plenty of cards remain', () => {
+      const play: Card[] = [
+        { id: '3H', rank: '3', suit: 'H' },
+        { id: '4D', rank: '4', suit: 'D' },
+        { id: '5S', rank: '5', suit: 'S' },
+        { id: '6C', rank: '6', suit: 'C' },
+        { id: '7H', rank: '7', suit: 'H' },
+      ];
+      expect(shouldTriggerAutoPassTimer(play, [])).toBe(false);
+    });
+
+    it('should TRIGGER for Straight A-2-3-4-5 (mixed suits) when it is the last 5 cards', () => {
+      const play: Card[] = [
+        { id: 'AD', rank: 'A', suit: 'D' },
+        { id: '2C', rank: '2', suit: 'C' },
+        { id: '3H', rank: '3', suit: 'H' },
+        { id: '4S', rank: '4', suit: 'S' },
+        { id: '5D', rank: '5', suit: 'D' },
+      ];
+      expect(shouldTriggerAutoPassTimer(play, allExcept(play))).toBe(true);
+    });
+  });
+
   describe('createAutoPassTimerState', () => {
     it('should create timer state with correct defaults', () => {
       const triggeringPlay: LastPlay = {
