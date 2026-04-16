@@ -168,33 +168,52 @@ Deno.serve(async (req) => {
     // every parameter value is stored verbatim. This table is the authoritative
     // BigQuery source for detailed analytics queries (e.g. full standings JSON,
     // combo breakdowns, match score arrays).
+    // Normalise user_properties once (shared across all events in this request).
+    // Coerce to a plain object so structuredClone and the GA4 forward always
+    // receive the expected shape, even if a malformed client passes a string or array.
+    const safeUserProperties: Record<string, unknown> =
+      body.user_properties !== null &&
+      typeof body.user_properties === 'object' &&
+      !Array.isArray(body.user_properties)
+        ? (body.user_properties as Record<string, unknown>)
+        : {};
+
     const isDebug = body.debug_mode === 1;
-    const rawRows = validEvents.map((event: any) => ({
-      event_name:       event.name ?? 'unknown',
+    const rawRows = validEvents.map((event: any) => {
+      // Coerce event.params to a plain object for the same reasons.
+      const safeParams: Record<string, unknown> =
+        event.params !== null &&
+        typeof event.params === 'object' &&
+        !Array.isArray(event.params)
+          ? (event.params as Record<string, unknown>)
+          : {};
+      // Assign the normalised value back so the GA4 truncation loop below sees it.
+      event.params = safeParams;
+      return {
+      event_name:       event.name,
       user_id:          user.id,
       client_id:        body.client_id,
-      session_id:       typeof event.params?.session_id === 'number'
-                          ? event.params.session_id
+      session_id:       typeof safeParams.session_id === 'number'
+                          ? safeParams.session_id
                           : null,
-      platform:         typeof event.params?.platform === 'string'
-                          ? event.params.platform
+      platform:         typeof safeParams.platform === 'string'
+                          ? safeParams.platform
                           : null,
-      app_version:      typeof event.params?.app_version === 'string'
-                          ? event.params.app_version
+      app_version:      typeof safeParams.app_version === 'string'
+                          ? safeParams.app_version
                           : null,
       // Deep-copy params so the subsequent GA4 truncation doesn't affect the stored value.
       // structuredClone is preferred over JSON.parse(JSON.stringify(...)): it is faster,
       // avoids unnecessary serialization round-trips, and is equally safe here because
       // event.params / body.user_properties arrive from JSON.parse so they are
       // guaranteed to contain only JSON-safe values (no functions, symbols, or bigints).
-      event_params:     structuredClone(event.params ?? {}),
-      user_properties:  body.user_properties
-                          ? structuredClone(body.user_properties)
-                          : {},
+      event_params:     structuredClone(safeParams),
+      user_properties:  structuredClone(safeUserProperties),
       debug_mode:       isDebug,
       // received_at is intentionally omitted: the column DEFAULT now() provides an
       // authoritative Postgres ingest timestamp without clock-skew from Edge isolates.
-    }));
+    };
+    });
 
     // Register the insert with EdgeRuntime.waitUntil so the Supabase Edge runtime
     // keeps the Promise alive even after the HTTP response is returned. Without
