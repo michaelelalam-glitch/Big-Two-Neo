@@ -25,8 +25,8 @@
 --          session_id      INT64   NULLABLE
 --          platform        STRING  NULLABLE
 --          app_version     STRING  NULLABLE
---          event_params    JSON    REQUIRED   (or STRING if JSON type unavailable)
---          user_properties JSON    REQUIRED
+--          event_params    JSON      REQUIRED
+--          user_properties JSON      REQUIRED
 --          debug_mode      BOOL    REQUIRED
 --          received_at     TIMESTAMP REQUIRED
 --        Partitioning: received_at (DAY)    ← enables cheap time-range queries
@@ -38,15 +38,17 @@
 -- ─────────────────────────────────────────────────────────────────────────────
 
 -- 1. Enable pg_net for outbound HTTP from Postgres
-CREATE EXTENSION IF NOT EXISTS pg_net SCHEMA extensions;
+CREATE EXTENSION IF NOT EXISTS pg_net SCHEMA net;
 
 -- 2. Export tracking column (added after table creation in previous migration)
 ALTER TABLE public.analytics_raw_events
   ADD COLUMN IF NOT EXISTS exported_to_bigquery_at timestamptz;
 
--- Partial index: only unprocessed rows — near-zero cost once rows are exported
+-- Partial index for exporter batch reads: unprocessed rows ordered by receive time
+-- allows the claim function (ORDER BY received_at + LIMIT + FOR UPDATE SKIP LOCKED)
+-- to use an index-only scan instead of a sequential scan + sort.
 CREATE INDEX IF NOT EXISTS analytics_raw_events_bq_export_idx
-  ON public.analytics_raw_events (exported_to_bigquery_at)
+  ON public.analytics_raw_events (received_at, id)
   WHERE exported_to_bigquery_at IS NULL;
 
 -- 3. pg_cron schedule — invoke analytics-bigquery-push Edge Function every 5 min
@@ -105,7 +107,7 @@ BEGIN
     '*/5 * * * *',
     format(
       $cron$
-      SELECT extensions.http_post(
+      SELECT net.http_post(
         url     := %L,
         headers := jsonb_build_object(
           'Content-Type',  'application/json',

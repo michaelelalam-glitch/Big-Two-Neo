@@ -177,6 +177,8 @@ Deno.serve(async (req) => {
       !Array.isArray(body.user_properties)
         ? (body.user_properties as Record<string, unknown>)
         : {};
+    // Assign the normalised value back so the GA4 forward path uses the safe shape.
+    body.user_properties = safeUserProperties;
 
     const isDebug = body.debug_mode === 1;
     const rawRows = validEvents.map((event: any) => {

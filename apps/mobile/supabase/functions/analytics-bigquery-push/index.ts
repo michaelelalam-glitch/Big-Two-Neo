@@ -221,6 +221,10 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   const startedAt = Date.now();
   let totalExported = 0;
+  // Tracks IDs of rows claimed (sentinel-marked) but not yet confirmed exported.
+  // Populated by each batch claim; cleared after successful UPDATE. On any failure
+  // the catch block resets these rows to NULL so the next run can retry them.
+  const allClaimedIds = new Set<string>();
 
   try {
     // Get GCP access token once, reuse for all batches
@@ -231,18 +235,20 @@ Deno.serve(async (req) => {
     while (true) {
       batchNumber++;
 
-      // Fetch next batch of unexported rows (oldest-first for ordered delivery)
-      const { data: rows, error: fetchErr } = await supabase
-        .from('analytics_raw_events')
-        .select(
-          'id, event_name, user_id, client_id, session_id, platform, app_version, event_params, user_properties, debug_mode, received_at'
-        )
-        .is('exported_to_bigquery_at', null)
-        .order('received_at', { ascending: true })
-        .limit(BATCH_SIZE);
+      // Atomically claim next batch using FOR UPDATE SKIP LOCKED so concurrent
+      // invocations cannot pick up the same rows. Claimed rows are marked with the
+      // UNIX epoch sentinel (1970-01-01 UTC); replaced with the real timestamp on
+      // success or reset to NULL in the catch block on failure.
+      const { data: rows, error: fetchErr } = await supabase.rpc(
+        'analytics_claim_export_batch',
+        { p_limit: BATCH_SIZE }
+      );
 
-      if (fetchErr) throw new Error(`Supabase fetch error: ${fetchErr.message}`);
+      if (fetchErr) throw new Error(`Supabase claim error: ${fetchErr.message}`);
       if (!rows || rows.length === 0) break; // All exported
+
+      const batchIds = (rows as AnalyticsRow[]).map((r) => r.id);
+      batchIds.forEach((id) => allClaimedIds.add(id));
 
       console.log(
         `[analytics-bigquery-push] Batch ${batchNumber}: pushing ${rows.length} rows to BigQuery`
@@ -251,22 +257,20 @@ Deno.serve(async (req) => {
       // Push to BigQuery (throws on failure — prevents marking row as exported)
       await pushToBigQuery(rows as AnalyticsRow[], accessToken);
 
-      // Mark rows as exported
-      const exportedIds = rows.map((r) => r.id);
+      // Replace in-flight sentinel with actual export timestamp.
       const { error: updateErr } = await supabase
         .from('analytics_raw_events')
         .update({ exported_to_bigquery_at: new Date().toISOString() })
-        .in('id', exportedIds);
+        .in('id', batchIds);
 
       if (updateErr) {
-        // Non-fatal: BigQuery already has the data. Log and continue — the
-        // next run will attempt to export these rows again (insertId prevents
-        // duplicates in BigQuery via best-effort deduplication).
-        console.warn(
-          '[analytics-bigquery-push] Failed to mark rows as exported:',
-          updateErr.message
-        );
+        // Fatal: throw immediately so the catch block resets the in-flight sentinel
+        // on these rows back to NULL, allowing the next run to retry them.
+        throw new Error(`Failed to mark rows as exported: ${updateErr.message}`);
       }
+
+      // Confirmed exported — remove from the in-flight set
+      batchIds.forEach((id) => allClaimedIds.delete(id));
 
       totalExported += rows.length;
 
@@ -289,6 +293,20 @@ Deno.serve(async (req) => {
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
   } catch (err: any) {
+    // Reset any rows that were claimed (in-flight sentinel set) but not yet
+    // confirmed exported so the next scheduled run can pick them up.
+    if (allClaimedIds.size > 0) {
+      await supabase
+        .from('analytics_raw_events')
+        .update({ exported_to_bigquery_at: null })
+        .in('id', [...allClaimedIds])
+        .catch((resetErr: Error) =>
+          console.error(
+            '[analytics-bigquery-push] Failed to reset in-flight rows:',
+            resetErr.message
+          )
+        );
+    }
     console.error('[analytics-bigquery-push] Fatal error:', err?.message ?? err);
     return new Response(
       JSON.stringify({ error: err?.message ?? String(err), rows_exported: totalExported }),
