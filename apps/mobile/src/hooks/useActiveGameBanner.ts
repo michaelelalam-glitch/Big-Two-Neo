@@ -857,6 +857,8 @@ export function useActiveGameBanner(
                     await AsyncStorage.removeItem('@stephanos_game_state');
                     await AsyncStorage.removeItem('@big2_game_state');
                     await AsyncStorage.removeItem('@stephanos_score_history');
+                    await AsyncStorage.removeItem('@stephanos_play_history');
+                    await AsyncStorage.removeItem('@big2_play_history');
                     setBannerRefreshKey(k => k + 1);
                     resolve(true);
                   },
@@ -879,6 +881,8 @@ export function useActiveGameBanner(
                     await AsyncStorage.removeItem('@stephanos_game_state');
                     await AsyncStorage.removeItem('@big2_game_state');
                     await AsyncStorage.removeItem('@stephanos_score_history');
+                    await AsyncStorage.removeItem('@stephanos_play_history');
+                    await AsyncStorage.removeItem('@big2_play_history');
                     setBannerRefreshKey(k => k + 1);
                     resolve(true);
                   },
