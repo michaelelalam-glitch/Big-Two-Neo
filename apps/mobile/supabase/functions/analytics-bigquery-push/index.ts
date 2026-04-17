@@ -147,9 +147,10 @@ async function pushToBigQuery(rows: AnalyticsRow[], accessToken: string): Promis
         session_id: r.session_id ?? null,
         platform: r.platform ?? null,
         app_version: r.app_version ?? null,
-        // Send params/properties as native JSON values to match BigQuery JSON columns.
-        event_params: r.event_params,
-        user_properties: r.user_properties,
+        // BigQuery JSON columns require stringified JSON in streaming insertAll.
+        // Passing a raw object causes "This field is not a record" insertErrors.
+        event_params: JSON.stringify(r.event_params),
+        user_properties: JSON.stringify(r.user_properties),
         debug_mode: r.debug_mode,
         received_at: r.received_at, // ISO-8601 UTC
       },
