@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, StatusBar, Platform } from 'react-native';
+import { View, Text, Image, StyleSheet, StatusBar, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppleSignInButton from '../components/auth/AppleSignInButton';
 import GoogleSignInButton from '../components/auth/GoogleSignInButton';
@@ -10,6 +10,16 @@ const SignInScreen = () => {
     <SafeAreaView style={styles.container} testID="sign-in-screen">
       <StatusBar barStyle="light-content" />
       <View style={styles.content}>
+        <View style={styles.logoSection}>
+          <Image
+            source={require('../../assets/icon.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+            testID="sign-in-logo"
+          />
+          <Text style={styles.appName}>Stephanos</Text>
+        </View>
+
         <View style={styles.header}>
           <Text style={styles.title} testID="sign-in-title">
             {i18n.t('auth.welcomeTitle')}
@@ -52,8 +62,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
   },
+  logoSection: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  logoImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 24,
+    marginBottom: 12,
+  },
+  appName: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#fff',
+    letterSpacing: 1,
+  },
   header: {
-    marginBottom: 60,
+    marginBottom: 48,
     alignItems: 'center',
   },
   title: {

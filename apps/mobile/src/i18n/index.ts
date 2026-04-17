@@ -1761,7 +1761,7 @@ const en: Translations = {
   auth: {
     signIn: 'Sign In',
     signUp: 'Sign Up',
-    welcomeTitle: 'Welcome to Stephanos',
+    welcomeTitle: 'Welcome',
     welcomeSubtitle: 'Sign in to play with friends and track your progress',
     email: 'Email',
     password: 'Password',
@@ -2582,7 +2582,7 @@ const ar: Translations = {
   auth: {
     signIn: 'تسجيل الدخول',
     signUp: 'اشتراك',
-    welcomeTitle: 'مرحبًا بك في Stephanos',
+    welcomeTitle: 'مرحبًا',
     welcomeSubtitle: 'سجّل دخولك للعب مع الأصدقاء وتتبّع تقدمك',
     email: 'البريد الإلكتروني',
     password: 'كلمة المرور',
@@ -3517,7 +3517,7 @@ const de: Translations = {
   auth: {
     signIn: 'Anmelden',
     signUp: 'Registrieren',
-    welcomeTitle: 'Willkommen bei Stephanos',
+    welcomeTitle: 'Willkommen',
     welcomeSubtitle:
       'Melde dich an, um mit Freunden zu spielen und deinen Fortschritt zu verfolgen',
     email: 'E-Mail',
