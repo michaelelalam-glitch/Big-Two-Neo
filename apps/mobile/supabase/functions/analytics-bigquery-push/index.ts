@@ -347,16 +347,22 @@ Deno.serve(async (req) => {
     // Release the claim lock on any rows that were claimed but not yet exported
     // so the next scheduled run can pick them up immediately (instead of waiting
     // for the 10-minute stale-claim recovery window).
+    // Release in chunks of BATCH_SIZE to avoid exceeding PostgREST URL/querystring
+    // limits when allClaimedIds grows to MAX_BATCHES * BATCH_SIZE (up to 10,000 IDs).
     if (allClaimedIds.size > 0) {
-      const { error: resetErr } = await supabase
-        .from('analytics_raw_events')
-        .update({ export_claimed_at: null })
-        .in('id', [...allClaimedIds]);
-      if (resetErr) {
-        console.error(
-          '[analytics-bigquery-push] Failed to release claim lock on rows:',
-          resetErr.message
-        );
+      const ids = [...allClaimedIds];
+      for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+        const chunk = ids.slice(i, i + BATCH_SIZE);
+        const { error: resetErr } = await supabase
+          .from('analytics_raw_events')
+          .update({ export_claimed_at: null })
+          .in('id', chunk);
+        if (resetErr) {
+          console.error(
+            '[analytics-bigquery-push] Failed to release claim lock on rows:',
+            resetErr.message
+          );
+        }
       }
     }
     console.error('[analytics-bigquery-push] Fatal error:', err?.message ?? err);
