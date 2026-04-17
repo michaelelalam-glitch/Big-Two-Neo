@@ -1,9 +1,9 @@
 /**
  * Card Sorting Utility
- * 
+ *
  * Utilities for sorting and classifying cards
  * Used in play history to properly display straights, flushes, etc.
- * 
+ *
  * Created as part of Task #350: Card sorting utility
  * Date: December 12, 2025
  */
@@ -107,7 +107,7 @@ export const isFlush = (cards: Card[]): boolean => {
   if (cards.length < 5) return false;
 
   const firstSuit = cards[0].suit.charAt(0).toUpperCase();
-  return cards.every((card) => {
+  return cards.every(card => {
     const suit = card.suit.charAt(0).toUpperCase();
     return suit === firstSuit;
   });
@@ -124,7 +124,10 @@ export const isStraightFlush = (cards: Card[]): boolean => {
  * Classify and sort cards based on combo type
  * Returns sorted cards optimized for display
  */
-export const classifyAndSortCards = (cards: Card[], comboType?: string): {
+export const classifyAndSortCards = (
+  cards: Card[],
+  comboType?: string
+): {
   sortedCards: Card[];
   comboType: string;
   isStraight: boolean;
@@ -134,7 +137,7 @@ export const classifyAndSortCards = (cards: Card[], comboType?: string): {
   const sortedCards = sortCards(cards);
   const detectedStraight = isStraight(cards);
   const detectedFlush = isFlush(cards);
-  
+
   // Determine combo type
   let finalComboType = comboType || 'unknown';
   if (!comboType) {
@@ -168,14 +171,14 @@ export const classifyAndSortCards = (cards: Card[], comboType?: string): {
  */
 export const groupCardsByRank = (cards: Card[]): Map<string, Card[]> => {
   const groups = new Map<string, Card[]>();
-  
+
   for (const card of cards) {
     const rank = card.rank;
     const group = groups.get(rank) || [];
     group.push(card);
     groups.set(rank, group);
   }
-  
+
   return groups;
 };
 
@@ -190,10 +193,10 @@ export const formatCardsForDisplay = (cards: Card[], comboType?: string): Card[]
 
 /**
  * Sort cards for visual display (descending order - highest card first)
- * 
- * This function implements Big Two display conventions where cards are shown
+ *
+ * This function implements Stephanos display conventions where cards are shown
  * with the highest card first (descending order), as seen in standard gameplay.
- * 
+ *
  * Display Rules:
  * - Straights/Straight Flushes: Highest rank first (e.g., 6-5-4-3-2)
  * - Flushes: Highest rank first within same suit
@@ -201,33 +204,33 @@ export const formatCardsForDisplay = (cards: Card[], comboType?: string): Card[]
  * - Four of a Kind: Four cards together, then kicker
  * - Pairs/Triples: Highest suit first
  * - Singles: Returned as single-element array
- * 
+ *
  * Suit hierarchy (highest to lowest): Spades > Hearts > Clubs > Diamonds
  * (See SUIT_ORDER constant: ['D', 'C', 'H', 'S'])
- * 
+ *
  * @param cards - Cards to sort for display
  * @param comboType - Optional combo type (if known)
  * @returns Cards sorted in descending order for visual display
- * 
+ *
  * @example
  * // Straight: Input [3♦, 4♠, 5♦, 6♠, 2♣] → Output [6♠, 5♦, 4♠, 3♦, 2♣]
  * sortCardsForDisplay([...cards], 'Straight')
  */
 export const sortCardsForDisplay = (cards: Card[], comboType?: string): Card[] => {
   if (!cards || cards.length === 0) return [];
-  
+
   // Single card - return as-is
   if (cards.length === 1) return [...cards];
-  
+
   // First, sort cards in ascending order (lowest to highest)
   const sortedAsc = sortCards(cards);
-  
+
   // Detect combo type if not provided
   let finalComboType = comboType;
   if (!finalComboType) {
     const detectedStraight = isStraight(cards);
     const detectedFlush = isFlush(cards);
-    
+
     if (cards.length === 5) {
       if (detectedStraight && detectedFlush) {
         finalComboType = 'Straight Flush';
@@ -238,8 +241,10 @@ export const sortCardsForDisplay = (cards: Card[], comboType?: string): Card[] =
       } else {
         // Check for Full House or Four of a Kind
         const rankGroups = groupCardsByRank(cards);
-        const groupSizes = Array.from(rankGroups.values()).map(g => g.length).sort((a, b) => b - a);
-        
+        const groupSizes = Array.from(rankGroups.values())
+          .map(g => g.length)
+          .sort((a, b) => b - a);
+
         if (groupSizes[0] === 4) {
           finalComboType = 'Four of a Kind';
         } else if (groupSizes[0] === 3 && groupSizes[1] === 2) {
@@ -252,24 +257,25 @@ export const sortCardsForDisplay = (cards: Card[], comboType?: string): Card[] =
       finalComboType = 'Triple';
     }
   }
-  
+
   // Normalize combo type for comparison
   const normalized = (finalComboType || '').toLowerCase().replace(/[\s_-]/g, '');
-  
+
   // Apply display rules based on combo type
   switch (normalized) {
     case 'straight':
     case 'straightflush': {
       // For straights: show in descending sequence order (highest in sequence first)
       // Special handling for 2-high and A-low straights
-      
+
       const ranks = sortedAsc.map(c => c.rank);
-      
+
       // Check for A-2-3-4-5 (wrap-around straight where A acts as low)
       const wrapStraight: Card['rank'][] = ['A', '2', '3', '4', '5'];
-      const isWrapAround = wrapStraight.every(rank => ranks.includes(rank)) && 
-                           ranks.every(rank => wrapStraight.includes(rank));
-      
+      const isWrapAround =
+        wrapStraight.every(rank => ranks.includes(rank)) &&
+        ranks.every(rank => wrapStraight.includes(rank));
+
       if (isWrapAround) {
         // A-2-3-4-5: Display as 5-4-3-2-A (5 is highest in sequence, A is lowest)
         // sortedAsc for this would be [3, 4, 5, A(14), 2(15)]
@@ -285,11 +291,11 @@ export const sortCardsForDisplay = (cards: Card[], comboType?: string): Card[] =
         }
         return [card5, card4, card3, card2, cardA];
       }
-      
+
       // Check if this is a 2-high straight (e.g., 3-4-5-6-2)
       const has2 = ranks.includes('2');
       if (has2 && cards.length === 5) {
-        // In Big Two, 2 is highest value but in straights it acts as high card
+        // In Stephanos, 2 is highest value but in straights it acts as high card
         // For sequence like 3-4-5-6-2: Display as 6-5-4-3-2
         // We need to find the second-highest rank value to determine sequence
         const cardsWithout2 = sortedAsc.filter(c => c.rank !== '2');
@@ -298,11 +304,11 @@ export const sortCardsForDisplay = (cards: Card[], comboType?: string): Card[] =
           // Data corruption: fallback to regular reverse
           return sortedAsc.slice().reverse();
         }
-        
+
         // Reverse the non-2 cards and append 2 at the end
         return [...cardsWithout2.reverse(), card2];
       }
-      
+
       // Normal straight: just reverse
       return sortedAsc.slice().reverse();
     }
@@ -310,13 +316,13 @@ export const sortCardsForDisplay = (cards: Card[], comboType?: string): Card[] =
       // For flushes: show highest card first
       // Reverse the ascending sort to get descending order
       return [...sortedAsc].reverse();
-      
+
     case 'fullhouse': {
       // Full House: show three-of-a-kind first, then pair
       const rankGroups = groupCardsByRank(cards);
       let triple: Card[] = [];
       let pair: Card[] = [];
-      
+
       for (const group of rankGroups.values()) {
         if (group.length === 3) {
           triple = sortCards(group).reverse(); // Highest suit first
@@ -324,21 +330,21 @@ export const sortCardsForDisplay = (cards: Card[], comboType?: string): Card[] =
           pair = sortCards(group).reverse(); // Highest suit first
         }
       }
-      
+
       // Fallback: if groups not found, return descending order
       if (triple.length === 0 || pair.length === 0) {
         return [...sortedAsc].reverse();
       }
-      
+
       return [...triple, ...pair];
     }
-      
+
     case 'fourofakind': {
       // Four of a Kind: show four cards together, then kicker
       const rankGroups = groupCardsByRank(cards);
       let quads: Card[] = [];
       let kicker: Card[] = [];
-      
+
       for (const group of rankGroups.values()) {
         if (group.length === 4) {
           quads = sortCards(group).reverse(); // Highest suit first
@@ -346,20 +352,20 @@ export const sortCardsForDisplay = (cards: Card[], comboType?: string): Card[] =
           kicker = sortCards(group).reverse(); // Highest suit first (for consistency)
         }
       }
-      
+
       // Fallback: if groups not found, return descending order
       if (quads.length === 0) {
         return [...sortedAsc].reverse();
       }
-      
+
       return [...quads, ...kicker];
     }
-      
+
     case 'pair':
     case 'triple':
       // Pairs and triples: show highest suit first
       return [...sortedAsc].reverse();
-      
+
     default:
       // For unknown combo types, show highest card first
       return [...sortedAsc].reverse();

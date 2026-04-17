@@ -210,14 +210,18 @@ describe('Settings Persistence', () => {
   describe('cache clearing', () => {
     it('should clear non-essential cached data while keeping settings', async () => {
       const allKeys = [
-        '@big2_audio_enabled',
-        '@big2_card_sort_order',
-        '@big2_some_cache_data',
-        '@big2_another_cache',
+        '@stephanos_audio_enabled',
+        '@stephanos_card_sort_order',
+        '@stephanos_some_cache_data',
+        '@stephanos_another_cache',
         'supabase.auth.token',
       ];
 
-      const keysToKeep = ['@big2_audio_enabled', '@big2_card_sort_order', 'supabase.auth.token'];
+      const keysToKeep = [
+        '@stephanos_audio_enabled',
+        '@stephanos_card_sort_order',
+        'supabase.auth.token',
+      ];
 
       (AsyncStorage.getAllKeys as jest.Mock).mockResolvedValue(allKeys);
 
@@ -225,8 +229,8 @@ describe('Settings Persistence', () => {
       await AsyncStorage.multiRemove(keysToRemove);
 
       expect(AsyncStorage.multiRemove).toHaveBeenCalledWith([
-        '@big2_some_cache_data',
-        '@big2_another_cache',
+        '@stephanos_some_cache_data',
+        '@stephanos_another_cache',
       ]);
     });
 
@@ -234,7 +238,7 @@ describe('Settings Persistence', () => {
       const allKeys = [
         SETTINGS_KEYS.AUDIO_SETTINGS_PERSIST,
         SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE,
-        '@big2_some_cache_data',
+        '@stephanos_some_cache_data',
         'supabase.auth.token',
       ];
       (AsyncStorage.getAllKeys as jest.Mock).mockResolvedValue(allKeys);
@@ -247,7 +251,7 @@ describe('Settings Persistence', () => {
       const keysToRemove = allKeys.filter(key => !keysToKeep.includes(key));
       await AsyncStorage.multiRemove(keysToRemove);
 
-      expect(AsyncStorage.multiRemove).toHaveBeenCalledWith(['@big2_some_cache_data']);
+      expect(AsyncStorage.multiRemove).toHaveBeenCalledWith(['@stephanos_some_cache_data']);
     });
   });
 });
@@ -338,7 +342,7 @@ describe('User Preferences Migration (Task #647)', () => {
   });
 
   it('migration is not suppressed by early creation of the persist blob', async () => {
-    // Simulates: GameSettingsModal writes to Zustand store (creating 'big2-audio-settings')
+    // Simulates: GameSettingsModal writes to Zustand store (creating 'stephanos-audio-settings')
     // before SettingsScreen runs. Migration must still run because migrateLegacyUserPreferences
     // checks AUDIO_SETTINGS_MIGRATION_COMPLETE, not the persist blob's presence.
     (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
@@ -363,7 +367,7 @@ describe('User Preferences Migration (Task #647)', () => {
   });
 
   it('writes Zustand persist blob key to AUDIO_SETTINGS_PERSIST constant', () => {
-    expect(SETTINGS_KEYS.AUDIO_SETTINGS_PERSIST).toBe('big2-audio-settings');
+    expect(SETTINGS_KEYS.AUDIO_SETTINGS_PERSIST).toBe('stephanos-audio-settings');
   });
 });
 
@@ -389,11 +393,11 @@ describe('Settings Keys', () => {
     expect(keys.length).toBe(uniqueKeys.size);
   });
 
-  it('should use @big2_ prefix for all keys (or big2- for Zustand persist keys)', () => {
+  it('should use @stephanos_ prefix for all keys (or stephanos- for Zustand persist keys)', () => {
     const keys = Object.values(SETTINGS_KEYS);
 
     keys.forEach(key => {
-      expect(key).toMatch(/^(?:@big2_|big2-)/);
+      expect(key).toMatch(/^(?:@stephanos_|stephanos-)/);
     });
   });
 });

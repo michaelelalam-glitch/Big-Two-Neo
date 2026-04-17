@@ -1,7 +1,7 @@
 /**
  * Shared game engine for Edge Functions (Deno)
  *
- * Self-contained port of the core Big Two game logic used by both
+ * Self-contained port of the core Stephanos game logic used by both
  * the BotAI and the bot-coordinator Edge Function.
  *
  * Source of truth: apps/mobile/src/game/engine/ (client-side)
@@ -73,7 +73,7 @@ export function findStraightSequenceIndex(ranks: string[]): number {
   const rankSet = new Set(ranks);
   if (rankSet.size !== 5) return -1;
   // Explicit guard: reject wrap-around straights (e.g. J-Q-K-A-2 / 2AKQJ).
-  // In Big Two, 2 can only be LOW (A-2-3-4-5 and 2-3-4-5-6).
+  // In Stephanos, 2 can only be LOW (A-2-3-4-5 and 2-3-4-5-6).
   // Any hand containing 2 AND A AND (J or Q or K) is a wrap-around and is INVALID.
   if (rankSet.has('2') && rankSet.has('A') && (rankSet.has('J') || rankSet.has('Q') || rankSet.has('K'))) {
     return -1;

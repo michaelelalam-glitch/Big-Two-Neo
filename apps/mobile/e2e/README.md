@@ -1,6 +1,6 @@
 # E2E Tests — Maestro
 
-End-to-end tests for the Big2 Mobile app using [Maestro](https://docs.maestro.dev/).
+End-to-end tests for the Stephanos app using [Maestro](https://docs.maestro.dev/).
 
 ## Setup
 

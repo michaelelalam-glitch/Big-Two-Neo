@@ -26,12 +26,12 @@ import type { ActiveGameInfo } from '../components/home/ActiveGameBanner';
 type HomeNavProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
 // Single source of truth for the AsyncStorage key.
-export const VOLUNTARILY_LEFT_ROOMS_KEY = '@big2_voluntarily_left_rooms';
+export const VOLUNTARILY_LEFT_ROOMS_KEY = '@stephanos_voluntarily_left_rooms';
 
 // Cached disconnect timer start time — written by useGameCleanup immediately after
 // mark-disconnected succeeds so the HomeScreen banner can show the countdown
 // without waiting for the get-rejoin-status edge-function round-trip (~5 s).
-export const DISCONNECT_TIMER_KEY = '@big2_disconnect_timer_started_at';
+export const DISCONNECT_TIMER_KEY = '@stephanos_disconnect_timer_started_at';
 
 export interface UseActiveGameBannerResult {
   currentRoom: string | null;
@@ -744,7 +744,7 @@ export function useActiveGameBanner(
           onCancel: onDone,
           onConfirm: async () => {
             try {
-              await AsyncStorage.removeItem('@big2_game_state');
+              await AsyncStorage.removeItem('@stephanos_game_state');
               setBannerRefreshKey(k => k + 1);
               showSuccess('Offline game discarded');
             } catch {
@@ -827,7 +827,7 @@ export function useActiveGameBanner(
   const checkGameExclusivity = useCallback(
     async (targetType: 'online' | 'offline'): Promise<boolean> => {
       try {
-        const stateJson = await AsyncStorage.getItem('@big2_game_state');
+        const stateJson = await AsyncStorage.getItem('@stephanos_game_state');
         if (stateJson) {
           const state = JSON.parse(stateJson);
           if (state && !state.gameOver && state.gameStarted && !state.gameEnded) {
@@ -840,8 +840,8 @@ export function useActiveGameBanner(
                   cancelText: 'Resume Current Game',
                   destructive: true,
                   onConfirm: async () => {
-                    await AsyncStorage.removeItem('@big2_game_state');
-                    await AsyncStorage.removeItem('@big2_score_history');
+                    await AsyncStorage.removeItem('@stephanos_game_state');
+                    await AsyncStorage.removeItem('@stephanos_score_history');
                     setBannerRefreshKey(k => k + 1);
                     resolve(true);
                   },
@@ -861,8 +861,8 @@ export function useActiveGameBanner(
                   cancelText: 'Resume Offline Game',
                   destructive: true,
                   onConfirm: async () => {
-                    await AsyncStorage.removeItem('@big2_game_state');
-                    await AsyncStorage.removeItem('@big2_score_history');
+                    await AsyncStorage.removeItem('@stephanos_game_state');
+                    await AsyncStorage.removeItem('@stephanos_score_history');
                     setBannerRefreshKey(k => k + 1);
                     resolve(true);
                   },

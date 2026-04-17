@@ -7,7 +7,7 @@
 # a valid room code, so we test the error handling path.
 # Source: JoinRoomScreen.tsx — verified against real UI screenshots
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - rooms
   - critical-path
@@ -22,9 +22,9 @@ tags:
     visible: "Choose a game to play"
     timeout: 20000
 - tapOn:
-    id: "chinese-poker-card"
+    id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos Mobile"
     timeout: 10000
 
 # Step 2: Tap "Join Room"
@@ -60,5 +60,5 @@ tags:
 # Step 9: Navigate back
 - back
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos Mobile"
     timeout: 10000

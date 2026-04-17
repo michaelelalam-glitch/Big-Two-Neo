@@ -705,13 +705,13 @@ export default function LobbyScreen() {
   const handleShareCode = async () => {
     try {
       // We rely on try-catch to detect platform limitations (e.g., ERR_UNSUPPORTED_ACTIVITY on web).
-      const deepLink = `big2mobile://lobby/${roomCode}?joining=true`;
+      const deepLink = `stephanos://lobby/${roomCode}?joining=true`;
       const baseMessage =
         i18n.t('lobby.shareMessage', { roomCode }) ||
-        `Join my Big Two game! Room code: ${roomCode}`;
+        `Join my Stephanos game! Room code: ${roomCode}`;
       await Share.share({
         message: `${baseMessage}\n${deepLink}`,
-        title: i18n.t('lobby.shareTitle') || 'Join Big Two Game',
+        title: i18n.t('lobby.shareTitle') || 'Join Stephanos Game',
         url: deepLink, // iOS: shown in share sheet separately
       });
     } catch (error: unknown) {

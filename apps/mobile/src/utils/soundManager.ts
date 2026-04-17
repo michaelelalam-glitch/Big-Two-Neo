@@ -1,7 +1,7 @@
 /**
  * Sound Manager
  *
- * Manages all audio playback in the Big Two mobile game.
+ * Manages all audio playback in the Stephanos mobile game.
  * Handles loading, playing, and managing sound effects with settings integration.
  *
  * Migrated from expo-av (deprecated) to expo-audio in SDK 54.
@@ -59,8 +59,8 @@ const SOUND_FILES: Record<SoundType, number> = {
 };
 
 // Settings keys
-const AUDIO_ENABLED_KEY = '@big2_audio_enabled';
-const AUDIO_VOLUME_KEY = '@big2_audio_volume';
+const AUDIO_ENABLED_KEY = '@stephanos_audio_enabled';
+const AUDIO_VOLUME_KEY = '@stephanos_audio_volume';
 
 class SoundManager {
   private sounds: Map<SoundType, AudioPlayer> = new Map();

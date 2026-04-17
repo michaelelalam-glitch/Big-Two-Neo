@@ -24,9 +24,9 @@ import { SETTINGS_KEYS } from './src/utils/settings';
 // Guard with a flag to prevent re-wrapping on hot-reload / fast-refresh.
 if (
   typeof (globalThis as Record<string, unknown>).ErrorUtils !== 'undefined' &&
-  !(globalThis as Record<string, unknown>).__big2ErrorHandlerInstalled
+  !(globalThis as Record<string, unknown>).__stephanosErrorHandlerInstalled
 ) {
-  (globalThis as Record<string, unknown>).__big2ErrorHandlerInstalled = true;
+  (globalThis as Record<string, unknown>).__stephanosErrorHandlerInstalled = true;
   const EU = (globalThis as Record<string, unknown>).ErrorUtils as {
     getGlobalHandler: () => (error: Error, isFatal?: boolean) => void;
     setGlobalHandler: (handler: (error: Error, isFatal?: boolean) => void) => void;

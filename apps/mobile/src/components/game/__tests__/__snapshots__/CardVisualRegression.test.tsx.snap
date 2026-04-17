@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`Card — visual regression snapshots renders 2♠ (highest card in Big Two) 1`] = `
+exports[`Card — visual regression snapshots renders 2♠ (highest card in Stephanos) 1`] = `
 <View
   accessibilityActions={
     [

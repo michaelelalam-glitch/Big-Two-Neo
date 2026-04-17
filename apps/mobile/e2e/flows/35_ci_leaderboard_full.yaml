@@ -2,7 +2,7 @@
 # Validates: Leaderboard tabs (Casual/Ranked) and time filters (All Time/Weekly/Daily)
 # Tags: ci-authenticated, navigation, leaderboard
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - ci-authenticated
   - navigation
@@ -16,9 +16,9 @@ tags:
     visible: "Choose a game to play"
     timeout: 35000
 - tapOn:
-    id: "chinese-poker-card"
+    id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos Mobile"
     timeout: 10000
 
 # Open Leaderboard
@@ -47,5 +47,5 @@ tags:
 # Navigate back
 - back
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos Mobile"
     timeout: 8000

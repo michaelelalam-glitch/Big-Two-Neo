@@ -10,7 +10,7 @@
 # the OAuth flow. The Google auth sheet / webview will appear and be
 # dismissed via relaunch.
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - smoke
   - ci

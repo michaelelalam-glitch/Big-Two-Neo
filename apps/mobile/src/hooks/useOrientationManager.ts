@@ -39,7 +39,7 @@ try {
 }
 
 // Storage key for orientation preference
-const ORIENTATION_STORAGE_KEY = '@big2_orientation_preference';
+const ORIENTATION_STORAGE_KEY = '@stephanos_orientation_preference';
 
 // ============================================================================
 // TYPE DEFINITIONS

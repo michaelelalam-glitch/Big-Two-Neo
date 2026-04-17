@@ -11,7 +11,7 @@
 # flow has run earlier in the same Maestro session.
 # Run locally only, or in a dedicated isolated CI job.
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - smoke
 ---

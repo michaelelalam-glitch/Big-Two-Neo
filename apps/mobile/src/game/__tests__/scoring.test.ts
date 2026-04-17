@@ -1,7 +1,7 @@
 // @ts-nocheck - Test infrastructure type issues
 /**
 // @ts-nocheck - Test infrastructure type issues
- * Tests for Big Two scoring system
+ * Tests for Stephanos scoring system
  * 
  * Scoring rules:
  * - Winner (0 cards): 0 points
@@ -19,7 +19,7 @@ function createMockCards(count: number): Card[] {
   const suits: Array<'D' | 'C' | 'H' | 'S'> = ['D', 'C', 'H', 'S'];
   const ranks = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
   const cards: Card[] = [];
-  
+
   for (let i = 0; i < count; i++) {
     const rank = ranks[i % ranks.length];
     const suit = suits[i % suits.length];
@@ -29,11 +29,11 @@ function createMockCards(count: number): Card[] {
       suit: suit,
     });
   }
-  
+
   return cards;
 }
 
-describe('Big Two Scoring System', () => {
+describe('Stephanos Scoring System', () => {
   describe('Points per card calculation', () => {
     test('1 card remaining = 1 point (1 x 1)', () => {
       const cards = createMockCards(1);
@@ -126,11 +126,11 @@ describe('Big Two Scoring System', () => {
         { name: 'Player 3', score: 75 },
         { name: 'Player 4', score: 60 },
       ];
-      
-      const winner = playerScores.reduce((lowest, current) => 
+
+      const winner = playerScores.reduce((lowest, current) =>
         current.score < lowest.score ? current : lowest
       );
-      
+
       expect(winner.name).toBe('Player 1');
       expect(winner.score).toBe(50);
     });
@@ -161,31 +161,31 @@ describe('Big Two Scoring System', () => {
     test('Cumulative scores across multiple matches', () => {
       // Match 1: Player 1 wins
       let scores = [0, 10, 10, 30]; // Winner, 5 cards (5x2=10), 5 cards (5x2=10), 10 cards (10x3=30)
-      
+
       // Match 2: Player 2 wins
       scores = [
         scores[0] + 18, // 9 cards (9x2=18)
-        scores[1] + 0,  // Winner
-        scores[2] + 4,  // 4 cards (4x1=4)
+        scores[1] + 0, // Winner
+        scores[2] + 4, // 4 cards (4x1=4)
         scores[3] + 33, // 11 cards (11x3=33)
       ];
-      
+
       expect(scores).toEqual([18, 10, 14, 63]);
-      
+
       // Match 3: Player 3 wins
       scores = [
         scores[0] + 16, // 8 cards (8x2=16)
-        scores[1] + 2,  // 2 cards (2x1=2)
-        scores[2] + 0,  // Winner
+        scores[1] + 2, // 2 cards (2x1=2)
+        scores[2] + 0, // Winner
         scores[3] + 39, // 13 cards (13x3=39)
       ];
-      
+
       expect(scores).toEqual([34, 12, 14, 102]);
-      
+
       // Game ends (Player 4 >= 101), Player 3 wins with lowest score
       const gameEnded = scores.some(s => s >= 101);
       expect(gameEnded).toBe(true);
-      
+
       const winnerScore = Math.min(...scores);
       expect(winnerScore).toBe(12);
     });

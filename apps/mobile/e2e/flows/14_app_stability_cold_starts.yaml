@@ -11,7 +11,7 @@
 #
 # No authentication required.
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - smoke
   - stability

@@ -1,5 +1,5 @@
 /**
- * Bot AI system for Big Two mobile game
+ * Bot AI system for Stephanos mobile game
  * Provides intelligent card playing with configurable difficulty levels
  */
 
@@ -34,7 +34,7 @@ export interface BotPlayResult {
 }
 
 /**
- * Bot AI class for Big Two game
+ * Bot AI class for Stephanos game
  *
  * Difficulty levels:
  * - Easy: Random valid plays, high pass rate
@@ -150,13 +150,13 @@ export class BotAI {
       const candidatePairs = pairs.filter(pair => pair.includes(threeD.id));
 
       if (candidatePairs.length > 0) {
-        // Build lookup from card id to its index in the Big Two-sorted hand
+        // Build lookup from card id to its index in the Stephanos-sorted hand
         const idToIndex = new Map<string, number>();
         for (let i = 0; i < sorted.length; i++) {
           idToIndex.set(sorted[i].id, i);
         }
 
-        // Choose the "lowest" pair by Big Two order, based on positions in `sorted`
+        // Choose the "lowest" pair by Stephanos order, based on positions in `sorted`
         let bestPair = candidatePairs[0];
         let bestStrength = Math.max(
           idToIndex.get(bestPair[0]) ?? Number.MAX_SAFE_INTEGER,
@@ -475,7 +475,7 @@ export class BotAI {
   /**
    * Find a valid 5-card combo in hand (returns weakest available).
    * Search all C(n,5) combinations, not just contiguous slices, so
-   * non-contiguous combos like flushes are found. Because the hand is sorted by Big Two
+   * non-contiguous combos like flushes are found. Because the hand is sorted by Stephanos
    * rank order and we iterate from lowest indices, the first valid combo found uses the
    * weakest cards, conserving stronger cards for later plays and making an explicit
    * bestCombo accumulator unnecessary.

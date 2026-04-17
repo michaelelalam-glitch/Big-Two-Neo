@@ -10,7 +10,7 @@
 # Note: This flow tests the UI flow of creating a private room, starting with
 # bots (auto-filled), playing through a game, and the post-game flow.
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - multiplayer
   - critical-path
@@ -26,11 +26,11 @@ tags:
     visible: "Choose a game to play"
     timeout: 20000
 
-# Step 2: Select Chinese Poker
+# Step 2: Select Lebanese Poker
 - tapOn:
-    id: "chinese-poker-card"
+    id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos Mobile"
     timeout: 10000
 
 # Step 3: Create a private room

@@ -19,7 +19,7 @@
 #   - Timing waits are conservative; adjust MAESTRO_DRIVER_STARTUP_TIMEOUT on
 #     slower CI device-farm images.
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 env:
   # Default room code used when ROOM_CODE is not explicitly set.
   # Override via: maestro test ... -e ROOM_CODE=ABCXYZ
@@ -38,9 +38,9 @@ tags:
     timeout: 20000
 
 - tapOn:
-    id: "chinese-poker-card"
+    id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos Mobile"
     timeout: 10000
 
 # Join an existing room (assumes the companion device already created one).

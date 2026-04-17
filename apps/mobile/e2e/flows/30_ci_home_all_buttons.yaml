@@ -4,7 +4,7 @@
 #
 # Prerequisites: Session injected via ci-seed-e2e-auth.mjs
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - ci-authenticated
   - navigation
@@ -20,9 +20,9 @@ tags:
     visible: "Choose a game to play"
     timeout: 35000
 - tapOn:
-    id: "chinese-poker-card"
+    id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos Mobile"
     timeout: 10000
 - takeScreenshot: "30_home_screen"
 
@@ -55,7 +55,7 @@ tags:
 
 # Step 6: Back to Home
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos Mobile"
     timeout: 8000
 
 # Step 7: Tap Profile
@@ -68,7 +68,7 @@ tags:
 - takeScreenshot: "30_profile_from_home"
 - back
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos Mobile"
     timeout: 8000
 
 # Step 8: Tap Settings
@@ -81,7 +81,7 @@ tags:
 - takeScreenshot: "30_settings_from_home"
 - back
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos Mobile"
     timeout: 8000
 
 # Step 9: Tap Leaderboard
@@ -94,5 +94,5 @@ tags:
 - takeScreenshot: "30_leaderboard_from_home"
 - back
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos Mobile"
     timeout: 8000

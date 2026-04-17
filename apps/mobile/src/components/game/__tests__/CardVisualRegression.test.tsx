@@ -105,7 +105,7 @@ describe('Card — visual regression snapshots', () => {
     expect(toJSON()).toMatchSnapshot();
   });
 
-  it('renders 2♠ (highest card in Big Two)', () => {
+  it('renders 2♠ (highest card in Stephanos)', () => {
     const twoSpades: CardType = { id: '2S', rank: '2', suit: 'S' };
     const { toJSON } = render(<Card card={twoSpades} isSelected={false} onToggleSelect={noop} />);
     expect(toJSON()).toMatchSnapshot();

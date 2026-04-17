@@ -14,7 +14,7 @@ export default function GameSelectionScreen() {
   const navigation = useNavigation<GameSelectionNavigationProp>();
   const { profile, user } = useAuth();
 
-  const handleChinesePoker = () => {
+  const handleLebanesePoker = () => {
     navigation.navigate('Home');
   };
 
@@ -37,20 +37,22 @@ export default function GameSelectionScreen() {
       </View>
 
       <View style={styles.content}>
-        {/* Chinese Poker Card */}
+        {/* Lebanese Poker Card */}
         <TouchableOpacity
-          testID="chinese-poker-card"
-          style={[styles.gameCard, styles.chinesePokerCard]}
-          onPress={handleChinesePoker}
+          testID="lebanese-poker-card"
+          style={[styles.gameCard, styles.lebanesePokerCard]}
+          onPress={handleLebanesePoker}
           activeOpacity={0.85}
         >
           <View style={styles.gameCardInner}>
             <Text style={styles.gameEmoji}>🀄</Text>
             <View style={styles.gameInfo}>
-              <Text style={styles.gameTitle}>{i18n.t('gameSelection.chinesePokerTitle')}</Text>
-              <Text style={styles.gameDescription}>{i18n.t('gameSelection.chinesePokerDesc')}</Text>
+              <Text style={styles.gameTitle}>{i18n.t('gameSelection.lebanesePokerTitle')}</Text>
+              <Text style={styles.gameDescription}>
+                {i18n.t('gameSelection.lebanesePokerDesc')}
+              </Text>
             </View>
-            <View testID="play-chinese-poker-button" style={styles.playBadge}>
+            <View testID="play-lebanese-poker-button" style={styles.playBadge}>
               <Text style={styles.playBadgeText}>{i18n.t('gameSelection.playButton')}</Text>
             </View>
           </View>
@@ -127,7 +129,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
-  chinesePokerCard: {
+  lebanesePokerCard: {
     backgroundColor: '#1e3a5f',
     borderWidth: 1,
     borderColor: COLORS.secondary,

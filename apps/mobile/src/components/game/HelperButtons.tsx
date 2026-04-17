@@ -1,7 +1,7 @@
 /**
  * Helper Buttons Component
  *
- * Three utility buttons for Big Two gameplay:
+ * Three utility buttons for Stephanos gameplay:
  * - Sort: Arrange cards lowest to highest
  * - Smart: Group cards by combo type
  * - Hint: Suggest optimal play

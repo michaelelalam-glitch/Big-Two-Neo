@@ -6,7 +6,7 @@
  * "No Game in Progress" idle banner so the layout is stable.
  *
  * Features:
- * - Detects offline games via AsyncStorage (@big2_game_state)
+ * - Detects offline games via AsyncStorage (@stephanos_game_state)
  * - Detects online games via Supabase room_players query
  * - For online games: shows a 60-second countdown before bot replacement
  * - Option to rejoin/resume, leave, or replace the bot after 60s
@@ -27,7 +27,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 import { i18n } from '../../i18n';
 
-const GAME_STATE_KEY = '@big2_game_state';
+const GAME_STATE_KEY = '@stephanos_game_state';
 const BOT_REPLACEMENT_SECONDS = 60;
 
 export type ActiveGameType = 'offline' | 'online';

@@ -2,7 +2,7 @@
 /**
  * Bot Coordinator Edge Function
  *
- * Server-side bot turn executor for Big Two multiplayer games.
+ * Server-side bot turn executor for Stephanos multiplayer games.
  * Replaces the client-side useBotCoordinator hook, eliminating:
  * - Race conditions from Realtime propagation delays
  * - Single point of failure when host disconnects

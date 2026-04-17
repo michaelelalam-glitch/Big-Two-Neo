@@ -33,7 +33,7 @@ const GoogleSignInButton = () => {
       const res = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: 'big2mobile://google-auth',
+          redirectTo: 'stephanos://google-auth',
           queryParams: { prompt: 'consent' },
           skipBrowserRedirect: true,
         },
@@ -48,7 +48,7 @@ const GoogleSignInButton = () => {
 
       const result = await WebBrowser.openAuthSessionAsync(
         googleOAuthUrl,
-        'big2mobile://google-auth',
+        'stephanos://google-auth',
         { showInRecents: true }
       ).catch(err => {
         authLogger.error('openAuthSessionAsync - error', err?.message || err?.code || String(err));

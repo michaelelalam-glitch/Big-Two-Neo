@@ -45,7 +45,7 @@ export interface AppNotification {
   read: boolean;
 }
 
-const NOTIFICATIONS_STORAGE_KEY = (userId: string) => `@big2_notifications_${userId}`;
+const NOTIFICATIONS_STORAGE_KEY = (userId: string) => `@stephanos_notifications_${userId}`;
 const MAX_STORED_NOTIFICATIONS = 50;
 
 // Module-level set of all valid notification types — used to validate raw
@@ -451,22 +451,22 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
         // after the user signs in.
         let pendingUrl: string | null = null;
         if ((notifType === 'game_invite' || notifType === 'room_invite') && data.roomCode) {
-          pendingUrl = `big2mobile://lobby/${data.roomCode as string}?joining=true`;
+          pendingUrl = `stephanos://lobby/${data.roomCode as string}?joining=true`;
         } else if ((notifType === 'your_turn' || notifType === 'game_started') && data.roomCode) {
-          pendingUrl = `big2mobile://game/${data.roomCode as string}`;
+          pendingUrl = `stephanos://game/${data.roomCode as string}`;
         } else if (notifType === 'game_ended') {
           // game_ended payload uses snake_case room_code; support camelCase fallback too.
           const rc = (data.room_code ?? data.roomCode) as string | undefined;
-          if (rc) pendingUrl = `big2mobile://game/${rc}`;
+          if (rc) pendingUrl = `stephanos://game/${rc}`;
         } else if (
           (notifType === 'player_joined' || notifType === 'all_players_ready') &&
           data.roomCode
         ) {
-          pendingUrl = `big2mobile://lobby/${data.roomCode as string}`;
+          pendingUrl = `stephanos://lobby/${data.roomCode as string}`;
         } else if (notifType === 'auto_pass_warning' && data.roomCode) {
-          pendingUrl = `big2mobile://game/${data.roomCode as string}`;
+          pendingUrl = `stephanos://game/${data.roomCode as string}`;
         } else if (notifType === 'friend_request' || notifType === 'friend_accepted') {
-          pendingUrl = 'big2mobile://profile';
+          pendingUrl = 'stephanos://profile';
         }
         if (pendingUrl) {
           Linking.openURL(pendingUrl).catch((err: unknown) =>

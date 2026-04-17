@@ -2,7 +2,7 @@
 # Validates: Match type selection screen shows Casual and Ranked options
 # Tags: ci-authenticated, navigation, matchmaking
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - ci-authenticated
   - navigation
@@ -16,9 +16,9 @@ tags:
     visible: "Choose a game to play"
     timeout: 35000
 - tapOn:
-    id: "chinese-poker-card"
+    id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos Mobile"
     timeout: 10000
 
 # Open Find Game modal then tap Casual to reach MatchTypeSelectionScreen
@@ -58,5 +58,5 @@ tags:
 - tapOn:
     id: "match-type-back-button"
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos Mobile"
     timeout: 8000

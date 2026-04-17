@@ -109,7 +109,7 @@ describe('Server-side Combo Validation (play-cards edge function parity)', () =>
       expect(canBeatPlay(newCards, last)).toBe(true);
     });
 
-    it('2222 beats AAAA (2 is highest rank in Big Two)', () => {
+    it('2222 beats AAAA (2 is highest rank in Stephanos)', () => {
       const newCards = cards('2H', '2D', '2C', '2S', '3H');
       const last = lastPlay(['AH', 'AD', 'AC', 'AS', '3D'], 'Four of a Kind');
       expect(canBeatPlay(newCards, last)).toBe(true);
@@ -129,8 +129,8 @@ describe('Server-side Combo Validation (play-cards edge function parity)', () =>
       expect(canBeatPlay(newCards, last)).toBe(true);
     });
 
-    it('Flush beats Straight (higher combo strength in Big Two)', () => {
-      // In Big Two, Flush > Straight in combo strength
+    it('Flush beats Straight (higher combo strength in Stephanos)', () => {
+      // In Stephanos, Flush > Straight in combo strength
       const newCards = cards('3H', '5H', '7H', '9H', 'KH');
       const last = lastPlay(['3D', '4C', '5S', '6H', '7D'], 'Straight');
       expect(canBeatPlay(newCards, last)).toBe(true);

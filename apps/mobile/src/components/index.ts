@@ -1,4 +1,4 @@
 /**
- * Component exports for Big2 Mobile App
+ * Component exports for Stephanos App
  */
 export { default as EmptyState } from './EmptyState';

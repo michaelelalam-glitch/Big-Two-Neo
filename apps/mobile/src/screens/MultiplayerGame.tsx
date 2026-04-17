@@ -655,7 +655,7 @@ export function MultiplayerGame() {
   // ─────────────────────────────────────────────────────────────────────────────
 
   // ─── MULTIPLAYER SCORE HISTORY PERSISTENCE ─────────────────────────────────
-  const ROOM_SCORE_KEY = `@big2_score_history_${roomCode}`;
+  const ROOM_SCORE_KEY = `@stephanos_score_history_${roomCode}`;
   const hasRestoredMultiplayerScoresRef = useRef(false);
 
   // 1. Restore score history for this room on mount
@@ -705,7 +705,7 @@ export function MultiplayerGame() {
   // ─────────────────────────────────────────────────────────────────────────────
 
   // ─── CUSTOM CARD ORDER PERSISTENCE ──────────────────────────────────────────
-  const CARD_ORDER_KEY = `@big2_card_order_${roomCode}`;
+  const CARD_ORDER_KEY = `@stephanos_card_order_${roomCode}`;
   const hasRestoredCardOrderRef = useRef(false);
   // Stores the match_number that was active when the card order was last saved.
   // Used by the auto-sort effect to skip sorting when re-entering a game

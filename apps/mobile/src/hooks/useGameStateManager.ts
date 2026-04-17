@@ -15,8 +15,8 @@ import type { ScoreHistory, PlayHistoryMatch } from '../types/scoreboard';
 import { parsePersistedScoreHistory } from '../utils/parsePersistedScoreHistory';
 import { parsePersistedPlayHistory } from '../utils/parsePersistedPlayHistory';
 
-const SCORE_HISTORY_KEY = '@big2_score_history';
-const PLAY_HISTORY_KEY = '@big2_play_history';
+const SCORE_HISTORY_KEY = '@stephanos_score_history';
+const PLAY_HISTORY_KEY = '@stephanos_play_history';
 
 interface UseGameStateManagerProps {
   roomCode: string;

@@ -1,9 +1,9 @@
 /**
- * Big2 Mobile Game Engine
- * 
+ * Stephanos Game Engine
+ *
  * Exported and battle-tested game logic adapted for React Native.
  * Includes core game rules, bot AI, and state management.
- * 
+ *
  * @module game
  */
 

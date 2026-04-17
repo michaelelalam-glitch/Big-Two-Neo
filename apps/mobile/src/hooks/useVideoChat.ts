@@ -315,7 +315,7 @@ export function useVideoChat({
   // When camera/mic is toggled on, persist `{ camera: true, mic: true }` to
   // AsyncStorage keyed by roomId. On component remount (e.g. leaving and
   // returning to a game screen), read the stored prefs and auto-enable.
-  const chatPrefsKey = roomId ? `@big2_chat_prefs_${roomId}` : null;
+  const chatPrefsKey = roomId ? `@stephanos_chat_prefs_${roomId}` : null;
   const desiredCameraRef = useRef(false);
   const desiredMicRef = useRef(false);
   const hasRestoredPrefsRef = useRef(false);

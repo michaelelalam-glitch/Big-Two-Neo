@@ -1,26 +1,26 @@
 /**
- * Big2 Mobile Game Types
- * 
+ * Stephanos Game Types
+ *
  * Type definitions adapted for React Native mobile application.
  * Battle-tested types from web application.
- * 
+ *
  * @module types
  */
 
 /**
- * Represents a playing card in Big Two
+ * Represents a playing card in Stephanos
  */
 export interface Card {
-  id: string;      // e.g., "3D", "AS"
+  id: string; // e.g., "3D", "AS"
   rank: '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A' | '2';
-  suit: 'D' | 'C' | 'H' | 'S';    // D=Diamonds, C=Clubs, H=Hearts, S=Spades
+  suit: 'D' | 'C' | 'H' | 'S'; // D=Diamonds, C=Clubs, H=Hearts, S=Spades
 }
 
 /**
  * Result of card classification
  */
 export interface ClassificationResult {
-  type: string;        // The combo type
+  type: string; // The combo type
   sortedCards: Card[]; // Cards sorted in proper display order
 }
 
@@ -100,4 +100,3 @@ export interface PlayerMatchScoreDetail {
   pointsPerCard: number; // 1, 2, or 3 based on card count
   finalScore: number; // cardsRemaining * pointsPerCard
 }
-

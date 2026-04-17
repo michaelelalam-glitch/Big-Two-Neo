@@ -2,7 +2,7 @@
 # Validates: Game works in landscape, landscape-specific UI components render
 # Tags: ci-authenticated, offline-game, orientation
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - ci-authenticated
   - offline-game
@@ -16,9 +16,9 @@ tags:
     visible: "Choose a game to play"
     timeout: 35000
 - tapOn:
-    id: "chinese-poker-card"
+    id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos Mobile"
     timeout: 10000
 
 - tapOn: "Offline Practice"

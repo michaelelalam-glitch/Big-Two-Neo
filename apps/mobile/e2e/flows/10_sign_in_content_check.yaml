@@ -7,7 +7,7 @@
 # No authentication required — uses clearState to guarantee unauthenticated state.
 #
 # Complements flow 01 by verifying the expected sign-in UI structure (beyond basic presence).
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - smoke
   - ci

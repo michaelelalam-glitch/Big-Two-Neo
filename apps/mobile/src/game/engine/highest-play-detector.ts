@@ -242,7 +242,7 @@ function isHighestRemainingTriple(triple: Card[], playedCards: Card[]): boolean 
 
   const highestOtherTriple = sortedTriples[sortedTriples.length - 1];
 
-  // In Big Two each rank has exactly 4 cards; a triple uses 3, leaving at most 1 of
+  // In Stephanos each rank has exactly 4 cards; a triple uses 3, leaving at most 1 of
   // that rank in remaining, which is insufficient for another triple of the same rank.
   // Therefore highestOtherTriple[0].rank can never equal triple[0].rank in a valid
   // game, and a strict > is both correct and clearer.
@@ -574,7 +574,7 @@ function isHighestRemainingFiveCardCombo(
       const currentHighestValue =
         RANK_VALUE[currentHighest.rank] * 10 + SUIT_VALUE[currentHighest.suit];
 
-      // Issue 2 note: Cross-suit comparison is correct for Big Two flush rules.
+      // Issue 2 note: Cross-suit comparison is correct for Stephanos flush rules.
       // Early termination via `return false` is already applied as soon as a
       // beating flush is found — no further suits are checked at that point.
       for (const checkSuit of SUITS) {
@@ -692,9 +692,9 @@ export function isHighestPossiblePlay(cards: Card[], playedCards: Card[]): boole
       return isHighestRemainingTriple(sorted, playedCards);
 
     case 4:
-      // Issue 3: Big Two has no 4-card plays — warn instead of silently returning false.
+      // Issue 3: Stephanos has no 4-card plays — warn instead of silently returning false.
       gameLogger.warn(
-        '[isHighestPossiblePlay] Received invalid 4-card play — Big Two has no 4-card combos'
+        '[isHighestPossiblePlay] Received invalid 4-card play — Stephanos has no 4-card combos'
       );
       return false;
 

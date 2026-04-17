@@ -1,5 +1,5 @@
 /**
- * Game State Manager for Big Two mobile game
+ * Game State Manager for Stephanos mobile game
  * Handles game initialization, state management, and persistence
  */
 
@@ -28,7 +28,7 @@ import {
 } from './engine';
 import { createBotAI, type BotDifficulty, type BotPlayResult } from './bot';
 
-const GAME_STATE_KEY = '@big2_game_state';
+const GAME_STATE_KEY = '@stephanos_game_state';
 
 /** Maximum number of completed matches to retain in gameRoundHistory (C1 OOM fix). */
 const MAX_GAME_ROUND_HISTORY_MATCHES = 20;
