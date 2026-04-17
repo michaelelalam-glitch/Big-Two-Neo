@@ -271,14 +271,12 @@ Deno.serve(async (req) => {
       // Push to BigQuery (throws on failure — prevents marking row as exported)
       await pushToBigQuery(rows as AnalyticsRow[], accessToken);
 
-      // Confirm export: stamp the real export time and release the claim lock.
-      const { error: updateErr } = await supabase
-        .from('analytics_raw_events')
-        .update({
-          exported_to_bigquery_at: new Date().toISOString(),
-          export_claimed_at: null,
-        })
-        .in('id', batchIds);
+      // Confirm export using a server-side RPC so exported_to_bigquery_at is set
+      // by Postgres now() — authoritative, clock-skew-free, consistent with received_at.
+      const { error: updateErr } = await supabase.rpc(
+        'analytics_confirm_batch_export',
+        { p_ids: batchIds }
+      );
 
       if (updateErr) {
         // Fatal: throw immediately so the catch block releases the claim lock

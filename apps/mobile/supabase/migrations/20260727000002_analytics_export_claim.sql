@@ -49,6 +49,26 @@ REVOKE EXECUTE ON FUNCTION public.analytics_claim_export_batch(integer) FROM PUB
 REVOKE EXECUTE ON FUNCTION public.analytics_claim_export_batch(integer) FROM anon, authenticated;
 GRANT  EXECUTE ON FUNCTION public.analytics_claim_export_batch(integer) TO service_role;
 
+-- 4. Confirm export RPC: stamps exported_to_bigquery_at using Postgres now() so the
+--    export timestamp is authoritative and consistent with received_at (which also uses
+--    a server-side default). Using the Edge Function clock (new Date()) would introduce
+--    clock skew between workers and drift relative to Postgres time.
+CREATE OR REPLACE FUNCTION public.analytics_confirm_batch_export(p_ids text[])
+RETURNS void
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  UPDATE public.analytics_raw_events
+  SET    exported_to_bigquery_at = now(),
+         export_claimed_at       = NULL
+  WHERE  id = ANY(p_ids);
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.analytics_confirm_batch_export(text[]) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.analytics_confirm_batch_export(text[]) FROM anon, authenticated;
+GRANT  EXECUTE ON FUNCTION public.analytics_confirm_batch_export(text[]) TO service_role;
+
 -- 4. pg_cron schedule — invoke analytics-bigquery-push Edge Function every 5 min
 --
 --    Registered HERE (after export_claimed_at column + claim RPC exist) so the
