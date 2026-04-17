@@ -1299,7 +1299,7 @@ const en: Translations = {
     reportBug: 'Report a bug',
   },
   howToPlay: {
-    title: '📖 How to Play Stephanos',
+    title: '📖 How to Play Lebanese Poker',
     objectiveTitle: 'Objective',
     objectiveText: 'Be the first player to play all your cards.',
     cardRankingsTitle: 'Card Rankings',
