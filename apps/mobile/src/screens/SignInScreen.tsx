@@ -12,12 +12,11 @@ const SignInScreen = () => {
       <View style={styles.content}>
         <View style={styles.logoSection}>
           <Image
-            source={require('../../assets/icon.png')}
+            source={require('../../assets/logo-wordmark.png')}
             style={styles.logoImage}
             resizeMode="contain"
             testID="sign-in-logo"
           />
-          <Text style={styles.appName}>Stephanos</Text>
         </View>
 
         <View style={styles.header}>
@@ -54,7 +53,7 @@ const SignInScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#25292e',
+    backgroundColor: '#202e44',
   },
   content: {
     flex: 1,
@@ -67,16 +66,8 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   logoImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 24,
-    marginBottom: 12,
-  },
-  appName: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#fff',
-    letterSpacing: 1,
+    width: 260,
+    height: 200,
   },
   header: {
     marginBottom: 48,
