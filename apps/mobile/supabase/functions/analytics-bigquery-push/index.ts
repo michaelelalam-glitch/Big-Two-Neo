@@ -226,7 +226,12 @@ Deno.serve(async (req) => {
     });
   }
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
   const startedAt = Date.now();
   let totalExported = 0;
   // Tracks IDs of rows where export_claimed_at was set but export not yet confirmed.

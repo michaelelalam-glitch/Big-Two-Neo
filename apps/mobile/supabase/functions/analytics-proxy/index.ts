@@ -153,25 +153,27 @@ Deno.serve(async (req) => {
     // Overwrite user_id with authenticated user to prevent spoofing
     body.user_id = user.id;
 
-    // Validate events: filter out null/undefined entries and those without a non-empty
-    // string name. Guards against null entries (TypeError on property access) and malformed
-    // event.params shapes that would corrupt the analytics_raw_events insert.
-    const validEvents = (body.events as any[]).filter((event: any) => {
-      if (!event || typeof event !== 'object' || Array.isArray(event)) {
-        return false;
-      }
-      if (typeof event.name !== 'string' || event.name.length === 0) {
-        return false;
-      }
-      return (
-        event.params === undefined ||
-        (event.params !== null &&
+    // Validate events: keep only non-array object entries with a non-empty string
+    // name, then normalise params in one place so malformed client payloads are
+    // coerced to {} instead of being silently dropped.
+    const validEvents = (body.events as any[])
+      .filter((event: any) => {
+        if (!event || typeof event !== 'object' || Array.isArray(event)) {
+          return false;
+        }
+        return typeof event.name === 'string' && event.name.length > 0;
+      })
+      .map((event: any) => ({
+        ...event,
+        params:
+          event.params !== null &&
           typeof event.params === 'object' &&
-          !Array.isArray(event.params))
-      );
-    });
+          !Array.isArray(event.params)
+            ? event.params
+            : {},
+      }));
     if (validEvents.length === 0) {
-      return errorResponse(400, 'No valid events: each event must have a non-empty string name', corsHeaders, 'BAD_REQUEST', requestId);
+      return errorResponse(400, 'No valid events: each event must be an object with a non-empty string name', corsHeaders, 'BAD_REQUEST', requestId);
     }
 
     // ── BigQuery-first: persist FULL (untruncated) event data ──────────────────
