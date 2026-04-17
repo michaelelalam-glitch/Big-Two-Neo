@@ -38,6 +38,9 @@
 -- ─────────────────────────────────────────────────────────────────────────────
 
 -- 1. Enable pg_net for outbound HTTP from Postgres
+--    Create the net schema first: Postgres does not auto-create the target schema
+--    when the SCHEMA clause is specified, so the extension install would fail otherwise.
+CREATE SCHEMA IF NOT EXISTS net;
 CREATE EXTENSION IF NOT EXISTS pg_net SCHEMA net;
 
 -- 2. Export tracking column (added after table creation in previous migration)

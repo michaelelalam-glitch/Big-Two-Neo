@@ -308,16 +308,21 @@ Deno.serve(async (req) => {
       // Release claim on BigQuery-rejected rows so they are retried on the next run
       // immediately (rather than waiting for the 10-minute stale-claim recovery).
       // supabase-js resolves (not throws) on query errors — check { error } explicitly.
+      // Chunk to RELEASE_CHUNK to avoid exceeding PostgREST URL/querystring limits.
       if (failedIds.length > 0) {
-        const { error: releaseErr } = await supabase
-          .from('analytics_raw_events')
-          .update({ export_claimed_at: null })
-          .in('id', failedIds);
-        if (releaseErr) {
-          console.error(
-            '[analytics-bigquery-push] Failed to release claim on rejected rows:',
-            releaseErr.message
-          );
+        const RELEASE_CHUNK = 100;
+        for (let i = 0; i < failedIds.length; i += RELEASE_CHUNK) {
+          const chunk = failedIds.slice(i, i + RELEASE_CHUNK);
+          const { error: releaseErr } = await supabase
+            .from('analytics_raw_events')
+            .update({ export_claimed_at: null })
+            .in('id', chunk);
+          if (releaseErr) {
+            console.error(
+              '[analytics-bigquery-push] Failed to release claim on rejected rows:',
+              releaseErr.message
+            );
+          }
         }
         failedIds.forEach((id) => allClaimedIds.delete(id));
         console.error(
@@ -347,12 +352,13 @@ Deno.serve(async (req) => {
     // Release the claim lock on any rows that were claimed but not yet exported
     // so the next scheduled run can pick them up immediately (instead of waiting
     // for the 10-minute stale-claim recovery window).
-    // Release in chunks of BATCH_SIZE to avoid exceeding PostgREST URL/querystring
-    // limits when allClaimedIds grows to MAX_BATCHES * BATCH_SIZE (up to 10,000 IDs).
+    // Release in chunks of 100 to avoid exceeding PostgREST URL/querystring limits
+    // (BATCH_SIZE=500 UUIDs per request would push the PATCH URL over gateway limits).
     if (allClaimedIds.size > 0) {
       const ids = [...allClaimedIds];
-      for (let i = 0; i < ids.length; i += BATCH_SIZE) {
-        const chunk = ids.slice(i, i + BATCH_SIZE);
+      const RELEASE_CHUNK = 100;
+      for (let i = 0; i < ids.length; i += RELEASE_CHUNK) {
+        const chunk = ids.slice(i, i + RELEASE_CHUNK);
         const { error: resetErr } = await supabase
           .from('analytics_raw_events')
           .update({ export_claimed_at: null })

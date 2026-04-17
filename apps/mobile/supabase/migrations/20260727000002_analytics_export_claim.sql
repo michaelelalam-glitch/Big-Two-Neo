@@ -127,9 +127,7 @@ BEGIN
 
   -- Idempotent: remove existing job before re-registering
   IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'analytics-bigquery-push') THEN
-    PERFORM cron.unschedule(
-      (SELECT jobid FROM cron.job WHERE jobname = 'analytics-bigquery-push')
-    );
+    PERFORM cron.unschedule('analytics-bigquery-push');
   END IF;
 
   PERFORM cron.schedule(
