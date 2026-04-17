@@ -106,6 +106,16 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // E2E bypass: skip consent check entirely (analytics disabled)
+    if (process.env.EXPO_PUBLIC_E2E_AUTH_BYPASS === 'true') {
+      void i18n.initialize().then(() => {
+        setI18nInitialized(true);
+        setConsentDecision(false);
+        setAnalyticsConsent(false);
+      });
+      return;
+    }
+
     // Read consent decision and initialise i18n in parallel.
     // Both must complete before rendering the main app or showing the modal.
     void Promise.all([

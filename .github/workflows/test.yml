@@ -261,9 +261,11 @@ jobs:
       # cannot access these secrets.
       EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
       EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
-      # E2E test account for authenticated flow injection (optional — skipped if absent)
-      E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
-      E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+      # E2E auth bypass: baked into the JS bundle at build time by Expo.
+      # The app calls signInWithPassword() at startup when this flag is set.
+      EXPO_PUBLIC_E2E_AUTH_BYPASS: 'true'
+      EXPO_PUBLIC_E2E_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+      EXPO_PUBLIC_E2E_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
     
     steps:
       - name: 📥 Checkout code
@@ -501,182 +503,24 @@ jobs:
         env:
           MAESTRO_DRIVER_STARTUP_TIMEOUT: 300000
 
-      - name: 🔐 Seed E2E authentication session
+      - name: 🔐 Validate E2E authentication credentials
         id: seed_auth
-        if: env.E2E_TEST_EMAIL != '' && env.E2E_TEST_PASSWORD != ''
-        continue-on-error: true  # Failure handled by "Warn if auth seeding was skipped" step below
-        run: |
-          cd apps/mobile
-          # Terminate any running app instance first
-          xcrun simctl terminate booted com.stephanos.app || true
-          sleep 2
-          # Launch app once to initialise storage, then terminate.
-          # Use 25s (was 15s, 8s) — cold CI simulators need more time for
-          # AsyncStorage / RCTAsyncLocalStorage_V1 directory init.
-          # NOTE: injection happens AFTER this terminate, so this launch cannot
-          # consume the injected session (no migration to simctl Keychain occurs).
-          xcrun simctl launch booted com.stephanos.app || true
-          sleep 25
-          xcrun simctl terminate booted com.stephanos.app || true
-          sleep 3
-          # Inject Supabase session + consent bypass into AsyncStorage
-          node scripts/ci-seed-e2e-auth.mjs
-        env:
-          CI_PLATFORM: ios
-
-      - name: ⚠️ Warn if auth seeding was skipped
-        if: env.E2E_TEST_EMAIL != '' && env.E2E_TEST_PASSWORD != '' && steps.seed_auth.outcome != 'success'
-        run: |
-          echo "::warning::Auth seeding skipped or failed (outcome=${{ steps.seed_auth.outcome }}). Authenticated E2E flows (ci-authenticated) will not run. CI coverage is reduced."
-
-      - name: 🔍 Auth diagnostic — pre-launch filesystem state
-        if: steps.seed_auth.outcome == 'success'
-        run: |
-          echo "============================================"
-          echo "  AUTH INJECTION DIAGNOSTIC — PRE-LAUNCH"
-          echo "============================================"
-
-          # 1. Get the live data container path
-          CONTAINER=$(xcrun simctl get_app_container booted com.big2mobile.app data 2>/dev/null || echo "CONTAINER_NOT_FOUND")
-          echo "Live container path: $CONTAINER"
-
-          # 2. Derive storage dir path
-          STORAGE_DIR="$CONTAINER/Library/Application Support/com.big2mobile.app/RCTAsyncLocalStorage_V1"
-          echo ""
-          echo "--- RCTAsyncLocalStorage_V1 directory listing ---"
-          if [ -d "$STORAGE_DIR" ]; then
-            ls -la "$STORAGE_DIR"
-          else
-            echo "⚠️ Storage dir does NOT exist: $STORAGE_DIR"
-          fi
-
-          # 3. Show manifest.json
-          echo ""
-          echo "--- manifest.json ---"
-          cat "$STORAGE_DIR/manifest.json" 2>/dev/null || echo "⚠️ No manifest.json found"
-
-          # 4. Check auth token file
-          # Storage key: sb-{projectRef}-auth-token → MD5 hash → filename
-          PROJECT_REF=$(echo "$EXPO_PUBLIC_SUPABASE_URL" | sed 's|https://||' | cut -d. -f1)
-          STORAGE_KEY="sb-${PROJECT_REF}-auth-token"
-          AUTH_HASH=$(echo -n "$STORAGE_KEY" | md5)
-          echo ""
-          echo "--- Auth token file (key=$STORAGE_KEY, hash=$AUTH_HASH) ---"
-          if [ -f "$STORAGE_DIR/$AUTH_HASH" ]; then
-            FILE_SIZE=$(wc -c < "$STORAGE_DIR/$AUTH_HASH" | tr -d ' ')
-            echo "✅ Auth file EXISTS — size: ${FILE_SIZE} bytes"
-            echo "First 200 chars: $(head -c 200 "$STORAGE_DIR/$AUTH_HASH")"
-          else
-            echo "❌ Auth file NOT FOUND at $STORAGE_DIR/$AUTH_HASH"
-          fi
-
-          # 5. Check consent file
-          CONSENT_HASH=$(echo -n "@big2_analytics_consent" | md5)
-          echo ""
-          echo "--- Consent file (key=@big2_analytics_consent, hash=$CONSENT_HASH) ---"
-          if [ -f "$STORAGE_DIR/$CONSENT_HASH" ]; then
-            echo "✅ Consent file EXISTS — content: $(cat "$STORAGE_DIR/$CONSENT_HASH")"
-          else
-            echo "❌ Consent file NOT FOUND at $STORAGE_DIR/$CONSENT_HASH"
-          fi
-
-          # 6. Check for DUPLICATE containers (stale UUIDs from clearState)
-          echo ""
-          echo "--- All RCTAsyncLocalStorage_V1 directories (duplicate check) ---"
-          find ~/Library/Developer/CoreSimulator/Devices \
-            -path "*/com.big2mobile.app/RCTAsyncLocalStorage_V1" -type d 2>/dev/null \
-            | while read dir; do
-                echo "  $dir"
-                echo "    manifest: $(cat "$dir/manifest.json" 2>/dev/null || echo 'missing')"
-                echo "    auth file: $(ls -la "$dir/$AUTH_HASH" 2>/dev/null || echo 'missing')"
-              done
-          echo "--- end duplicate check ---"
-
-          # 7. Check v1 legacy RKStorage (just in case)
-          echo ""
-          echo "--- Legacy RKStorage (v1) check ---"
-          find ~/Library/Developer/CoreSimulator/Devices \
-            -name "RKStorage" -path "*com.big2mobile.app*" 2>/dev/null || echo "No RKStorage found"
-          echo "============================================"
-
-      - name: 🔍 Auth diagnostic — single Maestro launch test
-        id: auth_diagnostic
-        if: steps.seed_auth.outcome == 'success'
+        if: env.EXPO_PUBLIC_E2E_EMAIL != '' && env.EXPO_PUBLIC_E2E_PASSWORD != ''
         continue-on-error: true
         run: |
-          cd apps/mobile
-          mkdir -p e2e/results
-          echo "Running single diagnostic flow to check if app sees injected session..."
-          set +e
-          maestro test --include-tags ci-diagnostic e2e/flows/ \
-            --format junit \
-            --output e2e/results/results-ci-diagnostic.xml
-          DIAG_EXIT=$?
-          set -e
-          echo "Diagnostic Maestro exit code: $DIAG_EXIT"
-          if [ $DIAG_EXIT -eq 0 ]; then
-            echo "✅ Diagnostic PASSED — app reached game selection screen (auth works)"
-          else
-            echo "❌ Diagnostic FAILED — app did NOT reach game selection (auth injection broken)"
-            echo "Check screenshots in artifacts: diagnostic_01_initial_state, diagnostic_02_after_init, diagnostic_03_after_consent_dismiss"
+          echo "E2E auth bypass enabled — credentials baked into JS bundle at build time."
+          echo "App will call signInWithPassword() on startup."
+          # Validate credentials exist (values are masked by GitHub Actions)
+          if [ -z "$EXPO_PUBLIC_E2E_EMAIL" ] || [ -z "$EXPO_PUBLIC_E2E_PASSWORD" ]; then
+            echo "::error::E2E credentials are empty despite env check passing"
+            exit 1
           fi
-          exit $DIAG_EXIT
-        timeout-minutes: 5
-        env:
-          MAESTRO_DRIVER_STARTUP_TIMEOUT: 300000
+          echo "✅ E2E credentials present — authenticated flows will run"
 
-      - name: 🔍 Auth diagnostic — post-launch filesystem state
-        if: steps.seed_auth.outcome == 'success'
+      - name: ⚠️ Warn if auth seeding was skipped
+        if: env.EXPO_PUBLIC_E2E_EMAIL != '' && env.EXPO_PUBLIC_E2E_PASSWORD != '' && steps.seed_auth.outcome != 'success'
         run: |
-          echo "============================================"
-          echo "  AUTH INJECTION DIAGNOSTIC — POST-LAUNCH"
-          echo "============================================"
-
-          CONTAINER=$(xcrun simctl get_app_container booted com.big2mobile.app data 2>/dev/null || echo "CONTAINER_NOT_FOUND")
-          echo "Live container path: $CONTAINER"
-          STORAGE_DIR="$CONTAINER/Library/Application Support/com.big2mobile.app/RCTAsyncLocalStorage_V1"
-
-          # 1. Check if files survived the Maestro launch
-          PROJECT_REF=$(echo "$EXPO_PUBLIC_SUPABASE_URL" | sed 's|https://||' | cut -d. -f1)
-          STORAGE_KEY="sb-${PROJECT_REF}-auth-token"
-          AUTH_HASH=$(echo -n "$STORAGE_KEY" | md5)
-          CONSENT_HASH=$(echo -n "@big2_analytics_consent" | md5)
-
-          echo ""
-          echo "--- Storage dir listing (post-launch) ---"
-          ls -la "$STORAGE_DIR" 2>/dev/null || echo "⚠️ Storage dir does not exist"
-
-          echo ""
-          echo "--- manifest.json (post-launch) ---"
-          cat "$STORAGE_DIR/manifest.json" 2>/dev/null || echo "⚠️ No manifest.json"
-
-          echo ""
-          echo "--- Auth token file (post-launch) ---"
-          if [ -f "$STORAGE_DIR/$AUTH_HASH" ]; then
-            FILE_SIZE=$(wc -c < "$STORAGE_DIR/$AUTH_HASH" | tr -d ' ')
-            echo "Auth file STILL EXISTS — size: ${FILE_SIZE} bytes"
-            echo "⚠️ Migration did NOT consume it (SecureStore getItem may have failed/thrown)"
-          else
-            echo "Auth file GONE — migration consumed it (moved to SecureStore Keychain)"
-            echo "If diagnostic flow PASSED: SecureStore works, subsequent flows should too"
-            echo "If diagnostic flow FAILED: SecureStore write succeeded but read failed (Keychain namespace issue?)"
-          fi
-
-          echo ""
-          echo "--- Consent file (post-launch) ---"
-          if [ -f "$STORAGE_DIR/$CONSENT_HASH" ]; then
-            echo "Consent file STILL EXISTS — content: $(cat "$STORAGE_DIR/$CONSENT_HASH")"
-            echo "(Expected: consent is read via AsyncStorage directly, not migrated to SecureStore)"
-          else
-            echo "⚠️ Consent file GONE — unexpected (consent should not be migrated)"
-          fi
-
-          echo ""
-          echo "--- Container path comparison ---"
-          echo "Pre-Maestro container: (see step above)"
-          echo "Post-Maestro container: $CONTAINER"
-          echo "(If different, Maestro created a new container — injection target was wrong)"
-          echo "============================================"
+          echo "::warning::Auth seeding skipped or failed (outcome=${{ steps.seed_auth.outcome }}). Authenticated E2E flows (ci-authenticated) will not run. CI coverage is reduced."
 
       - name: 🎭 Run Maestro E2E tests (authenticated — ci-authenticated tag)
         if: steps.seed_auth.outcome == 'success'
@@ -742,7 +586,7 @@ jobs:
           AUTH_COUNT="n/a"
           AUTH_STATUS="not configured"
 
-          if [ -n "$E2E_TEST_EMAIL" ] && [ -n "$E2E_TEST_PASSWORD" ]; then
+          if [ -n "$EXPO_PUBLIC_E2E_EMAIL" ] && [ -n "$EXPO_PUBLIC_E2E_PASSWORD" ]; then
             SEED_AUTH_OUTCOME="${{ steps.seed_auth.outcome }}"
 
             if [ "$SEED_AUTH_OUTCOME" = "success" ]; then
