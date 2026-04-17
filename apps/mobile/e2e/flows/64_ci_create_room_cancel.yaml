@@ -17,7 +17,7 @@ tags:
 - tapOn:
     id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 10000
 
 # Open Create Room
@@ -31,7 +31,7 @@ tags:
 # Navigate back without submitting
 - back
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 8000
 - takeScreenshot: "64_back_to_home_after_cancel"
 

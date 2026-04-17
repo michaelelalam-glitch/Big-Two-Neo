@@ -11,7 +11,7 @@ tags:
 - tapOn:
     id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 10000
 - tapOn:
     text: "Play Online"

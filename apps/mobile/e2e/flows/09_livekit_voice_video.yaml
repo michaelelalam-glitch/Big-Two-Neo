@@ -40,7 +40,7 @@ tags:
 - tapOn:
     id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 10000
 
 # Join an existing room (assumes the companion device already created one).

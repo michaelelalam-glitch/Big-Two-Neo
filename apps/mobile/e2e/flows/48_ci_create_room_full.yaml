@@ -17,7 +17,7 @@ tags:
 - tapOn:
     id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 10000
 
 # Navigate to Create Room (adjust the tap target to match actual UI text/id)
@@ -40,5 +40,5 @@ tags:
 # Navigate back
 - back
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 8000

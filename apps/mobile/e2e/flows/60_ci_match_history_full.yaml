@@ -18,7 +18,7 @@ tags:
 - tapOn:
     id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 10000
 
 # Navigate to match history (via Profile or dedicated nav)
@@ -50,5 +50,5 @@ tags:
     timeout: 8000
 - back
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 8000

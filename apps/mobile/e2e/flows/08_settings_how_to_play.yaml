@@ -22,7 +22,7 @@ tags:
 - tapOn:
     id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 10000
 
 # Step 2: Navigate to How to Play (button: "📖 How to Play")
@@ -37,7 +37,7 @@ tags:
 # Step 4: Go back
 - back
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 10000
 
 # Step 5: Navigate to Settings (gear icon in top bar)
@@ -57,5 +57,5 @@ tags:
 # Step 8: Go back
 - back
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 10000

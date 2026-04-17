@@ -22,7 +22,7 @@ tags:
 - tapOn:
     id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 10000
 
 # Step 2: Navigate to Settings screen
@@ -63,5 +63,5 @@ tags:
 # Step 8: Go back to Home
 - back
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 10000

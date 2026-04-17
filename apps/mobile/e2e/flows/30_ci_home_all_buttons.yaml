@@ -22,7 +22,7 @@ tags:
 - tapOn:
     id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 10000
 - takeScreenshot: "30_home_screen"
 
@@ -55,7 +55,7 @@ tags:
 
 # Step 6: Back to Home
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 8000
 
 # Step 7: Tap Profile
@@ -68,7 +68,7 @@ tags:
 - takeScreenshot: "30_profile_from_home"
 - back
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 8000
 
 # Step 8: Tap Settings
@@ -81,7 +81,7 @@ tags:
 - takeScreenshot: "30_settings_from_home"
 - back
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 8000
 
 # Step 9: Tap Leaderboard
@@ -94,5 +94,5 @@ tags:
 - takeScreenshot: "30_leaderboard_from_home"
 - back
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 8000

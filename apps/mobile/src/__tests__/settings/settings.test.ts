@@ -263,15 +263,35 @@ describe('User Preferences Migration (Task #647)', () => {
     (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
   });
 
+  // Legacy key strings (pre-brand-rename). These must match LEGACY_KEYS in migrateLegacyUserPreferences.ts.
+  const LEGACY = {
+    CARD_SORT_ORDER: '@big2_card_sort_order',
+    ANIMATION_SPEED: '@big2_animation_speed',
+    AUTO_PASS_TIMER: '@big2_auto_pass_timer',
+    PROFILE_VISIBILITY: '@big2_profile_visibility',
+    SHOW_ONLINE_STATUS: '@big2_show_online_status',
+    AUDIO_SETTINGS_MIGRATION_COMPLETE: '@big2_audio_settings_migrated',
+  };
+
   it('runs migration and returns true when marker is absent (no legacy data hydrate)', async () => {
-    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null); // marker absent
-    (AsyncStorage.multiGet as jest.Mock).mockResolvedValue([
-      [SETTINGS_KEYS.CARD_SORT_ORDER, null],
-      [SETTINGS_KEYS.ANIMATION_SPEED, null],
-      [SETTINGS_KEYS.AUTO_PASS_TIMER, null],
-      [SETTINGS_KEYS.PROFILE_VISIBILITY, null],
-      [SETTINGS_KEYS.SHOW_ONLINE_STATUS, null],
-    ]);
+    // Neither new sentinel nor old (big2) sentinel is set
+    (AsyncStorage.multiGet as jest.Mock).mockImplementation((keys: string[]) => {
+      if (keys.includes(SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE)) {
+        // sentinel check
+        return Promise.resolve([
+          [SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE, null],
+          [LEGACY.AUDIO_SETTINGS_MIGRATION_COMPLETE, null],
+        ]);
+      }
+      // legacy data keys
+      return Promise.resolve([
+        [LEGACY.CARD_SORT_ORDER, null],
+        [LEGACY.ANIMATION_SPEED, null],
+        [LEGACY.AUTO_PASS_TIMER, null],
+        [LEGACY.PROFILE_VISIBILITY, null],
+        [LEGACY.SHOW_ONLINE_STATUS, null],
+      ]);
+    });
 
     const hydrate = jest.fn();
     const result = await migrateLegacyUserPreferences(hydrate);
@@ -283,12 +303,25 @@ describe('User Preferences Migration (Task #647)', () => {
     );
   });
 
-  it('skips migration and returns false when marker is present', async () => {
-    (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) =>
-      key === SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE
-        ? Promise.resolve('1')
-        : Promise.resolve(null)
-    );
+  it('skips migration and returns false when new marker is present', async () => {
+    (AsyncStorage.multiGet as jest.Mock).mockResolvedValue([
+      [SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE, '1'],
+      [LEGACY.AUDIO_SETTINGS_MIGRATION_COMPLETE, null],
+    ]);
+
+    const hydrate = jest.fn();
+    const result = await migrateLegacyUserPreferences(hydrate);
+
+    expect(result).toBe(false);
+    expect(hydrate).not.toHaveBeenCalled();
+    expect(AsyncStorage.setItem).not.toHaveBeenCalled();
+  });
+
+  it('skips migration and returns false when legacy big2 marker is present', async () => {
+    (AsyncStorage.multiGet as jest.Mock).mockResolvedValue([
+      [SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE, null],
+      [LEGACY.AUDIO_SETTINGS_MIGRATION_COMPLETE, '1'],
+    ]);
 
     const hydrate = jest.fn();
     const result = await migrateLegacyUserPreferences(hydrate);
@@ -299,14 +332,21 @@ describe('User Preferences Migration (Task #647)', () => {
   });
 
   it('hydrates only valid legacy values and ignores invalid or missing ones', async () => {
-    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null); // marker absent
-    (AsyncStorage.multiGet as jest.Mock).mockResolvedValue([
-      [SETTINGS_KEYS.CARD_SORT_ORDER, 'rank'],
-      [SETTINGS_KEYS.ANIMATION_SPEED, 'INVALID'],
-      [SETTINGS_KEYS.AUTO_PASS_TIMER, '30'],
-      [SETTINGS_KEYS.PROFILE_VISIBILITY, 'false'],
-      [SETTINGS_KEYS.SHOW_ONLINE_STATUS, null],
-    ]);
+    (AsyncStorage.multiGet as jest.Mock).mockImplementation((keys: string[]) => {
+      if (keys.includes(SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE)) {
+        return Promise.resolve([
+          [SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE, null],
+          [LEGACY.AUDIO_SETTINGS_MIGRATION_COMPLETE, null],
+        ]);
+      }
+      return Promise.resolve([
+        [LEGACY.CARD_SORT_ORDER, 'rank'],
+        [LEGACY.ANIMATION_SPEED, 'INVALID'],
+        [LEGACY.AUTO_PASS_TIMER, '30'],
+        [LEGACY.PROFILE_VISIBILITY, 'false'],
+        [LEGACY.SHOW_ONLINE_STATUS, null],
+      ]);
+    });
 
     const hydrate = jest.fn();
     await migrateLegacyUserPreferences(hydrate);
@@ -321,23 +361,30 @@ describe('User Preferences Migration (Task #647)', () => {
   });
 
   it('removes legacy keys after migration', async () => {
-    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null); // marker absent
-    (AsyncStorage.multiGet as jest.Mock).mockResolvedValue([
-      [SETTINGS_KEYS.CARD_SORT_ORDER, null],
-      [SETTINGS_KEYS.ANIMATION_SPEED, null],
-      [SETTINGS_KEYS.AUTO_PASS_TIMER, null],
-      [SETTINGS_KEYS.PROFILE_VISIBILITY, null],
-      [SETTINGS_KEYS.SHOW_ONLINE_STATUS, null],
-    ]);
+    (AsyncStorage.multiGet as jest.Mock).mockImplementation((keys: string[]) => {
+      if (keys.includes(SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE)) {
+        return Promise.resolve([
+          [SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE, null],
+          [LEGACY.AUDIO_SETTINGS_MIGRATION_COMPLETE, null],
+        ]);
+      }
+      return Promise.resolve([
+        [LEGACY.CARD_SORT_ORDER, null],
+        [LEGACY.ANIMATION_SPEED, null],
+        [LEGACY.AUTO_PASS_TIMER, null],
+        [LEGACY.PROFILE_VISIBILITY, null],
+        [LEGACY.SHOW_ONLINE_STATUS, null],
+      ]);
+    });
 
     await migrateLegacyUserPreferences(jest.fn());
 
     expect(AsyncStorage.multiRemove).toHaveBeenCalledWith([
-      SETTINGS_KEYS.CARD_SORT_ORDER,
-      SETTINGS_KEYS.ANIMATION_SPEED,
-      SETTINGS_KEYS.AUTO_PASS_TIMER,
-      SETTINGS_KEYS.PROFILE_VISIBILITY,
-      SETTINGS_KEYS.SHOW_ONLINE_STATUS,
+      LEGACY.CARD_SORT_ORDER,
+      LEGACY.ANIMATION_SPEED,
+      LEGACY.AUTO_PASS_TIMER,
+      LEGACY.PROFILE_VISIBILITY,
+      LEGACY.SHOW_ONLINE_STATUS,
     ]);
   });
 
@@ -345,19 +392,21 @@ describe('User Preferences Migration (Task #647)', () => {
     // Simulates: GameSettingsModal writes to Zustand store (creating 'stephanos-audio-settings')
     // before SettingsScreen runs. Migration must still run because migrateLegacyUserPreferences
     // checks AUDIO_SETTINGS_MIGRATION_COMPLETE, not the persist blob's presence.
-    (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
-      if (key === SETTINGS_KEYS.AUDIO_SETTINGS_PERSIST)
-        return Promise.resolve('{"cardSortOrder":"suit"}');
-      if (key === SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE) return Promise.resolve(null);
-      return Promise.resolve(null);
+    (AsyncStorage.multiGet as jest.Mock).mockImplementation((keys: string[]) => {
+      if (keys.includes(SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE)) {
+        return Promise.resolve([
+          [SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE, null],
+          [LEGACY.AUDIO_SETTINGS_MIGRATION_COMPLETE, null],
+        ]);
+      }
+      return Promise.resolve([
+        [LEGACY.CARD_SORT_ORDER, null],
+        [LEGACY.ANIMATION_SPEED, null],
+        [LEGACY.AUTO_PASS_TIMER, null],
+        [LEGACY.PROFILE_VISIBILITY, null],
+        [LEGACY.SHOW_ONLINE_STATUS, null],
+      ]);
     });
-    (AsyncStorage.multiGet as jest.Mock).mockResolvedValue([
-      [SETTINGS_KEYS.CARD_SORT_ORDER, null],
-      [SETTINGS_KEYS.ANIMATION_SPEED, null],
-      [SETTINGS_KEYS.AUTO_PASS_TIMER, null],
-      [SETTINGS_KEYS.PROFILE_VISIBILITY, null],
-      [SETTINGS_KEYS.SHOW_ONLINE_STATUS, null],
-    ]);
 
     const hydrate = jest.fn();
     const result = await migrateLegacyUserPreferences(hydrate);

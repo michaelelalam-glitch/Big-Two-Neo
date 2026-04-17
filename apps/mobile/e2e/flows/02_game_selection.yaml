@@ -42,10 +42,10 @@ tags:
 
 # Step 6: Verify navigation to Home screen
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 10000
 
-- assertVisible: "Stephanos Mobile"
+- assertVisible: "Stephanos"
 
 # Step 7: Take screenshot of home screen
 - takeScreenshot: "02_home_screen"

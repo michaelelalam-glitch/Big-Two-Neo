@@ -18,7 +18,7 @@ tags:
 - tapOn:
     id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 10000
 
 # Open Find Game modal
@@ -39,6 +39,6 @@ tags:
 - tapOn:
     id: "find-game-modal-close"
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 5000
 - takeScreenshot: "31_modal_closed"

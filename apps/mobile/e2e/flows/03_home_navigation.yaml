@@ -26,7 +26,7 @@ tags:
 
 # Step 3: Verify Home screen main elements
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 10000
 
 # Step 4: Verify all main navigation buttons exist

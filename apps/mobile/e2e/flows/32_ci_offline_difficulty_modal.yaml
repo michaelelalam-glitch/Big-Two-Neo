@@ -18,7 +18,7 @@ tags:
 - tapOn:
     id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 10000
 
 # Tap Offline Practice
@@ -40,6 +40,6 @@ tags:
 - tapOn:
     id: "difficulty-modal-close"
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 5000
 - takeScreenshot: "32_modal_closed"

@@ -17,7 +17,7 @@ tags:
 - tapOn:
     id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 10000
 
 # Start ranked matchmaking
@@ -40,6 +40,6 @@ tags:
 - tapOn:
     id: "cancel-matchmaking-button"
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 10000
 - takeScreenshot: "41_back_to_home"

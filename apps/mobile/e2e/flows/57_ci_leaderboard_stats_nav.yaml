@@ -17,7 +17,7 @@ tags:
 - tapOn:
     id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 10000
 
 # Go to Leaderboard first
@@ -32,7 +32,7 @@ tags:
 # Navigate back
 - back
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 8000
 
 # Navigate to Stats via Profile
@@ -58,5 +58,5 @@ tags:
     timeout: 8000
 - back
 - extendedWaitUntil:
-    visible: "Stephanos Mobile"
+    visible: "Stephanos"
     timeout: 8000

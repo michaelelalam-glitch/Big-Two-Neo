@@ -11,12 +11,12 @@
  *   SUPABASE_ANON_KEY         — (auto-set by Supabase)
  *   SUPABASE_SERVICE_ROLE_KEY — (auto-set by Supabase)
  *
- *   ANDROID_PACKAGE_NAME        — e.g. "com.stephanosmobile.app"
+ *   ANDROID_PACKAGE_NAME        — e.g. "com.stephanos.app"
  *   PLAY_INTEGRITY_SERVICE_CREDS — Base64-encoded Google service account JSON
  *                                  for Play Integrity API decryption
  *
  *   APPLE_APP_ID_PREFIX         — Apple Developer Team ID (10-char, e.g. "ABCD1234EF")
- *   APPLE_BUNDLE_ID             — iOS bundle identifier (e.g. "com.stephanosmobile.app")
+ *   APPLE_BUNDLE_ID             — iOS bundle identifier (e.g. "com.stephanos.app")
  *   APPLE_ATTEST_ENV            — "production" or "development"
  *
  * ─── RATE LIMITING ──────────────────────────────────────────────────────────
