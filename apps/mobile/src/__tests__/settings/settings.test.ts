@@ -328,7 +328,12 @@ describe('User Preferences Migration (Task #647)', () => {
 
     expect(result).toBe(false);
     expect(hydrate).not.toHaveBeenCalled();
-    expect(AsyncStorage.setItem).not.toHaveBeenCalled();
+    // When only legacy sentinel is present, the new sentinel is written so future
+    // mounts skip the legacy-key lookup (one extra AsyncStorage read avoided).
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+      SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE,
+      '1'
+    );
   });
 
   it('hydrates only valid legacy values and ignores invalid or missing ones', async () => {

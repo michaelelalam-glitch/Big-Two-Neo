@@ -52,7 +52,13 @@ export async function migrateLegacyUserPreferences(
     SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE,
     LEGACY_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE,
   ]);
-  if (newSentinel[1] !== null || oldSentinel[1] !== null) return false;
+  if (newSentinel[1] !== null) return false;
+  if (oldSentinel[1] !== null) {
+    // Legacy sentinel present: migration already ran before the brand rename.
+    // Write the new sentinel so future mounts skip the legacy-key lookup.
+    await AsyncStorage.setItem(SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE, '1');
+    return false;
+  }
 
   const VALID_CARD_SORT: string[] = ['suit', 'rank'];
   const VALID_ANIM_SPEED: string[] = ['slow', 'normal', 'fast'];

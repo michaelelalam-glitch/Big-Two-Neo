@@ -747,6 +747,9 @@ export function useActiveGameBanner(
               await AsyncStorage.removeItem('@stephanos_game_state');
               // Also remove legacy key so pre-rename saves don't resurface
               await AsyncStorage.removeItem('@big2_game_state');
+              // Remove associated offline history to prevent stale UI after discard
+              await AsyncStorage.removeItem('@stephanos_score_history');
+              await AsyncStorage.removeItem('@stephanos_play_history');
               setBannerRefreshKey(k => k + 1);
               showSuccess('Offline game discarded');
             } catch {
