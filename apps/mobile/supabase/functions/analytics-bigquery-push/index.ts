@@ -221,9 +221,9 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   const startedAt = Date.now();
   let totalExported = 0;
-  // Tracks IDs of rows claimed (sentinel-marked) but not yet confirmed exported.
+  // Tracks IDs of rows where export_claimed_at was set but export not yet confirmed.
   // Populated by each batch claim; cleared after successful UPDATE. On any failure
-  // the catch block resets these rows to NULL so the next run can retry them.
+  // the catch block releases the claim (export_claimed_at → NULL) for immediate retry.
   const allClaimedIds = new Set<string>();
 
   try {
@@ -249,10 +249,10 @@ Deno.serve(async (req) => {
         break;
       }
 
-      // Atomically claim next batch using FOR UPDATE SKIP LOCKED so concurrent
-      // invocations cannot pick up the same rows. Claimed rows are marked with the
-      // UNIX epoch sentinel (1970-01-01 UTC); replaced with the real timestamp on
-      // success or reset to NULL in the catch block on failure.
+      // Atomically claim next batch: FOR UPDATE SKIP LOCKED prevents concurrent
+      // invocations from picking up the same rows. Claim state is tracked via
+      // export_claimed_at (set to now()); confirmed on successful export or released
+      // immediately on failure; stale claims (> 10 min) are auto-recovered.
       const { data: rows, error: fetchErr } = await supabase.rpc(
         'analytics_claim_export_batch',
         { p_limit: BATCH_SIZE }
