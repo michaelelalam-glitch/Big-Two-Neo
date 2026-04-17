@@ -107,7 +107,16 @@ export const ActiveGameBanner: React.FC<ActiveGameBannerProps> = ({
   // Check for offline game in AsyncStorage
   const checkOfflineGame = useCallback(async () => {
     try {
-      const stateJson = await AsyncStorage.getItem(GAME_STATE_KEY);
+      let stateJson = await AsyncStorage.getItem(GAME_STATE_KEY);
+      // One-time migration: if new key absent, check legacy @big2_game_state key
+      if (!stateJson) {
+        const legacyJson = await AsyncStorage.getItem('@big2_game_state');
+        if (legacyJson) {
+          await AsyncStorage.setItem(GAME_STATE_KEY, legacyJson);
+          await AsyncStorage.removeItem('@big2_game_state');
+          stateJson = legacyJson;
+        }
+      }
       if (stateJson) {
         const state = JSON.parse(stateJson);
         // Only show banner if game is not ended

@@ -745,6 +745,8 @@ export function useActiveGameBanner(
           onConfirm: async () => {
             try {
               await AsyncStorage.removeItem('@stephanos_game_state');
+              // Also remove legacy key so pre-rename saves don't resurface
+              await AsyncStorage.removeItem('@big2_game_state');
               setBannerRefreshKey(k => k + 1);
               showSuccess('Offline game discarded');
             } catch {
