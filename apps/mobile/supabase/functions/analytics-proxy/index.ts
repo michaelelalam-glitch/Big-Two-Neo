@@ -140,9 +140,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Basic validation: must have client_id and events array
-    if (!body.client_id || !Array.isArray(body.events) || body.events.length === 0) {
-      return errorResponse(400, 'Invalid payload: client_id and events[] required', corsHeaders, 'BAD_REQUEST', requestId);
+    // Basic validation: client_id must be a non-empty string, events must be a non-empty array
+    if (typeof body.client_id !== 'string' || body.client_id.length === 0 || !Array.isArray(body.events) || body.events.length === 0) {
+      return errorResponse(400, 'Invalid payload: client_id (non-empty string) and events[] required', corsHeaders, 'BAD_REQUEST', requestId);
     }
 
     // Cap events per request to prevent abuse

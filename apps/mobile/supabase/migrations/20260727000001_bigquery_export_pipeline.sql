@@ -38,10 +38,17 @@
 -- ─────────────────────────────────────────────────────────────────────────────
 
 -- 1. Enable pg_net for outbound HTTP from Postgres
---    Create the net schema first: Postgres does not auto-create the target schema
---    when the SCHEMA clause is specified, so the extension install would fail otherwise.
-CREATE SCHEMA IF NOT EXISTS net;
-CREATE EXTENSION IF NOT EXISTS pg_net SCHEMA net;
+--    Wrapped in DO/EXCEPTION so the migration degrades gracefully in environments
+--    where extension creation is restricted (local dev, CI, certain Supabase tiers).
+DO $$
+BEGIN
+  CREATE SCHEMA IF NOT EXISTS net;
+  CREATE EXTENSION IF NOT EXISTS pg_net SCHEMA net;
+EXCEPTION
+  WHEN others THEN
+    RAISE WARNING 'pg_net extension unavailable; raw-event BigQuery export will not function: %',
+      SQLERRM;
+END$$;
 
 -- 2. Export tracking column (added after table creation in previous migration)
 ALTER TABLE public.analytics_raw_events

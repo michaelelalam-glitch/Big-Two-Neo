@@ -226,6 +226,13 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Log effective BigQuery target at startup so operators can confirm the correct
+  // dataset/table (BIGQUERY_DATASET_ID and BIGQUERY_TABLE_ID use documented defaults
+  // when not explicitly set; this makes the chosen values visible in function logs).
+  console.log(
+    `[analytics-bigquery-push] Target: ${BIGQUERY_PROJECT_ID}/${BIGQUERY_DATASET_ID}/${BIGQUERY_TABLE_ID}`
+  );
+
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: {
       autoRefreshToken: false,
@@ -250,6 +257,7 @@ Deno.serve(async (req) => {
     const MAX_BATCHES = 20;
     const TIME_BUDGET_MS = 4 * 60 * 1000; // 4-minute budget — leaves ~1 min for cleanup
     let batchNumber = 0;
+    let processedBatches = 0; // only counts batches that actually claimed rows
     while (true) {
       batchNumber++;
 
@@ -276,6 +284,7 @@ Deno.serve(async (req) => {
 
       const batchIds = (rows as AnalyticsRow[]).map((r) => r.id);
       batchIds.forEach((id) => allClaimedIds.add(id));
+      processedBatches++;
 
       console.log(
         `[analytics-bigquery-push] Batch ${batchNumber}: pushing ${rows.length} rows to BigQuery`
@@ -336,14 +345,14 @@ Deno.serve(async (req) => {
 
     const duration = Date.now() - startedAt;
     console.log(
-      `[analytics-bigquery-push] Done: ${totalExported} rows exported in ${duration}ms (${batchNumber} batch(es))`
+      `[analytics-bigquery-push] Done: ${totalExported} rows exported in ${duration}ms (${processedBatches} batch(es))`
     );
 
     return new Response(
       JSON.stringify({
         ok: true,
         rows_exported: totalExported,
-        batches: batchNumber,
+        batches: processedBatches,
         duration_ms: duration,
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
