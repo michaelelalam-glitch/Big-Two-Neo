@@ -3734,7 +3734,20 @@ class I18nManager {
    */
   async initialize(): Promise<void> {
     try {
-      const savedLanguage = await AsyncStorage.getItem(LANGUAGE_KEY);
+      let savedLanguage = await AsyncStorage.getItem(LANGUAGE_KEY);
+
+      // Migrate legacy @big2_language key for existing users upgrading from the old brand
+      if (savedLanguage === null) {
+        const legacy = await AsyncStorage.getItem('@big2_language');
+        if (legacy !== null) {
+          savedLanguage = legacy;
+          await Promise.all([
+            AsyncStorage.setItem(LANGUAGE_KEY, legacy),
+            AsyncStorage.removeItem('@big2_language'),
+          ]);
+        }
+      }
+
       if (
         savedLanguage &&
         (savedLanguage === 'en' || savedLanguage === 'ar' || savedLanguage === 'de')

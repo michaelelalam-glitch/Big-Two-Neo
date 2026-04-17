@@ -35,8 +35,18 @@ class HapticManager {
     if (this.initialized) return;
 
     try {
-      // Load user preference
-      const enabledStr = await AsyncStorage.getItem(HAPTICS_ENABLED_KEY);
+      // Load user preference; migrate legacy @big2_ key for existing users upgrading from the old brand
+      let enabledStr = await AsyncStorage.getItem(HAPTICS_ENABLED_KEY);
+      if (enabledStr === null) {
+        const legacy = await AsyncStorage.getItem('@big2_haptics_enabled');
+        if (legacy !== null) {
+          enabledStr = legacy;
+          await Promise.all([
+            AsyncStorage.setItem(HAPTICS_ENABLED_KEY, legacy),
+            AsyncStorage.removeItem('@big2_haptics_enabled'),
+          ]);
+        }
+      }
       this.hapticsEnabled = enabledStr !== null ? enabledStr === 'true' : true;
 
       this.initialized = true;

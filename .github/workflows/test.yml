@@ -346,7 +346,7 @@ jobs:
           # (which wipes ios/) does not destroy the incremental build cache.
           # On cache hits xcodebuild performs an incremental compile (~2-5 min)
           # instead of a full rebuild (~15-20 min).
-          path: ~/DerivedData/StephanosMobile
+          path: ~/DerivedData/Stephanos
           # v4: force cache miss to clear stale Xcode ModuleCache (.pcm files)
           # that caused DarwinFoundation build failures when the Xcode 16.4
           # toolchain was updated (mtime changed on ptrcheck.h).
@@ -372,7 +372,7 @@ jobs:
           # and cause cascading DarwinFoundation / _stdint errors. Deleting only
           # the ModuleCache (~seconds to regenerate) preserves the compiled
           # object files (.o) that make incremental builds fast.
-          rm -rf ~/DerivedData/StephanosMobile/ModuleCache.noindex || true
+          rm -rf ~/DerivedData/Stephanos/ModuleCache.noindex || true
           echo "ModuleCache cleared"
 
       - name: 🏗️ Build iOS app for Simulator
@@ -386,7 +386,7 @@ jobs:
           # Debug builds load JS from Metro dev server which isn't available in CI,
           # causing the Expo Dev Client launcher to appear instead of the app.
           # -jobs: use all available vCPUs for parallel Clang compilation.
-          # -derivedDataPath ~/DerivedData/StephanosMobile: keeps build artifacts at a
+          # -derivedDataPath ~/DerivedData/Stephanos: keeps build artifacts at a
           #   stable path outside ios/ so expo prebuild --clean doesn't wipe the
           #   incremental cache on the next run (was apps/mobile/ios/build before).
           # Tee full log so we can grep Swift/Clang errors even when they scroll.
@@ -397,12 +397,12 @@ jobs:
           # a broken pipe that sets PIPESTATUS[0]=65 and kills xcodebuild with SIGPIPE
           # even on a successful build. Tail/grep the saved log only in the summary block.
           set +e
-          xcodebuild -workspace StephanosMobile.xcworkspace \
-            -scheme StephanosMobile \
+          xcodebuild -workspace Stephanos.xcworkspace \
+            -scheme Stephanos \
             -configuration Release \
             -sdk iphonesimulator \
             -destination "platform=iOS Simulator,id=${{ env.DEVICE_ID }}" \
-            -derivedDataPath ~/DerivedData/StephanosMobile \
+            -derivedDataPath ~/DerivedData/Stephanos \
             build \
             -jobs $(sysctl -n hw.ncpu) \
             CODE_SIGNING_ALLOWED=NO \
@@ -436,16 +436,16 @@ jobs:
         if: success()
         uses: actions/cache/save@v4
         with:
-          path: ~/DerivedData/StephanosMobile
+          path: ~/DerivedData/Stephanos
           key: ${{ runner.os }}-deriveddata-v4-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json') }}
       
       - name: 📲 Install app on Simulator
         run: |
-          # DerivedData is now at ~/DerivedData/StephanosMobile (stable path outside ios/)
-          APP_PATH=$(find ~/DerivedData/StephanosMobile/Build/Products/Release-iphonesimulator -name "*.app" -type d | head -1)
+          # DerivedData is now at ~/DerivedData/Stephanos (stable path outside ios/)
+          APP_PATH=$(find ~/DerivedData/Stephanos/Build/Products/Release-iphonesimulator -name "*.app" -type d | head -1)
           if [ -z "$APP_PATH" ]; then
             echo "::error::No .app bundle found in derived data. Build may have failed."
-            find ~/DerivedData/StephanosMobile -type d -maxdepth 4 2>/dev/null || echo "DerivedData directory doesn't exist"
+            find ~/DerivedData/Stephanos -type d -maxdepth 4 2>/dev/null || echo "DerivedData directory doesn't exist"
             exit 1
           fi
           echo "Installing app: $APP_PATH"

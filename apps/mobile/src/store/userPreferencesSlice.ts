@@ -192,7 +192,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       hydrate: partial => set(partial),
     }),
     {
-      // Historically named 'stephanos-audio-settings'; now backs the full
+      // Historically named 'big2-audio-settings'; now backs the full
       // user-preferences blob (card sort, animation speed, auto-pass timer,
       // privacy flags). Central constant so the key stays in sync with
       // migration/clear-cache code.
