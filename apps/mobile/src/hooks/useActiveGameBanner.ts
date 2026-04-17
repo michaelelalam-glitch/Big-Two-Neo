@@ -832,7 +832,16 @@ export function useActiveGameBanner(
   const checkGameExclusivity = useCallback(
     async (targetType: 'online' | 'offline'): Promise<boolean> => {
       try {
-        const stateJson = await AsyncStorage.getItem('@stephanos_game_state');
+        let stateJson = await AsyncStorage.getItem('@stephanos_game_state');
+        // One-time migration: check legacy @big2_game_state if new key is absent
+        if (!stateJson) {
+          const legacyJson = await AsyncStorage.getItem('@big2_game_state');
+          if (legacyJson) {
+            await AsyncStorage.setItem('@stephanos_game_state', legacyJson);
+            await AsyncStorage.removeItem('@big2_game_state');
+            stateJson = legacyJson;
+          }
+        }
         if (stateJson) {
           const state = JSON.parse(stateJson);
           if (state && !state.gameOver && state.gameStarted && !state.gameEnded) {
@@ -846,6 +855,7 @@ export function useActiveGameBanner(
                   destructive: true,
                   onConfirm: async () => {
                     await AsyncStorage.removeItem('@stephanos_game_state');
+                    await AsyncStorage.removeItem('@big2_game_state');
                     await AsyncStorage.removeItem('@stephanos_score_history');
                     setBannerRefreshKey(k => k + 1);
                     resolve(true);
@@ -867,6 +877,7 @@ export function useActiveGameBanner(
                   destructive: true,
                   onConfirm: async () => {
                     await AsyncStorage.removeItem('@stephanos_game_state');
+                    await AsyncStorage.removeItem('@big2_game_state');
                     await AsyncStorage.removeItem('@stephanos_score_history');
                     setBannerRefreshKey(k => k + 1);
                     resolve(true);
