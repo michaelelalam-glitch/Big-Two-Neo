@@ -52,8 +52,12 @@ CREATE INDEX IF NOT EXISTS analytics_raw_events_event_name_idx
   ON public.analytics_raw_events (event_name, received_at DESC);
 
 -- Time-range scans (partitioned exports to BigQuery)
-CREATE INDEX IF NOT EXISTS analytics_raw_events_received_at_idx
-  ON public.analytics_raw_events (received_at DESC);
+-- BRIN is ideal here: analytics events are written in near-chronological order,
+-- so there is strong correlation between heap position and received_at.
+-- BRIN is far smaller than B-tree and incurs lower write amplification on
+-- high-ingest tables; range scans on received_at remain efficient.
+CREATE INDEX IF NOT EXISTS analytics_raw_events_received_at_brin_idx
+  ON public.analytics_raw_events USING BRIN (received_at);
 
 -- JSONB GIN index for containment queries (e.g. WHERE event_params @> '{"mode":"ranked"}').
 -- Uses jsonb_path_ops operator class: ~3-4x smaller index than the default jsonb_ops,
