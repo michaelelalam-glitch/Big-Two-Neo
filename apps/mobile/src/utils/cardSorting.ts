@@ -295,9 +295,9 @@ export const sortCardsForDisplay = (cards: Card[], comboType?: string): Card[] =
       // Check if this is a 2-high straight (e.g., 3-4-5-6-2)
       const has2 = ranks.includes('2');
       if (has2 && cards.length === 5) {
-        // In Stephanos, 2 is highest value but in straights it acts as high card
-        // For sequence like 3-4-5-6-2: Display as 6-5-4-3-2
-        // We need to find the second-highest rank value to determine sequence
+        // In Stephanos, 2 is the highest rank overall but in straights it is
+        // treated as low/end-of-sequence (e.g. valid: 3-4-5-6-2; wrap-arounds
+        // like J-Q-K-A-2 are rejected). Display sequence with 2 last.
         const cardsWithout2 = sortedAsc.filter(c => c.rank !== '2');
         const card2 = sortedAsc.find(c => c.rank === '2');
         if (!card2) {

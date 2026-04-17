@@ -77,7 +77,7 @@ jest.mock('../../utils/settings', () => ({
     PROFILE_VISIBILITY: 'profile-visibility',
     SHOW_ONLINE_STATUS: 'show-online-status',
     LANGUAGE: 'language',
-    AUDIO_SETTINGS_PERSIST: 'stephanos-audio-settings',
+    AUDIO_SETTINGS_PERSIST: 'big2-audio-settings',
     AUDIO_SETTINGS_MIGRATION_COMPLETE: 'audio-migration-complete',
     ANALYTICS_CONSENT: 'analytics-consent',
   },

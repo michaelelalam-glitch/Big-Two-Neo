@@ -74,7 +74,7 @@ export default function SettingsScreen() {
     (async () => {
       try {
         // Use an explicit migration-complete marker so that Zustand store
-        // writes from other screens (which create 'stephanos-audio-settings' as a
+        // writes from other screens (which create 'big2-audio-settings' as a
         // side effect of the persist middleware) can't suppress this migration.
         const alreadyMigrated = await AsyncStorage.getItem(
           SETTINGS_KEYS.AUDIO_SETTINGS_MIGRATION_COMPLETE

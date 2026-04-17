@@ -28,7 +28,7 @@ export const SETTINGS_KEYS = {
    *  are imported into the user-preferences Zustand persist store (Task #647
    *  first-run migration). This dedicated key acts as a clear migration
    *  sentinel so migration logic does not rely on the existence of the
-   *  `stephanos-audio-settings` persist blob, which may be created early by other
+   *  `big2-audio-settings` persist blob, which may be created early by other
    *  screens via Zustand's persist middleware. */
   AUDIO_SETTINGS_MIGRATION_COMPLETE: '@stephanos_audio_settings_migrated',
   /** User's analytics + crash-reporting consent (Task #272 GDPR compliance).

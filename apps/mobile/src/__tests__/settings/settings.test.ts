@@ -394,7 +394,7 @@ describe('User Preferences Migration (Task #647)', () => {
   });
 
   it('migration is not suppressed by early creation of the persist blob', async () => {
-    // Simulates: GameSettingsModal writes to Zustand store (creating 'stephanos-audio-settings')
+    // Simulates: GameSettingsModal writes to Zustand store (creating 'big2-audio-settings')
     // before SettingsScreen runs. Migration must still run because migrateLegacyUserPreferences
     // checks AUDIO_SETTINGS_MIGRATION_COMPLETE, not the persist blob's presence.
     (AsyncStorage.multiGet as jest.Mock).mockImplementation((keys: string[]) => {
