@@ -421,7 +421,10 @@ describe('User Preferences Migration (Task #647)', () => {
   });
 
   it('writes Zustand persist blob key to AUDIO_SETTINGS_PERSIST constant', () => {
-    expect(SETTINGS_KEYS.AUDIO_SETTINGS_PERSIST).toBe('stephanos-audio-settings');
+    // Intentionally kept as 'big2-audio-settings' (not 'stephanos-audio-settings')
+    // to preserve existing users' persisted preferences across the brand rename.
+    // Changing this key would reset all user preferences on upgrade.
+    expect(SETTINGS_KEYS.AUDIO_SETTINGS_PERSIST).toBe('big2-audio-settings');
   });
 });
 
@@ -447,11 +450,17 @@ describe('Settings Keys', () => {
     expect(keys.length).toBe(uniqueKeys.size);
   });
 
-  it('should use @stephanos_ prefix for all keys (or stephanos- for Zustand persist keys)', () => {
+  it('should use @stephanos_ prefix for all keys (or stephanos-/big2- for Zustand persist keys)', () => {
     const keys = Object.values(SETTINGS_KEYS);
 
     keys.forEach(key => {
-      expect(key).toMatch(/^(?:@stephanos_|stephanos-)/);
+      // AUDIO_SETTINGS_PERSIST is intentionally kept as 'big2-audio-settings' to
+      // avoid resetting users' persisted preferences on upgrade from Big2 brand.
+      if (key === SETTINGS_KEYS.AUDIO_SETTINGS_PERSIST) {
+        expect(key).toBe('big2-audio-settings');
+      } else {
+        expect(key).toMatch(/^(?:@stephanos_|stephanos-)/);
+      }
     });
   });
 });

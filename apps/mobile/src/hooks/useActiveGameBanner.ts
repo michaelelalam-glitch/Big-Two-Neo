@@ -854,13 +854,19 @@ export function useActiveGameBanner(
                   cancelText: 'Resume Current Game',
                   destructive: true,
                   onConfirm: async () => {
-                    await AsyncStorage.removeItem('@stephanos_game_state');
-                    await AsyncStorage.removeItem('@big2_game_state');
-                    await AsyncStorage.removeItem('@stephanos_score_history');
-                    await AsyncStorage.removeItem('@stephanos_play_history');
-                    await AsyncStorage.removeItem('@big2_play_history');
-                    setBannerRefreshKey(k => k + 1);
-                    resolve(true);
+                    try {
+                      await AsyncStorage.removeItem('@stephanos_game_state');
+                      await AsyncStorage.removeItem('@big2_game_state');
+                      await AsyncStorage.removeItem('@stephanos_score_history');
+                      await AsyncStorage.removeItem('@big2_score_history');
+                      await AsyncStorage.removeItem('@stephanos_play_history');
+                      await AsyncStorage.removeItem('@big2_play_history');
+                      setBannerRefreshKey(k => k + 1);
+                    } catch {
+                      /* ignore storage errors — discard proceeds regardless */
+                    } finally {
+                      resolve(true);
+                    }
                   },
                   onCancel: () => {
                     navigation.navigate('Game', { roomCode: 'LOCAL_AI_GAME' });
@@ -878,13 +884,19 @@ export function useActiveGameBanner(
                   cancelText: 'Resume Offline Game',
                   destructive: true,
                   onConfirm: async () => {
-                    await AsyncStorage.removeItem('@stephanos_game_state');
-                    await AsyncStorage.removeItem('@big2_game_state');
-                    await AsyncStorage.removeItem('@stephanos_score_history');
-                    await AsyncStorage.removeItem('@stephanos_play_history');
-                    await AsyncStorage.removeItem('@big2_play_history');
-                    setBannerRefreshKey(k => k + 1);
-                    resolve(true);
+                    try {
+                      await AsyncStorage.removeItem('@stephanos_game_state');
+                      await AsyncStorage.removeItem('@big2_game_state');
+                      await AsyncStorage.removeItem('@stephanos_score_history');
+                      await AsyncStorage.removeItem('@big2_score_history');
+                      await AsyncStorage.removeItem('@stephanos_play_history');
+                      await AsyncStorage.removeItem('@big2_play_history');
+                      setBannerRefreshKey(k => k + 1);
+                    } catch {
+                      /* ignore storage errors — discard proceeds regardless */
+                    } finally {
+                      resolve(true);
+                    }
                   },
                   onCancel: () => {
                     navigation.navigate('Game', { roomCode: 'LOCAL_AI_GAME' });

@@ -20,13 +20,10 @@ export const SETTINGS_KEYS = {
   AUDIO_ENABLED: '@stephanos_audio_enabled',
   AUDIO_VOLUME: '@stephanos_audio_volume',
   HAPTICS_ENABLED: '@stephanos_haptics_enabled',
-  /** Zustand persist storage key for the user-preferences slice (game and
-   *  privacy settings; Task #647). The historical name refers to audio
-   *  settings, but the persisted blob now backs the broader preferences store
-   *  and explicitly excludes runtime audio/haptics toggles (e.g.
-   *  `soundEnabled`, `vibrationEnabled`), which are owned by the sound/haptics
-   *  managers rather than this store. */
-  AUDIO_SETTINGS_PERSIST: 'stephanos-audio-settings',
+  // Historically named and kept as 'big2-audio-settings' to preserve existing
+  // users' persisted preferences across the brand rename (changing this key
+  // would cause a full preferences reset for upgrading users).
+  AUDIO_SETTINGS_PERSIST: 'big2-audio-settings',
   /** Explicit migration sentinel — written once after legacy AsyncStorage keys
    *  are imported into the user-preferences Zustand persist store (Task #647
    *  first-run migration). This dedicated key acts as a clear migration
