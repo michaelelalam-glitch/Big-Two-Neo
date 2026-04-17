@@ -22,7 +22,7 @@ CREATE OR REPLACE FUNCTION public.analytics_claim_export_batch(p_limit integer D
 RETURNS SETOF public.analytics_raw_events
 LANGUAGE sql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_catalog
 AS $$
   WITH to_claim AS (
     -- Unclaimed rows OR rows with a stale claim (crash/timeout recovery).
@@ -59,7 +59,7 @@ CREATE OR REPLACE FUNCTION public.analytics_confirm_batch_export(p_ids uuid[])
 RETURNS void
 LANGUAGE sql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_catalog
 AS $$
   UPDATE public.analytics_raw_events
   SET    exported_to_bigquery_at = now(),
@@ -110,6 +110,14 @@ BEGIN
   -- Guard: skip silently if pg_cron is not installed (e.g. local / test environments)
   IF to_regclass('cron.job') IS NULL THEN
     RAISE WARNING 'pg_cron is not available; skipping analytics-bigquery-push cron registration.';
+    RETURN;
+  END IF;
+
+  -- Guard: skip if pg_net is unavailable — the cron job calls net.http_post; if the
+  -- pg_net migration degraded with a warning, scheduling would succeed but every run
+  -- would fail with "function net.http_post does not exist".
+  IF to_regproc('net.http_post') IS NULL THEN
+    RAISE WARNING 'pg_net (net.http_post) is not available; skipping analytics-bigquery-push cron registration.';
     RETURN;
   END IF;
 

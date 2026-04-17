@@ -10,8 +10,10 @@
  *   GOOGLE_CLOUD_SA_KEY   — JSON of a GCP Service Account with
  *                            roles/bigquery.dataEditor on the dataset
  *   BIGQUERY_PROJECT_ID   — GCP project ID (e.g. "my-gcp-project")
- *   BIGQUERY_DATASET_ID   — BigQuery dataset ID (e.g. "big_two_analytics")
- *   BIGQUERY_TABLE_ID     — BigQuery table name (default: "analytics_raw_events")
+ *   BIGQUERY_DATASET_ID   — BigQuery dataset ID
+ *                            (optional; defaults to "big_two_analytics")
+ *   BIGQUERY_TABLE_ID     — BigQuery table name
+ *                            (optional; defaults to "analytics_raw_events")
  *   CRON_SECRET           — Shared bearer secret; must match the app.cron_secret
  *                            database setting used by the pg_cron migration
  *
