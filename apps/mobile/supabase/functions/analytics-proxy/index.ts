@@ -153,12 +153,23 @@ Deno.serve(async (req) => {
     // Overwrite user_id with authenticated user to prevent spoofing
     body.user_id = user.id;
 
-    // Validate events: filter out entries without a non-empty string name.
-    // Malformed events would otherwise produce 'unknown' rows in analytics_raw_events
-    // and be rejected by GA4 anyway, so returning early keeps the raw table clean.
-    const validEvents = (body.events as any[]).filter(
-      (event: any) => typeof event.name === 'string' && event.name.length > 0,
-    );
+    // Validate events: filter out null/undefined entries and those without a non-empty
+    // string name. Guards against null entries (TypeError on property access) and malformed
+    // event.params shapes that would corrupt the analytics_raw_events insert.
+    const validEvents = (body.events as any[]).filter((event: any) => {
+      if (!event || typeof event !== 'object' || Array.isArray(event)) {
+        return false;
+      }
+      if (typeof event.name !== 'string' || event.name.length === 0) {
+        return false;
+      }
+      return (
+        event.params === undefined ||
+        (event.params !== null &&
+          typeof event.params === 'object' &&
+          !Array.isArray(event.params))
+      );
+    });
     if (validEvents.length === 0) {
       return errorResponse(400, 'No valid events: each event must have a non-empty string name', corsHeaders, 'BAD_REQUEST', requestId);
     }

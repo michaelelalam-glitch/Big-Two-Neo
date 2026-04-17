@@ -73,7 +73,7 @@ REVOKE EXECUTE ON FUNCTION public.analytics_confirm_batch_export(uuid[]) FROM PU
 REVOKE EXECUTE ON FUNCTION public.analytics_confirm_batch_export(uuid[]) FROM anon, authenticated;
 GRANT  EXECUTE ON FUNCTION public.analytics_confirm_batch_export(uuid[]) TO service_role;
 
--- 4. pg_cron schedule — invoke analytics-bigquery-push Edge Function every 5 min
+-- 5. pg_cron schedule — invoke analytics-bigquery-push Edge Function every 5 min
 --
 --    Registered HERE (after export_claimed_at column + claim RPC exist) so the
 --    cron job can never fire against an incomplete schema.

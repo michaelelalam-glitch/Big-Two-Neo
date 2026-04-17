@@ -302,17 +302,18 @@ Deno.serve(async (req) => {
 
         // Release claim on BigQuery-rejected rows so they are retried on the next run
         // immediately (rather than waiting for the 10-minute stale-claim recovery).
+        // supabase-js resolves (not throws) on query errors — check { error } explicitly.
         if (failedIds.length > 0) {
-          await supabase
+          const { error: releaseErr } = await supabase
             .from('analytics_raw_events')
             .update({ export_claimed_at: null })
-            .in('id', failedIds)
-            .catch((resetErr: Error) =>
-              console.error(
-                '[analytics-bigquery-push] Failed to release claim on rejected rows:',
-                resetErr.message
-              )
+            .in('id', failedIds);
+          if (releaseErr) {
+            console.error(
+              '[analytics-bigquery-push] Failed to release claim on rejected rows:',
+              releaseErr.message
             );
+          }
           failedIds.forEach((id) => allClaimedIds.delete(id));
           console.error(
             `[analytics-bigquery-push] ${failedIds.length} row(s) rejected by BigQuery; claims released for retry`
