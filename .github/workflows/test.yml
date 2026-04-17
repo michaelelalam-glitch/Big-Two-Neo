@@ -2,7 +2,7 @@ name: CI/CD Pipeline
 
 on:
   pull_request:
-    branches: [main, develop, 'game/lebanese-poker']
+    branches: [main, develop, 'game/lebanese-poker', 'game/chinese-poker']
   push:
     branches: [main, develop]
   # Task #23 (Tier 4): manual trigger for k6 load tests
