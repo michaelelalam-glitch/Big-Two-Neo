@@ -100,6 +100,15 @@ export default function SettingsScreen() {
           if (Object.keys(partial).length > 0) hydrate(partial);
           if (storageMap[SETTINGS_KEYS.ANALYTICS_CONSENT] != null)
             setAnalyticsConsentState(storageMap[SETTINGS_KEYS.ANALYTICS_CONSENT] === 'true');
+          else {
+            // One-time migration: read legacy @big2_analytics_consent if new key absent
+            const legacyConsent = await AsyncStorage.getItem('@big2_analytics_consent');
+            if (legacyConsent != null) {
+              await AsyncStorage.setItem(SETTINGS_KEYS.ANALYTICS_CONSENT, legacyConsent);
+              await AsyncStorage.removeItem('@big2_analytics_consent');
+              setAnalyticsConsentState(legacyConsent === 'true');
+            }
+          }
         } catch (storageError) {
           uiLogger.warn(
             '[Settings] Failed to load audio/vibration flags from AsyncStorage:',

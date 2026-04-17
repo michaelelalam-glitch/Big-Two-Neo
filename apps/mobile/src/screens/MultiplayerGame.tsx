@@ -664,7 +664,17 @@ export function MultiplayerGame() {
 
     (async () => {
       try {
-        const stored = await AsyncStorage.getItem(ROOM_SCORE_KEY);
+        let stored = await AsyncStorage.getItem(ROOM_SCORE_KEY);
+        // One-time migration from legacy @big2_score_history_* key
+        if (!stored) {
+          const legacyKey = `@big2_score_history_${roomCode}`;
+          const legacy = await AsyncStorage.getItem(legacyKey);
+          if (legacy) {
+            await AsyncStorage.setItem(ROOM_SCORE_KEY, legacy);
+            await AsyncStorage.removeItem(legacyKey);
+            stored = legacy;
+          }
+        }
         const { entries, shouldRemove } = parsePersistedScoreHistory(stored);
         if (entries) {
           gameLogger.info(
@@ -717,7 +727,17 @@ export function MultiplayerGame() {
     if (hasRestoredCardOrderRef.current) return;
     (async () => {
       try {
-        const stored = await AsyncStorage.getItem(CARD_ORDER_KEY);
+        let stored = await AsyncStorage.getItem(CARD_ORDER_KEY);
+        // One-time migration from legacy @big2_card_order_* key
+        if (!stored) {
+          const legacyCardKey = `@big2_card_order_${roomCode}`;
+          const legacy = await AsyncStorage.getItem(legacyCardKey);
+          if (legacy) {
+            await AsyncStorage.setItem(CARD_ORDER_KEY, legacy);
+            await AsyncStorage.removeItem(legacyCardKey);
+            stored = legacy;
+          }
+        }
         if (stored) {
           const parsed = JSON.parse(stored);
           // Support old format (plain array) and new format ({ cards, matchNumber })

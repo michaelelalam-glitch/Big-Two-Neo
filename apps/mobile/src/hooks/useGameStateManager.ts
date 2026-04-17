@@ -206,7 +206,16 @@ export function useGameStateManager({
           // and restore it directly on rejoin.
           let scoreRestored = false;
           try {
-            const persistedHistory = await AsyncStorage.getItem(SCORE_HISTORY_KEY);
+            let persistedHistory = await AsyncStorage.getItem(SCORE_HISTORY_KEY);
+            // One-time migration from legacy @big2_score_history key
+            if (!persistedHistory) {
+              const legacyHistory = await AsyncStorage.getItem('@big2_score_history');
+              if (legacyHistory) {
+                await AsyncStorage.setItem(SCORE_HISTORY_KEY, legacyHistory);
+                await AsyncStorage.removeItem('@big2_score_history');
+                persistedHistory = legacyHistory;
+              }
+            }
             const { entries, shouldRemove } = parsePersistedScoreHistory(persistedHistory);
             if (entries) {
               gameLogger.info(
@@ -231,7 +240,16 @@ export function useGameStateManager({
           // Uses parsePersistedPlayHistory which validates shape and returns a
           // shouldRemove flag when the payload is corrupted/invalid.
           try {
-            const persistedPlayHistory = await AsyncStorage.getItem(PLAY_HISTORY_KEY);
+            let persistedPlayHistory = await AsyncStorage.getItem(PLAY_HISTORY_KEY);
+            // One-time migration from legacy @big2_play_history key
+            if (!persistedPlayHistory) {
+              const legacyPlayHistory = await AsyncStorage.getItem('@big2_play_history');
+              if (legacyPlayHistory) {
+                await AsyncStorage.setItem(PLAY_HISTORY_KEY, legacyPlayHistory);
+                await AsyncStorage.removeItem('@big2_play_history');
+                persistedPlayHistory = legacyPlayHistory;
+              }
+            }
             const { entries: playEntries, shouldRemove: shouldRemovePlay } =
               parsePersistedPlayHistory(persistedPlayHistory);
             if (playEntries) {
