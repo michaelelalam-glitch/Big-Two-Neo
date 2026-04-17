@@ -1,8 +1,7 @@
 // @ts-nocheck - Test infrastructure type issues
 /**
-// @ts-nocheck - Test infrastructure type issues
  * Tests for Stephanos scoring system
- * 
+ *
  * Scoring rules:
  * - Winner (0 cards): 0 points
  * - 1-4 cards: 1 point per card

@@ -104,8 +104,18 @@ export function useActiveGameBanner(
 
   // Load voluntarily-left rooms from AsyncStorage so banner suppression survives restarts.
   useEffect(() => {
-    AsyncStorage.getItem(VOLUNTARILY_LEFT_ROOMS_KEY)
-      .then(raw => {
+    (async () => {
+      try {
+        let raw = await AsyncStorage.getItem(VOLUNTARILY_LEFT_ROOMS_KEY);
+        // One-time migration from legacy @big2_voluntarily_left_rooms key
+        if (!raw) {
+          const legacy = await AsyncStorage.getItem('@big2_voluntarily_left_rooms');
+          if (legacy) {
+            await AsyncStorage.setItem(VOLUNTARILY_LEFT_ROOMS_KEY, legacy);
+            await AsyncStorage.removeItem('@big2_voluntarily_left_rooms');
+            raw = legacy;
+          }
+        }
         if (raw) {
           try {
             const arr: string[] = JSON.parse(raw);
@@ -114,11 +124,12 @@ export function useActiveGameBanner(
             /* Ignore parse error — start fresh */
           }
         }
+      } catch {
+        /* ignore */
+      } finally {
         storageLoadedRef.current = true;
-      })
-      .catch(() => {
-        storageLoadedRef.current = true;
-      });
+      }
+    })();
   }, []);
 
   const checkCurrentRoom = useCallback(async () => {
@@ -127,7 +138,16 @@ export function useActiveGameBanner(
     // Ensure voluntarily-left set is loaded before evaluating banner suppression.
     if (!storageLoadedRef.current) {
       try {
-        const raw = await AsyncStorage.getItem(VOLUNTARILY_LEFT_ROOMS_KEY);
+        let raw = await AsyncStorage.getItem(VOLUNTARILY_LEFT_ROOMS_KEY);
+        // One-time migration from legacy @big2_voluntarily_left_rooms key
+        if (!raw) {
+          const legacy = await AsyncStorage.getItem('@big2_voluntarily_left_rooms');
+          if (legacy) {
+            await AsyncStorage.setItem(VOLUNTARILY_LEFT_ROOMS_KEY, legacy);
+            await AsyncStorage.removeItem('@big2_voluntarily_left_rooms');
+            raw = legacy;
+          }
+        }
         if (raw) {
           const arr: string[] = JSON.parse(raw);
           voluntarilyLeftRoomsRef.current = new Set(arr);
