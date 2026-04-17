@@ -80,6 +80,7 @@ module.exports = {
   ],
   setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],
   moduleNameMapper: {
+    '\\.(png|jpe?g|gif|webp|svg)$': '<rootDir>/src/__tests__/__mocks__/imageMock.ts',
     '\\.(m4a|mp3|wav|ogg|aac)$': '<rootDir>/src/__tests__/__mocks__/audioFile.ts',
     '^@react-native-async-storage/async-storage$': '<rootDir>/src/game/__tests__/__mocks__/async-storage.ts',
     '^react-native$': '<rootDir>/src/game/__tests__/__mocks__/react-native.ts',

@@ -1,4 +1,4 @@
-/**
+fi; /**
  * Tests for analytics.ts — Firebase Measurement Protocol v2 service.
  * Task #272
  */
