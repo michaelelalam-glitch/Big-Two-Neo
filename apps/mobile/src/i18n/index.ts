@@ -1950,7 +1950,7 @@ const ar: Translations = {
     welcome: 'مرحبًا،',
     subtitle: 'اختر لعبة للعب',
     lebanesePokerTitle: 'بوكر لبناني',
-    lebanesePokerDesc: 'Stephanos — لعبة الورق الكلاسيكية.\nالعب أونلاين أو ضد الروبوتات.',
+    lebanesePokerDesc: 'بوكر لبناني — لعبة الورق الكلاسيكية.\nالعب أونلاين أو ضد الروبوتات.',
     playButton: '←  العب',
     lebaneseDealTitle: 'ديل لبناني',
     lebaneseDealDesc: 'تجربة لعبة ورق جديدة كليًا.\nترقبوا الإطلاق!',
@@ -2862,7 +2862,8 @@ const de: Translations = {
 
     subtitle: 'Wähle ein Spiel',
     lebanesePokerTitle: 'Libanesisches Poker',
-    lebanesePokerDesc: 'Stephanos — das klassische Kartenspiel.\nOnline spielen oder gegen Bots.',
+    lebanesePokerDesc:
+      'Libanesisches Poker — das klassische Kartenspiel.\nOnline spielen oder gegen Bots.',
     playButton: 'SPIELEN →',
     lebaneseDealTitle: 'Libanesischer Deal',
     lebaneseDealDesc: 'Ein brandneues Kartenspiel-Erlebnis.\nBleibt auf dem Laufenden!',

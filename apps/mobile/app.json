@@ -25,7 +25,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.stephanos.app",
+      "bundleIdentifier": "com.big2mobile.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Stephanos uses your camera for the opt-in in-game video chat feature.",
@@ -51,7 +51,7 @@
       }
     },
     "android": {
-      "package": "com.stephanos.app",
+      "package": "com.big2mobile.app",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",

@@ -705,7 +705,18 @@ export class GameStateManager {
    */
   async loadState(): Promise<GameState | null> {
     try {
-      const stateJson = await AsyncStorage.getItem(GAME_STATE_KEY);
+      // Migrate legacy @big2_game_state key for existing users upgrading from the old brand
+      let stateJson = await AsyncStorage.getItem(GAME_STATE_KEY);
+      if (stateJson === null) {
+        const legacy = await AsyncStorage.getItem('@big2_game_state');
+        if (legacy !== null) {
+          stateJson = legacy;
+          await Promise.all([
+            AsyncStorage.setItem(GAME_STATE_KEY, legacy),
+            AsyncStorage.removeItem('@big2_game_state'),
+          ]);
+        }
+      }
       if (stateJson) {
         this.state = JSON.parse(stateJson);
 
