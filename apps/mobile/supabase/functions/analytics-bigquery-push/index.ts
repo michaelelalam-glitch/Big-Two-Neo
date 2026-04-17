@@ -124,7 +124,9 @@ interface AnalyticsRow {
   received_at: string;
 }
 
-async function pushToBigQuery(rows: AnalyticsRow[], accessToken: string): Promise<void> {
+// Returns the IDs of rows that BigQuery rejected (partial failure). An empty array means all
+// rows were accepted. Throws only on a full HTTP-level failure (the entire batch was rejected).
+async function pushToBigQuery(rows: AnalyticsRow[], accessToken: string): Promise<string[]> {
   const endpoint =
     `https://bigquery.googleapis.com/bigquery/v2/projects/${BIGQUERY_PROJECT_ID}` +
     `/datasets/${BIGQUERY_DATASET_ID}/tables/${BIGQUERY_TABLE_ID}/insertAll`;
@@ -167,17 +169,23 @@ async function pushToBigQuery(rows: AnalyticsRow[], accessToken: string): Promis
   }
 
   const result = await res.json();
-  if (result.insertErrors && result.insertErrors.length > 0) {
-    // Log a sample of row-level insert errors, then throw so the caller treats
-    // the batch as failed and does not mark any rows as exported.
+if (!result.insertErrors || result.insertErrors.length === 0) {
+      return []; // All rows accepted by BigQuery
+    }
+
+    // Partial failure: BigQuery accepted some rows but rejected others.
+    // Map insertErrors[].index back to the batch to identify the failed row IDs.
+    // The successfully-inserted rows must still be confirmed so they are not
+    // re-exported on the next run (insertId dedup is best-effort, not guaranteed).
+    const failedIndices = new Set<number>(
+      result.insertErrors.map((e: any) => e.index as number)
+    );
+    const failedIds = rows.filter((_, i) => failedIndices.has(i)).map((r) => r.id);
     console.error(
       '[analytics-bigquery-push] insertErrors:',
       JSON.stringify(result.insertErrors.slice(0, 10))
     );
-    throw new Error(
-      `BigQuery insertAll partial failure: ${result.insertErrors.length} row(s) rejected`
-    );
-  }
+    return failedIds;
 }
 
 // ── Main handler ─────────────────────────────────────────────────────────────
@@ -268,26 +276,48 @@ Deno.serve(async (req) => {
         `[analytics-bigquery-push] Batch ${batchNumber}: pushing ${rows.length} rows to BigQuery`
       );
 
-      // Push to BigQuery (throws on failure — prevents marking row as exported)
-      await pushToBigQuery(rows as AnalyticsRow[], accessToken);
+// Push to BigQuery; returns IDs of rows BigQuery rejected (empty = total success).
+        // Throws only on a full HTTP-level failure so the catch block can release all claims.
+        const failedIds = await pushToBigQuery(rows as AnalyticsRow[], accessToken);
+        const successIds =
+          failedIds.length === 0
+            ? batchIds
+            : batchIds.filter((id) => !failedIds.includes(id));
 
-      // Confirm export using a server-side RPC so exported_to_bigquery_at is set
-      // by Postgres now() — authoritative, clock-skew-free, consistent with received_at.
-      const { error: updateErr } = await supabase.rpc(
-        'analytics_confirm_batch_export',
-        { p_ids: batchIds }
-      );
+        // Confirm export for successfully-inserted rows using Postgres now() — authoritative,
+        // clock-skew-free, consistent with received_at (which also uses a server-side default).
+        if (successIds.length > 0) {
+          const { error: updateErr } = await supabase.rpc(
+            'analytics_confirm_batch_export',
+            { p_ids: successIds }
+          );
+          if (updateErr) {
+            // Fatal: throw so the catch block releases remaining claim locks for immediate retry.
+            throw new Error(`Failed to mark rows as exported: ${updateErr.message}`);
+          }
+          // Confirmed exported — remove from the in-flight set
+          successIds.forEach((id) => allClaimedIds.delete(id));
+          totalExported += successIds.length;
+        }
 
-      if (updateErr) {
-        // Fatal: throw immediately so the catch block releases the claim lock
-        // on these rows (export_claimed_at → NULL) so the next run can retry them.
-        throw new Error(`Failed to mark rows as exported: ${updateErr.message}`);
-      }
-
-      // Confirmed exported — remove from the in-flight set
-      batchIds.forEach((id) => allClaimedIds.delete(id));
-
-      totalExported += rows.length;
+        // Release claim on BigQuery-rejected rows so they are retried on the next run
+        // immediately (rather than waiting for the 10-minute stale-claim recovery).
+        if (failedIds.length > 0) {
+          await supabase
+            .from('analytics_raw_events')
+            .update({ export_claimed_at: null })
+            .in('id', failedIds)
+            .catch((resetErr: Error) =>
+              console.error(
+                '[analytics-bigquery-push] Failed to release claim on rejected rows:',
+                resetErr.message
+              )
+            );
+          failedIds.forEach((id) => allClaimedIds.delete(id));
+          console.error(
+            `[analytics-bigquery-push] ${failedIds.length} row(s) rejected by BigQuery; claims released for retry`
+          );
+        }
 
       // If fewer rows than batch size, we've exhausted the queue
       if (rows.length < BATCH_SIZE) break;

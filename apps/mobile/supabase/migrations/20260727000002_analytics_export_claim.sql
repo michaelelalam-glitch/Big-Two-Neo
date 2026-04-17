@@ -53,7 +53,9 @@ GRANT  EXECUTE ON FUNCTION public.analytics_claim_export_batch(integer) TO servi
 --    export timestamp is authoritative and consistent with received_at (which also uses
 --    a server-side default). Using the Edge Function clock (new Date()) would introduce
 --    clock skew between workers and drift relative to Postgres time.
-CREATE OR REPLACE FUNCTION public.analytics_confirm_batch_export(p_ids text[])
+--    p_ids is uuid[] (matching analytics_raw_events.id) to avoid implicit text→uuid cast
+--    failures at runtime. WHERE guards prevent re-stamping already-exported rows.
+CREATE OR REPLACE FUNCTION public.analytics_confirm_batch_export(p_ids uuid[])
 RETURNS void
 LANGUAGE sql
 SECURITY DEFINER
@@ -62,12 +64,14 @@ AS $$
   UPDATE public.analytics_raw_events
   SET    exported_to_bigquery_at = now(),
          export_claimed_at       = NULL
-  WHERE  id = ANY(p_ids);
+  WHERE  id = ANY(p_ids)
+  AND    exported_to_bigquery_at IS NULL   -- idempotent: skip already-confirmed rows
+  AND    export_claimed_at       IS NOT NULL;  -- only update rows we actually claimed
 $$;
 
-REVOKE EXECUTE ON FUNCTION public.analytics_confirm_batch_export(text[]) FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.analytics_confirm_batch_export(text[]) FROM anon, authenticated;
-GRANT  EXECUTE ON FUNCTION public.analytics_confirm_batch_export(text[]) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.analytics_confirm_batch_export(uuid[]) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.analytics_confirm_batch_export(uuid[]) FROM anon, authenticated;
+GRANT  EXECUTE ON FUNCTION public.analytics_confirm_batch_export(uuid[]) TO service_role;
 
 -- 4. pg_cron schedule — invoke analytics-bigquery-push Edge Function every 5 min
 --
