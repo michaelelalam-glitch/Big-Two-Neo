@@ -43,11 +43,57 @@ Deno.serve(async (req) => {
     return errorResponse(405, 'Method not allowed', corsHeaders, 'METHOD_NOT_ALLOWED', requestId);
   }
 
-  // Require valid Supabase JWT to prevent anonymous abuse
+  // ── Fast-path: reject requests missing Authorization header ─────────────────
+  // Check header presence before buffering the body so unauthenticated POSTs are
+  // rejected immediately without burning I/O reading the payload.
   const authHeader = req.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
     return errorResponse(401, 'Unauthorized', corsHeaders, 'UNAUTHORIZED', requestId);
   }
+
+  // ── Early request size guard ──────────────────────────────────────────────
+  // Buffer the entire body (bounded to 64 KB) before JWT validation so both
+  // Content-Length-declared AND chunked oversized requests are rejected without
+  // paying for auth.getUser() or rate-limit DB round-trips. rawBodyText is
+  // reused for JSON.parse after auth succeeds.
+  const AP_MAX_BODY_BYTES = 65_536; // 64 KB
+  const clHeader = req.headers.get('content-length');
+  if (clHeader !== null) {
+    const cl = Number(clHeader);
+    if (!Number.isFinite(cl) || cl < 0 || cl > AP_MAX_BODY_BYTES) {
+      return errorResponse(413, 'Request body too large', corsHeaders, 'PAYLOAD_TOO_LARGE', requestId);
+    }
+  }
+  let rawBodyText = '';
+  if (req.body) {
+    const reader = req.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let totalBytes = 0;
+    let bodyReadFailed = false;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (!value) continue;
+        totalBytes += value.byteLength;
+        if (totalBytes > AP_MAX_BODY_BYTES) {
+          await reader.cancel().catch(() => undefined);
+          return errorResponse(413, 'Request body too large', corsHeaders, 'PAYLOAD_TOO_LARGE', requestId);
+        }
+        chunks.push(value);
+      }
+    } catch { bodyReadFailed = true; } finally { reader.releaseLock(); }
+    if (bodyReadFailed) {
+      return errorResponse(400, 'Failed to read request body', corsHeaders, 'BAD_REQUEST', requestId);
+    }
+    if (chunks.length > 0) {
+      const bodyBytes = new Uint8Array(totalBytes);
+      let offset = 0;
+      for (const chunk of chunks) { bodyBytes.set(chunk, offset); offset += chunk.byteLength; }
+      rawBodyText = new TextDecoder().decode(bodyBytes);
+    }
+  }
+
   const token = authHeader.slice(7);
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
   const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
@@ -84,17 +130,19 @@ Deno.serve(async (req) => {
     return errorResponse(500, 'Analytics not configured', corsHeaders, 'INTERNAL_ERROR', requestId);
   }
 
+  // rawBodyText was buffered before auth (above) for DoS protection.
   let body: any;
   try {
-    body = await req.json();
+    body = rawBodyText ? JSON.parse(rawBodyText) : null;
+    if (!body) return errorResponse(400, 'Invalid JSON body', corsHeaders, 'BAD_REQUEST', requestId);
   } catch {
     return errorResponse(400, 'Invalid JSON body', corsHeaders, 'BAD_REQUEST', requestId);
   }
 
   try {
-    // Basic validation: must have client_id and events array
-    if (!body.client_id || !Array.isArray(body.events) || body.events.length === 0) {
-      return errorResponse(400, 'Invalid payload: client_id and events[] required', corsHeaders, 'BAD_REQUEST', requestId);
+    // Basic validation: client_id must be a non-empty string, events must be a non-empty array
+    if (typeof body.client_id !== 'string' || body.client_id.length === 0 || !Array.isArray(body.events) || body.events.length === 0) {
+      return errorResponse(400, 'Invalid payload: client_id (non-empty string) and events[] required', corsHeaders, 'BAD_REQUEST', requestId);
     }
 
     // Cap events per request to prevent abuse
@@ -105,8 +153,104 @@ Deno.serve(async (req) => {
     // Overwrite user_id with authenticated user to prevent spoofing
     body.user_id = user.id;
 
-    // Enforce GA4 100-char string param limit server-side
-    for (const event of body.events) {
+    // Validate events: keep only non-array object entries with a non-empty string
+    // name, then normalise params in one place so malformed client payloads are
+    // coerced to {} instead of being silently dropped.
+    const validEvents = (body.events as any[])
+      .filter((event: any) => {
+        if (!event || typeof event !== 'object' || Array.isArray(event)) {
+          return false;
+        }
+        return typeof event.name === 'string' && event.name.length > 0;
+      })
+      .map((event: any) => ({
+        ...event,
+        params:
+          event.params !== null &&
+          typeof event.params === 'object' &&
+          !Array.isArray(event.params)
+            ? event.params
+            : {},
+      }));
+    if (validEvents.length === 0) {
+      return errorResponse(400, 'No valid events: each event must be an object with a non-empty string name', corsHeaders, 'BAD_REQUEST', requestId);
+    }
+
+    // ── BigQuery-first: persist FULL (untruncated) event data ──────────────────
+    // Write to analytics_raw_events BEFORE the 100-char GA4 truncation so that
+    // every parameter value is stored verbatim. This table is the authoritative
+    // BigQuery source for detailed analytics queries (e.g. full standings JSON,
+    // combo breakdowns, match score arrays).
+    // Normalise user_properties once (shared across all events in this request).
+    // Coerce to a plain object so structuredClone and the GA4 forward always
+    // receive the expected shape, even if a malformed client passes a string or array.
+    const safeUserProperties: Record<string, unknown> =
+      body.user_properties !== null &&
+      typeof body.user_properties === 'object' &&
+      !Array.isArray(body.user_properties)
+        ? (body.user_properties as Record<string, unknown>)
+        : {};
+    // Assign the normalised value back so the GA4 forward path uses the safe shape.
+    body.user_properties = safeUserProperties;
+
+    const isDebug = body.debug_mode === 1;
+    const rawRows = validEvents.map((event: any) => {
+      // Coerce event.params to a plain object for the same reasons.
+      const safeParams: Record<string, unknown> =
+        event.params !== null &&
+        typeof event.params === 'object' &&
+        !Array.isArray(event.params)
+          ? (event.params as Record<string, unknown>)
+          : {};
+      // Assign the normalised value back so the GA4 truncation loop below sees it.
+      event.params = safeParams;
+      return {
+      event_name:       event.name,
+      user_id:          user.id,
+      client_id:        body.client_id,
+      session_id:       typeof safeParams.session_id === 'number'
+                          ? safeParams.session_id
+                          : null,
+      platform:         typeof safeParams.platform === 'string'
+                          ? safeParams.platform
+                          : null,
+      app_version:      typeof safeParams.app_version === 'string'
+                          ? safeParams.app_version
+                          : null,
+      // Deep-copy params so the subsequent GA4 truncation doesn't affect the stored value.
+      // structuredClone is preferred over JSON.parse(JSON.stringify(...)): it is faster,
+      // avoids unnecessary serialization round-trips, and is equally safe here because
+      // event.params / body.user_properties arrive from JSON.parse so they are
+      // guaranteed to contain only JSON-safe values (no functions, symbols, or bigints).
+      event_params:     structuredClone(safeParams),
+      user_properties:  structuredClone(safeUserProperties),
+      debug_mode:       isDebug,
+      // received_at is intentionally omitted: the column DEFAULT now() provides an
+      // authoritative Postgres ingest timestamp without clock-skew from Edge isolates.
+    };
+    });
+
+    // Register the insert with EdgeRuntime.waitUntil so the Supabase Edge runtime
+    // keeps the Promise alive even after the HTTP response is returned. Without
+    // this, the isolate may be terminated before the write completes (fire-and-
+    // forget promises are not guaranteed to finish in Deno Deploy / Supabase EF).
+    const insertPromise = supabaseAdmin
+      .from('analytics_raw_events')
+      .insert(rawRows)
+      .then(({ error: dbErr }: { error: any }) => {
+        if (dbErr) {
+          console.warn('[analytics-proxy] analytics_raw_events write failed:', dbErr.message);
+        }
+      })
+      .catch((insertErr: unknown) => {
+        console.warn('[analytics-proxy] analytics_raw_events insert threw:', insertErr);
+      });
+    (globalThis as any).EdgeRuntime?.waitUntil(insertPromise);
+
+    // ── GA4: enforce 100-char string param limit ────────────────────────────────
+    // Applied only to the GA4 copy — the BigQuery store above already captured
+    // the full untruncated values.
+    for (const event of validEvents) {
       if (event.params && typeof event.params === 'object') {
         for (const [key, value] of Object.entries(event.params)) {
           if (typeof value === 'string' && value.length > 100) {
@@ -115,6 +259,17 @@ Deno.serve(async (req) => {
         }
       }
     }
+
+    // ── GA4: add timestamp_micros for accurate BigQuery event timing ────────────
+    // Without timestamp_micros GA4 uses server-receipt time (can lag up to 72h
+    // for daily exports). Setting it here gives BigQuery row timestamps accurate
+    // to the millisecond at the proxy receive time.
+    const nowMicros = Date.now() * 1000;
+    for (const event of validEvents) {
+      event.timestamp_micros = nowMicros;
+    }
+    // Only forward validated events to GA4
+    body.events = validEvents;
 
     const url = `${MP_ENDPOINT}?measurement_id=${encodeURIComponent(GA4_MEASUREMENT_ID)}&api_secret=${encodeURIComponent(GA4_API_SECRET)}`;
 
