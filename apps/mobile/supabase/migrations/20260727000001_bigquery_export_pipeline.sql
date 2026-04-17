@@ -68,7 +68,7 @@ CREATE INDEX IF NOT EXISTS analytics_raw_events_bq_export_idx
 -- Enable pg_cron (warns and skips if unavailable — safe for local/test envs)
 DO $$
 BEGIN
-  CREATE EXTENSION IF NOT EXISTS pg_cron SCHEMA extensions;
+  CREATE EXTENSION IF NOT EXISTS pg_cron;
 EXCEPTION
   WHEN OTHERS THEN
     RAISE WARNING
@@ -83,6 +83,12 @@ DECLARE
   functions_base_url text := nullif(current_setting('app.supabase_functions_base_url', true), '');
   cron_secret        text := nullif(current_setting('app.cron_secret', true), '');
 BEGIN
+  -- Guard: skip silently if pg_cron is not installed (e.g. local / test environments)
+  IF to_regclass('cron.job') IS NULL THEN
+    RAISE WARNING 'pg_cron is not available; skipping analytics-bigquery-push cron registration.';
+    RETURN;
+  END IF;
+
   IF functions_base_url IS NULL THEN
     RAISE EXCEPTION
       'Missing required database setting app.supabase_functions_base_url. '
@@ -120,5 +126,8 @@ BEGIN
       'Bearer ' || cron_secret
     )
   );
+EXCEPTION
+  WHEN OTHERS THEN
+    RAISE WARNING 'analytics-bigquery-push cron registration failed: %', SQLERRM;
 END
 $$;

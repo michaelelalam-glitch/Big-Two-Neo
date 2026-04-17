@@ -230,10 +230,24 @@ Deno.serve(async (req) => {
     // Get GCP access token once, reuse for all batches
     const accessToken = await getGcpAccessToken(GOOGLE_CLOUD_SA_KEY_RAW);
 
-    // Process in batches until no pending rows remain
+    // Process in batches until the queue is empty or the time/batch budget is
+    // exhausted. Capping prevents a large backlog from hitting the Edge Function
+    // execution limit (~5 min); the next pg_cron tick will continue where this
+    // run left off.
+    const MAX_BATCHES = 20;
+    const TIME_BUDGET_MS = 4 * 60 * 1000; // 4-minute budget — leaves ~1 min for cleanup
     let batchNumber = 0;
     while (true) {
       batchNumber++;
+
+      // Safety: stop before approaching the Edge Function execution time limit
+      if (batchNumber > MAX_BATCHES || (Date.now() - startedAt) > TIME_BUDGET_MS) {
+        console.log(
+          `[analytics-bigquery-push] Stopping early (batch ${batchNumber - 1}/${MAX_BATCHES}, ` +
+          `${Date.now() - startedAt}ms elapsed). Next run will continue.`
+        );
+        break;
+      }
 
       // Atomically claim next batch using FOR UPDATE SKIP LOCKED so concurrent
       // invocations cannot pick up the same rows. Claimed rows are marked with the
@@ -257,15 +271,18 @@ Deno.serve(async (req) => {
       // Push to BigQuery (throws on failure — prevents marking row as exported)
       await pushToBigQuery(rows as AnalyticsRow[], accessToken);
 
-      // Replace in-flight sentinel with actual export timestamp.
+      // Confirm export: stamp the real export time and release the claim lock.
       const { error: updateErr } = await supabase
         .from('analytics_raw_events')
-        .update({ exported_to_bigquery_at: new Date().toISOString() })
+        .update({
+          exported_to_bigquery_at: new Date().toISOString(),
+          export_claimed_at: null,
+        })
         .in('id', batchIds);
 
       if (updateErr) {
-        // Fatal: throw immediately so the catch block resets the in-flight sentinel
-        // on these rows back to NULL, allowing the next run to retry them.
+        // Fatal: throw immediately so the catch block releases the claim lock
+        // on these rows (export_claimed_at → NULL) so the next run can retry them.
         throw new Error(`Failed to mark rows as exported: ${updateErr.message}`);
       }
 
@@ -293,16 +310,17 @@ Deno.serve(async (req) => {
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
   } catch (err: any) {
-    // Reset any rows that were claimed (in-flight sentinel set) but not yet
-    // confirmed exported so the next scheduled run can pick them up.
+    // Release the claim lock on any rows that were claimed but not yet exported
+    // so the next scheduled run can pick them up immediately (instead of waiting
+    // for the 10-minute stale-claim recovery window).
     if (allClaimedIds.size > 0) {
       await supabase
         .from('analytics_raw_events')
-        .update({ exported_to_bigquery_at: null })
+        .update({ export_claimed_at: null })
         .in('id', [...allClaimedIds])
         .catch((resetErr: Error) =>
           console.error(
-            '[analytics-bigquery-push] Failed to reset in-flight rows:',
+            '[analytics-bigquery-push] Failed to release claim lock on rows:',
             resetErr.message
           )
         );
