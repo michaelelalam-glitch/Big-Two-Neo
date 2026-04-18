@@ -9,13 +9,21 @@ const corsHeaders = buildCorsHeaders();
 // FCM v1 API configuration
 const FCM_PROJECT_ID = Deno.env.get('FCM_PROJECT_ID');
 if (!FCM_PROJECT_ID) {
-  // Fail fast: a missing env var would silently route pushes to the wrong
-  // (or no) Firebase project. Log prominently so the misconfiguration is
-  // caught at deploy time rather than at notification-send time.
-  console.error('[send-push-notification] FATAL: FCM_PROJECT_ID env var is not set. ' +
+  // FCM_PROJECT_ID absent: FCM (Android native) push will be skipped at
+  // runtime when fcmMessages.length > 0 (guarded in the request path below).
+  // Expo push tokens are unaffected. Downgrade to warn so the function is
+  // not considered broken when only Expo tokens are in use.
+  console.warn('[send-push-notification] WARNING: FCM_PROJECT_ID env var is not set. ' +
+    'FCM (Android native) notifications will be skipped. ' +
     'Set it in Supabase Dashboard → Edge Functions → Secrets.');
 }
-const FCM_API_URL = `https://fcm.googleapis.com/v1/projects/${FCM_PROJECT_ID ?? 'MISSING_FCM_PROJECT_ID'}/messages:send`;
+// Construct FCM_API_URL only when FCM_PROJECT_ID is present to avoid a
+// placeholder URL being accidentally used in future refactors.
+// The request path already guards against fcmMessages when FCM_PROJECT_ID
+// is absent (see the fcmMessages.length > 0 && !FCM_PROJECT_ID check below).
+const FCM_API_URL = FCM_PROJECT_ID
+  ? `https://fcm.googleapis.com/v1/projects/${FCM_PROJECT_ID}/messages:send`
+  : '';
 const FCM_SCOPES = ['https://www.googleapis.com/auth/firebase.messaging']
 
 // Expo Push API configuration
