@@ -261,11 +261,11 @@ jobs:
       # cannot access these secrets.
       EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
       EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
-      # E2E auth bypass: baked into the JS bundle at build time by Expo.
-      # The app calls signInWithPassword() at startup when this flag is set.
-      EXPO_PUBLIC_E2E_AUTH_BYPASS: 'true'
-      EXPO_PUBLIC_E2E_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
-      EXPO_PUBLIC_E2E_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+      # E2E credentials (non-EXPO_PUBLIC so they are NOT baked into the
+      # initial JS bundle — unauthenticated flows need a clean app).
+      # The re-bundle step below bakes them as EXPO_PUBLIC_* for authenticated flows.
+      E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+      E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
     
     steps:
       - name: 📥 Checkout code
@@ -503,22 +503,52 @@ jobs:
         env:
           MAESTRO_DRIVER_STARTUP_TIMEOUT: 300000
 
-      - name: 🔐 Validate E2E authentication credentials
+      - name: 🔄 Re-bundle JS with E2E auth bypass
         id: seed_auth
-        if: env.EXPO_PUBLIC_E2E_EMAIL != '' && env.EXPO_PUBLIC_E2E_PASSWORD != ''
+        if: env.E2E_TEST_EMAIL != '' && env.E2E_TEST_PASSWORD != ''
         continue-on-error: true
         run: |
-          echo "E2E auth bypass enabled — credentials baked into JS bundle at build time."
-          echo "App will call signInWithPassword() on startup."
-          # Validate credentials exist (values are masked by GitHub Actions)
-          if [ -z "$EXPO_PUBLIC_E2E_EMAIL" ] || [ -z "$EXPO_PUBLIC_E2E_PASSWORD" ]; then
-            echo "::error::E2E credentials are empty despite env check passing"
+          cd apps/mobile
+          # Find the built app bundle
+          APP_PATH=$(find ~/DerivedData/Big2Mobile/Build/Products/Release-iphonesimulator -name "*.app" -type d | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "::error::No .app bundle found in DerivedData"
             exit 1
           fi
-          echo "✅ E2E credentials present — authenticated flows will run"
+          echo "App bundle: $APP_PATH"
+          echo "Re-bundling JS with E2E auth bypass flag..."
+          # Rebuild ONLY the JS bundle with bypass env vars baked in.
+          # --reset-cache ensures Metro doesn't reuse cached transforms
+          # from the initial build (which lacked the bypass env vars).
+          # This takes ~1-2 min vs ~30 min for a full native rebuild.
+          EXPO_PUBLIC_E2E_AUTH_BYPASS=true \
+          EXPO_PUBLIC_E2E_EMAIL="$E2E_TEST_EMAIL" \
+          EXPO_PUBLIC_E2E_PASSWORD="$E2E_TEST_PASSWORD" \
+            npx react-native bundle \
+              --platform ios \
+              --dev false \
+              --entry-file index.ts \
+              --bundle-output "$APP_PATH/main.jsbundle" \
+              --assets-dest "$APP_PATH" \
+              --reset-cache
+          echo "✅ JS bundle rebuilt with auth bypass"
+          # Terminate app before reinstall
+          xcrun simctl terminate booted com.big2mobile.app || true
+          sleep 2
+          # Reinstall with new JS bundle (preserves simulator state).
+          # Maestro's clearState only wipes app data, not the binary,
+          # so authenticated flows keep the bypass bundle.
+          xcrun simctl install booted "$APP_PATH"
+          echo "✅ App reinstalled with auth bypass bundle"
+          # Brief warm-up so the app registers with SpringBoard
+          xcrun simctl launch booted com.big2mobile.app || true
+          sleep 10
+          xcrun simctl terminate booted com.big2mobile.app || true
+          sleep 3
+        timeout-minutes: 10
 
       - name: ⚠️ Warn if auth seeding was skipped
-        if: env.EXPO_PUBLIC_E2E_EMAIL != '' && env.EXPO_PUBLIC_E2E_PASSWORD != '' && steps.seed_auth.outcome != 'success'
+        if: env.E2E_TEST_EMAIL != '' && env.E2E_TEST_PASSWORD != '' && steps.seed_auth.outcome != 'success'
         run: |
           echo "::warning::Auth seeding skipped or failed (outcome=${{ steps.seed_auth.outcome }}). Authenticated E2E flows (ci-authenticated) will not run. CI coverage is reduced."
 
@@ -527,17 +557,9 @@ jobs:
         run: |
           cd apps/mobile
           mkdir -p e2e/results
-          # Phase 2: Run authenticated flows now that session is injected.
-          # IMPORTANT: Do NOT launch the app between seed injection and this step.
-          # Launching the app in simctl context before Maestro/XCUITest runs
-          # triggers the AsyncStorage→SecureStore migration, which removes the
-          # injected session from AsyncStorage. When Maestro then launches the
-          # app via XCUITest (different Keychain namespace), SecureStore is empty
-          # and AsyncStorage was already cleared — session is lost.
-          # By skipping the pre-warm, Maestro's launchApp (XCUITest context) reads
-          # the session directly from AsyncStorage on every flow's first launch.
-          # MAX_ATTEMPTS=1 (single attempt) so that the worst-case time is
-          # 52 flows × 35s timeout = ~30 min, well within the 45-min step limit.
+          # Phase 2: Run authenticated flows with re-bundled JS that has the
+          # E2E auth bypass baked in. The app calls signInWithPassword() on
+          # startup when EXPO_PUBLIC_E2E_AUTH_BYPASS=true is in the bundle.
           MAX_ATTEMPTS=1
           MAESTRO_EXIT=1
           for attempt in $(seq 1 $MAX_ATTEMPTS); do
@@ -586,7 +608,7 @@ jobs:
           AUTH_COUNT="n/a"
           AUTH_STATUS="not configured"
 
-          if [ -n "$EXPO_PUBLIC_E2E_EMAIL" ] && [ -n "$EXPO_PUBLIC_E2E_PASSWORD" ]; then
+          if [ -n "$E2E_TEST_EMAIL" ] && [ -n "$E2E_TEST_PASSWORD" ]; then
             SEED_AUTH_OUTCOME="${{ steps.seed_auth.outcome }}"
 
             if [ "$SEED_AUTH_OUTCOME" = "success" ]; then
