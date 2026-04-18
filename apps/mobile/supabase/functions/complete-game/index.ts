@@ -348,7 +348,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify winner has position 1 (lowest score wins in Big Two)
+    // Verify winner has position 1 (lowest score wins in Stephanos)
     if (winner.finish_position !== 1) {
       return new Response(
         JSON.stringify({ error: 'Winner must have position 1' }),

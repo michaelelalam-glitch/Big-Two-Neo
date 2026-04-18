@@ -39,7 +39,7 @@ export interface BotPlayResult {
 }
 
 /**
- * Bot AI class for Big Two game (server-side)
+ * Bot AI class for Stephanos game (server-side)
  *
  * Difficulty levels:
  * - Easy: Random valid plays, high pass rate

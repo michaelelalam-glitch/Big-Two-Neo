@@ -9,7 +9,7 @@
 # Uses testID-based selectors (id:) for reliable matching in Release builds.
 # Text matching can fail in Release/Hermes due to accessibility tree differences.
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - smoke
   - auth

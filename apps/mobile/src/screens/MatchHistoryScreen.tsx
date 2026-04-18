@@ -142,7 +142,7 @@ export default function MatchHistoryScreen() {
         // For completed games: complete-game edge function writes player_*_id
         // slots in seat/payload order (NOT finish order). Derive position by
         // sorting all 4 slots by score ascending (lowest score = 1st place in
-        // Big Two). Include bot/null-id seats in the sort so the ranking is
+        // Stephanos). Include bot/null-id seats in the sort so the ranking is
         // not artificially compressed to only human players.
         let finalPosition: number;
         if (item.game_completed !== true) {

@@ -7,8 +7,26 @@ import { checkRateLimit } from '../_shared/rateLimiter.ts';
 const corsHeaders = buildCorsHeaders();
 
 // FCM v1 API configuration
-const FCM_PROJECT_ID = Deno.env.get('FCM_PROJECT_ID') || 'big2-969bc'; // Fallback for backward compatibility
-const FCM_API_URL = `https://fcm.googleapis.com/v1/projects/${FCM_PROJECT_ID}/messages:send`;
+const FCM_PROJECT_ID = Deno.env.get('FCM_PROJECT_ID');
+if (!FCM_PROJECT_ID) {
+  // FCM_PROJECT_ID absent.
+  // ‣ Requests that contain only Expo tokens → served normally (Expo path
+  //   never touches FCM_PROJECT_ID).
+  // ‣ Requests that contain any FCM (native Android) tokens → fail with 500
+  //   at request time; this intentional fail-fast prevents partial Expo
+  //   delivery followed by a 500, which would cause callers to retry and
+  //   potentially duplicate the already-sent Expo notifications.
+  console.warn('[send-push-notification] WARNING: FCM_PROJECT_ID env var is not set. ' +
+    'Expo-only requests are unaffected; requests with FCM tokens will fail with 500. ' +
+    'Set it in Supabase Dashboard → Edge Functions → Secrets.');
+}
+// Construct FCM_API_URL only when FCM_PROJECT_ID is present to avoid a
+// placeholder URL being accidentally used in future refactors.
+// The request path already guards against fcmMessages when FCM_PROJECT_ID
+// is absent (see the fcmMessages.length > 0 && !FCM_PROJECT_ID check below).
+const FCM_API_URL = FCM_PROJECT_ID
+  ? `https://fcm.googleapis.com/v1/projects/${FCM_PROJECT_ID}/messages:send`
+  : '';
 const FCM_SCOPES = ['https://www.googleapis.com/auth/firebase.messaging']
 
 // Expo Push API configuration
@@ -770,6 +788,17 @@ Deno.serve(async (req) => {
     // anything else          = native FCM token → FCM v1 API
     const expoMessages = messages.filter((m: PushMessage) => m.to.startsWith('ExponentPushToken['));
     const fcmMessages  = messages.filter((m: PushMessage) => !m.to.startsWith('ExponentPushToken['));
+
+    // Validate FCM config before sending anything — fail early so we never
+    // partially deliver Expo messages and then return 500, which would cause
+    // the caller to retry and potentially duplicate Expo notifications.
+    if (fcmMessages.length > 0 && !FCM_PROJECT_ID) {
+      console.error('[send-push-notification] Cannot send FCM messages: FCM_PROJECT_ID env var is not set.');
+      return new Response(
+        JSON.stringify({ error: 'FCM_PROJECT_ID env var not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const results: { status: string; id?: string; message?: unknown; details?: unknown }[] = [];
 

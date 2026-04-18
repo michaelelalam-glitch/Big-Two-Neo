@@ -1,5 +1,5 @@
 /**
- * Game State Manager for Big Two mobile game
+ * Game State Manager for Stephanos mobile game
  * Handles game initialization, state management, and persistence
  */
 
@@ -28,7 +28,7 @@ import {
 } from './engine';
 import { createBotAI, type BotDifficulty, type BotPlayResult } from './bot';
 
-const GAME_STATE_KEY = '@big2_game_state';
+const GAME_STATE_KEY = '@stephanos_game_state';
 
 /** Maximum number of completed matches to retain in gameRoundHistory (C1 OOM fix). */
 const MAX_GAME_ROUND_HISTORY_MATCHES = 20;
@@ -705,7 +705,18 @@ export class GameStateManager {
    */
   async loadState(): Promise<GameState | null> {
     try {
-      const stateJson = await AsyncStorage.getItem(GAME_STATE_KEY);
+      // Migrate legacy @big2_game_state key for existing users upgrading from the old brand
+      let stateJson = await AsyncStorage.getItem(GAME_STATE_KEY);
+      if (stateJson === null) {
+        const legacy = await AsyncStorage.getItem('@big2_game_state');
+        if (legacy !== null) {
+          stateJson = legacy;
+          await Promise.all([
+            AsyncStorage.setItem(GAME_STATE_KEY, legacy),
+            AsyncStorage.removeItem('@big2_game_state'),
+          ]);
+        }
+      }
       if (stateJson) {
         this.state = JSON.parse(stateJson);
 

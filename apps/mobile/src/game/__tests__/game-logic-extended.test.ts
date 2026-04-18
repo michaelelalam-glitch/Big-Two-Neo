@@ -114,7 +114,7 @@ describe('Game Logic - Additional Coverage Tests', () => {
         ],
         combo: 'Four of a Kind',
       };
-      // Note: In Big Two rules, any Four of a Kind beats another Four of a Kind
+      // Note: In Stephanos rules, any Four of a Kind beats another Four of a Kind
       // regardless of rank. The game logic returns true here.
       expect(canBeatPlay(newCards, lastPlay)).toBe(true);
     });

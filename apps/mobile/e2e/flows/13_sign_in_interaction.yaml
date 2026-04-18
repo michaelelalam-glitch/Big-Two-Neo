@@ -16,7 +16,7 @@
 #
 # No authentication required — operates entirely on the unauthenticated surface.
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - smoke
   - ci

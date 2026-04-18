@@ -9,7 +9,7 @@
 # No auth required. Landscape orientation is supported by Maestro on both iOS
 #   Simulator and Android emulator.
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - smoke
 

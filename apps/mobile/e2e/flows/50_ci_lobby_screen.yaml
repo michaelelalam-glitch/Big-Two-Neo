@@ -2,7 +2,7 @@
 # Validates: Lobby screen renders correctly with game info
 # Tags: ci-authenticated, rooms
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - ci-authenticated
   - rooms
@@ -18,9 +18,9 @@ tags:
     visible: "Choose a game to play"
     timeout: 35000
 - tapOn:
-    id: "chinese-poker-card"
+    id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 10000
 
 # Create a room to enter the lobby
@@ -44,5 +44,5 @@ tags:
 # Navigate back
 - back
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 10000

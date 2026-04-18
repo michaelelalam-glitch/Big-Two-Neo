@@ -120,6 +120,13 @@ export function useMultiplayerLayout({
   }, [multiplayerLastPlayComboType, multiplayerLastPlayedCards]);
 
   const multiplayerLayoutPlayers: LayoutPlayer[] = React.useMemo(() => {
+    // Guard: When player data hasn't loaded yet (initial mount before fetchPlayers
+    // completes), return an empty array instead of computing layout with "Player N"
+    // fallback names. This prevents the stale "Player N" names from being synced to
+    // the Zustand store before real data arrives, eliminating the 1-frame flash of
+    // incorrect names between isInitializing turning false and the store updating.
+    if (multiplayerPlayers.length === 0) return [];
+
     const getName = (idx: number): string => {
       const p = playerByIndexMap.get(idx);
       // Server already sets username to 'Bot <original name>' when replacing with a bot.
@@ -211,6 +218,7 @@ export function useMultiplayerLayout({
       },
     ];
   }, [
+    multiplayerPlayers.length,
     playerByIndexMap,
     multiplayerHandsByIndex,
     multiplayerGameState?.current_turn,

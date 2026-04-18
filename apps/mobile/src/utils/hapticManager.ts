@@ -1,7 +1,7 @@
 /**
  * Haptic Feedback Manager
- * 
- * Manages haptic feedback (vibrations) for user interactions in the Big Two mobile game.
+ *
+ * Manages haptic feedback (vibrations) for user interactions in the Stephanos mobile game.
  * Provides consistent haptic responses across iOS and Android.
  */
 
@@ -11,17 +11,17 @@ import { uiLogger } from './logger';
 
 // Haptic feedback types
 export enum HapticType {
-  LIGHT = 'light',               // Light tap (card selection)
-  MEDIUM = 'medium',             // Medium impact (play button)
-  HEAVY = 'heavy',               // Heavy impact (invalid move)
-  SUCCESS = 'success',           // Success pattern (valid move)
-  WARNING = 'warning',           // Warning pattern (pass)
-  ERROR = 'error',               // Error pattern (invalid move)
-  SELECTION = 'selection',       // UI selection feedback
+  LIGHT = 'light', // Light tap (card selection)
+  MEDIUM = 'medium', // Medium impact (play button)
+  HEAVY = 'heavy', // Heavy impact (invalid move)
+  SUCCESS = 'success', // Success pattern (valid move)
+  WARNING = 'warning', // Warning pattern (pass)
+  ERROR = 'error', // Error pattern (invalid move)
+  SELECTION = 'selection', // UI selection feedback
 }
 
 // Settings key
-const HAPTICS_ENABLED_KEY = '@big2_haptics_enabled';
+const HAPTICS_ENABLED_KEY = '@stephanos_haptics_enabled';
 
 class HapticManager {
   private hapticsEnabled: boolean = true;
@@ -35,8 +35,18 @@ class HapticManager {
     if (this.initialized) return;
 
     try {
-      // Load user preference
-      const enabledStr = await AsyncStorage.getItem(HAPTICS_ENABLED_KEY);
+      // Load user preference; migrate legacy @big2_ key for existing users upgrading from the old brand
+      let enabledStr = await AsyncStorage.getItem(HAPTICS_ENABLED_KEY);
+      if (enabledStr === null) {
+        const legacy = await AsyncStorage.getItem('@big2_haptics_enabled');
+        if (legacy !== null) {
+          enabledStr = legacy;
+          await Promise.all([
+            AsyncStorage.setItem(HAPTICS_ENABLED_KEY, legacy),
+            AsyncStorage.removeItem('@big2_haptics_enabled'),
+          ]);
+        }
+      }
       this.hapticsEnabled = enabledStr !== null ? enabledStr === 'true' : true;
 
       this.initialized = true;
@@ -173,31 +183,31 @@ class HapticManager {
           baseIntensity = Haptics.ImpactFeedbackStyle.Light;
           delayBetweenPulses = 0;
           break;
-        
+
         case 4:
           pulseCount = 2; // Double medium pulse
           baseIntensity = Haptics.ImpactFeedbackStyle.Medium;
           delayBetweenPulses = 50; // 50ms between pulses
           break;
-        
+
         case 3:
           pulseCount = 3; // Triple heavy pulse
           baseIntensity = Haptics.ImpactFeedbackStyle.Heavy;
           delayBetweenPulses = 60; // 60ms between pulses
           break;
-        
+
         case 2:
           pulseCount = 4; // Quad heavy pulse (more intense)
           baseIntensity = Haptics.ImpactFeedbackStyle.Heavy;
           delayBetweenPulses = 70; // 70ms between pulses
           break;
-        
+
         case 1:
           pulseCount = 5; // Quintuple heavy pulse (most intense)
           baseIntensity = Haptics.ImpactFeedbackStyle.Heavy;
           delayBetweenPulses = 80; // 80ms between pulses
           break;
-        
+
         default:
           return; // Invalid seconds value
       }
@@ -205,14 +215,16 @@ class HapticManager {
       // Fire multiple pulses with delays
       for (let i = 0; i < pulseCount; i++) {
         await Haptics.impactAsync(baseIntensity);
-        
+
         // Wait between pulses (except after the last one)
         if (i < pulseCount - 1) {
           await new Promise(resolve => setTimeout(resolve, delayBetweenPulses));
         }
       }
-      
-      uiLogger.debug(`[HapticManager] Urgent countdown: ${secondsRemaining}s (${pulseCount} pulses)`);
+
+      uiLogger.debug(
+        `[HapticManager] Urgent countdown: ${secondsRemaining}s (${pulseCount} pulses)`
+      );
     } catch (error) {
       uiLogger.error(`[HapticManager] Failed to trigger urgent countdown:`, error);
     }

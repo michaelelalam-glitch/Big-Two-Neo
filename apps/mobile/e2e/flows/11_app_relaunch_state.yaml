@@ -9,7 +9,7 @@
 # This catches regressions where state is not properly cleared between sessions
 # or where the auth redirect fails to show the sign-in screen on cold start.
 # No authentication required.
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - smoke
   - ci

@@ -3,7 +3,7 @@
 #            Settings button, no error overlay across multiple interactions
 # Tags: ci-authenticated, offline-game, game-controls
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - ci-authenticated
   - offline-game
@@ -17,9 +17,9 @@ tags:
     visible: "Choose a game to play"
     timeout: 35000
 - tapOn:
-    id: "chinese-poker-card"
+    id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 10000
 
 # Launch Easy offline game

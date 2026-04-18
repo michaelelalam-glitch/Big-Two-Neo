@@ -3,7 +3,7 @@
 #            This is the "4-humans" CI proxy: 1 real user + 3 bots = full 4-player game.
 # Tags: ci-authenticated, rooms, four-player
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - ci-authenticated
   - rooms
@@ -17,9 +17,9 @@ tags:
     visible: "Choose a game to play"
     timeout: 35000
 - tapOn:
-    id: "chinese-poker-card"
+    id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 10000
 
 # Create a room

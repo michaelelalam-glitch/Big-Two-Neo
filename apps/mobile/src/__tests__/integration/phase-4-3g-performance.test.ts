@@ -1,7 +1,7 @@
 /**
  * Phase 4.3G: Performance Testing (Task #529)
  *
- * Validates latency and throughput SLAs for core Big Two multiplayer infrastructure:
+ * Validates latency and throughput SLAs for core Stephanos multiplayer infrastructure:
  *
  *  SLA targets (from task description):
  *    - Room code generation     < 50 ms per code
@@ -82,23 +82,66 @@ async function measureAsync(fn: () => Promise<void>): Promise<number> {
 /** Build a simple hand from an array of card-id strings */
 function buildHand(ids: string[]): Card[] {
   const rankMap: Record<string, Card['rank']> = {
-    '3':'3','4':'4','5':'5','6':'6','7':'7','8':'8','9':'9',
-    '10':'10','J':'J','Q':'Q','K':'K','A':'A','2':'2',
+    '3': '3',
+    '4': '4',
+    '5': '5',
+    '6': '6',
+    '7': '7',
+    '8': '8',
+    '9': '9',
+    '10': '10',
+    J: 'J',
+    Q: 'Q',
+    K: 'K',
+    A: 'A',
+    '2': '2',
   };
-  const suitMap: Record<string, Card['suit']> = { D:'D', C:'C', H:'H', S:'S' };
+  const suitMap: Record<string, Card['suit']> = { D: 'D', C: 'C', H: 'H', S: 'S' };
   return ids.map(id => {
     const suit = id.slice(-1) as Card['suit'];
     const rank = id.slice(0, -1) as Card['rank'];
-    return { id, rank: rankMap[rank] ?? rank as Card['rank'], suit: suitMap[suit] ?? suit as Card['suit'] };
+    return {
+      id,
+      rank: rankMap[rank] ?? (rank as Card['rank']),
+      suit: suitMap[suit] ?? (suit as Card['suit']),
+    };
   });
 }
 
 const FULL_HANDS = {
-  lowSingles: buildHand(['3D','4C','5H','6S','7D','8C','9H','10S','JD','QC','KH','AS','2D']),
-  highSingles: buildHand(['JD','QC','KH','AS','2D','2C','2H','2S','AD','KD','QD','JH','10D']),
-  pair: buildHand(['5D','5C']),
-  triple: buildHand(['8D','8C','8H']),
-  straight: buildHand(['3D','4C','5H','6S','7D']),
+  lowSingles: buildHand([
+    '3D',
+    '4C',
+    '5H',
+    '6S',
+    '7D',
+    '8C',
+    '9H',
+    '10S',
+    'JD',
+    'QC',
+    'KH',
+    'AS',
+    '2D',
+  ]),
+  highSingles: buildHand([
+    'JD',
+    'QC',
+    'KH',
+    'AS',
+    '2D',
+    '2C',
+    '2H',
+    '2S',
+    'AD',
+    'KD',
+    'QD',
+    'JH',
+    '10D',
+  ]),
+  pair: buildHand(['5D', '5C']),
+  triple: buildHand(['8D', '8C', '8H']),
+  straight: buildHand(['3D', '4C', '5H', '6S', '7D']),
 };
 
 // ---------------------------------------------------------------------------
@@ -287,7 +330,10 @@ describe('Phase 4.3G — Performance Testing', () => {
           toDelete.push(r.id);
         } else if (r.status === 'starting' && r.createdMinutesAgo >= 1) {
           toDelete.push(r.id);
-        } else if ((r.status === 'finished' || r.status === 'cancelled') && r.createdDaysAgo >= 30) {
+        } else if (
+          (r.status === 'finished' || r.status === 'cancelled') &&
+          r.createdDaysAgo >= 30
+        ) {
           toDelete.push(r.id);
         }
       }
@@ -295,7 +341,13 @@ describe('Phase 4.3G — Performance Testing', () => {
     }
 
     function generateMockRooms(count: number): MockRoom[] {
-      const statuses: MockRoom['status'][] = ['waiting', 'starting', 'playing', 'finished', 'cancelled'];
+      const statuses: MockRoom['status'][] = [
+        'waiting',
+        'starting',
+        'playing',
+        'finished',
+        'cancelled',
+      ];
       return Array.from({ length: count }, (_, i) => ({
         id: `room-${i}`,
         status: statuses[i % statuses.length],

@@ -116,7 +116,7 @@ export async function notifyYourTurn(
   return sendPushNotifications({
     userIds: [userId],
     title: "It's Your Turn!",
-    body: gameInfo || 'Make your move in Big Two',
+    body: gameInfo || 'Make your move in Stephanos',
     data: {
       type: 'your_turn',
       roomCode,
@@ -132,7 +132,7 @@ export async function notifyGameStarted(userIds: string[], roomCode: string): Pr
   return sendPushNotifications({
     userIds,
     title: 'Game Started!',
-    body: 'Your Big Two game is starting now',
+    body: 'Your Stephanos game is starting now',
     data: {
       type: 'game_started',
       roomCode,

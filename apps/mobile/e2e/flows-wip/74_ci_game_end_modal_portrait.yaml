@@ -1,4 +1,4 @@
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - game-room-e2e
   - game-end
@@ -78,7 +78,7 @@ tags:
     id: "game-end-return-to-menu"
 - waitForAnimationToEnd
 - assertVisible:
-    text: "Big Two"
+    text: "Stephanos"
     optional: true
 - assertVisible:
     text: "Find Game"

@@ -118,6 +118,6 @@ export const useGameSessionStore = create<GameSessionState>()(
 
       resetSession: () => set({ ...INITIAL_STATE }, false, 'gameSession/resetSession'),
     }),
-    { name: 'Big2/GameSession' }
+    { name: 'Stephanos/GameSession' }
   )
 );

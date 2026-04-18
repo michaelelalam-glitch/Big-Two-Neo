@@ -26,12 +26,12 @@ import type { ActiveGameInfo } from '../components/home/ActiveGameBanner';
 type HomeNavProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
 // Single source of truth for the AsyncStorage key.
-export const VOLUNTARILY_LEFT_ROOMS_KEY = '@big2_voluntarily_left_rooms';
+export const VOLUNTARILY_LEFT_ROOMS_KEY = '@stephanos_voluntarily_left_rooms';
 
 // Cached disconnect timer start time — written by useGameCleanup immediately after
 // mark-disconnected succeeds so the HomeScreen banner can show the countdown
 // without waiting for the get-rejoin-status edge-function round-trip (~5 s).
-export const DISCONNECT_TIMER_KEY = '@big2_disconnect_timer_started_at';
+export const DISCONNECT_TIMER_KEY = '@stephanos_disconnect_timer_started_at';
 
 export interface UseActiveGameBannerResult {
   currentRoom: string | null;
@@ -104,8 +104,18 @@ export function useActiveGameBanner(
 
   // Load voluntarily-left rooms from AsyncStorage so banner suppression survives restarts.
   useEffect(() => {
-    AsyncStorage.getItem(VOLUNTARILY_LEFT_ROOMS_KEY)
-      .then(raw => {
+    (async () => {
+      try {
+        let raw = await AsyncStorage.getItem(VOLUNTARILY_LEFT_ROOMS_KEY);
+        // One-time migration from legacy @big2_voluntarily_left_rooms key
+        if (!raw) {
+          const legacy = await AsyncStorage.getItem('@big2_voluntarily_left_rooms');
+          if (legacy) {
+            await AsyncStorage.setItem(VOLUNTARILY_LEFT_ROOMS_KEY, legacy);
+            await AsyncStorage.removeItem('@big2_voluntarily_left_rooms');
+            raw = legacy;
+          }
+        }
         if (raw) {
           try {
             const arr: string[] = JSON.parse(raw);
@@ -114,11 +124,12 @@ export function useActiveGameBanner(
             /* Ignore parse error — start fresh */
           }
         }
+      } catch {
+        /* ignore */
+      } finally {
         storageLoadedRef.current = true;
-      })
-      .catch(() => {
-        storageLoadedRef.current = true;
-      });
+      }
+    })();
   }, []);
 
   const checkCurrentRoom = useCallback(async () => {
@@ -127,7 +138,16 @@ export function useActiveGameBanner(
     // Ensure voluntarily-left set is loaded before evaluating banner suppression.
     if (!storageLoadedRef.current) {
       try {
-        const raw = await AsyncStorage.getItem(VOLUNTARILY_LEFT_ROOMS_KEY);
+        let raw = await AsyncStorage.getItem(VOLUNTARILY_LEFT_ROOMS_KEY);
+        // One-time migration from legacy @big2_voluntarily_left_rooms key
+        if (!raw) {
+          const legacy = await AsyncStorage.getItem('@big2_voluntarily_left_rooms');
+          if (legacy) {
+            await AsyncStorage.setItem(VOLUNTARILY_LEFT_ROOMS_KEY, legacy);
+            await AsyncStorage.removeItem('@big2_voluntarily_left_rooms');
+            raw = legacy;
+          }
+        }
         if (raw) {
           const arr: string[] = JSON.parse(raw);
           voluntarilyLeftRoomsRef.current = new Set(arr);
@@ -744,7 +764,14 @@ export function useActiveGameBanner(
           onCancel: onDone,
           onConfirm: async () => {
             try {
+              await AsyncStorage.removeItem('@stephanos_game_state');
+              // Also remove legacy key so pre-rename saves don't resurface
               await AsyncStorage.removeItem('@big2_game_state');
+              // Remove associated offline history (new + legacy) to prevent stale UI after discard
+              await AsyncStorage.removeItem('@stephanos_score_history');
+              await AsyncStorage.removeItem('@big2_score_history');
+              await AsyncStorage.removeItem('@stephanos_play_history');
+              await AsyncStorage.removeItem('@big2_play_history');
               setBannerRefreshKey(k => k + 1);
               showSuccess('Offline game discarded');
             } catch {
@@ -827,7 +854,16 @@ export function useActiveGameBanner(
   const checkGameExclusivity = useCallback(
     async (targetType: 'online' | 'offline'): Promise<boolean> => {
       try {
-        const stateJson = await AsyncStorage.getItem('@big2_game_state');
+        let stateJson = await AsyncStorage.getItem('@stephanos_game_state');
+        // One-time migration: check legacy @big2_game_state if new key is absent
+        if (!stateJson) {
+          const legacyJson = await AsyncStorage.getItem('@big2_game_state');
+          if (legacyJson) {
+            await AsyncStorage.setItem('@stephanos_game_state', legacyJson);
+            await AsyncStorage.removeItem('@big2_game_state');
+            stateJson = legacyJson;
+          }
+        }
         if (stateJson) {
           const state = JSON.parse(stateJson);
           if (state && !state.gameOver && state.gameStarted && !state.gameEnded) {
@@ -840,10 +876,19 @@ export function useActiveGameBanner(
                   cancelText: 'Resume Current Game',
                   destructive: true,
                   onConfirm: async () => {
-                    await AsyncStorage.removeItem('@big2_game_state');
-                    await AsyncStorage.removeItem('@big2_score_history');
-                    setBannerRefreshKey(k => k + 1);
-                    resolve(true);
+                    try {
+                      await AsyncStorage.removeItem('@stephanos_game_state');
+                      await AsyncStorage.removeItem('@big2_game_state');
+                      await AsyncStorage.removeItem('@stephanos_score_history');
+                      await AsyncStorage.removeItem('@big2_score_history');
+                      await AsyncStorage.removeItem('@stephanos_play_history');
+                      await AsyncStorage.removeItem('@big2_play_history');
+                      setBannerRefreshKey(k => k + 1);
+                    } catch {
+                      /* ignore storage errors — discard proceeds regardless */
+                    } finally {
+                      resolve(true);
+                    }
                   },
                   onCancel: () => {
                     navigation.navigate('Game', { roomCode: 'LOCAL_AI_GAME' });
@@ -861,10 +906,19 @@ export function useActiveGameBanner(
                   cancelText: 'Resume Offline Game',
                   destructive: true,
                   onConfirm: async () => {
-                    await AsyncStorage.removeItem('@big2_game_state');
-                    await AsyncStorage.removeItem('@big2_score_history');
-                    setBannerRefreshKey(k => k + 1);
-                    resolve(true);
+                    try {
+                      await AsyncStorage.removeItem('@stephanos_game_state');
+                      await AsyncStorage.removeItem('@big2_game_state');
+                      await AsyncStorage.removeItem('@stephanos_score_history');
+                      await AsyncStorage.removeItem('@big2_score_history');
+                      await AsyncStorage.removeItem('@stephanos_play_history');
+                      await AsyncStorage.removeItem('@big2_play_history');
+                      setBannerRefreshKey(k => k + 1);
+                    } catch {
+                      /* ignore storage errors — discard proceeds regardless */
+                    } finally {
+                      resolve(true);
+                    }
                   },
                   onCancel: () => {
                     navigation.navigate('Game', { roomCode: 'LOCAL_AI_GAME' });

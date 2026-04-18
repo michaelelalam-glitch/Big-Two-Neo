@@ -72,8 +72,8 @@ interface RoomType {
 function classifyRoom(data: RoomData): RoomType {
   let type: RoomType = {
     isPrivate: !data.is_matchmaking && !data.is_public,
-    isCasual:  !!data.is_matchmaking && !data.ranked_mode,
-    isRanked:  !!data.is_matchmaking && !!data.ranked_mode,
+    isCasual: !!data.is_matchmaking && !data.ranked_mode,
+    isRanked: !!data.is_matchmaking && !!data.ranked_mode,
   };
 
   // Fallback: public non-matchmaking → treat as casual (mirrors LobbyScreen logic)
@@ -116,9 +116,9 @@ describe('Suite 1 — Room type classification', () => {
   it('flags are mutually exclusive — never more than one true', () => {
     const combos: RoomData[] = [
       { is_matchmaking: false, is_public: false, ranked_mode: null },
-      { is_matchmaking: true,  is_public: true,  ranked_mode: false },
-      { is_matchmaking: true,  is_public: true,  ranked_mode: true },
-      { is_matchmaking: false, is_public: true,  ranked_mode: null }, // fallback
+      { is_matchmaking: true, is_public: true, ranked_mode: false },
+      { is_matchmaking: true, is_public: true, ranked_mode: true },
+      { is_matchmaking: false, is_public: true, ranked_mode: null }, // fallback
     ];
     for (const combo of combos) {
       const t = classifyRoom(combo);
@@ -137,9 +137,33 @@ describe('Suite 1 — Room type classification', () => {
 // Suite 2 — Host badge detection (pure logic)
 // ─────────────────────────────────────────────────────────────────────────────
 describe('Suite 2 — Host badge detection', () => {
-  const hostPlayer = { id: 'p1', user_id: 'u1', player_index: 0, is_ready: false, is_bot: false, is_host: true, profiles: { username: 'Alice' } };
-  const guestPlayer = { id: 'p2', user_id: 'u2', player_index: 1, is_ready: false, is_bot: false, is_host: false, profiles: { username: 'Bob' } };
-  const botPlayer = { id: 'p3', user_id: 'u3', player_index: 2, is_ready: true, is_bot: true, is_host: false, profiles: undefined };
+  const hostPlayer = {
+    id: 'p1',
+    user_id: 'u1',
+    player_index: 0,
+    is_ready: false,
+    is_bot: false,
+    is_host: true,
+    profiles: { username: 'Alice' },
+  };
+  const guestPlayer = {
+    id: 'p2',
+    user_id: 'u2',
+    player_index: 1,
+    is_ready: false,
+    is_bot: false,
+    is_host: false,
+    profiles: { username: 'Bob' },
+  };
+  const botPlayer = {
+    id: 'p3',
+    user_id: 'u3',
+    player_index: 2,
+    is_ready: true,
+    is_bot: true,
+    is_host: false,
+    profiles: undefined,
+  };
 
   it('host player has is_host=true', () => {
     expect(hostPlayer.is_host).toBe(true);
@@ -155,7 +179,12 @@ describe('Suite 2 — Host badge detection', () => {
   });
 
   it('exactly one host in a 4-player room', () => {
-    const players = [hostPlayer, guestPlayer, botPlayer, { ...botPlayer, id: 'p4', user_id: 'u4', player_index: 3 }];
+    const players = [
+      hostPlayer,
+      guestPlayer,
+      botPlayer,
+      { ...botPlayer, id: 'p4', user_id: 'u4', player_index: 3 },
+    ];
     const hosts = players.filter(p => p.is_host);
     expect(hosts).toHaveLength(1);
     expect(hosts[0].user_id).toBe('u1');
@@ -204,63 +233,68 @@ describe('Suite 3 — Ready system (state logic)', () => {
     // The host toggles is_host=true and is implicitly ready as the initiator.
     // Only non-host, non-bot players must toggle ready.
     const players = [
-      { is_bot: false, is_host: true,  is_ready: false }, // host — excluded from check
-      { is_bot: false, is_host: false, is_ready: true  },
-      { is_bot: false, is_host: false, is_ready: true  },
-      { is_bot: false, is_host: false, is_ready: true  },
+      { is_bot: false, is_host: true, is_ready: false }, // host — excluded from check
+      { is_bot: false, is_host: false, is_ready: true },
+      { is_bot: false, is_host: false, is_ready: true },
+      { is_bot: false, is_host: false, is_ready: true },
     ];
     const nonHostHumans = players.filter(p => !p.is_bot && !p.is_host);
-    const allNonHostHumansReady = nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready);
+    const allNonHostHumansReady =
+      nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready);
     expect(allNonHostHumansReady).toBe(true);
   });
 
   it('one non-host human not ready → cannot start', () => {
     const players = [
-      { is_bot: false, is_host: true,  is_ready: false }, // host — excluded
+      { is_bot: false, is_host: true, is_ready: false }, // host — excluded
       { is_bot: false, is_host: false, is_ready: false }, // NOT ready → blocks start
-      { is_bot: true,  is_host: false, is_ready: true  },
-      { is_bot: true,  is_host: false, is_ready: true  },
+      { is_bot: true, is_host: false, is_ready: true },
+      { is_bot: true, is_host: false, is_ready: true },
     ];
     const nonHostHumans = players.filter(p => !p.is_bot && !p.is_host);
-    const allNonHostHumansReady = nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready);
+    const allNonHostHumansReady =
+      nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready);
     expect(allNonHostHumansReady).toBe(false);
   });
 
   it('bots excluded: bot not-ready does not block start', () => {
     // Bots are auto-ready; even if is_ready were false they must not block start
     const players = [
-      { is_bot: false, is_host: true,  is_ready: false }, // host — excluded
-      { is_bot: false, is_host: false, is_ready: true  }, // only non-host human — ready
-      { is_bot: true,  is_host: false, is_ready: false }, // bot — excluded
-      { is_bot: true,  is_host: false, is_ready: false }, // bot — excluded
+      { is_bot: false, is_host: true, is_ready: false }, // host — excluded
+      { is_bot: false, is_host: false, is_ready: true }, // only non-host human — ready
+      { is_bot: true, is_host: false, is_ready: false }, // bot — excluded
+      { is_bot: true, is_host: false, is_ready: false }, // bot — excluded
     ];
     const nonHostHumans = players.filter(p => !p.is_bot && !p.is_host);
-    const allNonHostHumansReady = nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready);
+    const allNonHostHumansReady =
+      nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready);
     expect(allNonHostHumansReady).toBe(true);
   });
 
   it('no non-host humans (host solo + 3 bots) → allNonHostHumansReady true (empty set)', () => {
     const players = [
-      { is_bot: false, is_host: true,  is_ready: false },
-      { is_bot: true,  is_host: false, is_ready: true  },
-      { is_bot: true,  is_host: false, is_ready: true  },
-      { is_bot: true,  is_host: false, is_ready: true  },
+      { is_bot: false, is_host: true, is_ready: false },
+      { is_bot: true, is_host: false, is_ready: true },
+      { is_bot: true, is_host: false, is_ready: true },
+      { is_bot: true, is_host: false, is_ready: true },
     ];
     const nonHostHumans = players.filter(p => !p.is_bot && !p.is_host);
-    const allNonHostHumansReady = nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready);
+    const allNonHostHumansReady =
+      nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready);
     expect(allNonHostHumansReady).toBe(true);
   });
 
   it('host start button disabled: some non-host humans not ready → allNonHostHumansReady false', () => {
     // Simulates LobbyScreen allNonHostHumansReady memo — Start button should be disabled.
     const players = [
-      { is_bot: false, is_host: true,  is_ready: false },
-      { is_bot: false, is_host: false, is_ready: true  },
+      { is_bot: false, is_host: true, is_ready: false },
+      { is_bot: false, is_host: false, is_ready: true },
       { is_bot: false, is_host: false, is_ready: false }, // not ready → button disabled
-      { is_bot: true,  is_host: false, is_ready: true  },
+      { is_bot: true, is_host: false, is_ready: true },
     ];
     const nonHostHumans = players.filter(p => !p.is_bot && !p.is_host);
-    const allNonHostHumansReady = nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready);
+    const allNonHostHumansReady =
+      nonHostHumans.length === 0 || nonHostHumans.every(p => p.is_ready);
     expect(allNonHostHumansReady).toBe(false);
   });
 });
@@ -283,7 +317,7 @@ describe('Suite 4 — Room code sharing', () => {
 
   it('share message contains room code', () => {
     const roomCode = 'ABC123';
-    const message = `Join my Big Two game! Room code: ${roomCode}`;
+    const message = `Join my Stephanos game! Room code: ${roomCode}`;
     expect(message).toContain(roomCode);
   });
 
@@ -327,7 +361,11 @@ describe('Suite 5 — Auto-start (Realtime subscription logic)', () => {
   });
 
   it('navigation uses roomCode and forceNewGame=true', () => {
-    const navigationParams = { roomCode: 'XYZ789', forceNewGame: true, botDifficulty: 'medium' as const };
+    const navigationParams = {
+      roomCode: 'XYZ789',
+      forceNewGame: true,
+      botDifficulty: 'medium' as const,
+    };
     expect(navigationParams.forceNewGame).toBe(true);
     expect(navigationParams.roomCode).toBe('XYZ789');
     expect(navigationParams.botDifficulty).toBe('medium');
@@ -387,8 +425,9 @@ describe('Suite 7 — Consistent UI guards', () => {
       { player_index: 0, user_id: 'u1', is_host: true, is_ready: false, is_bot: false },
       { player_index: 2, user_id: 'u2', is_host: false, is_ready: true, is_bot: false },
     ];
-    const slots = Array.from({ length: 4 }, (_, i) =>
-      players.find(p => p.player_index === i) || null,
+    const slots = Array.from(
+      { length: 4 },
+      (_, i) => players.find(p => p.player_index === i) || null
     );
     expect(slots).toHaveLength(4);
     expect(slots[0]).not.toBeNull();
@@ -398,9 +437,7 @@ describe('Suite 7 — Consistent UI guards', () => {
   });
 
   it('human player count excludes bots', () => {
-    const players = [
-      { is_bot: false }, { is_bot: false }, { is_bot: true }, { is_bot: true },
-    ];
+    const players = [{ is_bot: false }, { is_bot: false }, { is_bot: true }, { is_bot: true }];
     const humanCount = players.filter(p => !p.is_bot).length;
     expect(humanCount).toBe(2);
   });
@@ -511,11 +548,7 @@ describeWithDb('Suite 8 — DB integration: room flows (requires service role)',
     // BEFORE INSERT trigger rejects inserts when the user is already present in
     // a different room. Without this cleanup successive createRoom() calls in the
     // same test suite would silently fail and leave room_players empty.
-    await supabase
-      .from('room_players')
-      .delete()
-      .eq('user_id', hostId)
-      .neq('room_id', room.id);
+    await supabase.from('room_players').delete().eq('user_id', hostId).neq('room_id', room.id);
 
     const { error: playerErr } = await supabase.from('room_players').insert({
       room_id: room.id,

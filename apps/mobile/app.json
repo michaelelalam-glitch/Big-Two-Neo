@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Big2 Mobile",
+    "name": "Stephanos",
     "slug": "big2-mobile",
     "version": "1.0.0",
     "orientation": "default",
@@ -8,7 +8,7 @@
     "userInterfaceStyle": "automatic",
     "jsEngine": "hermes",
     "newArchEnabled": true,
-    "scheme": "big2mobile",
+    "scheme": "stephanos",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -21,16 +21,16 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#25292e"
+      "backgroundColor": "#202e44"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.big2mobile.app",
+      "bundleIdentifier": "com.stephanos.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSCameraUsageDescription": "Big Two uses your camera for the opt-in in-game video chat feature.",
-        "NSMicrophoneUsageDescription": "Big Two uses your microphone for the opt-in in-game video + audio chat feature.",
-        "NSPhotoLibraryUsageDescription": "Big Two needs access to your photo library to attach screenshots to bug reports.",
+        "NSCameraUsageDescription": "Stephanos uses your camera for the opt-in in-game video chat feature.",
+        "NSMicrophoneUsageDescription": "Stephanos uses your microphone for the opt-in in-game video + audio chat feature.",
+        "NSPhotoLibraryUsageDescription": "Stephanos needs access to your photo library to attach screenshots to bug reports.",
         "NSAppTransportSecurity": {
           "NSPinnedDomains": {
             "supabase.co": {
@@ -51,11 +51,11 @@
       }
     },
     "android": {
-      "package": "com.big2mobile.app",
+      "package": "com.stephanos.app",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#25292e"
+        "backgroundColor": "#202e44"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -112,7 +112,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Big2 to attach screenshots to bug reports."
+          "photosPermission": "Allow Stephanos to attach screenshots to bug reports."
         }
       ],
       "expo-screen-orientation",

@@ -1,5 +1,5 @@
 # Flow 02: Game Selection Screen
-# Validates: After auth, user sees game selection with Chinese Poker and Lebanese Deal
+# Validates: After auth, user sees game selection with Lebanese Poker and Lebanese Deal
 # Tags: smoke, navigation
 #
 # Prerequisites: User must already be authenticated (for example, via pre-seeded
@@ -8,7 +8,7 @@
 #
 # Source: GameSelectionScreen.tsx — verified against real UI screenshots
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - smoke
   - navigation
@@ -27,25 +27,25 @@ tags:
 
 # Step 3: Verify game selection screen elements
 - assertVisible: "Choose a game to play"
-- assertVisible: "Chinese Poker"
+- assertVisible: "Lebanese Poker"
 - assertVisible: "Lebanese Deal"
 - assertVisible:
-    id: "play-chinese-poker-button"
+    id: "play-lebanese-poker-button"
 - assertVisible: "Coming Soon"
 
 # Step 4: Take screenshot
 - takeScreenshot: "02_game_selection"
 
-# Step 5: Tap Chinese Poker to navigate to Home
+# Step 5: Tap Lebanese Poker to navigate to Home
 - tapOn:
-    id: "chinese-poker-card"
+    id: "lebanese-poker-card"
 
 # Step 6: Verify navigation to Home screen
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 10000
 
-- assertVisible: "Big2 Mobile"
+- assertVisible: "Stephanos"
 
 # Step 7: Take screenshot of home screen
 - takeScreenshot: "02_home_screen"

@@ -2,7 +2,7 @@
 # Validates: All 8 main screens are reachable and render without crashing
 # Tags: ci-authenticated, navigation, smoke
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - ci-authenticated
   - navigation
@@ -16,9 +16,9 @@ tags:
     visible: "Choose a game to play"
     timeout: 35000
 - tapOn:
-    id: "chinese-poker-card"
+    id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 10000
 - takeScreenshot: "65_home"
 
@@ -32,7 +32,7 @@ tags:
 - takeScreenshot: "65_leaderboard"
 - back
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 8000
 
 # 2. Notifications
@@ -45,7 +45,7 @@ tags:
 - takeScreenshot: "65_notifications"
 - back
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 8000
 
 # 3. Profile
@@ -58,7 +58,7 @@ tags:
 - takeScreenshot: "65_profile"
 - back
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 8000
 
 # 4. Settings
@@ -71,7 +71,7 @@ tags:
 - takeScreenshot: "65_settings"
 - back
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 8000
 
 # 5. Find Game Modal
@@ -84,7 +84,7 @@ tags:
 - tapOn:
     id: "find-game-modal-close"
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 8000
 
 # 6. Offline Difficulty Modal
@@ -96,7 +96,7 @@ tags:
 - tapOn:
     id: "difficulty-modal-close"
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 8000
 
 # 7. Create Room
@@ -108,7 +108,7 @@ tags:
 - takeScreenshot: "65_create_room"
 - back
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 8000
 
 # 8. Join Room
@@ -120,7 +120,7 @@ tags:
 - takeScreenshot: "65_join_room"
 - back
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 8000
 
 - takeScreenshot: "65_full_nav_smoke_complete"

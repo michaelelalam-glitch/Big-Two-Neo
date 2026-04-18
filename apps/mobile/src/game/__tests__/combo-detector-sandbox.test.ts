@@ -875,12 +875,12 @@ describe('Edge Cases & Boundary Conditions', () => {
     expect(isHighestPossiblePlay([], [])).toBe(false);
   });
 
-  it('4-card play returns false (invalid combo in Big Two)', () => {
+  it('4-card play returns false (invalid combo in Stephanos)', () => {
     const fourCards = [c('A', 'S'), c('A', 'H'), c('A', 'D'), c('K', 'S')];
     expect(isHighestPossiblePlay(fourCards, [])).toBe(false);
   });
 
-  it('6-card play returns false (invalid combo in Big Two)', () => {
+  it('6-card play returns false (invalid combo in Stephanos)', () => {
     const sixCards = [c('A', 'S'), c('A', 'H'), c('A', 'D'), c('A', 'C'), c('K', 'S'), c('K', 'H')];
     expect(isHighestPossiblePlay(sixCards, [])).toBe(false);
   });
@@ -1135,7 +1135,7 @@ describe('IS-HIGHEST deterministic positives — last 5 cards standing', () => {
   // ── Flush ──────────────────────────────────────────────────────────────────
 
   it('Flush [2♠ A♠ K♠ Q♠ J♠] (non-SF, J-Q-K-A-2 is not a valid sequence): IS highest when last 5', () => {
-    // J-Q-K-A-2 is NOT a valid Big Two straight sequence → this is classified Flush
+    // J-Q-K-A-2 is NOT a valid Stephanos straight sequence → this is classified Flush
     const flush = [c('2', 'S'), c('A', 'S'), c('K', 'S'), c('Q', 'S'), c('J', 'S')];
     expect(classifyCards(flush)).toBe('Flush'); // sanity-check classification
     expect(isHighestPossiblePlay(flush, allCardsExcept(...flush))).toBe(true);
@@ -1330,7 +1330,7 @@ describe('Gradual depletion — transition from NOT-highest to IS-highest', () =
 
   describe('Flush with 2♠ top card — maximum flush value', () => {
     it('Flush [2♠,A♠,K♠,Q♠,J♠] IS highest flush when it is the last 5 cards', () => {
-      // Sanity: not a SF (J-Q-K-A-2 is not a valid Big Two sequence)
+      // Sanity: not a SF (J-Q-K-A-2 is not a valid Stephanos sequence)
       const flush = [c('2', 'S'), c('A', 'S'), c('K', 'S'), c('Q', 'S'), c('J', 'S')];
       expect(classifyCards(flush)).toBe('Flush');
       expect(isHighestPossiblePlay(flush, allCardsExcept(...flush))).toBe(true);

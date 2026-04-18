@@ -1,8 +1,8 @@
 # Flow 54: Game Selection Screen — All game cards
-# Validates: Both game cards (Chinese Poker / Lebanese Deal) are visible and tappable
+# Validates: Both game cards (Lebanese Poker / Lebanese Deal) are visible and tappable
 # Tags: ci-authenticated, navigation
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - ci-authenticated
   - navigation
@@ -20,17 +20,17 @@ tags:
 
 # Verify both game cards
 - assertVisible:
-    id: "chinese-poker-card"
+    id: "lebanese-poker-card"
 - assertVisible:
     id: "lebanese-deal-card"
 
-# Tap Chinese Poker
+# Tap Lebanese Poker
 - tapOn:
-    id: "chinese-poker-card"
+    id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 10000
-- takeScreenshot: "54_chinese_poker_home"
+- takeScreenshot: "54_lebanese_poker_home"
 
 # Back to game selection (if back navigation is available)
 - back

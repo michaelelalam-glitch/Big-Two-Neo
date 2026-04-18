@@ -568,13 +568,13 @@ function isHighestRemainingFiveCardCombo(cards: Card[], comboType: ComboType | '
     return isHighestRemainingFourOfAKind(cards, notInCurrent);
   }
 
-  // Full House — in Big Two, FH beats by triple rank only (pair rank is irrelevant).
+  // Full House — in Stephanos, FH beats by triple rank only (pair rank is irrelevant).
   if (comboType === 'Full House') {
     const rc: Record<string, number> = {};
     for (const c of cards) rc[c.rank] = (rc[c.rank] || 0) + 1;
     const playedTripleRank = Object.keys(rc).find(r => rc[r] === 3) ?? null;
     if (!playedTripleRank) return false;
-    // Rank keys sorted highest-to-lowest by Big Two rank value
+    // Rank keys sorted highest-to-lowest by Stephanos rank value
     const ranksDesc = Object.keys(RANK_VALUE).sort((a, b) => RANK_VALUE[b] - RANK_VALUE[a]);
     const nc: Record<string, number> = {};
     for (const c of notInCurrent) nc[c.rank] = (nc[c.rank] || 0) + 1;

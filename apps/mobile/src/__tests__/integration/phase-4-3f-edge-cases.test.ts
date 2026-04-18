@@ -1,7 +1,7 @@
 /**
  * Phase 4.3F: Edge Case Testing (Task #528)
  *
- * Comprehensive edge case coverage for Big Two multiplayer infrastructure:
+ * Comprehensive edge case coverage for Stephanos multiplayer infrastructure:
  *  1. Room code format & charset validation
  *  2. Room code collision / retry logic (unique-constraint, max 3 attempts)
  *  3. 4-bots prevention (humanCount === 0 guard)
@@ -62,7 +62,9 @@ const MAX_ROOM_CREATE_ATTEMPTS = 3;
 
 /** Simulate the room-creation retry loop */
 async function simulateCreateRoomWithRetry(
-  inserter: (code: string) => Promise<{ data: { id: string } | null; error: { code: string; message: string } | null }>,
+  inserter: (
+    code: string
+  ) => Promise<{ data: { id: string } | null; error: { code: string; message: string } | null }>
 ): Promise<{ id: string } | null> {
   let newRoom: { id: string } | null = null;
   for (let attempt = 0; attempt < MAX_ROOM_CREATE_ATTEMPTS; attempt++) {
@@ -80,15 +82,15 @@ async function simulateCreateRoomWithRetry(
 }
 
 /** Simulate LobbyScreen start-game guard */
-function canStartGame(params: {
-  humanCount: number;
-  totalCount: number;
-  isRanked: boolean;
-}): { ok: boolean; error?: string } {
+function canStartGame(params: { humanCount: number; totalCount: number; isRanked: boolean }): {
+  ok: boolean;
+  error?: string;
+} {
   const { humanCount, totalCount, isRanked } = params;
   if (totalCount > 4) return { ok: false, error: 'Too many players! Maximum 4 players allowed.' };
   if (humanCount === 0) return { ok: false, error: 'Cannot start game without any players!' };
-  if (isRanked && humanCount < 4) return { ok: false, error: 'Ranked matches require 4 human players' };
+  if (isRanked && humanCount < 4)
+    return { ok: false, error: 'Ranked matches require 4 human players' };
   return { ok: true };
 }
 
@@ -409,7 +411,9 @@ describe('Phase 4.3F — Edge Case Testing', () => {
       public attempts = 0;
       public forcedAdvances = 0;
 
-      async executeBotTurn(shouldFail: boolean): Promise<{ success: boolean; forcedAdvance: boolean }> {
+      async executeBotTurn(
+        shouldFail: boolean
+      ): Promise<{ success: boolean; forcedAdvance: boolean }> {
         for (let i = 0; i < MAX_BOT_RETRIES; i++) {
           this.attempts++;
           if (!shouldFail) return { success: true, forcedAdvance: false };
@@ -451,14 +455,20 @@ describe('Phase 4.3F — Edge Case Testing', () => {
   describe('App backgrounding — in-flight async ops complete safely after unmount', () => {
     it('resolves pending promise even when consumer reference is cleared', async () => {
       let resolve!: (value: string) => void;
-      const pendingOp = new Promise<string>(res => { resolve = res; });
+      const pendingOp = new Promise<string>(res => {
+        resolve = res;
+      });
 
       let result: string | null = null;
-      const onComplete = (val: string) => { result = val; };
+      const onComplete = (val: string) => {
+        result = val;
+      };
 
       // Simulate consumer subscribing then "unmounting"
       const unsubscribed = { current: false };
-      pendingOp.then(val => { if (!unsubscribed.current) onComplete(val); });
+      pendingOp.then(val => {
+        if (!unsubscribed.current) onComplete(val);
+      });
 
       // Consumer unmounts
       unsubscribed.current = true;
@@ -533,7 +543,13 @@ describe('Phase 4.3F — Edge Case Testing', () => {
       const rooms: MockRoom[] = [
         { id: 'e1', status: 'waiting', playerCount: 0, createdMinutesAgo: 130 },
         { id: 'st1', status: 'starting', playerCount: 1, createdMinutesAgo: 3 },
-        { id: 'old1', status: 'cancelled', playerCount: 0, createdMinutesAgo: 0, createdDaysAgo: 45 },
+        {
+          id: 'old1',
+          status: 'cancelled',
+          playerCount: 0,
+          createdMinutesAgo: 0,
+          createdDaysAgo: 45,
+        },
         { id: 'active', status: 'playing', playerCount: 4, createdMinutesAgo: 10 },
         { id: 'recent', status: 'waiting', playerCount: 0, createdMinutesAgo: 30 }, // not old enough
       ];

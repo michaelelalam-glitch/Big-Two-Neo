@@ -5,7 +5,7 @@
 # Prerequisites: User is authenticated and on the Home screen
 # Source: LeaderboardScreen.tsx — testID="leaderboard-screen"
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - navigation
   - auth-required
@@ -20,9 +20,9 @@ tags:
     visible: "Choose a game to play"
     timeout: 20000
 - tapOn:
-    id: "chinese-poker-card"
+    id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 10000
 
 # Step 2: Navigate to Leaderboard screen
@@ -67,5 +67,5 @@ tags:
 # Step 11: Go back
 - back
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 10000

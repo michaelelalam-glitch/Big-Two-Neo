@@ -521,7 +521,7 @@ describe('BotAI - Extended Coverage Tests', () => {
 
     test('medium bot has 30% chance to lead with 5-card combo — decision is non-null when Math.random < 0.3', () => {
       const bot = new BotAI('medium');
-      // Four 9s and one 5 — four-of-a-kind is a valid 5-card combo in Big Two
+      // Four 9s and one 5 — four-of-a-kind is a valid 5-card combo in Stephanos
       const hand: Card[] = [
         { id: '9D', rank: '9' as const, suit: 'D' as const },
         { id: '9C', rank: '9' as const, suit: 'C' as const },

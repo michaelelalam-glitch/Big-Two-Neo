@@ -1,4 +1,4 @@
-# Integration Tests for Big2 Mobile App
+# Integration Tests for Stephanos App
 
 ## Username Uniqueness Integration Tests
 
