@@ -9,12 +9,15 @@ const corsHeaders = buildCorsHeaders();
 // FCM v1 API configuration
 const FCM_PROJECT_ID = Deno.env.get('FCM_PROJECT_ID');
 if (!FCM_PROJECT_ID) {
-  // FCM_PROJECT_ID absent: FCM (Android native) push will be skipped at
-  // runtime when fcmMessages.length > 0 (guarded in the request path below).
-  // Expo push tokens are unaffected. Downgrade to warn so the function is
-  // not considered broken when only Expo tokens are in use.
+  // FCM_PROJECT_ID absent.
+  // ‣ Requests that contain only Expo tokens → served normally (Expo path
+  //   never touches FCM_PROJECT_ID).
+  // ‣ Requests that contain any FCM (native Android) tokens → fail with 500
+  //   at request time; this intentional fail-fast prevents partial Expo
+  //   delivery followed by a 500, which would cause callers to retry and
+  //   potentially duplicate the already-sent Expo notifications.
   console.warn('[send-push-notification] WARNING: FCM_PROJECT_ID env var is not set. ' +
-    'FCM (Android native) notifications will be skipped. ' +
+    'Expo-only requests are unaffected; requests with FCM tokens will fail with 500. ' +
     'Set it in Supabase Dashboard → Edge Functions → Secrets.');
 }
 // Construct FCM_API_URL only when FCM_PROJECT_ID is present to avoid a
