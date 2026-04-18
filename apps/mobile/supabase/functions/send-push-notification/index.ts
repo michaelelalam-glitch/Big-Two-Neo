@@ -7,8 +7,15 @@ import { checkRateLimit } from '../_shared/rateLimiter.ts';
 const corsHeaders = buildCorsHeaders();
 
 // FCM v1 API configuration
-const FCM_PROJECT_ID = Deno.env.get('FCM_PROJECT_ID') || 'stephanos-969bc'; // Default project ID — set FCM_PROJECT_ID env var to override
-const FCM_API_URL = `https://fcm.googleapis.com/v1/projects/${FCM_PROJECT_ID}/messages:send`;
+const FCM_PROJECT_ID = Deno.env.get('FCM_PROJECT_ID');
+if (!FCM_PROJECT_ID) {
+  // Fail fast: a missing env var would silently route pushes to the wrong
+  // (or no) Firebase project. Log prominently so the misconfiguration is
+  // caught at deploy time rather than at notification-send time.
+  console.error('[send-push-notification] FATAL: FCM_PROJECT_ID env var is not set. ' +
+    'Set it in Supabase Dashboard → Edge Functions → Secrets.');
+}
+const FCM_API_URL = `https://fcm.googleapis.com/v1/projects/${FCM_PROJECT_ID ?? 'MISSING_FCM_PROJECT_ID'}/messages:send`;
 const FCM_SCOPES = ['https://www.googleapis.com/auth/firebase.messaging']
 
 // Expo Push API configuration

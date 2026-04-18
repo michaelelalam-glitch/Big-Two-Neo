@@ -28,7 +28,7 @@ tags:
 # Step 2: Navigate to How to Play (button: "📖 How to Play")
 - tapOn: "How to Play"
 - extendedWaitUntil:
-    visible: "How to Play Stephanos"
+    visible: "How to Play Lebanese Poker"
     timeout: 10000
 
 # Step 3: Take screenshot
