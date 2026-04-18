@@ -2,7 +2,7 @@
 # Validates: Stats screen loads and displays graphs/stats sections
 # Tags: ci-authenticated, navigation, stats
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - ci-authenticated
   - navigation
@@ -16,9 +16,9 @@ tags:
     visible: "Choose a game to play"
     timeout: 35000
 - tapOn:
-    id: "chinese-poker-card"
+    id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 10000
 
 # Navigate to Stats (usually accessible from Profile or direct navigation)
@@ -53,5 +53,5 @@ tags:
     timeout: 8000
 - back
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 8000

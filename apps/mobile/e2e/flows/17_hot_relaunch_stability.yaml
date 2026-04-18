@@ -9,7 +9,7 @@
 # instability (see CI_E2E_FAILURE_POSTMORTEM.md). Complements flow 14
 # (which uses clearState: true between every cycle).
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - smoke
   - stability

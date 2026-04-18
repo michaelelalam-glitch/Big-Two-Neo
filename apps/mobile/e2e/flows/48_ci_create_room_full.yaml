@@ -2,7 +2,7 @@
 # Validates: Create Room screen loads, form fields are visible, submit button present
 # Tags: ci-authenticated, rooms
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - ci-authenticated
   - rooms
@@ -15,9 +15,9 @@ tags:
     visible: "Choose a game to play"
     timeout: 35000
 - tapOn:
-    id: "chinese-poker-card"
+    id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 10000
 
 # Navigate to Create Room (adjust the tap target to match actual UI text/id)
@@ -40,5 +40,5 @@ tags:
 # Navigate back
 - back
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 8000

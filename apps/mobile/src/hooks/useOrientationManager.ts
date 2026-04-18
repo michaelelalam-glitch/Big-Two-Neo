@@ -39,7 +39,7 @@ try {
 }
 
 // Storage key for orientation preference
-const ORIENTATION_STORAGE_KEY = '@big2_orientation_preference';
+const ORIENTATION_STORAGE_KEY = '@stephanos_orientation_preference';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -138,7 +138,16 @@ export function useOrientationManager(): OrientationManagerState {
    */
   const loadOrientationPreference = async () => {
     try {
-      const saved = await AsyncStorage.getItem(ORIENTATION_STORAGE_KEY);
+      let saved = await AsyncStorage.getItem(ORIENTATION_STORAGE_KEY);
+      // One-time migration: if new key absent, check legacy @big2_orientation_preference
+      if (!saved) {
+        const legacy = await AsyncStorage.getItem('@big2_orientation_preference');
+        if (legacy) {
+          await AsyncStorage.setItem(ORIENTATION_STORAGE_KEY, legacy);
+          await AsyncStorage.removeItem('@big2_orientation_preference');
+          saved = legacy;
+        }
+      }
       // Always lock on mount — default to portrait if no preference saved so
       // the game screen never auto-rotates (user-request: rotation only via button).
       const mode = (saved as OrientationMode | null) ?? 'portrait';

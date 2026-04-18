@@ -1,4 +1,4 @@
-# Artillery Load Test Config — Big Two Neo Edge Functions
+# Artillery Load Test Config — Stephanos Neo Edge Functions
 # Task #23 (Tier 4 — P14-3)
 #
 # Alternative to k6 using Artillery (npm-based, zero binary install required).

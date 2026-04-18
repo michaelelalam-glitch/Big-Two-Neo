@@ -11,21 +11,18 @@ export type AutoPassTimer = 'disabled' | '30' | '60' | '90';
 
 // Settings storage keys
 export const SETTINGS_KEYS = {
-  CARD_SORT_ORDER: '@big2_card_sort_order',
-  ANIMATION_SPEED: '@big2_animation_speed',
-  AUTO_PASS_TIMER: '@big2_auto_pass_timer',
-  PROFILE_VISIBILITY: '@big2_profile_visibility',
-  SHOW_ONLINE_STATUS: '@big2_show_online_status',
-  LANGUAGE: '@big2_language',
-  AUDIO_ENABLED: '@big2_audio_enabled',
-  AUDIO_VOLUME: '@big2_audio_volume',
-  HAPTICS_ENABLED: '@big2_haptics_enabled',
-  /** Zustand persist storage key for the user-preferences slice (game and
-   *  privacy settings; Task #647). The historical name refers to audio
-   *  settings, but the persisted blob now backs the broader preferences store
-   *  and explicitly excludes runtime audio/haptics toggles (e.g.
-   *  `soundEnabled`, `vibrationEnabled`), which are owned by the sound/haptics
-   *  managers rather than this store. */
+  CARD_SORT_ORDER: '@stephanos_card_sort_order',
+  ANIMATION_SPEED: '@stephanos_animation_speed',
+  AUTO_PASS_TIMER: '@stephanos_auto_pass_timer',
+  PROFILE_VISIBILITY: '@stephanos_profile_visibility',
+  SHOW_ONLINE_STATUS: '@stephanos_show_online_status',
+  LANGUAGE: '@stephanos_language',
+  AUDIO_ENABLED: '@stephanos_audio_enabled',
+  AUDIO_VOLUME: '@stephanos_audio_volume',
+  HAPTICS_ENABLED: '@stephanos_haptics_enabled',
+  // Historically named and kept as 'big2-audio-settings' to preserve existing
+  // users' persisted preferences across the brand rename (changing this key
+  // would cause a full preferences reset for upgrading users).
   AUDIO_SETTINGS_PERSIST: 'big2-audio-settings',
   /** Explicit migration sentinel — written once after legacy AsyncStorage keys
    *  are imported into the user-preferences Zustand persist store (Task #647
@@ -33,11 +30,11 @@ export const SETTINGS_KEYS = {
    *  sentinel so migration logic does not rely on the existence of the
    *  `big2-audio-settings` persist blob, which may be created early by other
    *  screens via Zustand's persist middleware. */
-  AUDIO_SETTINGS_MIGRATION_COMPLETE: '@big2_audio_settings_migrated',
+  AUDIO_SETTINGS_MIGRATION_COMPLETE: '@stephanos_audio_settings_migrated',
   /** User's analytics + crash-reporting consent (Task #272 GDPR compliance).
    *  Stored as the string `"true"` or `"false"`. A missing key means the user
    *  has not yet been shown the consent modal. */
-  ANALYTICS_CONSENT: '@big2_analytics_consent',
+  ANALYTICS_CONSENT: '@stephanos_analytics_consent',
 } as const;
 
 // Default settings values

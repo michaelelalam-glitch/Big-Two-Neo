@@ -363,7 +363,7 @@ describe('Highest Play Detector', () => {
 
     it('cross-suit straight flush: same-suit run IS detected after higher SFs are eliminated', () => {
       // Eliminate Spades Royal (highest SF) by playing a key Spade card.
-      // In Big Two suit ranking: Spades > Hearts > Clubs > Diamonds,
+      // In Stephanos suit ranking: Spades > Hearts > Clubs > Diamonds,
       // so Hearts Royal becomes the highest remaining SF.
       const playedCards: Card[] = [
         // Break Spades straights
@@ -391,7 +391,7 @@ describe('Highest Play Detector', () => {
   // STRAIGHT LOW-SEQUENCE SUIT TIEBREAK
   // Verifies the fix that uses the sequence's defined top rank (e.g. '5' for
   // A-2-3-4-5, '6' for 2-3-4-5-6) instead of sortHand's last card (which
-  // puts the 2 last due to Big Two rank values, giving the wrong suit).
+  // puts the 2 last due to Stephanos rank values, giving the wrong suit).
   //
   // Each test leaves exactly 5 remaining cards — one per sequence rank —
   // that cannot form any Straight Flush, Flush, Four of a Kind, or Full House.

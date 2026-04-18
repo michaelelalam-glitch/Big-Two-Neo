@@ -8,7 +8,7 @@
 # instability (see CI_E2E_FAILURE_POSTMORTEM.md). Consent modal is dismissed
 # optionally (may already have been handled by a prior flow).
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - smoke
   - ci

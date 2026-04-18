@@ -1,4 +1,4 @@
-// Type definitions for the Big2 Mobile App
+// Type definitions for the Stephanos App
 
 export interface Player {
   id: string;

@@ -208,7 +208,7 @@ export const GameEndModal: React.FC = () => {
   const formatResultsForShare = (): string => {
     const sortedScores = [...finalScores].sort((a, b) => a.cumulative_score - b.cumulative_score);
 
-    let text = '🎮 Big Two Game Results 🎮\n\n';
+    let text = '🎮 Stephanos Game Results 🎮\n\n';
     text += `🏆 Winner: ${gameWinnerName}\n\n`;
     text += 'Final Standings:\n';
 

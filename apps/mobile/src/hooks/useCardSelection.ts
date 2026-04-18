@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Card } from '../game/types';
 import { useGameSessionStore } from '../store';
 
-const CARD_SELECTION_KEY_PREFIX = '@big2_card_selection_';
+const CARD_SELECTION_KEY_PREFIX = '@stephanos_card_selection_';
 
 /**
  * useCardSelection — Manages card selection state and drag-to-reorder.

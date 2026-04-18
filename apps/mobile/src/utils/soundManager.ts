@@ -1,7 +1,7 @@
 /**
  * Sound Manager
  *
- * Manages all audio playback in the Big Two mobile game.
+ * Manages all audio playback in the Stephanos mobile game.
  * Handles loading, playing, and managing sound effects with settings integration.
  *
  * Migrated from expo-av (deprecated) to expo-audio in SDK 54.
@@ -59,8 +59,8 @@ const SOUND_FILES: Record<SoundType, number> = {
 };
 
 // Settings keys
-const AUDIO_ENABLED_KEY = '@big2_audio_enabled';
-const AUDIO_VOLUME_KEY = '@big2_audio_volume';
+const AUDIO_ENABLED_KEY = '@stephanos_audio_enabled';
+const AUDIO_VOLUME_KEY = '@stephanos_audio_volume';
 
 class SoundManager {
   private sounds: Map<SoundType, AudioPlayer> = new Map();
@@ -111,10 +111,32 @@ class SoundManager {
    */
   private async loadSettings(): Promise<void> {
     try {
-      const [enabledStr, volumeStr] = await Promise.all([
+      let [enabledStr, volumeStr] = await Promise.all([
         AsyncStorage.getItem(AUDIO_ENABLED_KEY),
         AsyncStorage.getItem(AUDIO_VOLUME_KEY),
       ]);
+
+      // Migrate legacy @big2_ keys for existing users upgrading from the old brand
+      if (enabledStr === null) {
+        const legacy = await AsyncStorage.getItem('@big2_audio_enabled');
+        if (legacy !== null) {
+          enabledStr = legacy;
+          await Promise.all([
+            AsyncStorage.setItem(AUDIO_ENABLED_KEY, legacy),
+            AsyncStorage.removeItem('@big2_audio_enabled'),
+          ]);
+        }
+      }
+      if (volumeStr === null) {
+        const legacy = await AsyncStorage.getItem('@big2_audio_volume');
+        if (legacy !== null) {
+          volumeStr = legacy;
+          await Promise.all([
+            AsyncStorage.setItem(AUDIO_VOLUME_KEY, legacy),
+            AsyncStorage.removeItem('@big2_audio_volume'),
+          ]);
+        }
+      }
 
       this.audioEnabled = enabledStr !== null ? enabledStr === 'true' : true;
       this.volume = volumeStr !== null ? parseFloat(volumeStr) : 0.7;

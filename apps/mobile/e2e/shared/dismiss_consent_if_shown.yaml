@@ -2,7 +2,7 @@
 # Called from ci-authenticated flows via: runFlow: ../shared/dismiss_consent_if_shown.yaml
 # Also called standalone from CI workflow as a post-seed verification step.
 #
-# On iOS CI, the auth seed script may fail to inject @big2_analytics_consent
+# On iOS CI, the auth seed script may fail to inject @stephanos_analytics_consent
 # into the correct simulator container. When this happens, the privacy consent
 # modal blocks the home/game-selection screen. This sub-flow defensively taps
 # "No thanks" if the modal appears, which persists the consent decision to
@@ -11,12 +11,12 @@
 # Both steps are optional — if consent was properly seeded, neither element
 # will be found and Maestro skips silently (~2-3s overhead per flow).
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 ---
 
 # `optional: true` is inside tapOn's parameter block (4-space indent) so Maestro
 # skips the step without aborting the flow when the element is not found.
-# When consent IS properly seeded (@big2_analytics_consent=false), this element
+# When consent IS properly seeded (@stephanos_analytics_consent=false), this element
 # never appears and the step is silently skipped — correct behaviour.
 - tapOn:
     id: "privacy-consent-decline"

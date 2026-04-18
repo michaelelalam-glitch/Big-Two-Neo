@@ -1,7 +1,7 @@
 /**
  * i18n System
  *
- * Provides internationalization support for the Big2 Mobile app.
+ * Provides internationalization support for the Stephanos app.
  * Supports: English (EN), Arabic (AR), German (DE)
  */
 
@@ -10,7 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { uiLogger } from '../utils/logger';
 
 // Storage key
-const LANGUAGE_KEY = '@big2_language';
+const LANGUAGE_KEY = '@stephanos_language';
 
 // Supported languages
 export type Language = 'en' | 'ar' | 'de';
@@ -112,8 +112,8 @@ export interface Translations {
   gameSelection: {
     welcome: string;
     subtitle: string;
-    chinesePokerTitle: string;
-    chinesePokerDesc: string;
+    lebanesePokerTitle: string;
+    lebanesePokerDesc: string;
     playButton: string;
     lebaneseDealTitle: string;
     lebaneseDealDesc: string;
@@ -1026,15 +1026,15 @@ const en: Translations = {
     microphoneOff: 'Microphone off',
     // Phase 4 — permission UX
     cameraPermissionTitle: 'Camera Access',
-    cameraPermissionMessage: 'Big Two needs camera access to show your video to other players.',
+    cameraPermissionMessage: 'Stephanos needs camera access to show your video to other players.',
     micPermissionTitle: 'Microphone Access',
-    micPermissionMessage: 'Big Two needs microphone access so other players can hear you.',
+    micPermissionMessage: 'Stephanos needs microphone access so other players can hear you.',
     permissionDeniedCameraTitle: 'Camera Permission Denied',
     permissionDeniedCameraMessage:
-      'Camera access was denied. To enable video chat, open Settings and allow camera access for Big Two.',
+      'Camera access was denied. To enable video chat, open Settings and allow camera access for Stephanos.',
     permissionDeniedMicTitle: 'Microphone Permission Denied',
     permissionDeniedMicMessage:
-      'Microphone access was denied. To enable voice chat, open Settings and allow microphone access for Big Two.',
+      'Microphone access was denied. To enable voice chat, open Settings and allow microphone access for Stephanos.',
     openSettings: 'Open Settings',
     connectFailedTitle: 'Video Chat Unavailable',
     connectFailedMessage:
@@ -1058,8 +1058,8 @@ const en: Translations = {
   gameSelection: {
     welcome: 'Welcome,',
     subtitle: 'Choose a game to play',
-    chinesePokerTitle: 'Chinese Poker',
-    chinesePokerDesc: 'Big Two — the classic card game.\nPlay online or against bots.',
+    lebanesePokerTitle: 'Lebanese Poker',
+    lebanesePokerDesc: 'Lebanese Poker — the classic card game.\nPlay online or against bots.',
     playButton: 'PLAY →',
     lebaneseDealTitle: 'Lebanese Deal',
     lebaneseDealDesc: 'A brand-new card game experience.\nStay tuned for the launch!',
@@ -1189,7 +1189,7 @@ const en: Translations = {
     bugReportSubmitted: 'Bug report submitted. Thank you!',
     bugReportAndroidTitle: 'Report a Bug',
     bugReportAndroidMessage:
-      'To report a bug, please email support@big2mobile.com with a description of the issue.',
+      'To report a bug, please email support@stephanos.app with a description of the issue.',
   },
   notificationChannels: {
     default: 'Default',
@@ -1240,7 +1240,7 @@ const en: Translations = {
     includeLogDescription: "Attach today's app log to help diagnose the issue.",
   },
   home: {
-    title: 'Big2 Mobile',
+    title: 'Stephanos',
     welcome: 'Welcome',
     findMatch: '🎯 Find Match (NEW!)',
     findMatchDescription: 'Quick 4-player match with skill-based pairing',
@@ -1299,7 +1299,7 @@ const en: Translations = {
     reportBug: 'Report a bug',
   },
   howToPlay: {
-    title: '📖 How to Play Big Two',
+    title: '📖 How to Play Lebanese Poker',
     objectiveTitle: 'Objective',
     objectiveText: 'Be the first player to play all your cards.',
     cardRankingsTitle: 'Card Rankings',
@@ -1480,7 +1480,7 @@ const en: Translations = {
     shareResults: 'Share Results',
     copyResults: 'Copy Results',
     copyResultsSuccess: 'Results copied to clipboard!',
-    shareResultsTitle: 'Big Two Game Results',
+    shareResultsTitle: 'Stephanos Game Results',
     playAgain: 'Play Again',
     returnToMenu: 'Return to Menu',
     loadingResults: 'Loading results...',
@@ -1559,8 +1559,8 @@ const en: Translations = {
     copiedMessage: 'Room code {{roomCode}} has been copied to your clipboard.',
     copyFailedTitle: 'Copy Failed',
     copyFailedMessage: 'Could not copy to clipboard. Your room code is: {{roomCode}}',
-    shareTitle: 'Join Big Two Game',
-    shareMessage: 'Join my Big Two game! Room code: {{roomCode}}',
+    shareTitle: 'Join Stephanos Game',
+    shareMessage: 'Join my Stephanos game! Room code: {{roomCode}}',
     minPlayers: 'Need at least 2 players to start',
     inviteFriends: 'Share this code with friends',
     emptySlot: 'Empty Slot',
@@ -1761,7 +1761,7 @@ const en: Translations = {
   auth: {
     signIn: 'Sign In',
     signUp: 'Sign Up',
-    welcomeTitle: 'Welcome to Big2',
+    welcomeTitle: 'Welcome',
     welcomeSubtitle: 'Sign in to play with friends and track your progress',
     email: 'Email',
     password: 'Password',
@@ -1918,9 +1918,10 @@ const ar: Translations = {
     microphoneOff: 'الميكروفون مغلق',
     // Phase 4 — permission UX
     cameraPermissionTitle: 'الوصول إلى الكاميرا',
-    cameraPermissionMessage: 'يحتاج Big Two إلى الوصول إلى الكاميرا لعرض الفيديو للاعبين الآخرين.',
+    cameraPermissionMessage:
+      'يحتاج Stephanos إلى الوصول إلى الكاميرا لعرض الفيديو للاعبين الآخرين.',
     micPermissionTitle: 'الوصول إلى الميكروفون',
-    micPermissionMessage: 'يحتاج Big Two إلى الوصول إلى الميكروفون حتى يسمعك اللاعبون الآخرون.',
+    micPermissionMessage: 'يحتاج Stephanos إلى الوصول إلى الميكروفون حتى يسمعك اللاعبون الآخرون.',
     permissionDeniedCameraTitle: 'تم رفض إذن الكاميرا',
     permissionDeniedCameraMessage:
       'تم رفض الوصول إلى الكاميرا. لتمكين الدردشة المرئية، افتح الإعدادات وامنح الإذن.',
@@ -1948,8 +1949,8 @@ const ar: Translations = {
   gameSelection: {
     welcome: 'مرحبًا،',
     subtitle: 'اختر لعبة للعب',
-    chinesePokerTitle: 'بوكر صيني',
-    chinesePokerDesc: 'بيج تو — لعبة الورق الكلاسيكية.\nالعب أونلاين أو ضد الروبوتات.',
+    lebanesePokerTitle: 'بوكر لبناني',
+    lebanesePokerDesc: 'بوكر لبناني — لعبة الورق الكلاسيكية.\nالعب أونلاين أو ضد الروبوتات.',
     playButton: '←  العب',
     lebaneseDealTitle: 'ديل لبناني',
     lebaneseDealDesc: 'تجربة لعبة ورق جديدة كليًا.\nترقبوا الإطلاق!',
@@ -2077,7 +2078,7 @@ const ar: Translations = {
     bugReportSubmitted: 'تم إرسال تقرير الخطأ. شكرًا لك!',
     bugReportAndroidTitle: 'الإبلاغ عن خطأ',
     bugReportAndroidMessage:
-      'للإبلاغ عن خطأ، يرجى إرسال بريد إلكتروني إلى support@big2mobile.com مع وصف المشكلة.',
+      'للإبلاغ عن خطأ، يرجى إرسال بريد إلكتروني إلى support@stephanos.app مع وصف المشكلة.',
   },
   notificationChannels: {
     default: 'افتراضي',
@@ -2128,7 +2129,7 @@ const ar: Translations = {
     includeLogDescription: 'أرفق سجل التطبيق لهذا اليوم لمساعدتنا في التشخيص.',
   },
   home: {
-    title: 'Big2 Mobile',
+    title: 'Stephanos',
     welcome: 'مرحبًا',
     findMatch: '🎯 البحث عن مباراة (جديد!)',
     findMatchDescription: 'مباراة سريعة لـ 4 لاعبين مع مطابقة المهارات',
@@ -2382,8 +2383,8 @@ const ar: Translations = {
     copiedMessage: 'تم نسخ رمز الغرفة {{roomCode}} إلى الحافظة.',
     copyFailedTitle: 'فشل النسخ',
     copyFailedMessage: 'تعذّر النسخ إلى الحافظة. رمز الغرفة هو: {{roomCode}}',
-    shareTitle: 'انضم إلى لعبة Big Two',
-    shareMessage: 'انضم إلى لعبتي في Big Two! رمز الغرفة: {{roomCode}}',
+    shareTitle: 'انضم إلى لعبة Stephanos',
+    shareMessage: 'انضم إلى لعبتي في Stephanos! رمز الغرفة: {{roomCode}}',
     minPlayers: 'تحتاج إلى لاعبين على الأقل للبدء',
     inviteFriends: 'شارك هذا الرمز مع الأصدقاء',
     emptySlot: 'فتحة فارغة',
@@ -2581,7 +2582,7 @@ const ar: Translations = {
   auth: {
     signIn: 'تسجيل الدخول',
     signUp: 'اشتراك',
-    welcomeTitle: 'مرحبًا بك في Big2',
+    welcomeTitle: 'مرحبًا',
     welcomeSubtitle: 'سجّل دخولك للعب مع الأصدقاء وتتبّع تقدمك',
     email: 'البريد الإلكتروني',
     password: 'كلمة المرور',
@@ -2826,16 +2827,16 @@ const de: Translations = {
     // Phase 4 — permission UX
     cameraPermissionTitle: 'Kamerazugriff',
     cameraPermissionMessage:
-      'Big Two benötigt Kamerazugriff, um dein Video anderen Spielern zu zeigen.',
+      'Stephanos benötigt Kamerazugriff, um dein Video anderen Spielern zu zeigen.',
     micPermissionTitle: 'Mikrofonzugriff',
     micPermissionMessage:
-      'Big Two benötigt Mikrofonzugriff, damit andere Spieler dich hören können.',
+      'Stephanos benötigt Mikrofonzugriff, damit andere Spieler dich hören können.',
     permissionDeniedCameraTitle: 'Kamerazugriff verweigert',
     permissionDeniedCameraMessage:
-      'Der Kamerazugriff wurde verweigert. Öffne die Einstellungen und erlaube Big Two den Kamerazugriff.',
+      'Der Kamerazugriff wurde verweigert. Öffne die Einstellungen und erlaube Stephanos den Kamerazugriff.',
     permissionDeniedMicTitle: 'Mikrofonzugriff verweigert',
     permissionDeniedMicMessage:
-      'Der Mikrofonzugriff wurde verweigert. Öffne die Einstellungen und erlaube Big Two den Mikrofonzugriff.',
+      'Der Mikrofonzugriff wurde verweigert. Öffne die Einstellungen und erlaube Stephanos den Mikrofonzugriff.',
     openSettings: 'Einstellungen öffnen',
     connectFailedTitle: 'Video-Chat nicht verfügbar',
     connectFailedMessage:
@@ -2860,8 +2861,9 @@ const de: Translations = {
     welcome: 'Willkommen,',
 
     subtitle: 'Wähle ein Spiel',
-    chinesePokerTitle: 'Chinesisches Poker',
-    chinesePokerDesc: 'Big Two — das klassische Kartenspiel.\nOnline spielen oder gegen Bots.',
+    lebanesePokerTitle: 'Libanesisches Poker',
+    lebanesePokerDesc:
+      'Libanesisches Poker — das klassische Kartenspiel.\nOnline spielen oder gegen Bots.',
     playButton: 'SPIELEN →',
     lebaneseDealTitle: 'Libanesischer Deal',
     lebaneseDealDesc: 'Ein brandneues Kartenspiel-Erlebnis.\nBleibt auf dem Laufenden!',
@@ -2994,7 +2996,7 @@ const de: Translations = {
     bugReportSubmitted: 'Fehlerbericht eingereicht. Vielen Dank!',
     bugReportAndroidTitle: 'Einen Fehler melden',
     bugReportAndroidMessage:
-      'Um einen Fehler zu melden, senden Sie bitte eine E-Mail an support@big2mobile.com mit einer Beschreibung des Problems.',
+      'Um einen Fehler zu melden, senden Sie bitte eine E-Mail an support@stephanos.app mit einer Beschreibung des Problems.',
   },
   notificationChannels: {
     default: 'Standard',
@@ -3046,7 +3048,7 @@ const de: Translations = {
     includeLogDescription: 'Das heutige App-Protokoll anhängen, um die Diagnose zu erleichtern.',
   },
   home: {
-    title: 'Big2 Mobile',
+    title: 'Stephanos',
     welcome: 'Willkommen',
     findMatch: '🎯 Spiel finden (NEU!)',
     findMatchDescription: 'Schnelles 4-Spieler-Spiel mit fähigkeitsbasierter Paarung',
@@ -3228,7 +3230,7 @@ const de: Translations = {
     shareResults: 'Ergebnisse teilen',
     copyResults: 'Ergebnisse kopieren',
     copyResultsSuccess: 'Ergebnisse in die Zwischenablage kopiert!',
-    shareResultsTitle: 'Big Two Spielergebnisse',
+    shareResultsTitle: 'Stephanos Spielergebnisse',
     playAgain: 'Nochmal spielen',
     returnToMenu: 'Zurück zum Menü',
     loadingResults: 'Ergebnisse werden geladen...',
@@ -3310,8 +3312,8 @@ const de: Translations = {
     copyFailedTitle: 'Kopieren fehlgeschlagen',
     copyFailedMessage:
       'Kopieren in die Zwischenablage fehlgeschlagen. Ihr Raumcode lautet: {{roomCode}}',
-    shareTitle: 'Big Two Spiel beitreten',
-    shareMessage: 'Tritt meinem Big Two Spiel bei! Raumcode: {{roomCode}}',
+    shareTitle: 'Stephanos Spiel beitreten',
+    shareMessage: 'Tritt meinem Stephanos Spiel bei! Raumcode: {{roomCode}}',
     minPlayers: 'Mindestens 2 Spieler erforderlich',
     inviteFriends: 'Teile diesen Code mit Freunden',
     emptySlot: 'Leerer Platz',
@@ -3516,7 +3518,7 @@ const de: Translations = {
   auth: {
     signIn: 'Anmelden',
     signUp: 'Registrieren',
-    welcomeTitle: 'Willkommen bei Big2',
+    welcomeTitle: 'Willkommen',
     welcomeSubtitle:
       'Melde dich an, um mit Freunden zu spielen und deinen Fortschritt zu verfolgen',
     email: 'E-Mail',
@@ -3733,7 +3735,20 @@ class I18nManager {
    */
   async initialize(): Promise<void> {
     try {
-      const savedLanguage = await AsyncStorage.getItem(LANGUAGE_KEY);
+      let savedLanguage = await AsyncStorage.getItem(LANGUAGE_KEY);
+
+      // Migrate legacy @big2_language key for existing users upgrading from the old brand
+      if (savedLanguage === null) {
+        const legacy = await AsyncStorage.getItem('@big2_language');
+        if (legacy !== null) {
+          savedLanguage = legacy;
+          await Promise.all([
+            AsyncStorage.setItem(LANGUAGE_KEY, legacy),
+            AsyncStorage.removeItem('@big2_language'),
+          ]);
+        }
+      }
+
       if (
         savedLanguage &&
         (savedLanguage === 'en' || savedLanguage === 'ar' || savedLanguage === 'de')

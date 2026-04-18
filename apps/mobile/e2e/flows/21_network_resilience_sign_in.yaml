@@ -9,7 +9,7 @@
 # optionally. Tests the sign-in screen under conservative timeouts and
 # validates background/foreground recovery mid-load.
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - smoke
   - ci

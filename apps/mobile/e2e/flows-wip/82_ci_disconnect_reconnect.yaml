@@ -1,4 +1,4 @@
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - online-e2e
   - disconnect
@@ -15,7 +15,7 @@ tags:
 
 # Foreground the app again (simulates reconnect)
 - launchApp:
-    id: com.big2mobile.app
+    id: com.stephanos.app
     clearState: false
 - waitForAnimationToEnd
 

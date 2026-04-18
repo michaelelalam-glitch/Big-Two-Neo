@@ -1,5 +1,5 @@
 /**
- * k6 Load Test — Big Two Neo Edge Functions
+ * k6 Load Test — Stephanos Neo Edge Functions
  * Task #23 (Tier 4 — P14-3)
  *
  * Targets: play-cards, find-match

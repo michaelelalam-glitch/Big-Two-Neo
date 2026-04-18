@@ -6,7 +6,7 @@ module.exports = {
   default: {
     expoConfig: {
       version: '1.0.0',
-      name: 'Big2 Mobile',
+      name: 'Stephanos',
       slug: 'big2-mobile',
       extra: {
         eas: {

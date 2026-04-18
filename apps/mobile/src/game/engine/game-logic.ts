@@ -1,5 +1,5 @@
 /**
- * Core game logic for Big Two card game
+ * Core game logic for Stephanos card game
  * Handles card classification, validation, and AI recommendations
  */
 
@@ -538,7 +538,7 @@ export function findRecommendedPlay(
     }
 
     // Try to find flushes — minimum-kicker algorithm.
-    // Big Two flush comparison uses only the highest card, so we fix the kicker
+    // Stephanos flush comparison uses only the highest card, so we fix the kicker
     // (the highest card of our flush) at progressively higher positions and pair
     // it with the 4 lowest other cards of the same suit. This correctly handles
     // non-consecutive combinations that the sliding-window approach would miss

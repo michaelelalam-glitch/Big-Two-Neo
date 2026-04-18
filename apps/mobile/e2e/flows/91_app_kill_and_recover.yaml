@@ -6,7 +6,7 @@
 #
 # No auth required. No clearState.
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - smoke
   - stability

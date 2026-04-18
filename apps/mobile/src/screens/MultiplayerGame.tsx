@@ -655,7 +655,7 @@ export function MultiplayerGame() {
   // ─────────────────────────────────────────────────────────────────────────────
 
   // ─── MULTIPLAYER SCORE HISTORY PERSISTENCE ─────────────────────────────────
-  const ROOM_SCORE_KEY = `@big2_score_history_${roomCode}`;
+  const ROOM_SCORE_KEY = `@stephanos_score_history_${roomCode}`;
   const hasRestoredMultiplayerScoresRef = useRef(false);
 
   // 1. Restore score history for this room on mount
@@ -664,7 +664,17 @@ export function MultiplayerGame() {
 
     (async () => {
       try {
-        const stored = await AsyncStorage.getItem(ROOM_SCORE_KEY);
+        let stored = await AsyncStorage.getItem(ROOM_SCORE_KEY);
+        // One-time migration from legacy @big2_score_history_* key
+        if (!stored) {
+          const legacyKey = `@big2_score_history_${roomCode}`;
+          const legacy = await AsyncStorage.getItem(legacyKey);
+          if (legacy) {
+            await AsyncStorage.setItem(ROOM_SCORE_KEY, legacy);
+            await AsyncStorage.removeItem(legacyKey);
+            stored = legacy;
+          }
+        }
         const { entries, shouldRemove } = parsePersistedScoreHistory(stored);
         if (entries) {
           gameLogger.info(
@@ -705,7 +715,7 @@ export function MultiplayerGame() {
   // ─────────────────────────────────────────────────────────────────────────────
 
   // ─── CUSTOM CARD ORDER PERSISTENCE ──────────────────────────────────────────
-  const CARD_ORDER_KEY = `@big2_card_order_${roomCode}`;
+  const CARD_ORDER_KEY = `@stephanos_card_order_${roomCode}`;
   const hasRestoredCardOrderRef = useRef(false);
   // Stores the match_number that was active when the card order was last saved.
   // Used by the auto-sort effect to skip sorting when re-entering a game
@@ -717,7 +727,17 @@ export function MultiplayerGame() {
     if (hasRestoredCardOrderRef.current) return;
     (async () => {
       try {
-        const stored = await AsyncStorage.getItem(CARD_ORDER_KEY);
+        let stored = await AsyncStorage.getItem(CARD_ORDER_KEY);
+        // One-time migration from legacy @big2_card_order_* key
+        if (!stored) {
+          const legacyCardKey = `@big2_card_order_${roomCode}`;
+          const legacy = await AsyncStorage.getItem(legacyCardKey);
+          if (legacy) {
+            await AsyncStorage.setItem(CARD_ORDER_KEY, legacy);
+            await AsyncStorage.removeItem(legacyCardKey);
+            stored = legacy;
+          }
+        }
         if (stored) {
           const parsed = JSON.parse(stored);
           // Support old format (plain array) and new format ({ cards, matchNumber })
@@ -1246,7 +1266,12 @@ export function MultiplayerGame() {
   // ── C2 Audit: Sync game-session state to Zustand (single source of truth) ──
   // GameView reads these from useGameSessionStore instead of GameContext.
   // Single named syncSessionSnapshot action for atomic update + DevTools tracing.
+  // Guard: Skip sync when layoutPlayers is empty (player data hasn't loaded yet).
+  // This prevents writing "Player N" fallback names to the store during the initial
+  // mount, eliminating the 1-frame flash of incorrect names when isInitializing
+  // flips to false before the store has been populated with real player data.
   useEffect(() => {
+    if (layoutPlayers.length === 0) return;
     useGameSessionStore.getState().syncSessionSnapshot({
       layoutPlayers,
       layoutPlayersWithScores: enrichedLayoutPlayers,

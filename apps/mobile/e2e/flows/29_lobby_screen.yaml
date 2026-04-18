@@ -5,7 +5,7 @@
 # Prerequisites: User is authenticated and on the Home screen
 # Source: LobbyScreen.tsx — testID="lobby-screen"
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - rooms
   - auth-required
@@ -20,9 +20,9 @@ tags:
     visible: "Choose a game to play"
     timeout: 20000
 - tapOn:
-    id: "chinese-poker-card"
+    id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 10000
 
 # Step 2: Navigate to Create Room
@@ -61,5 +61,5 @@ tags:
 # Step 10: Leave the room
 - tapOn: "Leave Room"
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 15000

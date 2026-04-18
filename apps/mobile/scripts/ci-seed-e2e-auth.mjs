@@ -51,7 +51,7 @@ if (!['ios', 'android'].includes(platform)) {
   process.exit(1);
 }
 
-const APP_ID = 'com.big2mobile.app';
+const APP_ID = 'com.stephanos.app';
 // Supabase JS v2 default storage key: sb-{project-ref}-auth-token
 // where project-ref = hostname.split('.')[0]  (e.g. "dppybucldqufbqhwnkxu")
 const projectRef = new URL(supabaseUrl).hostname.split('.')[0];
@@ -109,9 +109,9 @@ if (platform === 'android') {
 // clearState: true in smoke flows wipes AsyncStorage, including any previously
 // stored consent decision.  Without a consent value, App.tsx shows the consent
 // modal which blocks authenticated flows from reaching "Choose a game to play".
-// Injecting '@big2_analytics_consent'='false' (declined) lets the app skip the
+// Injecting '@stephanos_analytics_consent'='false' (declined) lets the app skip the
 // modal on the next launch, regardless of whether clearState was last used.
-const CONSENT_KEY = '@big2_analytics_consent';
+const CONSENT_KEY = '@stephanos_analytics_consent';
 const CONSENT_VALUE = 'false';
 console.log(`[ci-seed-auth] Injecting analytics consent bypass (${CONSENT_KEY}=false)...`);
 if (platform === 'android') {
@@ -221,9 +221,9 @@ function injectIOS(key, value) {
   let dbPath = findIOSDb();
   if (!dbPath) {
     console.log('[ci-seed-auth] Storage not found — cold-launching app to initialise storage...');
-    run('xcrun simctl launch booted com.big2mobile.app || true');
+    run('xcrun simctl launch booted com.stephanos.app || true');
     sleep(6);
-    run('xcrun simctl terminate booted com.big2mobile.app || true');
+    run('xcrun simctl terminate booted com.stephanos.app || true');
     sleep(2);
     // Re-check both formats after launch
     storageDir = findIOSStorageV2() || findOrCreateIOSStorageV2();

@@ -701,7 +701,7 @@ describe('ScoreboardContext', () => {
       });
 
       expect(AsyncStorage.setItem).not.toHaveBeenCalledWith(
-        '@big2_score_history',
+        '@stephanos_score_history',
         expect.any(String)
       );
     });
@@ -714,7 +714,7 @@ describe('ScoreboardContext', () => {
       });
 
       expect(AsyncStorage.setItem).not.toHaveBeenCalledWith(
-        '@big2_play_history',
+        '@stephanos_play_history',
         expect.any(String)
       );
     });
@@ -726,7 +726,10 @@ describe('ScoreboardContext', () => {
         result.current.addScoreHistory(mockScoreHistory);
       });
 
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('@big2_score_history', expect.any(String));
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        '@stephanos_score_history',
+        expect.any(String)
+      );
     });
 
     it('should NOT remove AsyncStorage keys on clearHistory when enableLocalPersistence=false', async () => {
@@ -737,8 +740,8 @@ describe('ScoreboardContext', () => {
         result.current.clearHistory();
       });
 
-      expect(AsyncStorage.removeItem).not.toHaveBeenCalledWith('@big2_score_history');
-      expect(AsyncStorage.removeItem).not.toHaveBeenCalledWith('@big2_play_history');
+      expect(AsyncStorage.removeItem).not.toHaveBeenCalledWith('@stephanos_score_history');
+      expect(AsyncStorage.removeItem).not.toHaveBeenCalledWith('@stephanos_play_history');
     });
 
     it('should remove AsyncStorage keys on clearHistory when enableLocalPersistence=true', async () => {
@@ -749,8 +752,8 @@ describe('ScoreboardContext', () => {
         result.current.clearHistory();
       });
 
-      expect(AsyncStorage.removeItem).toHaveBeenCalledWith('@big2_score_history');
-      expect(AsyncStorage.removeItem).toHaveBeenCalledWith('@big2_play_history');
+      expect(AsyncStorage.removeItem).toHaveBeenCalledWith('@stephanos_score_history');
+      expect(AsyncStorage.removeItem).toHaveBeenCalledWith('@stephanos_play_history');
     });
 
     it('should restore playHistory via restorePlayHistory', () => {

@@ -87,7 +87,7 @@ export default function NotificationSettingsScreen() {
     try {
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: '🃏 Big2 Mobile',
+          title: '🃏 Stephanos',
           body: 'This is a test notification. Notifications are working!',
           data: { type: 'test' },
         },

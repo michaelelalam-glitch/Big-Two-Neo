@@ -6,7 +6,7 @@
 # Source: HomeScreen.tsx, HowToPlayScreen.tsx, SettingsScreen.tsx
 # — verified against real UI screenshots
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - navigation
   - ci-authenticated
@@ -20,15 +20,15 @@ tags:
     visible: "Choose a game to play"
     timeout: 20000
 - tapOn:
-    id: "chinese-poker-card"
+    id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 10000
 
 # Step 2: Navigate to How to Play (button: "📖 How to Play")
 - tapOn: "How to Play"
 - extendedWaitUntil:
-    visible: "How to Play Big Two"
+    visible: "How to Play Stephanos"
     timeout: 10000
 
 # Step 3: Take screenshot
@@ -37,7 +37,7 @@ tags:
 # Step 4: Go back
 - back
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 10000
 
 # Step 5: Navigate to Settings (gear icon in top bar)
@@ -57,5 +57,5 @@ tags:
 # Step 8: Go back
 - back
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 10000

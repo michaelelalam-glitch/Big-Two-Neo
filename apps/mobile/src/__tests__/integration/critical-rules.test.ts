@@ -1,7 +1,7 @@
 /**
  * CRITICAL MULTIPLAYER RULE VALIDATION TESTS
  *
- * These tests verify server-side enforcement of core Big Two rules:
+ * These tests verify server-side enforcement of core Stephanos rules:
  * 1. Cannot pass when leading (no last_play)
  * 2. First play must include 3♦
  *

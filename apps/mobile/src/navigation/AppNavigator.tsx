@@ -59,15 +59,15 @@ export const rootNavigationRef = createNavigationContainerRef<RootStackParamList
  * Deep linking configuration.
  *
  * Supported URL schemes:
- *   big2mobile://lobby/<roomCode>       → opens Lobby screen directly
- *   big2mobile://game/<roomCode>        → opens Game/rejoin screen
- *   https://big2.app/lobby/<code> → universal link (same)
+ *   stephanos://lobby/<roomCode>       → opens Lobby screen directly
+ *   stephanos://game/<roomCode>        → opens Game/rejoin screen
+ *   https://stephanos.app/lobby/<code> → universal link (same)
  *
- * Android: requires intent-filter with big2mobile:// in AndroidManifest.xml
+ * Android: requires intent-filter with stephanos:// in AndroidManifest.xml
  * iOS: requires CFBundleURLSchemes entry in Info.plist + associated domain for https
  */
 const linking: LinkingOptions<RootStackParamList> = {
-  prefixes: ['big2mobile://', 'https://big2.app'],
+  prefixes: ['stephanos://', 'https://stephanos.app'],
   config: {
     screens: {
       // Auth stack (covers logged-out deep links so they aren’t silently dropped)
@@ -105,7 +105,7 @@ const linking: LinkingOptions<RootStackParamList> = {
  * pendingLinkRef and replayed after sign-in using the full `linking` config.
  */
 const loggedOutLinking: LinkingOptions<RootStackParamList> = {
-  prefixes: ['big2mobile://', 'https://big2.app'],
+  prefixes: ['stephanos://', 'https://stephanos.app'],
   config: {
     screens: {
       SignIn: 'signin',
@@ -173,11 +173,11 @@ export default function AppNavigator() {
     const url = pendingLinkRef.current;
     // Retry until the authenticated navigation stack is ready instead of a
     // fixed 300 ms delay.  Polls every 100 ms up to a 2 s ceiling.
-    const UNIVERSAL_PREFIX = 'https://big2.app';
+    const UNIVERSAL_PREFIX = 'https://stephanos.app';
     const replayUrl = url.startsWith(UNIVERSAL_PREFIX)
-      ? `big2mobile://${url.slice(UNIVERSAL_PREFIX.length + 1)}`
+      ? `stephanos://${url.slice(UNIVERSAL_PREFIX.length + 1)}`
       : url;
-    if (!replayUrl.startsWith('big2mobile://')) {
+    if (!replayUrl.startsWith('stephanos://')) {
       // Not a supported scheme — clear the ref so we don't keep retrying forever
       pendingLinkRef.current = null;
       return;

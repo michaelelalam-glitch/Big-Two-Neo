@@ -1647,7 +1647,7 @@ describe('Ranked rank points (K=32 ELO) — 40 games (30 completed, 5 voided, 5 
     L();
     L('*End of report.*');
 
-    const outDir = path.join(__dirname, '../../../../../docs/chinese-poker/testing');
+    const outDir = path.join(__dirname, '../../../../../docs/lebanese-poker/testing');
     fs.mkdirSync(outDir, { recursive: true });
     const outPath = path.join(outDir, 'RANK_POINTS_4PLAYER_TEST_RESULTS.md');
     fs.writeFileSync(outPath, lines.join('\n'), 'utf-8');

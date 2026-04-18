@@ -8,7 +8,7 @@
 # This flow exercises modal button existence directly — distinct from flows 01/13
 # which focus on what happens AFTER a button is tapped.
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - smoke
 

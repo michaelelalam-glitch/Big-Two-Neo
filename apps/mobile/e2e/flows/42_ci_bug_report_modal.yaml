@@ -2,7 +2,7 @@
 # Validates: Bug report modal opens, form fields visible, cancel works
 # Tags: ci-authenticated, navigation
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - ci-authenticated
   - navigation
@@ -15,9 +15,9 @@ tags:
     visible: "Choose a game to play"
     timeout: 35000
 - tapOn:
-    id: "chinese-poker-card"
+    id: "lebanese-poker-card"
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 10000
 
 # Open Bug Report modal
@@ -35,6 +35,6 @@ tags:
 # Close / dismiss (swipe down or tap outside)
 - back
 - extendedWaitUntil:
-    visible: "Big2 Mobile"
+    visible: "Stephanos"
     timeout: 8000
 - takeScreenshot: "42_back_to_home"

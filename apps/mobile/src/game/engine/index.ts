@@ -1,6 +1,6 @@
 /**
  * Game engine exports
- * Core game logic and utilities for Big Two
+ * Core game logic and utilities for Stephanos
  */
 
 export * from './constants';
@@ -9,4 +9,3 @@ export * from './game-logic';
 export * from './highest-play-detector';
 export * from './auto-pass-timer';
 export type { Card, ComboType, ClassificationResult, LastPlay, Rank, Suit } from '../types';
-

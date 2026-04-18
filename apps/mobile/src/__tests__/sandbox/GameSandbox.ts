@@ -1,5 +1,5 @@
 /**
- * Game Sandbox — Full-control testing environment for Big Two
+ * Game Sandbox — Full-control testing environment for Stephanos
  *
  * Allows setting arbitrary:
  *  - Player hands (exact cards per player)

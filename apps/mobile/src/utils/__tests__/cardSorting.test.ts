@@ -1,6 +1,6 @@
 /**
  * Card Sorting Tests - Task #313
- * 
+ *
  * Tests for sortCardsForDisplay() function
  * Ensures cards are displayed in descending order (highest first)
  * for all combination types
@@ -21,7 +21,7 @@ describe('sortCardsForDisplay - Task #313', () => {
     it('should return single card as-is', () => {
       const cards = [createCard('K', 'S')];
       const result = sortCardsForDisplay(cards);
-      
+
       expect(result).toHaveLength(1);
       expect(result[0].rank).toBe('K');
       expect(result[0].suit).toBe('S');
@@ -34,9 +34,9 @@ describe('sortCardsForDisplay - Task #313', () => {
         createCard('7', 'D'), // Lowest suit
         createCard('7', 'S'), // Highest suit
       ];
-      
+
       const result = sortCardsForDisplay(cards, 'Pair');
-      
+
       expect(result).toHaveLength(2);
       expect(result[0].suit).toBe('S'); // Spades first
       expect(result[1].suit).toBe('D'); // Diamonds last
@@ -50,9 +50,9 @@ describe('sortCardsForDisplay - Task #313', () => {
         createCard('Q', 'H'), // High suit
         createCard('Q', 'D'), // Low suit
       ];
-      
+
       const result = sortCardsForDisplay(cards, 'Triple');
-      
+
       expect(result).toHaveLength(3);
       expect(result[0].suit).toBe('H'); // Hearts first
       expect(result[1].suit).toBe('C'); // Clubs second
@@ -69,9 +69,9 @@ describe('sortCardsForDisplay - Task #313', () => {
         createCard('6', 'S'),
         createCard('7', 'C'),
       ];
-      
+
       const result = sortCardsForDisplay(cards, 'Straight');
-      
+
       expect(result).toHaveLength(5);
       expect(result[0].rank).toBe('7'); // Highest first
       expect(result[1].rank).toBe('6');
@@ -86,11 +86,11 @@ describe('sortCardsForDisplay - Task #313', () => {
         createCard('4', 'S'),
         createCard('5', 'D'),
         createCard('6', 'S'),
-        createCard('2', 'C'), // 2 is highest in Big Two
+        createCard('2', 'C'), // 2 is highest in Stephanos
       ];
-      
+
       const result = sortCardsForDisplay(cards, 'Straight');
-      
+
       expect(result).toHaveLength(5);
       expect(result[0].rank).toBe('6'); // Highest rank in sequence first
       expect(result[1].rank).toBe('5');
@@ -107,9 +107,9 @@ describe('sortCardsForDisplay - Task #313', () => {
         createCard('4', 'C'),
         createCard('5', 'S'),
       ];
-      
+
       const result = sortCardsForDisplay(cards, 'Straight');
-      
+
       expect(result).toHaveLength(5);
       expect(result[0].rank).toBe('5'); // Highest in sequence
       expect(result[1].rank).toBe('4');
@@ -126,11 +126,11 @@ describe('sortCardsForDisplay - Task #313', () => {
         createCard('7', 'H'),
         createCard('10', 'H'),
         createCard('K', 'H'),
-        createCard('2', 'H'), // Highest card in Big Two
+        createCard('2', 'H'), // Highest card in Stephanos
       ];
-      
+
       const result = sortCardsForDisplay(cards, 'Flush');
-      
+
       expect(result).toHaveLength(5);
       expect(result[0].rank).toBe('2'); // 2 is highest
       expect(result[1].rank).toBe('K');
@@ -149,9 +149,9 @@ describe('sortCardsForDisplay - Task #313', () => {
         createCard('4', 'H'), // Triple
         createCard('4', 'S'), // Triple
       ];
-      
+
       const result = sortCardsForDisplay(cards, 'Full House');
-      
+
       expect(result).toHaveLength(5);
       // First 3 cards should be the triple (4s)
       expect(result[0].rank).toBe('4');
@@ -175,9 +175,9 @@ describe('sortCardsForDisplay - Task #313', () => {
         createCard('2', 'C'), // Quads
         createCard('2', 'S'), // Quads
       ];
-      
+
       const result = sortCardsForDisplay(cards, 'Four of a Kind');
-      
+
       expect(result).toHaveLength(5);
       // First 4 cards should be the quads (2s)
       expect(result[0].rank).toBe('2');
@@ -200,9 +200,9 @@ describe('sortCardsForDisplay - Task #313', () => {
         createCard('6', 'H'),
         createCard('7', 'H'),
       ];
-      
+
       const result = sortCardsForDisplay(cards, 'Straight Flush');
-      
+
       expect(result).toHaveLength(5);
       expect(result[0].rank).toBe('7'); // Highest first
       expect(result[1].rank).toBe('6');
@@ -223,9 +223,9 @@ describe('sortCardsForDisplay - Task #313', () => {
         createCard('J', 'C'),
         createCard('Q', 'D'),
       ];
-      
+
       const result = sortCardsForDisplay(cards); // No combo type provided
-      
+
       expect(result).toHaveLength(5);
       expect(result[0].rank).toBe('Q'); // Highest first
       expect(result[4].rank).toBe('8'); // Lowest last
@@ -239,9 +239,9 @@ describe('sortCardsForDisplay - Task #313', () => {
         createCard('3', 'D'),
         createCard('A', 'D'),
       ];
-      
+
       const result = sortCardsForDisplay(cards); // No combo type provided
-      
+
       expect(result).toHaveLength(5);
       expect(result[0].rank).toBe('A'); // Highest first
       expect(result[4].rank).toBe('3'); // Lowest last
@@ -263,9 +263,9 @@ describe('sortCardsForDisplay - Task #313', () => {
         createCard('3', 'H'), // 4th selected
         createCard('2', 'S'), // 5th selected
       ];
-      
+
       const result = sortCardsForDisplay(cards, 'Straight');
-      
+
       // Should be sorted correctly regardless of selection order
       expect(result[0].rank).toBe('5'); // Highest in straight
       expect(result[1].rank).toBe('4');

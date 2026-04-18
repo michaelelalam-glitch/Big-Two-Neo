@@ -2,7 +2,7 @@ name: CI/CD Pipeline
 
 on:
   pull_request:
-    branches: [main, develop, 'game/chinese-poker']
+    branches: [main, develop, 'game/lebanese-poker', 'game/chinese-poker']
   push:
     branches: [main, develop]
   # Task #23 (Tier 4): manual trigger for k6 load tests
@@ -346,7 +346,7 @@ jobs:
           # (which wipes ios/) does not destroy the incremental build cache.
           # On cache hits xcodebuild performs an incremental compile (~2-5 min)
           # instead of a full rebuild (~15-20 min).
-          path: ~/DerivedData/Big2Mobile
+          path: ~/DerivedData/Stephanos
           # v4: force cache miss to clear stale Xcode ModuleCache (.pcm files)
           # that caused DarwinFoundation build failures when the Xcode 16.4
           # toolchain was updated (mtime changed on ptrcheck.h).
@@ -372,7 +372,7 @@ jobs:
           # and cause cascading DarwinFoundation / _stdint errors. Deleting only
           # the ModuleCache (~seconds to regenerate) preserves the compiled
           # object files (.o) that make incremental builds fast.
-          rm -rf ~/DerivedData/Big2Mobile/ModuleCache.noindex || true
+          rm -rf ~/DerivedData/Stephanos/ModuleCache.noindex || true
           echo "ModuleCache cleared"
 
       - name: 🏗️ Build iOS app for Simulator
@@ -386,7 +386,7 @@ jobs:
           # Debug builds load JS from Metro dev server which isn't available in CI,
           # causing the Expo Dev Client launcher to appear instead of the app.
           # -jobs: use all available vCPUs for parallel Clang compilation.
-          # -derivedDataPath ~/DerivedData/Big2Mobile: keeps build artifacts at a
+          # -derivedDataPath ~/DerivedData/Stephanos: keeps build artifacts at a
           #   stable path outside ios/ so expo prebuild --clean doesn't wipe the
           #   incremental cache on the next run (was apps/mobile/ios/build before).
           # Tee full log so we can grep Swift/Clang errors even when they scroll.
@@ -397,12 +397,12 @@ jobs:
           # a broken pipe that sets PIPESTATUS[0]=65 and kills xcodebuild with SIGPIPE
           # even on a successful build. Tail/grep the saved log only in the summary block.
           set +e
-          xcodebuild -workspace Big2Mobile.xcworkspace \
-            -scheme Big2Mobile \
+          xcodebuild -workspace Stephanos.xcworkspace \
+            -scheme Stephanos \
             -configuration Release \
             -sdk iphonesimulator \
             -destination "platform=iOS Simulator,id=${{ env.DEVICE_ID }}" \
-            -derivedDataPath ~/DerivedData/Big2Mobile \
+            -derivedDataPath ~/DerivedData/Stephanos \
             build \
             -jobs $(sysctl -n hw.ncpu) \
             CODE_SIGNING_ALLOWED=NO \
@@ -436,16 +436,16 @@ jobs:
         if: success()
         uses: actions/cache/save@v4
         with:
-          path: ~/DerivedData/Big2Mobile
+          path: ~/DerivedData/Stephanos
           key: ${{ runner.os }}-deriveddata-v4-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json') }}
       
       - name: 📲 Install app on Simulator
         run: |
-          # DerivedData is now at ~/DerivedData/Big2Mobile (stable path outside ios/)
-          APP_PATH=$(find ~/DerivedData/Big2Mobile/Build/Products/Release-iphonesimulator -name "*.app" -type d | head -1)
+          # DerivedData is now at ~/DerivedData/Stephanos (stable path outside ios/)
+          APP_PATH=$(find ~/DerivedData/Stephanos/Build/Products/Release-iphonesimulator -name "*.app" -type d | head -1)
           if [ -z "$APP_PATH" ]; then
             echo "::error::No .app bundle found in derived data. Build may have failed."
-            find ~/DerivedData/Big2Mobile -type d -maxdepth 4 2>/dev/null || echo "DerivedData directory doesn't exist"
+            find ~/DerivedData/Stephanos -type d -maxdepth 4 2>/dev/null || echo "DerivedData directory doesn't exist"
             exit 1
           fi
           echo "Installing app: $APP_PATH"
@@ -459,9 +459,9 @@ jobs:
           # Also launch + terminate the app once so SpringBoard caches it.
           # Kill any lingering Safari/OAuth sessions from previous runs first.
           xcrun simctl terminate booted com.apple.mobilesafari || true
-          xcrun simctl launch booted com.big2mobile.app || true
+          xcrun simctl launch booted com.stephanos.app || true
           sleep 15
-          xcrun simctl terminate booted com.big2mobile.app || true
+          xcrun simctl terminate booted com.stephanos.app || true
           sleep 5
 
       - name: 🎭 Run Maestro E2E tests (unauthenticated — ci tag)
@@ -487,11 +487,11 @@ jobs:
             if [ $attempt -lt $MAX_ATTEMPTS ]; then
               echo "Attempt $attempt failed (exit $MAESTRO_EXIT) — re-warming simulator..."
               xcrun simctl terminate booted com.apple.mobilesafari || true
-              xcrun simctl terminate booted com.big2mobile.app || true
+              xcrun simctl terminate booted com.stephanos.app || true
               sleep 10
-              xcrun simctl launch booted com.big2mobile.app || true
+              xcrun simctl launch booted com.stephanos.app || true
               sleep 15
-              xcrun simctl terminate booted com.big2mobile.app || true
+              xcrun simctl terminate booted com.stephanos.app || true
               sleep 5
             fi
           done
@@ -508,16 +508,16 @@ jobs:
         run: |
           cd apps/mobile
           # Terminate any running app instance first
-          xcrun simctl terminate booted com.big2mobile.app || true
+          xcrun simctl terminate booted com.stephanos.app || true
           sleep 2
           # Launch app once to initialise storage, then terminate.
           # Use 25s (was 15s, 8s) — cold CI simulators need more time for
           # AsyncStorage / RCTAsyncLocalStorage_V1 directory init.
           # NOTE: injection happens AFTER this terminate, so this launch cannot
           # consume the injected session (no migration to simctl Keychain occurs).
-          xcrun simctl launch booted com.big2mobile.app || true
+          xcrun simctl launch booted com.stephanos.app || true
           sleep 25
-          xcrun simctl terminate booted com.big2mobile.app || true
+          xcrun simctl terminate booted com.stephanos.app || true
           sleep 3
           # Inject Supabase session + consent bypass into AsyncStorage
           node scripts/ci-seed-e2e-auth.mjs
