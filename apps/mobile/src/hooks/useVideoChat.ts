@@ -610,7 +610,17 @@ export function useVideoChat({
 
     (async () => {
       try {
-        const stored = await AsyncStorage.getItem(chatPrefsKey);
+        let stored = await AsyncStorage.getItem(chatPrefsKey);
+        // One-time migration: copy legacy @big2_chat_prefs_* value to new key.
+        if (!stored && roomId) {
+          const legacyKey = `@big2_chat_prefs_${roomId}`;
+          const legacyStored = await AsyncStorage.getItem(legacyKey).catch(() => null);
+          if (legacyStored) {
+            stored = legacyStored;
+            await AsyncStorage.setItem(chatPrefsKey, legacyStored).catch(() => {});
+            await AsyncStorage.removeItem(legacyKey).catch(() => {});
+          }
+        }
         if (!stored || cancelled) {
           if (!cancelled) setRestoreFinished(true);
           return;

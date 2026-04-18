@@ -850,6 +850,15 @@ Deno.serve(async (req) => {
 
     // ── Path B: FCM v1 API (native Android FCM registration tokens) ───────
     if (fcmMessages.length > 0) {
+      // Fail fast if FCM_PROJECT_ID is not configured — continuing would route
+      // all messages to an invalid endpoint and produce confusing runtime errors.
+      if (!FCM_PROJECT_ID) {
+        console.error('[send-push-notification] Cannot send FCM messages: FCM_PROJECT_ID env var is not set.');
+        return new Response(
+          JSON.stringify({ error: 'FCM_PROJECT_ID env var not configured' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       // Get OAuth2 token for FCM v1 API
       let accessToken: string;
       try {
