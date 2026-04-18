@@ -1266,7 +1266,12 @@ export function MultiplayerGame() {
   // ── C2 Audit: Sync game-session state to Zustand (single source of truth) ──
   // GameView reads these from useGameSessionStore instead of GameContext.
   // Single named syncSessionSnapshot action for atomic update + DevTools tracing.
+  // Guard: Skip sync when layoutPlayers is empty (player data hasn't loaded yet).
+  // This prevents writing "Player N" fallback names to the store during the initial
+  // mount, eliminating the 1-frame flash of incorrect names when isInitializing
+  // flips to false before the store has been populated with real player data.
   useEffect(() => {
+    if (layoutPlayers.length === 0) return;
     useGameSessionStore.getState().syncSessionSnapshot({
       layoutPlayers,
       layoutPlayersWithScores: enrichedLayoutPlayers,
