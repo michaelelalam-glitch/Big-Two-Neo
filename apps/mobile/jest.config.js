@@ -50,6 +50,7 @@ module.exports = {
     '!src/contexts/**/*.test.{ts,tsx}',
     '!src/contexts/__tests__/**',
     '!src/services/**/*.test.{ts,tsx}',
+    '!src/services/e2eAuthBypass.ts',
     '!src/screens/**/*.test.{ts,tsx}',
     '!src/components/**/*.test.{ts,tsx}',
   ],
