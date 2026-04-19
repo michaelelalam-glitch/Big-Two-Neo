@@ -510,7 +510,7 @@ jobs:
         run: |
           cd apps/mobile
           # Find the built app bundle
-          APP_PATH=$(find ~/DerivedData/Big2Mobile/Build/Products/Release-iphonesimulator -name "*.app" -type d | head -1)
+          APP_PATH=$(find ~/DerivedData/Stephanos/Build/Products/Release-iphonesimulator -name "*.app" -type d | head -1)
           if [ -z "$APP_PATH" ]; then
             echo "::error::No .app bundle found in DerivedData"
             exit 1
@@ -533,7 +533,7 @@ jobs:
               --reset-cache
           echo "✅ JS bundle rebuilt with auth bypass"
           # Terminate app before reinstall
-          xcrun simctl terminate booted com.big2mobile.app || true
+          xcrun simctl terminate booted com.stephanos.app || true
           sleep 2
           # Reinstall with new JS bundle (preserves simulator state).
           # Maestro's clearState only wipes app data, not the binary,
@@ -541,9 +541,9 @@ jobs:
           xcrun simctl install booted "$APP_PATH"
           echo "✅ App reinstalled with auth bypass bundle"
           # Brief warm-up so the app registers with SpringBoard
-          xcrun simctl launch booted com.big2mobile.app || true
+          xcrun simctl launch booted com.stephanos.app || true
           sleep 10
-          xcrun simctl terminate booted com.big2mobile.app || true
+          xcrun simctl terminate booted com.stephanos.app || true
           sleep 3
         timeout-minutes: 10
 
