@@ -37,7 +37,13 @@ tags:
 - extendedWaitUntil:
     visible:
       id: "sign-in-screen"
-    timeout: 60000
+    # P12-E2E Fix: increased from 60000 to 120000.
+    # On CI iOS simulators, rapid app kill/relaunch cycles can cause the Keychain
+    # daemon (securityd) to become briefly backlogged, making SecureStore.getItemAsync
+    # hang until the P12-E2E timeout (5s) fires and falls back to AsyncStorage.
+    # The net startup time is now bounded at ~5-10 s, but adding buffer here keeps
+    # the test robust against slow CI runner CPU or memory pressure.
+    timeout: 120000
 - assertVisible:
     id: "google-sign-in-button"
 - takeScreenshot: "17_hot_relaunch_cycle2"
@@ -48,7 +54,7 @@ tags:
 - extendedWaitUntil:
     visible:
       id: "sign-in-screen"
-    timeout: 60000
+    timeout: 120000
 - assertVisible:
     id: "sign-in-title"
 - assertVisible:
@@ -61,7 +67,7 @@ tags:
 - extendedWaitUntil:
     visible:
       id: "sign-in-screen"
-    timeout: 60000
+    timeout: 120000
 - assertVisible:
     id: "google-sign-in-button"
 - takeScreenshot: "17_hot_relaunch_cycle4"
@@ -72,7 +78,7 @@ tags:
 - extendedWaitUntil:
     visible:
       id: "sign-in-screen"
-    timeout: 60000
+    timeout: 120000
 
 # All elements must still render correctly after 5 hot relaunches
 - assertVisible:

@@ -10,7 +10,7 @@
 #
 # Tags: ci-diagnostic (NOT ci-authenticated — runs as a standalone diagnostic)
 
-appId: com.big2mobile.app
+appId: com.stephanos.app
 tags:
   - ci-diagnostic
 ---

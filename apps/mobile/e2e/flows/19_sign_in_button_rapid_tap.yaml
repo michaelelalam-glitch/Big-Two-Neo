@@ -45,6 +45,19 @@ tags:
     optional: true
 
 # ── Step 4: Dismiss whatever appeared by relaunching ─────────────────────
+# P12-E2E Fix: Before killing the app, attempt to dismiss the ASWebAuthenticationSession
+# (Safari OAuth sheet) via its Cancel button. A properly-dismissed session allows
+# securityd (the iOS Keychain daemon) to clean up cleanly. When the app is killed while
+# an ASWebAuthenticationSession is still open, securityd can become temporarily
+# backlogged processing the forced teardown, causing SecureStore.getItemAsync to hang
+# on the next app launch and blocking the sign-in screen from appearing.
+# The tap is optional — if the sheet never appeared (e.g., network error returning early)
+# the launchApp below still handles cleanup.
+- tapOn:
+    label: "Cancel"
+    optional: true
+- waitForAnimationToEnd
+
 - launchApp
 
 # ── Step 5: Verify app is still functional ────────────────────────────────

@@ -42,6 +42,46 @@ const CHUNK_KEY_SUFFIX = '__chunk_';
 const SECURE_STORE_CHUNK_SIZE = 2000; // conservative margin below 2048
 /** Upper bound on chunk count — guards against corrupted metadata creating unbounded work. */
 const MAX_CHUNKS = 50; // 50 × 2000 bytes = 100 KB, well above any real auth token size
+/**
+ * P12-E2E Fix: Maximum time (ms) to wait for a single SecureStore read on a simulator.
+ *
+ * On iOS simulators, `SecItemCopyMatching` (called internally by expo-secure-store) routes
+ * through `securityd`, the system Keychain daemon. After rapid app kill/relaunch cycles —
+ * such as Maestro E2E hot-relaunch tests — or after an interrupted `ASWebAuthenticationSession`
+ * (triggered by the Google sign-in OAuth sheet), securityd can become temporarily backlogged.
+ * During that window, `SecureStore.getItemAsync` returns a Promise that never resolves, which
+ * in turn blocks GoTrue's `_initialize()` → `_recoverAndRefresh()` → `getSession()` chain.
+ * `AuthContext.initializeAuth` awaits `getSession()`, so `setIsLoading(false)` is never
+ * reached and the sign-in screen never appears — causing CI E2E timeout failures.
+ *
+ * Fix: on simulators (!Constants.isDevice), race each SecureStore read against this timeout.
+ * A rejection falls through to the existing catch block which already falls back to
+ * AsyncStorage on non-device builds. On real devices the timeout is unused (Keychain is
+ * always promptly available), so production behaviour is unchanged.
+ */
+const SECURESTORE_READ_TIMEOUT_MS = 5000;
+
+/**
+ * Wraps a SecureStore.getItemAsync call so it rejects after SECURESTORE_READ_TIMEOUT_MS on
+ * non-device builds (simulators). On real devices the promise is returned unwrapped.
+ * The timer is cleared via `.finally()` so it does not linger when SecureStore resolves first.
+ */
+function secureStoreGetWithTimeout(promise: Promise<string | null>): Promise<string | null> {
+  if (Constants.isDevice) return promise;
+  let handle: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    handle = setTimeout(
+      () =>
+        reject(
+          new Error(
+            '[supabase:storage] SecureStore.getItemAsync timed out — Keychain daemon busy; falling back to AsyncStorage'
+          )
+        ),
+      SECURESTORE_READ_TIMEOUT_MS
+    );
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(handle));
+}
 
 const SecureStoreAdapter: SupabaseAuthStorage = {
   getItem: async (key: string): Promise<string | null> => {
@@ -50,14 +90,21 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
     }
     try {
       // P10-1 Fix: Check for chunked storage first.
-      const chunkCountStr = await SecureStore.getItemAsync(`${key}${CHUNK_COUNT_SUFFIX}`);
+      // P12-E2E Fix: Race each SecureStore read against a timeout on simulators so a
+      // backlogged securityd daemon (e.g. after rapid Maestro hot-relaunches or an
+      // interrupted ASWebAuthenticationSession) cannot block auth initialisation
+      // indefinitely. A timeout rejection falls to the catch block below which already
+      // falls back to AsyncStorage on non-device builds.
+      const chunkCountStr = await secureStoreGetWithTimeout(
+        SecureStore.getItemAsync(`${key}${CHUNK_COUNT_SUFFIX}`)
+      );
       if (chunkCountStr !== null) {
         const count = parseInt(chunkCountStr, 10);
         // Validate count before using it — corrupt/empty/NaN/huge would cause wrong behaviour
         if (Number.isFinite(count) && count > 0 && count <= MAX_CHUNKS) {
           const parts = await Promise.all(
             Array.from({ length: count }, (_, i) =>
-              SecureStore.getItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`)
+              secureStoreGetWithTimeout(SecureStore.getItemAsync(`${key}${CHUNK_KEY_SUFFIX}${i}`))
             )
           );
           if (parts.every(p => p !== null)) {
@@ -67,7 +114,7 @@ const SecureStoreAdapter: SupabaseAuthStorage = {
         // Corrupt/incomplete chunks — ignore chunk metadata and fall through
       }
       // Try single SecureStore key
-      const value = await SecureStore.getItemAsync(key);
+      const value = await secureStoreGetWithTimeout(SecureStore.getItemAsync(key));
       if (value !== null) return value;
       // Migration fallback: read auth sessions stored by pre-P10-1 builds.
       // Immediately queue a re-write to SecureStore so the plaintext copy is
