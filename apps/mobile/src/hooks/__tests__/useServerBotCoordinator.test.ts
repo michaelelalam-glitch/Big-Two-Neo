@@ -36,7 +36,11 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  jest.runOnlyPendingTimers();
+  // Only drain pending timers when fake timers are active; calling
+  // runOnlyPendingTimers with real timers triggers a Jest warning.
+  if (jest.isMockFunction(setTimeout)) {
+    jest.runOnlyPendingTimers();
+  }
   jest.useRealTimers();
 });
 
