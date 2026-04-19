@@ -60,7 +60,9 @@ describe('useRealtime - Auto-Pass Timer Integration', () => {
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers();
+    if (jest.isMockFunction(setTimeout)) {
+      jest.runOnlyPendingTimers();
+    }
     jest.useRealTimers();
   });
 

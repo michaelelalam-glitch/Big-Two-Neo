@@ -54,7 +54,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  jest.runOnlyPendingTimers();
+  if (jest.isMockFunction(setTimeout)) {
+    jest.runOnlyPendingTimers();
+  }
   jest.useRealTimers();
 });
 
