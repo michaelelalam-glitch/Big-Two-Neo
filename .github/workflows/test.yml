@@ -47,7 +47,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
       
       - name: 📦 Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 10
       
@@ -225,7 +225,7 @@ jobs:
           node-version: 20.x
       
       - name: 📦 Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 10
       
@@ -275,7 +275,7 @@ jobs:
           node-version: 20.x
       
       - name: 📦 Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 10
       
@@ -654,7 +654,7 @@ jobs:
           java-version: '17'
 
       - name: 📦 Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 10
 
