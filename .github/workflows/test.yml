@@ -57,7 +57,7 @@ jobs:
           echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
       
       - name: 💾 Setup pnpm cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.STORE_PATH }}
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
@@ -65,7 +65,7 @@ jobs:
             ${{ runner.os }}-pnpm-store-
       
       - name: 💾 Setup Jest transform cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: apps/mobile/.jest-cache
           key: ${{ runner.os }}-jest-${{ hashFiles('apps/mobile/src/**/*.ts', 'apps/mobile/src/**/*.tsx') }}
@@ -320,7 +320,7 @@ jobs:
           echo "DEVICE_ID=$DEVICE_ID" >> $GITHUB_ENV
       
       - name: 💾 Cache CocoaPods specs
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/Library/Caches/CocoaPods
           # ios/Podfile doesn't exist until expo prebuild runs, so key off
@@ -330,7 +330,7 @@ jobs:
             ${{ runner.os }}-cocoapods-
 
       - name: 💾 Cache Pods directory
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           # Cache the resolved Pods directory (spec + source) so pod install
           # only links rather than downloading on cache hits.
@@ -340,7 +340,7 @@ jobs:
             ${{ runner.os }}-pods-dir-
 
       - name: 💾 Restore DerivedData cache (stable path, survives expo prebuild)
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           # DerivedData is stored OUTSIDE ios/ so that expo prebuild --clean
           # (which wipes ios/) does not destroy the incremental build cache.
@@ -434,7 +434,7 @@ jobs:
         # with partial/corrupted DerivedData. A successful build populates the
         # cache once; subsequent runs get fast incremental builds from it.
         if: success()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: ~/DerivedData/Big2Mobile
           key: ${{ runner.os }}-deriveddata-v4-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/pnpm-lock.yaml', 'apps/mobile/app.json') }}
@@ -663,7 +663,7 @@ jobs:
         run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
       - name: 💾 Setup pnpm cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.STORE_PATH }}
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
@@ -676,7 +676,7 @@ jobs:
           pnpm install --frozen-lockfile
 
       - name: 💾 Cache Gradle
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
