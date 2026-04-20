@@ -521,10 +521,12 @@ jobs:
           # --reset-cache ensures Metro doesn't reuse cached transforms
           # from the initial build (which lacked the bypass env vars).
           # This takes ~1-2 min vs ~30 min for a full native rebuild.
+          # Use `expo export:embed` (Expo SDK 50+) — `react-native bundle`
+          # requires @react-native-community/cli which is not installed.
           EXPO_PUBLIC_E2E_AUTH_BYPASS=true \
           EXPO_PUBLIC_E2E_EMAIL="$E2E_TEST_EMAIL" \
           EXPO_PUBLIC_E2E_PASSWORD="$E2E_TEST_PASSWORD" \
-            npx react-native bundle \
+            npx expo export:embed \
               --platform ios \
               --dev false \
               --entry-file index.ts \
