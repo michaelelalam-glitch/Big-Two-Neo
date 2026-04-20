@@ -25,15 +25,31 @@ if (typeof global.requestAnimationFrame === 'undefined') {
   (global as any).cancelAnimationFrame = (id: number): void => clearTimeout(id);
 }
 
-// Mock verbose console methods to reduce noise in test output
-// Keep warn and error visible for debugging real issues
+// Mock verbose console methods to reduce noise in test output.
+// Keep warn and error visible for debugging real issues, but filter
+// known library-level noise that cannot be fixed in userland.
+const _originalError = console.error;
+const SUPPRESSED_ERROR_PATTERNS = [
+  // @testing-library/react-native internally uses react-test-renderer which
+  // emits this deprecation on every render/renderHook call. Unfixable until
+  // RTLRN migrates to a different renderer.
+  'react-test-renderer is deprecated',
+  // Async hook state updates (timers, subscriptions, resolved promises) that
+  // fire after renderHook returns. These are a known RTLRN + React 19 issue
+  // and do not indicate real bugs.
+  'inside a test was not wrapped in act',
+];
 global.console = {
   ...console,
   log: jest.fn(),
   debug: jest.fn(),
   info: jest.fn(),
   warn: console.warn,
-  error: console.error,
+  error: (...args: unknown[]) => {
+    const msg = typeof args[0] === 'string' ? args[0] : '';
+    if (SUPPRESSED_ERROR_PATTERNS.some((p) => msg.includes(p))) return;
+    _originalError(...args);
+  },
 };
 
 // Mock react-native-reanimated

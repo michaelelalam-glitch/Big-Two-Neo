@@ -8,6 +8,7 @@ import {
   removePushTokenFromDatabase,
 } from '../services/notificationService';
 import { supabase } from '../services/supabase';
+import { performE2EAuthBypass } from '../services/e2eAuthBypass';
 import { RoomPlayerWithRoom } from '../types';
 import { soundManager, hapticManager } from '../utils';
 import { useUserPreferencesStore } from '../store';
@@ -476,6 +477,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
               '⚠️ [AuthContext] App will continue without sound effects and vibration'
             );
           });
+
+        // E2E auth bypass: sign in via password when build flag is set (no-op in production)
+        await performE2EAuthBypass();
 
         // Get initial session
         const {

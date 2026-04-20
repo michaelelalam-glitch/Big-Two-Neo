@@ -1,0 +1,45 @@
+# Flow 99: Auth Injection Diagnostic
+# Purpose: Single-flow diagnostic to determine whether session injection
+# is working. This flow launches the app and checks which screen appears:
+#   - "Choose a game to play" → auth injection succeeded, app is authenticated
+#   - Consent modal → consent injection failed (auth might still be OK)
+#   - Sign-in screen → auth injection failed entirely
+#
+# Run separately from authenticated flows via: --include-tags ci-diagnostic
+# Screenshots are taken at key points and uploaded as CI artifacts.
+#
+# Tags: ci-diagnostic (NOT ci-authenticated — runs as a standalone diagnostic)
+
+appId: com.stephanos.app
+tags:
+  - ci-diagnostic
+---
+# Step 1: Launch app without clearing state (we need the injected session)
+- launchApp
+
+# Step 2: Screenshot immediately — captures whatever screen the app shows first
+#   (loading spinner, consent modal, sign-in, or game selection)
+- takeScreenshot: diagnostic_01_initial_state
+
+# Step 3: Wait a moment for the app to finish initializing (auth check, i18n)
+- extendedWaitUntil:
+    visible: ".*"
+    timeout: 10000
+
+# Step 4: Screenshot after init completes — this is the key frame
+- takeScreenshot: diagnostic_02_after_init
+
+# Step 5: Dismiss consent modal if shown (same defensive logic as auth flows)
+- tapOn:
+    id: "privacy-consent-decline"
+    optional: true
+
+# Step 6: Screenshot after consent dismissal attempt
+- takeScreenshot: diagnostic_03_after_consent_dismiss
+
+# Step 7: The actual diagnostic assertion — does the app reach game selection?
+# If this passes: auth injection works, session was read from AsyncStorage.
+# If this fails: app is stuck on sign-in (check screenshots + filesystem logs).
+- extendedWaitUntil:
+    visible: "Choose a game to play"
+    timeout: 30000
